@@ -69,11 +69,147 @@ extern "C"
 #include "group_projection.h"
 #include "little_group_projector_set.h"
 
-#define MAX_UDLI_NUM 1000
+#define MAX_UDLI_NUM 100000
 #define EPS 1e-14
 #define ANNIHILATION 1 
 #define CREATION 0
 using namespace cvc;
+
+int udli_id_lookup_piNpiN( char udli_list[][500], int udli_count, int *momtable_sink_f2, char *gamma_string_sink_member, int *momtable_sink_f1, int *momtable_source_i2, char *gamma_string_source_member){
+    char udliname[500];
+    int udliid=-1;
+    snprintf(udliname, 500, "%d%d%d%s%d%d%d%d%d%d%s", momtable_sink_f2[0],
+                                                      momtable_sink_f2[1],
+                                                      momtable_sink_f2[2],
+                                                      gamma_string_sink_member,
+                                                      momtable_sink_f1[0],
+	                                              momtable_sink_f1[1],
+                                                      momtable_sink_f1[2],
+                                                      momtable_source_i2[0],
+                                                      momtable_source_i2[1],
+                                                      momtable_source_i2[2],
+                                                      gamma_string_source_member);
+    for (int i=0; i<udli_count; ++i){
+      if (strcmp(udli_list[i], udliname)==0){
+        udliid=i;
+        break;
+      }
+    }
+    return udliid;
+}
+void udli_id_store_piNpiN( char udli_list[][500], int udli_count, int *momtable_sink_f2, char *gamma_string_sink_member, int *momtable_sink_f1, int *momtable_source_i2, char *gamma_string_source_member){
+    snprintf(udli_list[udli_count], 500, "%d%d%d%s%d%d%d%d%d%d%s", momtable_sink_f2[0],
+                                                      momtable_sink_f2[1],
+                                                      momtable_sink_f2[2],
+                                                      gamma_string_sink_member,
+                                                      momtable_sink_f1[0],
+                                                      momtable_sink_f1[1],
+                                                      momtable_sink_f1[2],
+                                                      momtable_source_i2[0],
+                                                      momtable_source_i2[1],
+                                                      momtable_source_i2[2],
+                                                      gamma_string_source_member);
+    
+}
+int udli_id_lookup_BB( char udli_list[][500], int udli_count, int *momtable_sink, char *gamma_string_sink_member, char *gamma_string_source_member){
+    char udliname[500];
+    int udliid=-1;
+    snprintf(udliname, 500, "%d%d%d%s%s", momtable_sink[0],
+                                          momtable_sink[1],
+                                          momtable_sink[2],
+                                          gamma_string_sink_member,
+                                          gamma_string_source_member);
+    for (int i=0; i<udli_count; ++i){
+      if (strcmp(udli_list[i], udliname)==0){
+        udliid=i;
+        break;
+      }
+    }
+    return udliid;
+} 
+
+void udli_id_store_BB( char udli_list[][500], int udli_count, int *momtable_sink, char *gamma_string_sink_member, char *gamma_string_source_member){
+    snprintf(udli_list[udli_count], 500, "%d%d%d%s%s", momtable_sink[0],
+                                          momtable_sink[1],
+                                          momtable_sink[2],
+                                          gamma_string_sink_member,
+                                          gamma_string_source_member);
+}
+
+
+int udli_id_lookup_piND( char udli_list[][500], int udli_count, int *momtable_sink, char* gamma_string_sink_member,int *momtable_source_1, int *momtable_source_2, char *gamma_string_source_member){
+    char udliname[500];
+    int udliid=-1;
+    snprintf(udliname, 500, "%d%d%d%s%d%d%d%d%d%d%s", momtable_sink[0],
+                                          momtable_sink[1],
+                                          momtable_sink[2],
+                                          gamma_string_sink_member,
+                                          momtable_source_1[0],
+                                          momtable_source_1[1],
+                                          momtable_source_1[2],
+                                          momtable_source_2[0],
+                                          momtable_source_2[1],
+                                          momtable_source_2[2],
+                                          gamma_string_source_member);
+    for (int i=0; i<udli_count; ++i){
+      if (strcmp(udli_list[i], udliname)==0){
+        udliid=i;
+        break;
+      }
+    }
+    return udliid;
+}
+
+void udli_id_store_piND( char udli_list[][500], int udli_count, int *momtable_sink, char* gamma_string_sink_member,int *momtable_source_1, int *momtable_source_2, char *gamma_string_source_member){
+    snprintf(udli_list[udli_count], 500, "%d%d%d%s%d%d%d%d%d%d%s", momtable_sink[0],
+                                          momtable_sink[1],
+                                          momtable_sink[2],
+                                          gamma_string_sink_member,
+                                          momtable_source_1[0],
+                                          momtable_source_1[1],
+                                          momtable_source_1[2],
+                                          momtable_source_2[0],
+                                          momtable_source_2[1],
+                                          momtable_source_2[2],
+                                          gamma_string_source_member);
+}
+int udli_id_lookup_DpiN( char udli_list[][500], int udli_count, int *momtable_sink_1, char *gamma_string_sink_member, int *momtable_sink_2, int *momtable_source_1, char *gamma_string_source_member){
+    char udliname[500];
+    int udliid=-1;
+    snprintf(udliname, 500, "%d%d%d%s%d%d%d%d%d%d%s", momtable_sink_1[0],
+                                          momtable_sink_1[1],
+                                          momtable_sink_1[2],
+                                          gamma_string_sink_member,
+                                          momtable_sink_2[0],
+                                          momtable_sink_2[1],
+                                          momtable_sink_2[2],
+                                          momtable_source_1[0],
+                                          momtable_source_1[1],
+                                          momtable_source_1[2],
+                                          gamma_string_source_member);
+    for (int i=0; i<udli_count; ++i){
+      if (strcmp(udli_list[i], udliname)==0){
+        udliid=i;
+        break;
+      }
+    }
+    return udliid;
+
+}
+void udli_id_store_DpiN( char udli_list[][500], int udli_count, int *momtable_sink_1, char *gamma_string_sink_member, int *momtable_sink_2, int *momtable_source_1, char *gamma_string_source_member){
+  snprintf(udli_list[udli_count], 500, "%d%d%d%s%d%d%d%d%d%d%s", momtable_sink_1[0],
+                                          momtable_sink_1[1],
+                                          momtable_sink_1[2],
+                                          gamma_string_sink_member,
+                                          momtable_sink_2[0],
+                                          momtable_sink_2[1],
+                                          momtable_sink_2[2],
+                                          momtable_source_1[0],
+                                          momtable_source_1[1],
+                                          momtable_source_1[2],
+                                          gamma_string_source_member);
+}
+
 
 char *convert_gamma_to_string ( int gamma ) {
 
@@ -263,6 +399,11 @@ int main(int argc, char **argv) {
 
   int const momentum_orbit_pref[4][3] = { {0,0,0}, {0,0,1}, {1,1,0}, {1,1,1} };
 
+  int udli_count = 0;
+  int udliid;
+  char udli_list[MAX_UDLI_NUM][500];
+  char udli_name[500];
+  double ***correlation_function[MAX_UDLI_NUM];
 
   /******************************************************
    * check source coords list
@@ -403,6 +544,141 @@ int main(int argc, char **argv) {
     fini_1level_itable(&tmp);
     fprintf(stdout,"# [piN2piN_projection_apply] Irrep dimension=%d\n", irrep_dim);
 
+
+    snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
+        g_twopoint_function_list[i2pt].particlename_source,
+        g_twopoint_function_list[i2pt].group,
+        g_twopoint_function_list[i2pt].irrep );
+
+
+    int ****Nps_Nreplica_source= init_4level_itable( 1, irrep_dim, g_twopoint_function_list[i2pt].ncombination_total_momentum_source, 3 );
+
+    int ****Nps_Nreplica_sink= init_4level_itable( 1, irrep_dim, g_twopoint_function_list[i2pt].ncombination_total_momentum_sink, 3 );
+    int *****momtable_source=(int *****)malloc(sizeof(int****)*1);
+    momtable_source[0]=(int ****)malloc(sizeof(int***)*irrep_dim);
+    for (int i=0; i<irrep_dim; ++i){
+       momtable_source[0][i]=(int***)malloc(sizeof(int**)*g_twopoint_function_list[i2pt].ncombination_total_momentum_source);
+    }
+
+    int *****momtable_sink=(int *****)malloc(sizeof(int****)*1);
+    momtable_sink[0]=(int ****)malloc(sizeof(int***)*irrep_dim);
+    for (int i=0; i<irrep_dim; ++i){
+       momtable_sink[0][i]=(int***)malloc(sizeof(int**)*g_twopoint_function_list[i2pt].ncombination_total_momentum_sink);
+    }
+    double ******projection_coeff_c_ORT=(double ******)malloc(sizeof(double*****)*1);
+    projection_coeff_c_ORT[0]=(double *****)malloc(sizeof(double****)*irrep_dim);
+    for (int i=0; i<irrep_dim; ++i){
+      projection_coeff_c_ORT[0][i]=(double****)malloc(sizeof(double***)*g_twopoint_function_list[i2pt].ncombination_total_momentum_source);
+    }
+
+    double ******projection_coeff_a_ORT=(double ******)malloc(sizeof(double*****)*1);
+    projection_coeff_a_ORT[0]=(double *****)malloc(sizeof(double****)*irrep_dim);
+    for (int i=0; i<irrep_dim; ++i){
+      projection_coeff_a_ORT[0][i]=(double****)malloc(sizeof(double***)*g_twopoint_function_list[i2pt].ncombination_total_momentum_sink);
+    }
+
+    for ( int ibeta = 0; ibeta < 1; ibeta++ ) {
+ 
+      for ( int imu = 0; imu < irrep_dim; imu++ ) {
+
+        for ( int icombination_source=0; icombination_source < g_twopoint_function_list[i2pt].ncombination_total_momentum_source ; ++icombination_source ) {
+
+          if (strcmp( g_twopoint_function_list[i2pt].particlename_source, "piN") == 0){
+              snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
+          }
+          else {
+             snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
+          }
+
+          exitstatus = read_from_h5_file ( (void*)(Nps_Nreplica_source[ibeta][imu][icombination_source]), filename, tagname, io_proc, 1 );
+          if (exitstatus != 0){
+             fprintf(stderr, "Error in opening file %s tag %s\n", filename, tagname );
+             exit(1);
+          }
+          printf("Nps_Nreplica_source[ibeta][imu][icombination_source][1]%d\n",  Nps_Nreplica_source[ibeta][imu][icombination_source][1]);
+          momtable_source[ibeta][imu][icombination_source] = init_2level_itable ( Nps_Nreplica_source[ibeta][imu][icombination_source][1], 6 );
+          if (strcmp ( g_twopoint_function_list[i2pt].particlename_source, "piN")==0){
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
+          }
+          else {
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
+          }
+
+
+          exitstatus = read_from_h5_file ( (void*)(momtable_source[ibeta][imu][icombination_source][0]), filename, tagname, io_proc, 1 );
+          if (exitstatus != 0){
+               fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
+               exit(1); 
+          }
+
+          fprintf(stdout, "# [piN2piN_projection_apply] momtable source loaded %s %s\n", tagname, filename );
+
+          projection_coeff_c_ORT[ibeta][imu][icombination_source]= init_3level_dtable( Nps_Nreplica_source[ibeta][imu][icombination_source][1]*spin1212dimension*spin1dimension_source, Nps_Nreplica_source[ibeta][imu][icombination_source][0], 2);
+          if (strcmp ( g_twopoint_function_list[i2pt].particlename_source, "piN")==0){
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
+          } else {
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
+          }
+          fprintf(stdout, "# [piN2piN_projection_apply] projection coeff source loaded %s %s\n", filename, tagname);
+
+          exitstatus = read_from_h5_file ( (void*)(projection_coeff_c_ORT[ibeta][imu][icombination_source][0][0]), filename, tagname, io_proc, 0 );
+          if (exitstatus != 0){
+           fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
+           exit(1);
+          }
+        }
+        for ( int icombination_sink=0; icombination_sink < g_twopoint_function_list[i2pt].ncombination_total_momentum_sink ; ++icombination_sink ) {
+
+          if (strcmp( g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0){
+              snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
+          }
+          else {
+             snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
+          }
+
+          exitstatus = read_from_h5_file ( (void*)(Nps_Nreplica_sink[ibeta][imu][icombination_sink]), filename, tagname, io_proc, 1 );
+          if (exitstatus != 0){
+             fprintf(stderr, "Error in opening file %s tag %s\n", filename, tagname );
+             exit(1);
+          }
+
+          momtable_sink[ibeta][imu][icombination_sink] = init_2level_itable ( Nps_Nreplica_sink[ibeta][imu][icombination_sink][1], 6 );
+          if (strcmp ( g_twopoint_function_list[i2pt].particlename_sink, "piN")==0){
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
+          }
+          else {
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
+          }
+
+
+          exitstatus = read_from_h5_file ( (void*)(momtable_sink[ibeta][imu][icombination_sink][0]), filename, tagname, io_proc, 1 );
+          if (exitstatus != 0){
+               fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
+               exit(1);
+          }
+
+          fprintf(stdout, "# [piN2piN_projection_apply] momtable sink loaded %s %s\n", tagname, filename );
+
+
+          projection_coeff_a_ORT[ibeta][imu][icombination_sink]= init_3level_dtable(Nps_Nreplica_sink[ibeta][imu][icombination_sink][0], Nps_Nreplica_sink[ibeta][imu][icombination_sink][1]*spin1212dimension*spin1dimension_sink,2);
+
+          if (strcmp(g_twopoint_function_list[i2pt].particlename_sink , "piN" )==0) {
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/a_data_ort",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
+          } else {
+            snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0],Ptot[1], Ptot[2],  imu, ibeta );
+
+          }
+          exitstatus = read_from_h5_file ( (void*)(projection_coeff_a_ORT[ibeta][imu][icombination_sink][0][0]), filename, tagname, io_proc, 0 );
+          if (exitstatus != 0){
+            fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
+            exit(1);
+          }
+          fprintf(stdout, "# [piN2piN_projection_apply] coeff sink loaded %s %s\n", tagname, filename );
+
+        }
+      }
+    }
+
     for ( int k = 0; k < source_location_number; k++ ) {
       /******************************************************
        * Open the table for creation and annihilation interpolating operator coefficients 
@@ -411,7 +687,6 @@ int main(int argc, char **argv) {
                          source_coords_list[k][2],
                          source_coords_list[k][3],
                          source_coords_list[k][0]);
-       fprintf(stderr," # [piN2piN_projection_apply] tagname= %s %d\n",tagname,file_id);
        status = H5Eset_auto(NULL, H5P_DEFAULT, NULL);
 
        status = H5Gget_objinfo (file_id, tagname, 0, NULL);
@@ -468,9 +743,6 @@ int main(int argc, char **argv) {
 
          for ( int imu = 0; imu < irrep_dim; imu++ ) {
 
-
-
-
            snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d",source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
@@ -507,66 +779,6 @@ int main(int argc, char **argv) {
                status = H5Gclose(group_id);
 
              }    
-
-             /***********************************************************
-              * read data block from h5 file : source
-              ***********************************************************/
-
-             snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
-                            g_twopoint_function_list[i2pt].particlename_source,
-                            g_twopoint_function_list[i2pt].group,
-                            g_twopoint_function_list[i2pt].irrep );
-             if (strcmp( g_twopoint_function_list[i2pt].particlename_source, "piN") == 0){
-                snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
-             }
-             else {
-                snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
-             }
-
-             int *Nps_Nreplica_source= init_1level_itable( 3 );
-
-
-             exitstatus = read_from_h5_file ( (void*)(Nps_Nreplica_source), filename, tagname, io_proc, 1 );
-             if (exitstatus != 0){
-               fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
-               exit(1); 
-             }
- 
-             fprintf(stdout, "# [piN2piN_projection_apply] load source info %s %s\n", tagname, filename );
-
-
-
-             int ** momtable_source = init_2level_itable ( Nps_Nreplica_source[1], 6 );
-             if (strcmp ( g_twopoint_function_list[i2pt].particlename_source, "piN")==0){
-               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
-             }
-             else {
-               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
-             }
-
-
-             exitstatus = read_from_h5_file ( (void*)(momtable_source[0]), filename, tagname, io_proc, 1 );
-             if (exitstatus != 0){
-               fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
-               exit(1); 
-             }
-
-             fprintf(stdout, "# [piN2piN_projection_apply] momtable source loaded %s %s\n", tagname, filename );
-
-             double ***projection_coeff_c_ORT= init_3level_dtable( Nps_Nreplica_source[1]*spin1212dimension*spin1dimension_source, Nps_Nreplica_source[0], 2);
-             if (strcmp ( g_twopoint_function_list[i2pt].particlename_source, "piN")==0){
-               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
-             } else {
-               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/c_data_ort",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
-             }
-             fprintf(stdout, "# [piN2piN_projection_apply] projection coeff source loaded %s %s\n", filename, tagname);
-
-             exitstatus = read_from_h5_file ( (void*)(projection_coeff_c_ORT[0][0]), filename, tagname, io_proc, 0 );
-             if (exitstatus != 0){
-               fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
-               exit(1);
-             }
-
              for ( int icombination_sink=0; icombination_sink < g_twopoint_function_list[i2pt].ncombination_total_momentum_sink ; ++icombination_sink ) {
 
                snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d", source_coords_list[k][1],
@@ -586,73 +798,6 @@ int main(int argc, char **argv) {
                  status = H5Gclose(group_id);
 
                }
-
-
-
-               /***********************************************************
-                * read data block from h5 file : sink
-                ***********************************************************/
-
-               snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
-                            g_twopoint_function_list[i2pt].particlename_sink,
-                            g_twopoint_function_list[i2pt].group,
-                            g_twopoint_function_list[i2pt].irrep );
-
-               if (strcmp(g_twopoint_function_list[i2pt].particlename_sink , "piN" )==0) {
-                  snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
-               } 
-               else {
-                  snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2],  imu, ibeta );
-               }
-
-               int *Nps_Nreplica_sink= init_1level_itable( 3 );
-
-
-               exitstatus = read_from_h5_file ( (void*)(Nps_Nreplica_sink), filename, tagname, io_proc, 1 );
-               if (exitstatus != 0){
-                 fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
-                 exit(1); 
-               }
-
-               fprintf(stdout, "# [piN2piN_projection_apply] info sink loaded %s %s\n", tagname, filename );
-
-               if ( strcmp(  g_twopoint_function_list[i2pt].particlename_sink, "piN" ) == 0){
-                 snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
-               } else {
-                 snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/momlist_f1f2",  Ptot[0],Ptot[1], Ptot[2], imu, ibeta );
-               }
-
-
-
-               int ** momtable_sink = init_2level_itable ( Nps_Nreplica_sink[1], 6 );
- 
-
-               exitstatus = read_from_h5_file ( (void*)(momtable_sink[0]), filename, tagname, io_proc, 1 );
-               if (exitstatus != 0){
-                 fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
-                 exit(1); 
-               }
-
-               fprintf(stdout, "# [piN2piN_projection_apply] momtable sink loaded %s %s\n", tagname, filename );
-
-
-
-               double ***projection_coeff_a_ORT= init_3level_dtable(Nps_Nreplica_sink[0], Nps_Nreplica_sink[1]*spin1212dimension*spin1dimension_sink,2);
-
-               if (strcmp(g_twopoint_function_list[i2pt].particlename_sink , "piN" )==0) {
-                  snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/a_data_ort",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
-               } else {
-                  snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0],Ptot[1], Ptot[2],  imu, ibeta );
-
-               }
-
-               exitstatus = read_from_h5_file ( (void*)(projection_coeff_a_ORT[0][0]), filename, tagname, io_proc, 0 );
-               if (exitstatus != 0){
-                 fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
-                 exit(1);
-               }
-               fprintf(stdout, "# [piN2piN_projection_apply] coeff sink loaded %s %s\n", tagname, filename );
-
 
 
                for (int gamma_nplettid_source=0; gamma_nplettid_source < numberofnplets_source; ++gamma_nplettid_source) {
@@ -706,8 +851,8 @@ int main(int argc, char **argv) {
                      status = H5Gclose(group_id);
 
                    }
-
-                   for (int nreplicum_source=0; nreplicum_source < Nps_Nreplica_source[0] ; ++nreplicum_source ) {
+                   int npsso_length=Nps_Nreplica_source[ibeta][imu][icombination_source][0]; 
+                   for (int nreplicum_source=0; nreplicum_source < npsso_length ; ++nreplicum_source ) {
 
                      snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d", source_coords_list[k][1],
                          source_coords_list[k][2],
@@ -727,8 +872,9 @@ int main(int argc, char **argv) {
 
                      }
 
+                     int npssi_length=Nps_Nreplica_sink[ibeta][imu][icombination_sink][0];
  
-                     for ( int nreplicum_sink=0; nreplicum_sink < Nps_Nreplica_sink[0] ; ++nreplicum_sink ) {
+                     for ( int nreplicum_sink=0; nreplicum_sink < npssi_length ; ++nreplicum_sink ) {
 
                        snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d/Replicasink_%d", source_coords_list[k][1],
                          source_coords_list[k][2],
@@ -752,40 +898,37 @@ int main(int argc, char **argv) {
 
                        /* loop for possible individial momenta leading to the same tot momentum  at the source */
 
-                       for ( int i1_source =0; i1_source < Nps_Nreplica_source[1] ; ++i1_source ) {
+                       for ( int i1_source =0; i1_source < Nps_Nreplica_source[ibeta][imu][icombination_source][1] ; ++i1_source ) {
       
                          /* loop for possible gamma structures for the delta the triplet for example */
                           
                          for ( int i2_source=0; i2_source < spin1dimension_source ; ++i2_source ) {
 
                            char *gamma_string_source_member=convert_gamma_to_string( gamma_table_source[i2_source]);
-                           printf("Plettid %d spin1 %d i2source %d gamma %d\n", gamma_nplettid_source,spin1dimension_source, i2_source,gamma_table_source[i2_source]);
 
                            /* loop for possible individial momenta leading to the same tot momentum  at the sink */
 
-                           for ( int i1_sink =0; i1_sink < Nps_Nreplica_sink[1] ; ++i1_sink ) {
+                           for ( int i1_sink =0; i1_sink < Nps_Nreplica_sink[ibeta][imu][icombination_sink][1] ; ++i1_sink ) {
 
                              /* loop for possible gamma structures for the delta the triplet for example */
 
                              for ( int i2_sink =0; i2_sink < spin1dimension_sink ; ++i2_sink ) {
-                               printf("Plettid %d spin1 %d i2sink %d gamma %d\n", gamma_nplettid_sink,spin1dimension_sink, i2_sink,gamma_table_sink[i2_sink]);
 
                                char *gamma_string_sink_member=convert_gamma_to_string( gamma_table_sink[i2_sink]);
 
+                               int pf1x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][0];
+                               int pf1y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][1];
+                               int pf1z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][2];
+                               int pf2x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][3];
+                               int pf2y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][4];
+                               int pf2z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][5];
 
-                               int pf1x=momtable_sink[i1_sink][0];
-                               int pf1y=momtable_sink[i1_sink][1];
-                               int pf1z=momtable_sink[i1_sink][2];
-                               int pf2x=momtable_sink[i1_sink][3];
-                               int pf2y=momtable_sink[i1_sink][4];
-                               int pf2z=momtable_sink[i1_sink][5];
-
-                               int pi1x=momtable_source[i1_source][0];
-                               int pi1y=momtable_source[i1_source][1];
-                               int pi1z=momtable_source[i1_source][2];
-                               int pi2x=momtable_source[i1_source][3];
-                               int pi2y=momtable_source[i1_source][4];
-                               int pi2z=momtable_source[i1_source][5];
+                               int pi1x=momtable_source[ibeta][imu][icombination_source][i1_source][0];
+                               int pi1y=momtable_source[ibeta][imu][icombination_source][i1_source][1];
+                               int pi1z=momtable_source[ibeta][imu][icombination_source][i1_source][2];
+                               int pi2x=momtable_source[ibeta][imu][icombination_source][i1_source][3];
+                               int pi2y=momtable_source[ibeta][imu][icombination_source][i1_source][4];
+                               int pi2z=momtable_source[ibeta][imu][icombination_source][i1_source][5];
 
                                char *correlation_function_filename_suffix=(char *)malloc(sizeof(char)*100);
                                char *correlation_function_tagname_suffix =(char *)malloc(sizeof(char)*100);
@@ -824,7 +967,9 @@ int main(int argc, char **argv) {
  
                                if ((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "piN") == 0)){
  
-                                  snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
+                                 udliid=udli_id_lookup_piNpiN( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][3], gamma_string_sink_member,&momtable_sink[ibeta][imu][icombination_sink][i1_sink][0],&momtable_source[ibeta][imu][icombination_source][i1_source][3],gamma_string_source_member);
+                                 if (udliid==-1){
+                                   snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
                                                         source_coords_list[k][2],
                                                         source_coords_list[k][3],
                                                         source_coords_list[k][0],
@@ -843,75 +988,183 @@ int main(int argc, char **argv) {
                                                         pi1y,
                                                         pi1z,
                                                         correlation_function_tagname_suffix);
-                               } else if ((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "N") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "N") == 0) || ((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0))){
-                                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
-                                                        source_coords_list[k][2],
-                                                        source_coords_list[k][3],
-                                                        source_coords_list[k][0],
-                                                        gamma_string_sink_member,
-                                                        pf1x,
-                                                        pf1y,
-                                                        pf1z,
-                                                        gamma_string_source_member,
-                                                        pi1x,
-                                                        pi1y,
-                                                        pi1z,
-                                                        correlation_function_tagname_suffix);
- 
-                               } else  if ( (strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "piN") == 0 )){
-                                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
-                                                        source_coords_list[k][2],
-                                                        source_coords_list[k][3],
-                                                        source_coords_list[k][0],
-                                                        gamma_string_sink_member,
-                                                        pf1x,
-                                                        pf1y,
-                                                        pf1z,
-                                                        pi2x,
-                                                        pi2y,
-                                                        pi2z,
-                                                        gamma_string_source_member,
-                                                        pi1x,
-                                                        pi1y,
-                                                        pi1z,
-                                                        correlation_function_tagname_suffix);
-                               } else if ( (strcmp(g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0) ){
-                                 snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
-                                                        source_coords_list[k][2],
-                                                        source_coords_list[k][3],
-                                                        source_coords_list[k][0],
-                                                        pf2x,
-                                                        pf2y,
-                                                        pf2z,
-                                                        gamma_string_sink_member,
-                                                        pf1x,
-                                                        pf1y,
-                                                        pf1z,
-                                                        gamma_string_source_member,
-                                                        pi1x,
-                                                        pi1y,
-                                                        pi1z,
-                                                        correlation_function_tagname_suffix);
 
-                                 
-                               } else {
-                                  fprintf(stderr, "Projector for particle at sink %s and at source %s is not implemented yet",g_twopoint_function_list[i2pt].particlename_sink,g_twopoint_function_list[i2pt].particlename_source);
-                                  exit(1);
-                               }
-
-                               const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
+                                   const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
                              
-                               snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
+                                   snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
                                                         filename_prefix,
                                                         Nconf,
                                                         momentum_orbit_pref[i_total_momentum][0],
                                                         momentum_orbit_pref[i_total_momentum][1],
                                                         momentum_orbit_pref[i_total_momentum][2],
                                                         correlation_function_filename_suffix);
-                               printf("Filename=%s\n", filename);
-                               double ***correlation_function=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
+                             
+                                   correlation_function[udli_count]=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
 
-                               exitstatus = read_from_h5_file ( (void*)(correlation_function[0][0]), filename, tagname, io_proc, 0 );
+                                   exitstatus = read_from_h5_file ( (void*)(correlation_function[udli_count][0][0]), filename, tagname, io_proc, 0 );
+                                   if (exitstatus!=0){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in opening file %s %s\n", filename, tagname );
+                                     exit(1);
+                                   }
+                                   udli_id_store_piNpiN( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][3], gamma_string_sink_member,&momtable_sink[ibeta][imu][icombination_sink][i1_sink][0],&momtable_source[ibeta][imu][icombination_source][i1_source][3],gamma_string_source_member);
+                                   udliid=udli_count;
+                                   ++udli_count;
+                                   if (udli_count==MAX_UDLI_NUM){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in the size of udli %d list\n", udli_count );  
+                                     exit(1);
+                                   }
+                                 }
+                                 else {
+                                   fprintf(stdout,"# [piN2piN_projection_apply] udliid found %d udlicount %d\n", udliid, udli_count);
+                                 }
+                               } else if (((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "N") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "N") == 0)) || (((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0)))){
+                                 udliid=udli_id_lookup_BB( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,gamma_string_source_member);
+                                 if (udliid==-1){
+                                   snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
+                                                        source_coords_list[k][2],
+                                                        source_coords_list[k][3],
+                                                        source_coords_list[k][0],
+                                                        gamma_string_sink_member,
+                                                        pf1x,
+                                                        pf1y,
+                                                        pf1z,
+                                                        gamma_string_source_member,
+                                                        pi1x,
+                                                        pi1y,
+                                                        pi1z,
+                                                        correlation_function_tagname_suffix);
+
+                                   const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
+
+                                   snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
+                                                        filename_prefix,
+                                                        Nconf,
+                                                        momentum_orbit_pref[i_total_momentum][0],
+                                                        momentum_orbit_pref[i_total_momentum][1],
+                                                        momentum_orbit_pref[i_total_momentum][2],
+                                                        correlation_function_filename_suffix);
+
+                                   correlation_function[udli_count]=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
+
+                                   exitstatus = read_from_h5_file ( (void*)(correlation_function[udli_count][0][0]), filename, tagname, io_proc, 0 );
+                                   if (exitstatus!=0){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in opening file %s %s\n", filename, tagname );
+                                     exit(1);
+                                   }
+
+                                   udli_id_store_BB( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,gamma_string_source_member);
+                                   udliid=udli_count;
+                                   ++udli_count;
+                                   if (udli_count==MAX_UDLI_NUM){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in the size of udli %d list\n", udli_count );
+                                     exit(1);
+                                   }
+
+                                 }
+ 
+                               } else  if ( (strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "piN") == 0 )){
+                                 udliid=udli_id_lookup_piND( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_source[ibeta][imu][icombination_source][i1_source][0],&momtable_source[ibeta][imu][icombination_source][i1_source][3],gamma_string_source_member);
+                                 if (udliid==-1){
+                                   snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
+                                                        source_coords_list[k][2],
+                                                        source_coords_list[k][3],
+                                                        source_coords_list[k][0],
+                                                        gamma_string_sink_member,
+                                                        pf1x,
+                                                        pf1y,
+                                                        pf1z,
+                                                        pi2x,
+                                                        pi2y,
+                                                        pi2z,
+                                                        gamma_string_source_member,
+                                                        pi1x,
+                                                        pi1y,
+                                                        pi1z,
+                                                        correlation_function_tagname_suffix);
+
+                                   const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
+
+                                   snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
+                                                        filename_prefix,
+                                                        Nconf,
+                                                        momentum_orbit_pref[i_total_momentum][0],
+                                                        momentum_orbit_pref[i_total_momentum][1],
+                                                        momentum_orbit_pref[i_total_momentum][2],
+                                                        correlation_function_filename_suffix);
+
+                                   correlation_function[udli_count]=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
+
+                                   exitstatus = read_from_h5_file ( (void*)(correlation_function[udli_count][0][0]), filename, tagname, io_proc, 0 );
+                                   if (exitstatus!=0){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in opening file %s %s\n", filename, tagname );
+                                     exit(1);
+                                   }
+                                   udli_id_store_piND( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_source[ibeta][imu][icombination_source][i1_source][0],&momtable_source[ibeta][imu][icombination_source][i1_source][3],gamma_string_source_member);
+                                   udliid=udli_count;
+                                   ++udli_count;
+                                   if (udli_count==MAX_UDLI_NUM){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in the size of udli %d list\n", udli_count );
+                                     exit(1);
+                                   }
+
+                                 }
+
+                               } else if ( (strcmp(g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0) ){
+
+                                 udliid=udli_id_lookup_DpiN( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_sink[ibeta][imu][icombination_sink][i1_sink][3],&momtable_source[ibeta][imu][icombination_source][i1_source][0],gamma_string_source_member);
+                                 if (udliid==-1){
+                                    snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf25/pf2x%.02dpf2y%.02dpf2z%.02d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
+                                                        source_coords_list[k][2],
+                                                        source_coords_list[k][3],
+                                                        source_coords_list[k][0],
+                                                        pf2x,
+                                                        pf2y,
+                                                        pf2z,
+                                                        gamma_string_sink_member,
+                                                        pf1x,
+                                                        pf1y,
+                                                        pf1z,
+                                                        gamma_string_source_member,
+                                                        pi1x,
+                                                        pi1y,
+                                                        pi1z,
+                                                        correlation_function_tagname_suffix);
+
+                                   const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
+
+                                   snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
+                                                        filename_prefix,
+                                                        Nconf,
+                                                        momentum_orbit_pref[i_total_momentum][0],
+                                                        momentum_orbit_pref[i_total_momentum][1],
+                                                        momentum_orbit_pref[i_total_momentum][2],
+                                                        correlation_function_filename_suffix);
+
+                                   correlation_function[udli_count]=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
+
+                                   udli_id_store_DpiN( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_sink[ibeta][imu][icombination_sink][i1_sink][3],&momtable_source[ibeta][imu][icombination_source][i1_source][0],gamma_string_source_member);
+
+
+                                   exitstatus = read_from_h5_file ( (void*)(correlation_function[udli_count][0][0]), filename, tagname, io_proc, 0 );
+                                   if (exitstatus!=0){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in opening file %s %s\n", filename, tagname );
+                                     exit(1);
+                                   }
+                                   udliid=udli_count;
+                                   ++udli_count;
+                                   if (udli_count==MAX_UDLI_NUM){
+                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in the size of udli %d list\n", udli_count );
+                                     exit(1);
+                                   }
+
+                                 }
+                                 
+                               } else {
+                                  fprintf(stderr, "Projector for particle at sink %s and at source %s is not implemented yet",g_twopoint_function_list[i2pt].particlename_sink,g_twopoint_function_list[i2pt].particlename_source);
+                                  exit(1);
+                               }
+
+                               //printf("udliid %d limit: spin12 %d t %d , sink %d source %d \n", udliid,spin1212dimension,g_twopoint_function_list[i2pt].T,Nps_Nreplica_sink[ibeta][imu][icombination_source][1],Nps_Nreplica_source[ibeta][imu][icombination_sink][1]);
 
                                for ( int i3_source =0; i3_source < spin1212dimension; ++i3_source ) {
 
@@ -919,18 +1172,21 @@ int main(int argc, char **argv) {
 
                                    for (int t=0; t<g_twopoint_function_list[i2pt].T; ++t){
 
-                                     double tmp_real_part=
-                                       +projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0]*correlation_function[t][i3_source+4*i3_sink][0]
-                                       -projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1]*correlation_function[t][i3_source+4*i3_sink][0]
-                                       -projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0]*correlation_function[t][i3_source+4*i3_sink][1]
-                                       -projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1]*correlation_function[t][i3_source+4*i3_sink][1];
+                                     double proj_sink_real=projection_coeff_a_ORT[ibeta][imu][icombination_sink][nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0];
+                                     double proj_sink_imag=projection_coeff_a_ORT[ibeta][imu][icombination_sink][nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1];
+                                     double proj_source_real=projection_coeff_c_ORT[ibeta][imu][icombination_source][i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0];
+                                     double proj_source_imag=projection_coeff_c_ORT[ibeta][imu][icombination_source][i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1];
+
+                                     double tmp_real_part=+proj_sink_real*proj_source_real*correlation_function[udliid][t][i3_source+4*i3_sink][0]
+                                                          -proj_sink_real*proj_source_imag*correlation_function[udliid][t][i3_source+4*i3_sink][1]
+                                                          -proj_sink_imag*proj_source_imag*correlation_function[udliid][t][i3_source+4*i3_sink][0]
+                                                          -proj_sink_imag*proj_source_real*correlation_function[udliid][t][i3_source+4*i3_sink][1];
                                      projected_correlation_function[t][0]+=tmp_real_part;
 
-                                     double tmp_imag_part=
-                                       -projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1]*correlation_function[t][i3_source+4*i3_sink][1]
-                                       +projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0]*correlation_function[t][i3_source+4*i3_sink][1]
-                                       +projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1]*correlation_function[t][i3_source+4*i3_sink][0]
-                                       +projection_coeff_a_ORT[nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1]*projection_coeff_c_ORT[i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0]*correlation_function[t][i3_source+4*i3_sink][0];
+                                     double tmp_imag_part=-proj_sink_imag*proj_source_imag*correlation_function[udliid][t][i3_source+4*i3_sink][1]
+	                                                  +proj_sink_real*proj_source_real*correlation_function[udliid][t][i3_source+4*i3_sink][1]
+							  +proj_sink_real*proj_source_imag*correlation_function[udliid][t][i3_source+4*i3_sink][0]
+							  +proj_sink_imag*proj_source_real*correlation_function[udliid][t][i3_source+4*i3_sink][0];
                                      projected_correlation_function[t][1]+=tmp_imag_part;
 /*
                                      if (t == 0) {
@@ -942,9 +1198,6 @@ int main(int argc, char **argv) {
                                  }/*i3 sink */
 
                                }/*i3_source */
-
-
-                               fini_3level_dtable(&correlation_function);
 
                                free(correlation_function_filename_suffix);
      
@@ -1003,24 +1256,53 @@ int main(int argc, char **argv) {
 
                } /*ngamma muplitplett source*/
 
-               fini_1level_itable(&Nps_Nreplica_sink);
-               fini_2level_itable(&momtable_sink);
-               fini_3level_dtable(&projection_coeff_a_ORT);
-
-
              } /* momentum combination sink */
-
-             fini_1level_itable(&Nps_Nreplica_source);
-             fini_2level_itable(&momtable_source);
-             fini_3level_dtable(&projection_coeff_c_ORT);
-      
+ 
            } /* momentum combination source */
 
-         } /*beta */
+         } /*imu */
 
-       } /*mu*/ 
+       } /*ibeta*/ 
 
-     }  // end of loop on source positions
+       for (int iudli=0; iudli<udli_count; ++iudli)
+         fini_3level_dtable(&correlation_function[udli_count]);
+       udli_count=0;
+
+
+     }  /* end of loop on source positions */
+
+     fini_4level_itable(&Nps_Nreplica_source);
+     fini_4level_itable(&Nps_Nreplica_sink);
+     for (int ibeta=0; ibeta<1; ++ibeta){
+       for (int imu=0; imu<irrep_dim; ++imu){
+         for (int icombinations_source=0; icombinations_source < g_twopoint_function_list[i2pt].ncombination_total_momentum_source;icombinations_source++){
+           fini_3level_dtable(&projection_coeff_c_ORT[ibeta][imu][icombinations_source]);
+           fini_2level_itable(&momtable_source[ibeta][imu][icombinations_source]);
+         }
+         free(projection_coeff_c_ORT[ibeta][imu]);
+         free(momtable_source[ibeta][imu]);
+       }
+       free(projection_coeff_c_ORT[ibeta]);
+       free(momtable_source[ibeta]);
+     }
+     free(projection_coeff_c_ORT);
+     free(momtable_source);
+     for (int ibeta=0; ibeta<1; ++ibeta){
+       for (int imu=0; imu<irrep_dim; ++imu){
+         for (int icombinations_sink=0; icombinations_sink < g_twopoint_function_list[i2pt].ncombination_total_momentum_sink;icombinations_sink++){
+           fini_2level_itable(&momtable_sink[ibeta][imu][icombinations_sink]);
+           fini_3level_dtable(&projection_coeff_a_ORT[ibeta][imu][icombinations_sink]);
+         }
+         free(projection_coeff_a_ORT[ibeta][imu]);
+         free(momtable_sink[ibeta][imu]);
+       }
+       free(projection_coeff_a_ORT[ibeta]);
+       free(momtable_sink[ibeta]);
+     }
+     free(projection_coeff_a_ORT);
+     free(momtable_sink);
+
+
 
      /* Close the file. */
      status = H5Fclose(file_id);
