@@ -1014,9 +1014,9 @@ int main(int argc, char **argv) {
                                      exit(1);
                                    }
                                  }
-                                 else {
+                                 /*else {
                                    fprintf(stdout,"# [piN2piN_projection_apply] udliid found %d udlicount %d\n", udliid, udli_count);
-                                 }
+                                 }*/
                                } else if (((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "N") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "N") == 0)) || (((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0)))){
                                  udliid=udli_id_lookup_BB( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,gamma_string_source_member);
                                  if (udliid==-1){
@@ -1168,14 +1168,25 @@ int main(int argc, char **argv) {
 
                                for ( int i3_source =0; i3_source < spin1212dimension; ++i3_source ) {
 
+                                 double proj_source_real=projection_coeff_c_ORT[ibeta][imu][icombination_source][i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0];
+                                 double proj_source_imag=projection_coeff_c_ORT[ibeta][imu][icombination_source][i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1];
+
+                                 if ( (abs(proj_source_real)<1e-8 ) && ( abs(proj_source_imag)<1e-8 )){
+                                   continue;
+                                 }
+
                                  for ( int i3_sink =0; i3_sink < spin1212dimension ; ++i3_sink ) {
+
+                                   double proj_sink_real=projection_coeff_a_ORT[ibeta][imu][icombination_sink][nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0];
+                                   double proj_sink_imag=projection_coeff_a_ORT[ibeta][imu][icombination_sink][nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1];
+
+                                   if ( (abs(proj_sink_real)<1e-8 ) && ( abs(proj_sink_imag)<1e-8 )){
+                                     continue;
+                                   }
+
 
                                    for (int t=0; t<g_twopoint_function_list[i2pt].T; ++t){
 
-                                     double proj_sink_real=projection_coeff_a_ORT[ibeta][imu][icombination_sink][nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][0];
-                                     double proj_sink_imag=projection_coeff_a_ORT[ibeta][imu][icombination_sink][nreplicum_sink][i1_sink*spin1dimension_sink*spin1212dimension+i2_sink*spin1212dimension+i3_sink][1];
-                                     double proj_source_real=projection_coeff_c_ORT[ibeta][imu][icombination_source][i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][0];
-                                     double proj_source_imag=projection_coeff_c_ORT[ibeta][imu][icombination_source][i1_source*spin1dimension_source*spin1212dimension+i2_source*spin1212dimension+i3_source][nreplicum_source][1];
 
                                      double tmp_real_part=+proj_sink_real*proj_source_real*correlation_function[udliid][t][i3_source+4*i3_sink][0]
                                                           -proj_sink_real*proj_source_imag*correlation_function[udliid][t][i3_source+4*i3_sink][1]
