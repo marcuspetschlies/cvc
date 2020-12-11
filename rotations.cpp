@@ -2946,6 +2946,15 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
 
   }  /* end of loop on rows */
 
+  if ( g_verbose > 4 ) {
+    double _Complex ** u_aux = init_2level_ztable ( n, dim );
+
+    _F(zgemm) ( &CHAR_N, &CHAR_N, &DIM, &N, &N, &Z_1, v[0], &N, s[0], &N, &Z_0, u_aux[0], &N, 1, 1 );
+
+    fini_2level_ztable ( &u_auzx );
+  }
+
+
   fini_3level_ztable ( &r );
   fini_2level_ztable ( &q );
   fini_1level_dtable ( &norm2 );

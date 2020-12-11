@@ -47,9 +47,7 @@ extern "C"
 #include "ranlxd.h"
 #include "group_projection.h"
 #include "little_group_projector_set.h"
-
-#define _NORM_SQR_3D(_a) ( (_a)[0] * (_a)[0] + (_a)[1] * (_a)[1] + (_a)[2] * (_a)[2] )
-
+#include "contract_diagrams.h"
 
 using namespace cvc;
 
@@ -236,6 +234,9 @@ int main(int argc, char **argv) {
     }
     int ** momentum_list = init_2level_itable ( momentum_number, 3 );
 
+    for ( int i = 0; i < g_sink_momentum_number; i++ ) {
+      if ( sink_momentum_id[i] != -1 ) memcpy ( momentum_list[i], g_sink_momentum_list[i], 3*sizeof(int) );
+      
 
 
     /****************************************************
@@ -300,7 +301,7 @@ int main(int argc, char **argv) {
       int const irrep_dim  = r_irrep.dim;
       int const spinor_dim = ( 1 + interpolator_bispinor[0] ) * ( interpolator_J2[0] + 1 ) * ( 1 + interpolator_bispinor[1] ) * ( interpolator_J2[1] + 1 ); 
 
-      double _Complex **** projection_matrix = init_4level_ztable ( momentum_number, spinor_dim, momentum_number, spinor_dim );  /* annihilation and creation operator */
+      double _Complex ***** projection_matrix = init_5level_ztable ( 3, momentum_number, spinor_dim, momentum_number, spinor_dim );  /* annihilation and creation operator */
       if ( projection_matrix == NULL ) {
         fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
         EXIT(2);
@@ -364,36 +365,49 @@ int main(int argc, char **argv) {
                * creation / annihilation operator
                ****************************************************/
               for ( int ip1 = 0; ip1 < momentum_number; ip1++ ) {
-                int p1[3] = {
-                  momentum_list[ip1]
+                
+                int rq[2][3], q[3] = { momentum_list[ip1][0], momentum_list[ip1][1], momentum_list[ip1][2] };
+                int * rq_id;
+
+                rot_point ( rq[0], q, p.rp->R[ir] );
+                rot_point ( rq[1], q, p.rp->IR[ir] );
+
+                exitstatus = match_momentum_id ( rq_id, rq, momentum_list, 2, momentum_number );
+
+                if ( rq_id[0] == -1 || rq_id[1] == -1 ) {
+                  fprintf ( stderr, "[projection_matrix_piN] momentum p %3d %3d %3d to Rp %3d %3d %3d and IRp %3d %3d %3d not matched\n",
+                      q[0], q[1], q[2], rq[0][0], rq[0][1], rq[0][2], rq[1][0], rq[1][1], rq[1][2] );
                 }
-              for ( int k1 = 0; k1 < p.rspin[0].dim; k1++ ) {
-              for ( int l1 = 0; l1  < p.rspin[1].dim; l1++ ) {
 
-                int const kl1 = p.rspin[1].dim * k1 + l1;
+                for ( int k1 = 0; k1 < p.rspin[0].dim; k1++ ) {
+                for ( int l1 = 0; l1  < p.rspin[1].dim; l1++ ) {
 
-                for ( int k2 = 0; k2 < p.rspin[0].dim; k2++ ) {
-                for ( int l2 = 0; l2  < p.rspin[1].dim; l2++ ) {
+                  int const kl1 = p.rspin[1].dim * k1 + l1;
+  
+                  for ( int k2 = 0; k2 < p.rspin[0].dim; k2++ ) {
+                  for ( int l2 = 0; l2  < p.rspin[1].dim; l2++ ) {
 
                     int const kl2 = p.rspin[1].dim * k2 + l2;
 
-                    /* add the proper rotation */
-                    projection_matrix[iac][0][imu][ibeta][kl1][kl2] += iac == 0 ? \
-                        /* annihilation */ \
-                        conj( p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1] )  *        p.rtarget->R[ir][imu][ibeta] : \
-                        /* creation  */ \
-                              p.rspin[0].R[ir][k1][k2]  * p.rspin[1].R[ir][l1][l2]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
+                      /* add the proper rotation */
+                      projection_matrix[0][rq_id[0]][kl1][ip1][kl2] += iac == 0 ? \
+                          /* annihilation */ \
+                          conj( p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1] )  *        p.rtarget->R[ir][imu][ibeta] : \
+                          /* creation  */ \
+                                p.rspin[0].R[ir][k1][k2]  * p.rspin[1].R[ir][l1][l2]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
 
-                    /* add the rotation-inversion */
-                    projection_matrix[iac][0][imu][ibeta][kl1][kl2] += iac == 0 ? \
-                        /* annihilation */ \
-                        p.parity[0] * p.parity[1] * conj( p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1] ) *        p.rtarget->IR[ir][imu][ibeta] : \
-                        /* creation */ \
-                        p.parity[0] * p.parity[1] *       p.rspin[0].IR[ir][k1][k2] * p.rspin[1].IR[ir][l1][l2]   * conj ( p.rtarget->IR[ir][imu][ibeta]   );
+                      /* add the rotation-inversion */
+                      projection_matrix[0][rq_id[1]][kl1][ip1][kl2] += iac == 0 ? \
+                          /* annihilation */ \
+                          p.parity[0] * p.parity[1] * conj( p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1] ) *        p.rtarget->IR[ir][imu][ibeta] : \
+                          /* creation */ \
+                          p.parity[0] * p.parity[1] *       p.rspin[0].IR[ir][k1][k2] * p.rspin[1].IR[ir][l1][l2]   * conj ( p.rtarget->IR[ir][imu][ibeta]   );
+                  }}
                 }}
-              }}
-          }  /* end of loop on rotations / rotation-inversions */
-
+                free ( rq_id );
+              }
+            }  /* end of loop on rotations / rotation-inversions */
+#if 0
           /* normalize */
           rot_mat_ti_eq_re ( projection_matrix[iac][0][imu][ibeta], (double)p.rtarget->dim/(2.*p.rtarget->n), spinor_dim );
 
@@ -406,7 +420,7 @@ int main(int argc, char **argv) {
           for ( int is = 0; is < spinor_dim; is++ ) {
             // if ( cabs( projection_matrix[iac][0][imu][ibeta][ir][is] ) > eps  ) {
               fprintf (stdout, "%s P %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                  __dgeps( creal( projection_matrix[iac][0][imu][ibeta][ir][is] ), eps  ), __dgeps( cimag( projection_matrix[iac][0][imu][ibeta][ir][is] ), eps ) );
+                  __dgeps( creal( projection_matrix[0][ir][is] ), eps  ), __dgeps( cimag( projection_matrix[0][ir][is] ), eps ) );
             //}
           }}
 
@@ -415,7 +429,7 @@ int main(int argc, char **argv) {
           for ( int is = 0; is < spinor_dim; is++ ) {
             // if ( cabs( projection_matrix[iac][1][imu][ibeta][ir][is] ) > eps  ) {
               fprintf (stdout, "%s R %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                  __dgeps( creal( projection_matrix[iac][1][imu][ibeta][ir][is] ), eps  ), __dgeps( cimag( projection_matrix[iac][1][imu][ibeta][ir][is] ), eps ) );
+                  __dgeps( creal( projection_matrix[1][ir][is] ), eps  ), __dgeps( cimag( projection_matrix[1][ir][is] ), eps ) );
             //}
           }}
 
@@ -424,10 +438,11 @@ int main(int argc, char **argv) {
           for ( int is = 0; is < spinor_dim; is++ ) {
             // if ( cabs( projection_matrix[iac][2][imu][ibeta][ir][is] ) > eps  ) {
               fprintf (stdout, "%s Q %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                  __dgeps( creal( projection_matrix[iac][2][imu][ibeta][ir][is] ), eps  ), __dgeps( cimag( projection_matrix[iac][2][imu][ibeta][ir][is] ), eps ) );
+                  __dgeps( creal( projection_matrix[2][ir][is] ), eps  ), __dgeps( cimag( projection_matrix[2][ir][is] ), eps ) );
             //}
           }}
 
+#if 0
           fprintf (  stdout, "\n" );
           for ( int ir = 0; ir < rank; ir++ ) {
             fprintf( stdout, "operator %d = ", ir );
@@ -441,13 +456,14 @@ int main(int argc, char **argv) {
             }
             fprintf( stdout, "\n" );
           }
-
+#endif
           fprintf( stdout, "\n\n" );
+#endif
+          }  /* end of loop on target irrep rows */
+      
+        }  /* end of loop on irrep matrix ref. rows */
 
-        }  /* end of loop on target irrep rows */
-      }  /* end of loop on irrep matrix ref. rows */
-
-    }  /* end of source / sink side */
+      }  /* end of source / sink side */
 
       /****************************************************/
       /****************************************************/
@@ -471,6 +487,8 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on little groups */
 
+  fini_2level_itable ( $momentum_list );
+  free ( sink_momentum_id );
 
   /****************************************************/
   /****************************************************/
