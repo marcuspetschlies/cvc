@@ -290,8 +290,8 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  for ( int ilg = 0; ilg < nlg; ilg++ )
-  /* for ( int ilg = 0; ilg < 1; ilg++ ) */
+  /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
+  for ( int ilg = 0; ilg < 1; ilg++ )
   {
 
     int const n_irrep = lg[ilg].nirrep;
@@ -344,8 +344,8 @@ int main(int argc, char **argv) {
      * loop on irreps
      *   within little group
      ****************************************************/
-    for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ )
-    /* for ( int i_irrep = 5; i_irrep < 6; i_irrep++ ) */
+    /* for ( int i_irrep = 0; i_irrep < n_irrep; i_irrep++ ) */
+    for ( int i_irrep = 7; i_irrep < 8; i_irrep++ )
     {
 
       /****************************************************
@@ -420,12 +420,12 @@ int main(int argc, char **argv) {
       for ( int iac = 0; iac <= 0; iac++ ) 
       {
 
-        /* for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ ) */
-        for ( int ibeta = 0; ibeta < 1; ibeta++ )
+        for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
+        /* for ( int ibeta = 0; ibeta < 1; ibeta++ ) */
         {
 
-          /* for ( int imu = 0; imu < r_irrep.dim; imu++ ) */
-          for ( int imu = 0; imu < 1; imu++ ) 
+          for ( int imu = 0; imu < r_irrep.dim; imu++ )
+          /* for ( int imu = 0; imu < 1; imu++ ) */
           {
 
             for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
@@ -448,14 +448,14 @@ int main(int argc, char **argv) {
                         /* annihilation */ \
                         conj( p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1] )  *        p.rtarget->R[ir][imu][ibeta] : \
                         /* creation  */ \
-                              p.rspin[0].R[ir][k1][k2]  * p.rspin[1].R[ir][l1][l2]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
+                              p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
 
                     /* add the rotation-inversion */
                     projection_matrix[iac][0][imu][ibeta][kl1][kl2] += iac == 0 ? \
                         /* annihilation */ \
                         p.parity[0] * p.parity[1] * conj( p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1] ) *        p.rtarget->IR[ir][imu][ibeta] : \
                         /* creation */ \
-                        p.parity[0] * p.parity[1] *       p.rspin[0].IR[ir][k1][k2] * p.rspin[1].IR[ir][l1][l2]   * conj ( p.rtarget->IR[ir][imu][ibeta]   );
+                        p.parity[0] * p.parity[1] *       p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1]   * conj ( p.rtarget->IR[ir][imu][ibeta]   );
                 }}
               }}
           }  /* end of loop on rotations / rotation-inversions */

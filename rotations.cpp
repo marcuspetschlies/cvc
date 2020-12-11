@@ -2123,7 +2123,10 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
 
   if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
     gamma_matrix_type g;
-    // gamma_matrix_set ( &g, 0, 1 );
+    /* This for inversion matrix in cvc convention */
+    /* gamma_matrix_set ( &g, 0, 1 ); */
+
+    /* This for cross-check with UKQCD gamma basis version */
     gamma_matrix_set ( &g, 5, 1 );
 
     memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
@@ -2868,12 +2871,12 @@ inline void v_pl_eq_co_ti_w ( double _Complex * const v , double _Complex * cons
  * Gram-Schmidt procedure
  * NO PIVOTING at this point
  *
- * Determines ONB from v in u and transformation matrix r (lower-triangular), such that
- * r v = u
+ * Determines ONB from v in u and transformation matrix s (lower-triangular), such that
+ * s v = u
  *
  * in:  v is n x dim
  * out: u is n x dim
- * out: r is n x n
+ * out: s is n x n
  *
  ***********************************************************************************************/
 int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double _Complex ** const v, int const n, int const dim ) {
@@ -2946,12 +2949,59 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
 
   }  /* end of loop on rows */
 
+  /* test the obtained matrices
+   * test the relation s v = u (C)
+   *                   v^T s^T = u^T (F)
+   *                   [ dim x n ] x [ n x n ]       = dim x n   
+   *                   M = dim
+   *                   N = n
+   *                   K = n
+   */
+
   if ( g_verbose > 4 ) {
+
+    double const eps_comp_equality = 1.e-12;
+
     double _Complex ** u_aux = init_2level_ztable ( n, dim );
 
-    _F(zgemm) ( &CHAR_N, &CHAR_N, &DIM, &N, &N, &Z_1, v[0], &N, s[0], &N, &Z_0, u_aux[0], &N, 1, 1 );
+    char BLAS_TRANSA = CHAR_N;
+    char BLAS_TRANSB = CHAR_N;
 
-    fini_2level_ztable ( &u_auzx );
+    int BLAS_M = dim;
+    int BLAS_N = n;
+    int BLAS_K = n;
+    int BLAS_LDA = BLAS_M;
+    int BLAS_LDB = BLAS_K;
+    int BLAS_LDC = BLAS_M;
+
+    double _Complex * BLAS_A = v[0];
+    double _Complex * BLAS_B = s[0];
+    double _Complex * BLAS_C = u_aux[0];
+
+    double _Complex BLAS_ALPHA = Z_1;
+    double _Complex BLAS_BETA  = Z_0;
+
+    _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+    /* _F(zgemm) ( &CHAR_N, &CHAR_N, &DIM, &N, &N, &Z_1, v[0], &N, s[0], &N, &Z_0, u_aux[0], &N, 1, 1 ); */
+
+    for ( int i1 = 0; i1 < n; i1++ ) {
+      for ( int i2 = 0; i2 < dim; i2++ ) {
+        double const diff = cabs( u_aux[i1][i2] - u[i1][i2] );
+        double const norm = cabs( u[i1][i2] );
+        fprintf( stdout, "# [gs_onb_mat] %3d %3d      %25.16e %25.16e     %25.16e %25.16e    %16.7e / %16.7e", 
+            i1, i2, creal ( u_aux[i1][i2] ), cimag ( u_aux[i1][i2] ), creal ( u[i1][i2] ), cimag ( u[i1][i2] ) , diff , norm);
+        if( norm > eps_comp_equality && diff/norm > eps_comp_equality ) {
+          fprintf( stdout, "  error\n" );
+          fprintf ( stderr, "[gs_onb_mat] Error sv=u for index  %d %d  %s %d\n", i1, i2, __FILE__, __LINE__ );
+          return ( -4 );
+        } else {
+          fprintf( stdout, "  okay\n" );
+        }
+      }
+    }
+
+    fini_2level_ztable ( &u_aux );
   }
 
 
