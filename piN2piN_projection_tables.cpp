@@ -1051,6 +1051,10 @@ int main(int argc, char **argv) {
        
         }
 
+        dims[0]=dimension_coeff;
+        dims[1]=dimension_coeff;
+        dims[2]=2;
+
         dataspace_id = H5Screate_simple(3, dims, NULL);
         if (strcmp( g_twopoint_function_list[i2pt].name, "piN")==0){
           snprintf ( tagname, 400,  "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/c_data",  Ptot[0],Ptot[1],Ptot[2],pfpx*pfpx+pfpy*pfpy+pfpz*pfpz,pfnx*pfnx+pfny*pfny+pfnz*pfnz, imu, ibeta);
