@@ -194,6 +194,7 @@ int main(int argc, char **argv) {
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   double *gauge_field_smeared = NULL;
+  struct timeval ta, tb, start_time, end_time;
 
   int const    gamma_f1_number                           = 4;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 , 11,  8,  2 };
@@ -237,7 +238,8 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  gettimeofday ( &start_time, (struct timezone *)NULL );
+
 
   /***************************************************************************
    * read input and set the default values
@@ -488,6 +490,8 @@ int main(int argc, char **argv) {
      ***************************************************************************/
     for ( int isample = 0; isample < g_nsample; isample++ ) {
 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       double * stochastic_source = init_1level_dtable ( _GSI( VOLUME ) );
       if ( stochastic_source == NULL ) {
         fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
@@ -574,6 +578,10 @@ int main(int argc, char **argv) {
       /* free fields */
       fini_1level_dtable ( &stochastic_source );
       fini_2level_dtable ( &spinor_work );
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_fht_invert_contract", "loop-invert-contract-sample", g_cart_id == 0 );
+
     }  /* end of loop on samples */
 
     /***************************************************************************
@@ -726,6 +734,8 @@ int main(int argc, char **argv) {
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
     {
 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       /***********************************************************
        * flavor-type point-to-all propagator
        *
@@ -739,11 +749,17 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[njjn_fht_invert_contract] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(12);
       }
+      
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_fht_invert_contract", "forward-light-smear-invert-check", g_cart_id == 0 );
 
       /***********************************************************
        * sink-smear the flavor-type point-to-all propagator
        * store extra
        ***********************************************************/
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       for ( int i = 0; i < 12; i++ ) {
         /* copy propagator */
         memcpy ( propagator_snk_smeared[iflavor][i], propagator[iflavor][i], sizeof_spinor_field );
@@ -755,6 +771,9 @@ int main(int argc, char **argv) {
           return(11);
         }
       }
+      
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_fht_invert_contract", "forward-light-sink-smear", g_cart_id == 0 );
 
       /***********************************************************
        * optionally write the propagator to disc
@@ -823,6 +842,8 @@ int main(int argc, char **argv) {
      ***************************************************************************/
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       /***************************************************************************
        *
        * [ X^T Xb X ] - [ Xb^+ X^* X^+ ]
@@ -884,6 +905,9 @@ int main(int argc, char **argv) {
         }
 
       }}  /* end of loop on Dirac Gamma structures */
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_fht_invert_contract", "n1-n2-reduce-project-write", g_cart_id == 0 );
 
     }  /* end of loop on flavor */
     
@@ -974,6 +998,8 @@ int main(int argc, char **argv) {
               /***************************************************************************
                * add sequential fht vertex
                ***************************************************************************/
+              gettimeofday ( &ta, (struct timezone *)NULL );
+
               exitstatus = prepare_sequential_fht_loop_source ( 
                   sequential_source, 
                   loop, 
@@ -1000,11 +1026,17 @@ int main(int argc, char **argv) {
                 }
               }
   
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "njjn_fht_invert_contract", "prepare-sequential-fht-source", g_cart_id == 0 );
+
               /***************************************************************************
                * invert the Dirac operator on the sequential source
                *
                * ONLY SINK smearing here
                ***************************************************************************/
+
+	      gettimeofday ( &ta, (struct timezone *)NULL );
+
               exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source, 12, iflavor, 0, 1, gauge_field_smeared,
                   check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
               if ( exitstatus != 0 ) {
@@ -1024,13 +1056,16 @@ int main(int argc, char **argv) {
                   }
                 }
               }
+
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "njjn_fht_invert_contract", "sequential-source-invert-check-smear", g_cart_id == 0 );
   
               /***************************************************************************
                *
                * contractions
                *
                ***************************************************************************/
-   
+
               char correlator_tag[20] = "N-qbGqqbGq-N";
             
               char aff_tag_prefix[200], aff_tag_prefix2[200];
@@ -1058,7 +1093,9 @@ int main(int argc, char **argv) {
               /***************************************************************************
                * B/D1c/i for uu uu insertion
                ***************************************************************************/
-         
+
+	      gettimeofday ( &ta, (struct timezone *)NULL );
+
               /***************************************************************************
                * fp = fwd up
                ***************************************************************************/
@@ -1135,10 +1172,15 @@ int main(int argc, char **argv) {
                 }
   
               }} // end of loop on Dirac gamma structures
+     
+	      gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "njjn_fht_invert_contract", "buuu-duuu-reduce-project-write", g_cart_id == 0 );
     
               /***************************************************************************/
               /***************************************************************************/
-    
+
+              gettimeofday ( &ta, (struct timezone *)NULL );
+  
               /***************************************************************************
                * B/D1ci for dd dd insertion
                ***************************************************************************/
@@ -1201,7 +1243,10 @@ int main(int argc, char **argv) {
                 }
   
               }} // end of loop on Dirac gamma structures
-    
+
+	      gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "njjn_fht_invert_contract", "bddd-dddd-reduce-project-write", g_cart_id == 0 );
+
               /***************************************************************************/
               /***************************************************************************/
   
@@ -1277,6 +1322,9 @@ int main(int argc, char **argv) {
                  * sequential source for "twin-peak" diagram, 
                  * needed as both up-after-up and down-after-down type sequential propagator
                  ***************************************************************************/
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 exitstatus =  prepare_sequential_fht_twinpeak_source ( sequential_source, propagator[iflavor], scalar_field, sequential_gamma_id[igamma][ig], ephase[imom] ) ;
                 if ( exitstatus != 0 ) {
                   fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_sequential_fht_twinpeak_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -1294,12 +1342,18 @@ int main(int argc, char **argv) {
                     }
                   }
                 }
+	      
+		gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "njjn_fht_invert_contract", "prepare-sequential-fht-w-source", g_cart_id == 0 );
 
                 /***************************************************************************
                  * seq. prop. from seq. source
                  *
                  * INCLUDING SINK-SMEARING
                  ***************************************************************************/
+
+		gettimeofday ( &ta, (struct timezone *)NULL );
+
                 exitstatus = prepare_propagator_from_source ( sequential_propagator[iflavor], sequential_source, 12, iflavor, 0, 1, gauge_field_smeared,
                     check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
                 if ( exitstatus != 0 ) {
@@ -1318,6 +1372,9 @@ int main(int argc, char **argv) {
                     }
                   }
                 }
+	      
+		gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "njjn_fht_invert_contract", "sequential-source-w-invert-check-smear", g_cart_id == 0 );
 
               }  /* end of loop on quark propagator flavor */
 
@@ -1332,6 +1389,8 @@ int main(int argc, char **argv) {
                *  W for  uu uu type insertion
                ***************************************************************************/
               for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+
+		gettimeofday ( &ta, (struct timezone *)NULL );
 
                 char aff_tag_prefix[200];
                 sprintf ( aff_tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
@@ -1389,13 +1448,19 @@ int main(int argc, char **argv) {
     
                 }} // end of loop on Dirac gamma structures
 
+	        gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "njjn_fht_invert_contract", "w-uuuu-diagram-reduce-project-write", g_cart_id == 0 );
+
               }  /* end of loop on flavor */
 
               /***************************************************************************
                *  W for  uu dd type insertion
                *  4 diagrams
                ***************************************************************************/
+
               for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
 
                 char aff_tag_prefix[200], aff_tag_prefix2[200];
 
@@ -1489,6 +1554,9 @@ int main(int argc, char **argv) {
 
                 }} // end of loop on Dirac gamma structures
 
+	        gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "njjn_fht_invert_contract", "w-uudd-diagram-reduce-project-write", g_cart_id == 0 );
+
               }  /* end of loop on flavor */
 
 
@@ -1574,11 +1642,8 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
-  if(g_cart_id==0) {
-    g_the_time = time(NULL);
-    fprintf(stdout, "# [njjn_fht_invert_contract] %s# [njjn_fht_invert_contract] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [njjn_fht_invert_contract] %s# [njjn_fht_invert_contract] end of run\n", ctime(&g_the_time));
-  }
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "njjn_fht_invert_contract", "runtime", g_cart_id == 0 );
 
   return(0);
 
