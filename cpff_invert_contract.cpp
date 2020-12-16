@@ -1,9 +1,6 @@
 /****************************************************
  * cpff_invert_contract
  *
- * PURPOSE:
- * DONE:
- * TODO:
  ****************************************************/
 
 #include <stdlib.h>
@@ -330,31 +327,31 @@ int main(int argc, char **argv) {
   nelem = _GSI( VOLUME );
   double *** stochastic_propagator_mom_list = init_3level_dtable ( g_source_momentum_number, spin_color_dilution, nelem );
   if ( stochastic_propagator_mom_list == NULL ) {
-    fprintf(stderr, "[cpff_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf(stderr, "[cpff_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
 
   double ** stochastic_propagator_zero_list = init_2level_dtable ( spin_color_dilution, nelem );
   if ( stochastic_propagator_zero_list == NULL ) {
-    fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf(stderr, "[cpff_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
 
   double ** stochastic_propagator_zero_smeared_list = init_2level_dtable ( spin_color_dilution, nelem );
   if ( stochastic_propagator_zero_smeared_list == NULL ) {
-    fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf(stderr, "[cpff_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
 
   double ** stochastic_source_list = init_2level_dtable ( spin_color_dilution, nelem );
   if ( stochastic_source_list == NULL ) {
-    fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[cpff_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
   }
 
   double ** sequential_propagator_list = init_2level_dtable ( spin_color_dilution, nelem );
   if ( sequential_propagator_list == NULL ) {
-    fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[cpff_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
   }
 
@@ -366,10 +363,12 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[cpff_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
-  /* for ( int i = 0; i < rlxd_size(); i++ ) {
-    fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
-  } */
-
+ 
+  if ( g_verbose > 4 ) {
+    for ( int i = 0; i < rlxd_size(); i++ ) {
+      fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
+    }
+  }
 
   /***************************************************************************
    * loop on source timeslices
