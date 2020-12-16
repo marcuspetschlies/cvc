@@ -721,7 +721,7 @@ int main(int argc, char **argv) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
           for ( int itt = -T_global/2; itt < T_global/2; itt++ ) {
-            int const it = itt > 0 ? itt : itt + T_global;
+            int const it = itt >= 0 ? itt : itt + T_global;
             fprintf( stdout, "hvp %c %6d     %3d %3d %3d %3d     %3d %3d %3d    %3d %25.16e %25.16e\n",
                 conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
                 conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
