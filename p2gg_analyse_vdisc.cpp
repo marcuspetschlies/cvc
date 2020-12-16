@@ -1149,7 +1149,31 @@ int main(int argc, char **argv) {
  
       double ******* pgg_disc = init_7level_dtable ( 2, num_conf, num_src_per_conf, g_sink_momentum_number, 4, 4, 2 * T_global );
       if ( pgg_disc == NULL ) {
-        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
+        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      double ***** pgg_twop_1 = init_5level_dtable ( num_conf, g_sink_momentum_number, 4, 4, 2 );
+      if ( pgg_twop_1 == NULL ) {
+        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      double ***** pgg_twop_2 = init_5level_dtable ( num_conf, g_sink_momentum_number, 4, 4, 2 * T_global );
+      if ( pgg_twop_2 == NULL ) {
+        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      double **** pgg_loop_1 = init_4level_dtable ( num_conf, g_sink_momentum_number, 4, 2 * T_global );
+      if ( pgg_loop_1 == NULL ) {
+        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      double **** pgg_loop_2 = init_4level_dtable ( num_conf, g_sink_momentum_number, 4, 2 );
+      if ( pgg_loop_2 == NULL ) {
+        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
         EXIT(16);
       }
 
@@ -1221,12 +1245,24 @@ int main(int argc, char **argv) {
                 double _Complex const z_twop_1 = twop[iconf][isrc][imom][0][0][s2][2*tsnk] + I * twop[iconf][isrc][imom][0][0][s2][2*tsnk+1];
                 double _Complex const z_twop_2 = twop[iconf][isrc][imom][0][1][s2][2*tsnk] + I * twop[iconf][isrc][imom][0][1][s2][2*tsnk+1];
 
-                double _Complex const z_loop = loop_pgg[iconf][imom][s1][2*it] + I * loop_pgg[iconf][imom][s1][2*it+1];
+                double _Complex const z_loop   = loop_pgg[iconf][imom][s1][2*it] + I * loop_pgg[iconf][imom][s1][2*it+1];
 
                 double _Complex const z_threep = ( z_twop_1 + sC_sign * z_twop_2 ) * z_loop * ephase;
 
                 pgg_disc[0][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep );
                 pgg_disc[0][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep );
+
+                if( tau == 0 ) {
+                  double _Complex ztmp = ( z_twop_1 + sC_sign * z_twop_2 ) * ephase;
+                  pgg_twop_1[iconf][imom][s1][s2][0] += creal( ztmp );
+                  pgg_twop_1[iconf][imom][s1][s2][1] += cimag( ztmp );
+                }
+
+                if ( s2 == 0 ) {
+                 pgg_loop_1[iconf][imom][s1][2*tau + 0] += loop_pgg[iconf][imom][s1][2*it+0];
+                 pgg_loop_1[iconf][imom][s1][2*tau + 1] += loop_pgg[iconf][imom][s1][2*it+1];
+                }
+
 
               }  /* end of loop on tau */
 
@@ -1248,6 +1284,14 @@ int main(int argc, char **argv) {
                 pgg_disc[1][iconf][isrc][imom][s1][s2][2*it  ] = creal( z_threep );
                 pgg_disc[1][iconf][isrc][imom][s1][s2][2*it+1] = cimag( z_threep );
 
+                double _Complex ztmp = ( z_twop_1 + sC_sign * z_twop_2 ) * ephase;
+                pgg_twop_2[iconf][imom][s1][s2][2*tau+0] += creal( ztmp );
+                pgg_twop_2[iconf][imom][s1][s2][2*tau+1] += cimag( ztmp );
+
+                if ( s2 == 0 && tau == 0 ) {
+                 pgg_loop_2[iconf][imom][s1][0] += loop_pgg[iconf][imom][s1][2*tsnk+0];
+                 pgg_loop_2[iconf][imom][s1][1] += loop_pgg[iconf][imom][s1][2*tsnk+1];
+                }
               }  /* end of loop on tau */
 
             }}  /* end of loop on vector indices s1, s2 */
@@ -1341,6 +1385,47 @@ int main(int argc, char **argv) {
 
           fini_2level_dtable ( &data );
         }  /* end of loop on real / imag */
+#if _USE_SUBTRACTED
+
+        /****************************************
+         * statistical analysis for orbit average
+         * including subtraction
+         *
+         * ASSUMES MOMENTUM LIST IS AN ORBIT AND
+         * SEQUENTIAL MOMENTUM IS ZERO
+         ****************************************/
+
+        /****************************************
+         * (1) < A_f P_i >_f x <V_c>_f
+         ****************************************/
+        if ( k == 0 ) {
+
+          for ( int ireim = 0; ireim <= 1; ireim++ ) {
+ 
+            double ** data = init_2level_dtable ( num_conf, g_sink_momentum_number * ( 16*T_global + 16 + 4*T_global ) );
+            if ( data == NULL ) {
+              fprintf ( stderr, "[p2gg_analyse_vdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+              EXIT(79);
+            }
+STOPPED HERE
+#pragma omp parallel for
+            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int tau = 0; tau < T_global; tau++ ) {
+                for ( int s1 = 0; s1 < 4; s1++ ) {
+                  
+                  data[iconf][16*tau+4*s1+s2] = pgg[k][iconf][imom][s1][s2][2*tau+ireim];
+
+
+              }
+            }
+
+          } 
+
+        } else {  /* k == 1 */
+        }
+
+
+#endif   /* of if _USE_SUBTRACTED  */
 
       }  /* end of loop on ordering of operators */
        
@@ -1349,6 +1434,11 @@ int main(int argc, char **argv) {
        **********************************************************/
       fini_7level_dtable ( &pgg_disc );
       fini_6level_dtable ( &pgg );
+ 
+      fini_5level_dtable ( &pgg_twop_1 );
+      fini_5level_dtable ( &pgg_twop_2 );
+      fini_4level_dtable ( &pgg_loop_1 );
+      fini_4level_dtable ( &pgg_loop_2 );
 
     }  /* end of loop on sequential source timeslices */
 
