@@ -328,7 +328,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   int const spin_color_dilution = spin_dilution * color_dilution;
   nelem = _GSI( VOLUME );
-  double *** stochastic_propagator_mom_list = init_3level_dtable ( g_source_momentum_number, spin_color_dilution, nelem );
+  double *** stochastic_propagator_mom_list = init_3level_dtable ( g_sink_momentum_number, spin_color_dilution, nelem );
   if ( stochastic_propagator_mom_list == NULL ) {
     fprintf(stderr, "[twop_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
@@ -558,7 +558,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * invert for stochastic timeslice propagator at source momenta
        ***************************************************************************/
-      for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+      for ( int isrc_mom = 0; isrc_mom < g_sink_momentum_number; isrc_mom++ ) {
 
         /***************************************************************************
          * NOTE: we take the negative of the momentum in the list
@@ -652,7 +652,7 @@ int main(int argc, char **argv) {
        * contractions for 2-point functons
        *
        *****************************************************************/
-      for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+      for ( int isrc_mom = 0; isrc_mom < g_sink_momentum_number; isrc_mom++ ) {
 
         double ** stochastic_propagator_mom_smeared_list = NULL;
 
@@ -716,14 +716,14 @@ int main(int argc, char **argv) {
           }
 
           sprintf ( data_tag, "/%c-gf-%c-gi/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 
-              flavor_tag[op_id[0]], flavor_tag[op_id[1]], gts, isample,
+              flavor_tag[1-op_id[0]], flavor_tag[op_id[1]], gts, isample,
               g_source_gamma_id_list[isnk_gamma], g_source_gamma_id_list[isrc_gamma],
               source_momentum[0], source_momentum[1], source_momentum[2] );
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-          exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, &(g_sink_momentum_list[isrc_mom]), 1, io_proc );
 #elif ( defined HAVE_HDF5 )          
-          exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
+          exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, &(g_sink_momentum_list[isrc_mom]), 1, io_proc );
 #endif
           if(exitstatus != 0) {
             fprintf(stderr, "[twop_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
