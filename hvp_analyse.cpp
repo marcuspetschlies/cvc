@@ -46,6 +46,7 @@
 #include "gamma.h"
 #include "contract_loop_inline.h"
 
+#define _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL 0
 
 using namespace cvc;
 
@@ -201,14 +202,14 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read list of configs and source locations
    ***********************************************************/
-  sprintf ( filename, "source_coords.%s.nsrc%d.lst" , ensemble_name, num_src_per_conf);
+  sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
     fprintf(stderr, "[hvp_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
     EXIT(15);
   }
 
-  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 5 );
+  int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
     fprintf(stderr, "[hvp_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
@@ -221,12 +222,13 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    sscanf( line, "%d %d %d %d %d", 
+    sscanf( line, "%c %d %d %d %d %d", 
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf],
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+1,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+2,
         conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+3,
-        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4 );
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+4,
+        conf_src_list[count/num_src_per_conf][count%num_src_per_conf]+5 );
 
     count++;
   }
@@ -236,12 +238,13 @@ int main(int argc, char **argv) {
   if ( g_verbose > 5 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        fprintf ( stdout, "conf_src_list %6d %3d %3d %3d %3d\n", 
+        fprintf ( stdout, "conf_src_list %c %6d %3d %3d %3d %3d\n", 
             conf_src_list[iconf][isrc][0],
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3],
-            conf_src_list[iconf][isrc][4] );
+            conf_src_list[iconf][isrc][4],
+            conf_src_list[iconf][isrc][5] );
 
       }
     }
@@ -266,16 +269,16 @@ int main(int argc, char **argv) {
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
-      Nconf = conf_src_list[iconf][isrc][0];
+      Nconf = conf_src_list[iconf][isrc][1];
 
       /***********************************************************
        * copy source coordinates
        ***********************************************************/
       int const gsx[4] = {
-          conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3],
-          conf_src_list[iconf][isrc][4] };
+          conf_src_list[iconf][isrc][4],
+          conf_src_list[iconf][isrc][5] };
 
 #ifdef HAVE_LHPC_AFF
       /***********************************************
@@ -285,8 +288,11 @@ int main(int argc, char **argv) {
       gettimeofday ( &ta, (struct timezone *)NULL );
       struct AffNode_s *affn = NULL, *affdir = NULL;
 
-      /* sprintf ( filename, "%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-      sprintf ( filename, "%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", Nconf, correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0],
+          g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      /* sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      /* sprintf ( filename, "%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+          correlator_prefix[operator_type], flavor_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
 
       if ( g_verbose > 0 ) fprintf(stdout, "# [hvp_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__);
       affr = aff_reader ( filename );
@@ -394,7 +400,7 @@ int main(int argc, char **argv) {
            * add source phase
            **********************************************************/
 #pragma omp parallel for
-          for ( int it = 0; it < T; it++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
             int const tt = ( it - gsx[0] + T_global ) % T_global; 
 
             double _Complex ztmp = ( buffer[mu][nu][2*it] +  buffer[mu][nu][2*it+1] * I ) * ephase;
@@ -432,7 +438,9 @@ int main(int argc, char **argv) {
           for ( int mu = 0; mu < 4; mu++ ) {
           for ( int nu = 0; nu < 4; nu++ ) {
             for ( int it = 0; it < T; it++ ) {
-              fprintf ( stdout, "c %6d s %3d p %3d %3d %3d m %d %d hvp %3d  %25.16e %25.16e\n", iconf, isrc, 
+              fprintf ( stdout, "c %c %6d s %3d %3d %3d %3d p %3d %3d %3d m %d %d hvp %3d  %25.16e %25.16e\n", 
+                  conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                  conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
                   g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], mu, nu, it, 
                   hvp[iconf][isrc][imom][mu][nu][2*it], hvp[iconf][isrc][imom][mu][nu][2*it+1] );
             }
@@ -492,7 +500,6 @@ int main(int argc, char **argv) {
     }
   }
 
-#if 0
   /****************************************
    * STATISTICAL ANALYSIS of real and
    * imaginary part of HVP tensor
@@ -537,6 +544,7 @@ int main(int argc, char **argv) {
       }  /* end of loop on re / im */
     }}  /* end of loop on nu, mu */
   }  /* end of loop on momenta */
+#if 0
 #endif  /* of if 0 */
 
   /****************************************
@@ -545,6 +553,7 @@ int main(int argc, char **argv) {
    * orbit-averaged HVP spatial tensor
    * components
    ****************************************/
+#if _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL
   for ( int ireim = 0; ireim < 2; ireim++ ) {
     double ** data = init_2level_dtable ( num_conf, T_global );
     if ( data == NULL ) {
@@ -568,6 +577,7 @@ int main(int argc, char **argv) {
     fini_2level_dtable ( &data );
 
   }  /* end of loop on re / im */
+#endif  /* of _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL  */
 
   /****************************************
    * STATISTICAL ANALYSIS of real and
@@ -575,54 +585,209 @@ int main(int argc, char **argv) {
    * orbit average per * irrep 
    * of HVP spatial tensor
    ****************************************/
-  for ( int ireim = 0; ireim < 2; ireim++ ) {
-    char const irrep_name[5][4] = { "A1", "A1p", "T1", "T2", "E" };
 
-    double *** data = init_3level_dtable ( 5, num_conf, T_global );
-    if ( data == NULL ) {
-      fprintf(stderr, "[hvp_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
-      EXIT(16);
-    }
+  double *** hvp_irrep = init_3level_dtable ( 5, num_conf, 2*T_global );
 
-    int dim[2] = { num_conf, T_global };
-    hvp_irrep_separation_orbit_average ( data, hvp_src_avg, dim, g_sink_momentum_number, g_sink_momentum_list, ireim );
+  char const irrep_name[5][4] = { "A1", "A1p", "T1", "T2", "E" };
+    
+  int dim[2] = { num_conf, T_global };
+  hvp_irrep_decomposition_orbit_average ( hvp_irrep, hvp_src_avg, dim, g_sink_momentum_number, g_sink_momentum_list );
 
-    for ( int i = 0; i < 5; i++ ) {
+  for ( int i = 0; i < 5; i++ ) {
+ 
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
+    
+      double ** data = init_2level_dtable ( num_conf, T_global );
+      if ( data == NULL ) {
+        fprintf(stderr, "[hvp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = hvp_irrep[i][iconf][2*it+ireim];
+        }
+      }
+
       char obs_name[100];
       sprintf ( obs_name, "%s.%s.%s.orbit.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
           irrep_name[i], g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
       /* apply UWerr analysis */
-      exitstatus = apply_uwerr_real ( data[i][0], num_conf, T_global, 0, 1, obs_name );
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[hvp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
       }
-    }
 
-    if ( write_data == 1) {
-      char obs_name[100];
-      for ( int i = 0; i < 5; i++ ) {
-        sprintf ( obs_name, "%s.%s.%s.orbit.PX%d_PY%d_PZ%d.%s.dat", correlator_prefix[operator_type], flavor_tag[operator_type],
-            irrep_name[i], g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
-        FILE * ofs = fopen ( obs_name, "w" );
+      if ( write_data == 1) {
+        sprintf ( filename, "%s.corr", obs_name );
+        FILE * ofs = fopen ( filename, "w" );
         if ( ofs == NULL ) {
-          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", obs_name, __FILE__, __LINE__ );
+          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
           EXIT(12);
         }
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            fprintf ( ofs, "%5d%25.16e%8d\n", it, data[i][iconf][it], conf_src_list[iconf][0][0] );
+            fprintf ( ofs, "%5d %25.16e %8d %c\n", it, data[iconf][it], conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
           }
         }
-      }  /* end of loop on irreps */
-    }  /* end of if write data  */
+        fclose ( ofs );
+      }  /* end of if write data  */
+    
+    }  /* end of loop on re / im */
 
-    fini_3level_dtable ( &data );
+  }   /* end of loop on irreps */
 
-  }  /* end of loop on re / im */
+  /**********************************************************
+   * dep. on 4-momentum
+   **********************************************************/
+  double **** hvp_scalar = init_4level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+#pragma omp parallel for
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+    for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
+        hvp_ft ( hvp[iconf][isrc][imom], operator_type );
+
+        for ( int it = 0; it < T_global; it++ ) {
+          int const itt = it < T_global/2 ? it : it - T_global;
+          double const sinp[4] = {
+              // 2 * sin( M_PI * it/(double)T_global ),
+              2 * sin( M_PI * itt/(double)T_global ),
+              2 * sin( M_PI * g_sink_momentum_list[imom][0]/(double)LX_global ),
+              2 * sin( M_PI * g_sink_momentum_list[imom][1]/(double)LY_global ),
+              2 * sin( M_PI * g_sink_momentum_list[imom][2]/(double)LZ_global ) };
+
+          double const sinpp = sinp[0] * sinp[0] + sinp[1] * sinp[1] + sinp[2] * sinp[2] + sinp[3] * sinp[3];
+ 
+          if ( check_momentum_space_WI ) {
+
+            for ( int nu = 0; nu<4; nu++ ) {
+              double const dre = 
+                   sinp[0] * hvp[iconf][isrc][imom][0][nu][2*it]
+                +  sinp[1] * hvp[iconf][isrc][imom][1][nu][2*it]
+                +  sinp[2] * hvp[iconf][isrc][imom][2][nu][2*it]
+                +  sinp[3] * hvp[iconf][isrc][imom][3][nu][2*it];
+              
+              double const  dim = 
+                   sinp[0] * hvp[iconf][isrc][imom][0][nu][2*it+1]
+                +  sinp[1] * hvp[iconf][isrc][imom][1][nu][2*it+1]
+                +  sinp[2] * hvp[iconf][isrc][imom][2][nu][2*it+1]
+                +  sinp[3] * hvp[iconf][isrc][imom][3][nu][2*it+1];
+
+              fprintf( stdout, "hvp wi %c %6d %3d    %3d %3d %3d    %3d   %d   %16.7e  %16.7e\n", 
+                  conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2],
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                  it, nu, dre, dim );
+            }
+          }
+
+
+
+          hvp_scalar[iconf][isrc][imom][2*it  ] = 0;     
+          hvp_scalar[iconf][isrc][imom][2*it+1] = 0;     
+
+          for(int mu = 0; mu<4; mu++ ) {
+            for(int nu = 0; nu<4; nu++ ) {
+              hvp_scalar[iconf][isrc][imom][2*it  ] += sinp[mu]*sinp[nu]*hvp[iconf][isrc][imom][mu][nu][2*it];
+              hvp_scalar[iconf][isrc][imom][2*it+1] += sinp[mu]*sinp[nu]*hvp[iconf][isrc][imom][mu][nu][2*it+1];
+            }
+            hvp_scalar[iconf][isrc][imom][2*it  ] -= sinpp * hvp[iconf][isrc][imom][mu][mu][2*it  ];
+            hvp_scalar[iconf][isrc][imom][2*it+1] -= sinpp * hvp[iconf][isrc][imom][mu][mu][2*it+1];
+          }
+          hvp_scalar[iconf][isrc][imom][2*it  ] /= 3. * sinpp * sinpp;
+          hvp_scalar[iconf][isrc][imom][2*it+1] /= 3. * sinpp * sinpp;
+
+#if 0
+          for(int nu = 1; nu<4; nu++ ) {
+            hvp_scalar[iconf][isrc][imom][2*it  ] += hvp[iconf][isrc][imom][nu][nu][2*it];
+            hvp_scalar[iconf][isrc][imom][2*it+1] += hvp[iconf][isrc][imom][nu][nu][2*it+1];
+          }
+          for(int nu = 1; nu<4; nu++ ) {
+            hvp_scalar[iconf][isrc][imom][2*it  ] += hvp[iconf][isrc][imom][0][nu][2*it  ] + hvp[iconf][isrc][imom][nu][0][2*it  ];
+            hvp_scalar[iconf][isrc][imom][2*it+1] += hvp[iconf][isrc][imom][0][nu][2*it+1] + hvp[iconf][isrc][imom][nu][0][2*it+1];
+          }
+
+#endif
+        }
+      }
+    }
+  }
+
+  if ( g_verbose > 5 ) {
+    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+          for ( int itt = -T_global/2; itt < T_global/2; itt++ ) {
+            int const it = itt >= 0 ? itt : itt + T_global;
+            fprintf( stdout, "hvp %c %6d     %3d %3d %3d %3d     %3d %3d %3d    %3d %25.16e %25.16e\n",
+                conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
+                g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2],
+                itt, hvp_scalar[iconf][isrc][imom][2*it], hvp_scalar[iconf][isrc][imom][2*it+1] );
+          }
+        }
+      }
+    }
+  }
+
+  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+      double ** data = init_2level_dtable ( num_conf, T_global );
+      if ( data == NULL ) {
+        fprintf(stderr, "[hvp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      int dim[2] = { num_conf, T_global };
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            data[iconf][it] += hvp_scalar[iconf][isrc][imom][2*it+ireim];
+          }
+          data[iconf][it] /= (double)num_src_per_conf;
+      }} 
+
+      char obs_name[100];
+      sprintf ( obs_name, "%s.%s.scalar.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
+            g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], reim_str[ireim] );
+
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[hvp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      if ( write_data == 1) {
+        sprintf ( filename, "%s.corr", obs_name );
+        FILE * ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+          EXIT(12);
+        }
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf ( ofs, "%5d%25.16e%8d %c\n", it, data[iconf][it], conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
+          }
+        }
+        fclose ( ofs );
+      }  /* end of if write data  */
+
+      fini_2level_dtable ( &data );
+
+    }  /* end of loop on re / im */
+
+  }  /* end of loop on momenta */
+
+  fini_4level_dtable ( &hvp_scalar );
   fini_5level_dtable ( &hvp_src_avg );
+
   /**********************************************************
    * free the allocated memory, finalize
    **********************************************************/

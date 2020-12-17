@@ -263,11 +263,16 @@ inline void show_time ( struct timeval * const ta, struct timeval * const tb, ch
     useconds += 1000000;
     seconds--;
   }
-  if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds );
+  /* if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds ); */
+  if ( io ) fprintf ( stdout, "# [%s] time for %s %e sec\n", tag, timer, (double)seconds + (double)useconds/1000000.0 );
 
 }  /* end of show_time */
 
 int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] );
+
+int hvp_ft ( double *** const hvp, int const type );
+
+int hvp_ft_single_component ( double * const hvp, int const shift );
 
 int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name );
 

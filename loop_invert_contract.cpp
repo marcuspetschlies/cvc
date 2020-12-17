@@ -77,9 +77,10 @@ void usage() {
   EXIT(0);
 }
 
+#define _USE_TIME_DILUTION 1
 
-#define _FIRST_DERIV_CONTRACTION
-#undef _SECOND_DERIV_CONTRACTION
+#define _FIRST_DERIV_CONTRACTION 1
+#define _SECOND_DERIV_CONTRACTION 0
 
 int main(int argc, char **argv) {
   
@@ -90,7 +91,6 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
-  size_t sizeof_spinor_field;
   char filename[300];
 
   struct timeval ta, tb, start_time, end_time;
@@ -188,7 +188,9 @@ int main(int argc, char **argv) {
 
   geometry();
 
-  sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
+  unsigned int const VOL3 = LX * LY * LZ;
+  size_t const sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
+  size_t const sizeof_spinor_field_timeslice = _GSI(VOL3  ) * sizeof(double);
 
   /***************************************************************************
    * some additional xchange operations
@@ -342,7 +344,7 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-#ifdef _FIRST_DERIV_CONTRACTION
+#if _FIRST_DERIV_CONTRACTION
   double * stochastic_propagator_disp = init_1level_dtable ( nelem );
   if ( stochastic_propagator_disp == NULL ) {
     fprintf(stderr, "[loop_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
@@ -358,7 +360,7 @@ int main(int argc, char **argv) {
   double * stochastic_propagator_DWdisp = NULL;
 #endif
 
-#ifdef _SECOND_DERIV_CONTRACTION
+#if _SECOND_DERIV_CONTRACTION
   double * stochastic_propagator_ddisp = init_1level_dtable ( nelem );
   if ( stochastic_propagator == NULL ) {
     fprintf(stderr, "[loop_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
@@ -483,26 +485,71 @@ int main(int argc, char **argv) {
     }  /* end of if read stochastic source - else */
 
     /***************************************************************************
-     * invert for stochastic propagator
-     *   up flavor
+     *
      ***************************************************************************/
-    memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
+#if _USE_TIME_DILUTION
+    for ( int timeslice = 0; timeslice < T_global; timeslice++ ) {
 
-    memset ( spinor_work[1], 0, sizeof_spinor_field );
+      unsigned int const offset = _GSI( g_ipt[(timeslice%T)][0][0][0] );
+      memset ( spinor_work[0], 0, sizeof_spinor_field );
 
-    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
-    if(exitstatus < 0) {
-      fprintf(stderr, "[loop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(44);
-    }
+      if ( timeslice / T == g_proc_coords[0] ) {
+        if ( g_cart_id > 2 ) fprintf( stdout, "# [loop_invert_contract] proc %d has global timeslice %d %s %d\n", timeslice, __FILE__, __LINE__ );
+        /* copy own timeslice of stochastic source */
+        memcpy ( spinor_work[0] + offset, stochastic_source + offset, sizeof_spinor_field_timeslice );
+      }
 
-    if ( check_propagator_residual ) {
+      if ( g_write_source ) {
+        sprintf(filename, "%s.%.4d.%.5d.t%d", filename_prefix, Nconf, isample, timeslice );
+        if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
+          fprintf(stderr, "[loop_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+      }
+
+#else
+      /* copy full-volume stochastic source */
       memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
-    }
+#endif
+      /***************************************************************************
+       * invert for stochastic propagator
+       *   up flavor
+       ***************************************************************************/
 
-    memcpy( stochastic_propagator, spinor_work[1], sizeof_spinor_field);
+      memset ( spinor_work[1], 0, sizeof_spinor_field );
 
+      exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id_up );
+      if(exitstatus < 0) {
+        fprintf(stderr, "[loop_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(44);
+      }
+
+      if ( check_propagator_residual ) {
+        /* copy stochastic source (timeslice) again, in case it has been modified by exernal solver lib */
+#if _USE_TIME_DILUTION
+        if ( timeslice / T == g_proc_coords[0] ) {
+          memcpy ( spinor_work[0] + offset, stochastic_source + offset, sizeof_spinor_field_timeslice );
+        }
+#else
+        memcpy ( spinor_work[0], stochastic_source, sizeof_spinor_field );
+#endif
+        check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[op_id_up], mzzinv[op_id_up], 1 );
+      }
+
+#if _USE_TIME_DILUTION
+      /* copy timeslice of solution into stochastic propagator */
+      if ( timeslice / T == g_proc_coords[0] ) {
+        memcpy ( stochastic_propagator + offset, spinor_work[1] + offset, sizeof_spinor_field_timeslice );
+      }
+#else
+      /* copy full-volume solution */
+      memcpy( stochastic_propagator, spinor_work[1], sizeof_spinor_field);
+#endif
+
+#if _USE_TIME_DILUTION
+    }  /* end of loop on timeslice */
+#endif
+ 
     if ( g_write_propagator ) {
       sprintf(filename, "%s.%.4d.%.5d.inverted", filename_prefix, Nconf, isample);
       if ( ( exitstatus = write_propagator( stochastic_propagator, filename, 0, g_propagator_precision) ) != 0 ) {
@@ -555,6 +602,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_HDF5
     exitstatus = contract_loop_write_to_h5_file ( loop, output_filename, data_tag, g_sink_momentum_number, 16, io_proc );
 #else
+#warning "no other output method than hdf5 implemented"
     exitstatus = 1;
 #endif
     if(exitstatus != 0) {
@@ -618,7 +666,7 @@ int main(int argc, char **argv) {
       EXIT(44);
     }
 
-#ifdef _FIRST_DERIV_CONTRACTION
+#if _FIRST_DERIV_CONTRACTION
     /*****************************************************************
      *
      * contractions for single and double cov displ
@@ -718,7 +766,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[loop_invert_contract] Error from contract_loop_write_to_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
-#ifdef _SECOND_DERIV_CONTRACTION
+#if _SECOND_DERIV_CONTRACTION
 #if 0
         STOPPED HERE
         /***************************************************************************
