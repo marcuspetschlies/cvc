@@ -628,7 +628,6 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on irrep matrix ref. rows */
 
->>>>>>> f4646ea8652d1a2c071d38e66b217035d211a54a
       }  /* end of source / sink side */
 
       /****************************************************/
@@ -655,9 +654,6 @@ int main(int argc, char **argv) {
     if ( sink_momentum_id != NULL ) free( sink_momentum_id );
 
   }  /* end of loop on little groups */
-
-  fini_2level_itable ( $momentum_list );
-  free ( sink_momentum_id );
 
   /****************************************************/
   /****************************************************/
