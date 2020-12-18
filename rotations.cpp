@@ -2124,10 +2124,10 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
   if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
     gamma_matrix_type g;
     /* This for inversion matrix in cvc convention */
-    /* gamma_matrix_set ( &g, 0, 1 ); */
+    gamma_matrix_set ( &g, 0, 1 );
 
     /* This for cross-check with UKQCD gamma basis version */
-    gamma_matrix_set ( &g, 5, 1 );
+    /* gamma_matrix_set ( &g, 5, 1 ); */
 
     memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
     return;
