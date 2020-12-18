@@ -211,7 +211,10 @@ int main(int argc, char **argv) {
                                                         // value 0 = opposite parity not taken into account
   int const interpolator_cartesian[2] = {   0,   0 };   // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
   int const interpolator_J2[2]        = {   0 ,  1 };   // 2 * spin
+
   char const interpolator_name[2][12]  = { "pi", "N "};  // name used in operator listing
+  char const interpolator_tex_name[2][2][12]  = { { "\\pi", "\\pi^\\dagger"}, {"N", "\\bar{N}" } };  // name used in operator listing
+
   char const correlator_name[]    = "pixN";
 
   int ** interpolator_momentum_list = init_2level_itable ( interpolator_number, 3 );
@@ -584,13 +587,45 @@ int main(int argc, char **argv) {
             }
 
             /****************************************************
+             * write coefficient matrices to hdf5 file
+             * 
+             ****************************************************/
+            int const dim[2] = { rank, matrix_dim };
+            char tag[400];
+            STOPPED HERE
+            exitstatus = write_h5_contraction ( projection_matrix_gs[1][0], NULL, filename, tag, "double", 2, dim );
+
+
+            /****************************************************
              * print the operator in mixed 
              * text + coefficient form
              ****************************************************/
-            fprintf (  stdout, "\n" );
+       
+            sprintf ( filename, "lg_%s.irrep_%s.row_%d.refrow_%d.j2_%d_%d.ac_%d.opr.tex",
+                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu, ibeta,
+                interpolator_J2[0], interpolator_J2[1], iac );
+
+            FILE * ofs2 = fopen ( filename, "w" );
+            if ( ofs2 == NULL ) {
+              fprintf ( stderr, "# [projection_matrix_piN] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(2);
+            }
+
+            fprintf( ofs2, " $LG = %s$,  $\\Lambda = %s$, $\\lambda = %d$, $J = %d/2(%d) \\oplus %d/2(%d)$, $\\beta_{\\mathrm{ref}} = %d$\n",
+                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+
+
             for ( int ir = 0; ir < rank; ir++ )
             {
-              fprintf( stdout, "operator %2d (%2d) = ", ir+1 , rank);
+            
+              fprintf ( ofs2, "\n\\begin{align}\n" );
+
+              if ( iac == 0 ) {
+                fprintf( ofs2, "O_{%d} &= \n%%\\label{}\n\\\\\n", ir+1);
+              } else {
+                fprintf( ofs2, "\\bar{O}_{%d} &= \n%%\\label{}\n\\\\\n", ir+1);
+              }
               for ( int is = 0; is < matrix_dim; is++ ) {
 
                 int const imom = is / spinor_dim;
@@ -604,22 +639,32 @@ int main(int argc, char **argv) {
                     Ptot[1] - momentum_list[imom][1],
                     Ptot[2] - momentum_list[imom][2] };
 
-
                 int const ispin[2] = {
                     ( is % spinor_dim ) / p.rspin[1].dim,
                     ( is % spinor_dim ) % p.rspin[1].dim };
 
                 double _Complex z = projection_matrix_gs[1][ir][is];
                 if ( cabs ( z ) > eps ) {
-                  fprintf( stdout, "  %s(%d,%d,%d) %d %s(%d,%d,%d) %d [%e,%e]  +  ", 
+
+                  /* fprintf( ofs2, "  %s(%d,%d,%d) %d %s(%d,%d,%d) %d [%e,%e]  +  ", 
                       interpolator_name[0], p1[0], p1[1], p1[2], ispin[0],
                       interpolator_name[1], p2[0], p2[1], p2[2], ispin[1],
+                      __dgeps ( creal(z), eps ), __dgeps ( cimag(z), eps ) ); */
+
+                  fprintf( ofs2, " &\\quad + %s_{%d}\\left(%d,%d,%d \\right) \\, %s_{%d}\\left(%d,%d,%d\\right)\\, \\left[%+8.7f  %+8.7f\\,i\\right]  \\nonumber \\\\\n", 
+                      interpolator_tex_name[0][iac], ispin[0],
+                      p1[0], p1[1], p1[2],
+                      interpolator_tex_name[1][iac], ispin[1],
+                      p2[0], p2[1], p2[2],
                       __dgeps ( creal(z), eps ), __dgeps ( cimag(z), eps ) );
                 }
               }  /* end of loop on matrix dimension */
-              fprintf( stdout, "\n\n" );
+            
+              fprintf ( ofs2, "& \\nonumber\n\\end{align}\n\n" );
+
             }  /* end of loop on rank = loop on operators */
 
+            fclose ( ofs2 );
 
             fini_2level_ztable ( &projection_matrix );
             fini_3level_ztable ( &projection_matrix_gs );
