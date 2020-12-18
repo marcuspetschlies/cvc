@@ -508,7 +508,7 @@ int main(int argc, char **argv) {
         for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
           data[iconf][it] += twop_orbit[iconf][isrc][it][ireim] + twop_fold_propagator * twop_orbit[iconf][isrc][itt][ireim];
         } 
-        data[iconf][it ] /= (double)num_src_per_conf / ( 1 + abs( twop_fold_propagator ) );
+        data[iconf][it ] /= (double)num_src_per_conf * ( 1 + abs( twop_fold_propagator ) );
       }
     }
 
@@ -761,7 +761,7 @@ int main(int argc, char **argv) {
             }
 
             if ( g_verbose > 4 ) fprintf( stdout, "# [avxn_conn_analyse] tensor_trace = %25.16e %25.16e %s %d\n", tensor_trace[0], tensor_trace[1], __FILE__, __LINE__ );
-STOPPED HERE
+
             /**********************************************************
              * temporal gamma, temporal displacement
              **********************************************************/
@@ -780,9 +780,9 @@ STOPPED HERE
                 /*
                  * subtract trace term
                  */
-                  //  - tensor_trace[ireim];
+                   - tensor_trace[ireim];
             }
-#if 0
+
             /**********************************************************
              * spatial gamma, temporal displacement
              **********************************************************/
@@ -834,8 +834,8 @@ STOPPED HERE
                     - (imu == idim) * tensor_trace[ireim]; 
                 }
               }
-            }
-#endif
+            } 
+
             /**********************************************************
              * show symmetrized tensor
              **********************************************************/
@@ -856,6 +856,8 @@ STOPPED HERE
             /**********************************************************
              * O44
              * real part only
+             *
+             * include overall - sign for fermion loop on Wick contraction
              **********************************************************/
 
             threep_op[0][iconf][isrc][it][0] += tensor_sym_sub[0][0][0];
