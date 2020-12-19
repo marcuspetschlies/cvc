@@ -72,9 +72,9 @@ int main(int argc, char **argv) {
 
   /* char const operator_type_tag[4][8]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc"    , "lvc-cvc"    }; */
 
-  char const correlator_prefix[4][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc"  };
+  char const correlator_prefix[5][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc" , "local-local" };
 
-  char const flavor_tag[4][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc" };
+  char const flavor_tag[5][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc", "d-gf-u-gi"   };
 
   int c;
   int filename_set = 0;
@@ -88,10 +88,7 @@ int main(int argc, char **argv) {
   int fold_correlator= 0;
   struct timeval ta, tb;
   int operator_type = -1;
-  int loop_type = 0;
   int write_data = 0;
-
-  double ****** hvp = NULL;
 
 #ifdef HAVE_LHPC_AFF
   struct AffReader_s *affr = NULL;
@@ -257,9 +254,9 @@ int main(int argc, char **argv) {
    **
    ***********************************************************
    ***********************************************************/
-  hvp = init_6level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 4, 4, 2 * T );
+  double ****** hvp = init_6level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number+1, 4, 4, 2 * T );
   if ( hvp == NULL ) {
-    fprintf(stderr, "[hvp_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[hvp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
 
@@ -315,13 +312,16 @@ int main(int argc, char **argv) {
       /**********************************************************
        * loop on momenta
        **********************************************************/
-      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
+      for ( int isink_momentum = 0; isink_momentum <= g_sink_momentum_number; isink_momentum++ ) {
 
-        int const sink_momentum[3] = {
-          g_sink_momentum_list[isink_momentum][0],
-          g_sink_momentum_list[isink_momentum][1],
-          g_sink_momentum_list[isink_momentum][2] };
+        int sink_momentum[3] = {0,0,0}; 
 
+        if ( isink_momentum < g_sink_momentum_number ) { 
+          memcpy ( sink_momentum, g_sink_momentum_list[isink_momentum], 3*sizeof(int));
+        }
+        if ( g_verbose > 4 ) fprintf( stdout, "# [hvp_analyse] sink_momentum [%3d] = %3d, %3d ,%3d\n",
+            isink_momentum, sink_momentum[0], sink_momentum[1], sink_momentum[2]  );
+          
         double *** buffer = init_3level_dtable( 4, 4, 2 * T );
         if( buffer == NULL ) {
           fprintf(stderr, "[hvp_analyse] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
@@ -349,14 +349,14 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "hvp_analyse", "read-aff-key", g_cart_id == 0 );
 
-        } else if ( operator_type == 1 ) {
+        } else if ( operator_type == 1 || operator_type == 4) {
 
           gettimeofday ( &ta, (struct timezone *)NULL );
 
           for( int mu = 0; mu < 4; mu++) {
           for( int nu = 0; nu < 4; nu++) {
             sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix[operator_type], flavor_tag[operator_type],
-                gsx[0], gsx[1], gsx[2], gsx[3], mu, nu, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+                gsx[0], gsx[1], gsx[2], gsx[3], g_sink_gamma_id_list[mu], g_source_gamma_id_list[nu], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
             if ( g_verbose > 2 ) fprintf ( stdout, "# [hvp_analyse] key = %s\n", key );
             affdir = aff_reader_chpath (affr, affn, key );
@@ -384,11 +384,9 @@ int main(int argc, char **argv) {
               TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
               TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
 
-          double phase = 0.;
+          double phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
           if ( operator_type == 0 ) {
             phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
-          } else if ( operator_type == 1 ) {
-            phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
           } else if ( operator_type == 2 ) {
             phase = - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] );
           }
@@ -434,14 +432,16 @@ int main(int argc, char **argv) {
     {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
       {
-        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+        for ( int imom = 0; imom < g_sink_momentum_number+1; imom++ ) {
+          int sink_momentum[3] = {0,0,0};
+          if ( imom < g_sink_momentum_number ) memcpy ( sink_momentum, g_sink_momentum_list[imom], 3*sizeof(int));
           for ( int mu = 0; mu < 4; mu++ ) {
           for ( int nu = 0; nu < 4; nu++ ) {
             for ( int it = 0; it < T; it++ ) {
               fprintf ( stdout, "c %c %6d s %3d %3d %3d %3d p %3d %3d %3d m %d %d hvp %3d  %25.16e %25.16e\n", 
                   conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
                   conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
-                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], mu, nu, it, 
+                  sink_momentum[0], sink_momentum[1], sink_momentum[2], mu, nu, it, 
                   hvp[iconf][isrc][imom][mu][nu][2*it], hvp[iconf][isrc][imom][mu][nu][2*it+1] );
             }
           }}
@@ -460,9 +460,12 @@ int main(int argc, char **argv) {
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+        for ( int imom = 0; imom < g_sink_momentum_number+1; imom++ ) {
+
+          int sink_momentum[3] = {0, 0, 0};
+          if ( imom < g_sink_momentum_number ) memcpy ( sink_momentum, g_sink_momentum_list[imom], 3*sizeof(int) );
   
-          exitstatus = check_momentum_space_wi_tpvec ( hvp[iconf][isrc][imom], g_sink_momentum_list[imom] );
+          exitstatus = check_momentum_space_wi_tpvec ( hvp[iconf][isrc][imom], sink_momentum );
           if ( exitstatus != 0  ) {
             fprintf ( stderr, "[hvp_analyse] Error from check_momentum_space_wi_tpvec, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(2);
@@ -482,7 +485,7 @@ int main(int argc, char **argv) {
    * combine source locations 
    ****************************************/
 
-  double ***** hvp_src_avg = init_5level_dtable ( num_conf, g_sink_momentum_number, 4, 4, 2 * T );
+  double ***** hvp_src_avg = init_5level_dtable ( num_conf, g_sink_momentum_number+1, 4, 4, 2 * T );
   if ( hvp_src_avg == NULL ) {
     fprintf(stderr, "[hvp_analyse] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
@@ -491,7 +494,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     double const norm = 1. / (double)num_src_per_conf;
-    for ( int i = 0; i < g_sink_momentum_number * 32 * T; i++ ) {
+    for ( int i = 0; i <= g_sink_momentum_number * 32 * T; i++ ) {
       hvp_src_avg[iconf][0][0][0][i] = 0.;
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
         hvp_src_avg[iconf][0][0][0][i] += hvp[iconf][isrc][0][0][0][i];
@@ -505,9 +508,11 @@ int main(int argc, char **argv) {
    * imaginary part of HVP tensor
    * components
    ****************************************/
-  for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+  for ( int imom = 0; imom < g_sink_momentum_number+1; imom++ ) {
 
-    int const momentum[3] = { g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] };
+    int momentum[3] = {0,0,0};
+    
+    if ( imom < g_sink_momentum_number ) memcpy( momentum, g_sink_momentum_list[imom], 3*sizeof(int));
 
     /* spatial components */
     for( int mu = 1; mu < 4; mu++) {
@@ -644,12 +649,27 @@ int main(int argc, char **argv) {
    * dep. on 4-momentum
    **********************************************************/
   double **** hvp_scalar = init_4level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+<<<<<<< HEAD
   double ***** hvp_irrep           = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
   double ***** hvp_irrep_projected = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+=======
+
+  double ***** hvp_pirrep           = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+  double ***** hvp_pirrep_projected = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+>>>>>>> c5c9b150a6e94d9fce7907641ab7c314b166b9bc
 
 #pragma omp parallel for
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+        
+      /**********************************************************
+       * FT zero 3-momentum case, to subtract tensor_mu,nu at 
+       * zero 4-momentum
+       **********************************************************/
+      double *** const hvp_zero = hvp[iconf][isrc][g_sink_momentum_number];
+
+      hvp_ft ( hvp_zero, operator_type );
+
       for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
         hvp_ft ( hvp[iconf][isrc][imom], operator_type );
@@ -664,6 +684,10 @@ int main(int argc, char **argv) {
               2 * sin( M_PI * g_sink_momentum_list[imom][2]/(double)LZ_global ) };
 
           double const sinpp = sinp[0] * sinp[0] + sinp[1] * sinp[1] + sinp[2] * sinp[2] + sinp[3] * sinp[3];
+          
+          double const sinp2 = sinp[1] * sinp[1] + sinp[2] * sinp[2] + sinp[3] * sinp[3];
+
+          double const sinp2_ti_one_over_three = sinp2 / 3.;
  
           if ( check_momentum_space_WI ) {
 
@@ -687,35 +711,157 @@ int main(int argc, char **argv) {
             }
           }
 
-  
           /**********************************************************
-           * trace of projected tensor, with subtraction at zero
+           * subtract tensor
            **********************************************************/
-          hvp_scalar[iconf][isrc][imom][2*it  ] = 0;     
-          hvp_scalar[iconf][isrc][imom][2*it+1] = 0;     
-
           for(int mu = 0; mu<4; mu++ ) {
             for(int nu = 0; nu<4; nu++ ) {
-              hvp_scalar[iconf][isrc][imom][2*it  ] += sinp[mu]*sinp[nu]*hvp[iconf][isrc][imom][mu][nu][2*it];
-              hvp_scalar[iconf][isrc][imom][2*it+1] += sinp[mu]*sinp[nu]*hvp[iconf][isrc][imom][mu][nu][2*it+1];
+              hvp[iconf][isrc][imom][mu][nu][2*it  ] -= hvp_zero[mu][nu][0];
+              hvp[iconf][isrc][imom][mu][nu][2*it+1] -= hvp_zero[mu][nu][1];
             }
-            hvp_scalar[iconf][isrc][imom][2*it  ] -= sinpp * hvp[iconf][isrc][imom][mu][mu][2*it  ];
-            hvp_scalar[iconf][isrc][imom][2*it+1] -= sinpp * hvp[iconf][isrc][imom][mu][mu][2*it+1];
           }
-          hvp_scalar[iconf][isrc][imom][2*it  ] /= 3. * sinpp * sinpp;
-          hvp_scalar[iconf][isrc][imom][2*it+1] /= 3. * sinpp * sinpp;
 
+          /**********************************************************
+           * scalar hvp by trace of transverse projected and subtracted
+           * tensor
+           **********************************************************/
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+            hvp_scalar[iconf][isrc][imom][2*it+ireim] = 0;     
+
+            for(int mu = 0; mu<4; mu++ ) {
+              for(int nu = 0; nu<4; nu++ ) {
+                hvp_scalar[iconf][isrc][imom][2*it+ireim] += sinp[mu] * sinp[nu] * hvp[iconf][isrc][imom][mu][nu][2*it+ireim];
+              }
+              hvp_scalar[iconf][isrc][imom][2*it+ireim] -= sinpp * hvp[iconf][isrc][imom][mu][mu][2*it+ireim];
+            }
+            hvp_scalar[iconf][isrc][imom][2*it+ireim] /= 3. * sinpp * sinpp;
+          }
+
+          /**********************************************************
+           * unprojected irreps
+           **********************************************************/
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+             /* A1 */
+             hvp_pirrep[0][iconf][isrc][imom][2*it+ireim] = hvp[iconf][isrc][imom][1][1][2*it+ireim] + hvp[iconf][isrc][imom][2][2][2*it+ireim] + hvp[iconf][isrc][imom][3][3][2*it+ireim];
+
+             /* A1p */
+             hvp_pirrep[1][iconf][isrc][imom][2*it+ireim] = hvp[iconf][isrc][imom][0][0][2*it+ireim];
+
+             /* T1 */
+             hvp_pirrep[2][iconf][isrc][imom][2*it+ireim] = 
+                  + sinp[1] * ( hvp[iconf][isrc][imom][0][1][2*it+ireim] + hvp[iconf][isrc][imom][1][0][2*it+ireim] )
+                  + sinp[2] * ( hvp[iconf][isrc][imom][0][2][2*it+ireim] + hvp[iconf][isrc][imom][2][0][2*it+ireim] )
+                  + sinp[3] * ( hvp[iconf][isrc][imom][0][3][2*it+ireim] + hvp[iconf][isrc][imom][3][0][2*it+ireim] );
+
+             /* T2 */
+             hvp_pirrep[3][iconf][isrc][imom][2*it+ireim] = 
+                  + sinp[1] * sinp[2] * ( hvp[iconf][isrc][imom][1][2][2*it+ireim] + hvp[iconf][isrc][imom][2][1][2*it+ireim] )
+                  + sinp[1] * sinp[3] * ( hvp[iconf][isrc][imom][1][3][2*it+ireim] + hvp[iconf][isrc][imom][3][1][2*it+ireim] )
+                  + sinp[2] * sinp[3] * ( hvp[iconf][isrc][imom][2][3][2*it+ireim] + hvp[iconf][isrc][imom][3][2][2*it+ireim] );
+
+             /* E */
+             hvp_pirrep[4][iconf][isrc][imom][2*it+ireim] = 
+                  ( sinp2_ti_one_over_three - sinp[1] * sinp[1] ) * hvp[iconf][isrc][imom][1][1][2*it+ireim]
+                + ( sinp2_ti_one_over_three - sinp[2] * sinp[2] ) * hvp[iconf][isrc][imom][2][2][2*it+ireim]
+                + ( sinp2_ti_one_over_three - sinp[3] * sinp[3] ) * hvp[iconf][isrc][imom][3][3][2*it+ireim];
+
+
+             hvp_pirrep[0][iconf][isrc][imom][2*it+ireim] /= ( sinp2 - 3 * sinpp );
+
+             hvp_pirrep[1][iconf][isrc][imom][2*it+ireim] /= -sinp2;
+
+             hvp_pirrep[2][iconf][isrc][imom][2*it+ireim] /= 2. * sinp2 * sinp[0];
+
+             hvp_pirrep[3][iconf][isrc][imom][2*it+ireim] /= 2. * ( sinp[1] * sinp[1] * sinp[2] * sinp[2] + sinp[1] * sinp[1] * sinp[3] * sinp[3] + sinp[2] * sinp[2] * sinp[3] * sinp[3] );
+
+             hvp_pirrep[4][iconf][isrc][imom][2*it+ireim] /= sinp2 * sinp2 / 3. - 
+                 (   sinp[1] * sinp[1] * sinp[1] * sinp[1] 
+                   + sinp[2] * sinp[2] * sinp[2] * sinp[2] 
+                   + sinp[3] * sinp[3] * sinp[3] * sinp[3]  );
         }
-      }
-    }
-  }
+
+        /**********************************************************
+         * project tensor
+         **********************************************************/
+        for ( int ireim = 0; ireim < 2; ireim++ ) {
+        
+          double haux[4][4];
+          for ( int imu = 0; imu < 4; imu++ ) {
+          for ( int inu = 0; inu < 4; inu++ ) {
+            haux[imu][inu] = hvp[iconf][isrc][imom][imu][inu][2*it+ireim];
+          }}
+ 
+          for ( int imu = 0; imu < 4; imu++ ) {
+          for ( int inu = 0; inu < 4; inu++ ) {
+
+            hvp[iconf][isrc][imom][imu][inu][2*it+ireim] = haux[imu][inu];
+
+            for ( int i = 0; i < 4; i++ ) {
+             
+              hvp[iconf][isrc][imom][imu][inu][2*it+ireim] -=  sinp[i]  * ( sinp[imu]  * haux[i][inu] + sinp[inu] * haux[imu][i] ) / sinpp;
+
+              for ( int k = 0; k < 4; k++ ) {
+                hvp[iconf][isrc][imom][imu][inu][2*it+ireim] += sinp[imu] * sinp[inu] * sinp[i] * sinp[k] * haux[i][k] / ( sinpp * sinpp );
+              }}
+            }}
+           }
+
+          /**********************************************************
+           * projected irreps
+           **********************************************************/
+          for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+             /* A1 */
+             hvp_pirrep_projected[0][iconf][isrc][imom][2*it+ireim] = hvp[iconf][isrc][imom][1][1][2*it+ireim] + hvp[iconf][isrc][imom][2][2][2*it+ireim] + hvp[iconf][isrc][imom][3][3][2*it+ireim];
+
+             /* A1p */
+             hvp_pirrep_projected[1][iconf][isrc][imom][2*it+ireim] = hvp[iconf][isrc][imom][0][0][2*it+ireim];
+
+             /* T1 */
+             hvp_pirrep_projected[2][iconf][isrc][imom][2*it+ireim] = 
+                  + sinp[1] * ( hvp[iconf][isrc][imom][0][1][2*it+ireim] + hvp[iconf][isrc][imom][1][0][2*it+ireim] )
+                  + sinp[2] * ( hvp[iconf][isrc][imom][0][2][2*it+ireim] + hvp[iconf][isrc][imom][2][0][2*it+ireim] )
+                  + sinp[3] * ( hvp[iconf][isrc][imom][0][3][2*it+ireim] + hvp[iconf][isrc][imom][3][0][2*it+ireim] );
+
+             /* T2 */
+             hvp_pirrep_projected[3][iconf][isrc][imom][2*it+ireim] = 
+                  + sinp[1] * sinp[2] * ( hvp[iconf][isrc][imom][1][2][2*it+ireim] + hvp[iconf][isrc][imom][2][1][2*it+ireim] )
+                  + sinp[1] * sinp[3] * ( hvp[iconf][isrc][imom][1][3][2*it+ireim] + hvp[iconf][isrc][imom][3][1][2*it+ireim] )
+                  + sinp[2] * sinp[3] * ( hvp[iconf][isrc][imom][2][3][2*it+ireim] + hvp[iconf][isrc][imom][3][2][2*it+ireim] );
+
+             /* E */
+             hvp_pirrep_projected[4][iconf][isrc][imom][2*it+ireim] = 
+                  ( sinp2_ti_one_over_three - sinp[1] * sinp[1] ) * hvp[iconf][isrc][imom][1][1][2*it+ireim]
+                + ( sinp2_ti_one_over_three - sinp[2] * sinp[2] ) * hvp[iconf][isrc][imom][2][2][2*it+ireim]
+                + ( sinp2_ti_one_over_three - sinp[3] * sinp[3] ) * hvp[iconf][isrc][imom][3][3][2*it+ireim];
+
+
+             hvp_pirrep_projected[0][iconf][isrc][imom][2*it+ireim] /= ( sinp2 - 3 * sinpp );
+
+             hvp_pirrep_projected[1][iconf][isrc][imom][2*it+ireim] /= -sinp2;
+
+             hvp_pirrep_projected[2][iconf][isrc][imom][2*it+ireim] /= 2. * sinp2 * sinp[0];
+
+             hvp_pirrep_projected[3][iconf][isrc][imom][2*it+ireim] /= 2. * ( sinp[1] * sinp[1] * sinp[2] * sinp[2] + sinp[1] * sinp[1] * sinp[3] * sinp[3] + sinp[2] * sinp[2] * sinp[3] * sinp[3] );
+
+             hvp_pirrep_projected[4][iconf][isrc][imom][2*it+ireim] /= sinp2 * sinp2 / 3. - 
+                 (   sinp[1] * sinp[1] * sinp[1] * sinp[1] 
+                   + sinp[2] * sinp[2] * sinp[2] * sinp[2] 
+                   + sinp[3] * sinp[3] * sinp[3] * sinp[3]  );
+        }
+
+        }  /* emd loop on timeslices */
+      }  /* end of loop on momenta */   
+    }  /* end of loop on sources */
+  }  /* end of loop on configs */
 
   if ( g_verbose > 5 ) {
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
         for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
           for ( int itt = -T_global/2; itt < T_global/2; itt++ ) {
-            int const it = itt >= 0 ? itt : itt + T_global;
+            int const it = itt > 0 ? itt : ( itt + T_global ) % T_global;
             fprintf( stdout, "hvp %c %6d     %3d %3d %3d %3d     %3d %3d %3d    %3d %25.16e %25.16e\n",
                 conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
                 conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
@@ -727,7 +873,14 @@ int main(int argc, char **argv) {
     }
   }
 
+  /**********************************************************
+   *
+   * STATISTICAL ANALYSIS
+   * for hvp_scalar
+   *
+   **********************************************************/
   for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+
     for ( int ireim = 0; ireim < 2; ireim++ ) {
 
       double ** data = init_2level_dtable ( num_conf, T_global );
@@ -781,6 +934,132 @@ int main(int argc, char **argv) {
 
   fini_4level_dtable ( &hvp_scalar );
   fini_5level_dtable ( &hvp_src_avg );
+
+  /**********************************************************
+   *
+   * STATISTICAL ANALYSIS
+   * for unprojected irreps
+   *
+   **********************************************************/
+  for ( int irrep = 0; irrep < 5; irrep++ ) {
+
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+      double ** data = init_2level_dtable ( num_conf, T_global );
+      if ( data == NULL ) {
+        fprintf(stderr, "[hvp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      int dim[2] = { num_conf, T_global };
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              data[iconf][it] += hvp_pirrep[irrep][iconf][isrc][imom][2*it+ireim];
+            }
+          }
+          data[iconf][it] /= (double)num_src_per_conf * (double)g_sink_momentum_number;
+      }} 
+
+      char obs_name[100];
+      sprintf ( obs_name, "%s.%s.%s.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type], irrep_name[irrep],
+            g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[hvp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      if ( write_data == 1) {
+        sprintf ( filename, "%s.corr", obs_name );
+        FILE * ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+          EXIT(12);
+        }
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf ( ofs, "%5d%25.16e%8d %c\n", it, data[iconf][it], conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
+          }
+        }
+        fclose ( ofs );
+      }  /* end of if write data  */
+
+      fini_2level_dtable ( &data );
+
+    }  /* end of loop on re / im */
+
+  }  /* end of loop on irreps */
+
+  fini_5level_dtable ( &hvp_pirrep );
+
+  /**********************************************************
+   *
+   * STATISTICAL ANALYSIS
+   * for projected irreps
+   *
+   **********************************************************/
+  for ( int irrep = 0; irrep < 5; irrep++ ) {
+
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
+
+      double ** data = init_2level_dtable ( num_conf, T_global );
+      if ( data == NULL ) {
+        fprintf(stderr, "[hvp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+      int dim[2] = { num_conf, T_global };
+#pragma omp parallel for
+      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+        for ( int it = 0; it < T_global; it++ ) {
+          data[iconf][it] = 0.;
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              data[iconf][it] += hvp_pirrep_projected[irrep][iconf][isrc][imom][2*it+ireim];
+            }
+          }
+          data[iconf][it] /= (double)num_src_per_conf * (double)g_sink_momentum_number;
+      }} 
+
+      char obs_name[100];
+      sprintf ( obs_name, "%s.%s.%s.projected.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type], irrep_name[irrep],
+            g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
+
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[hvp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      if ( write_data == 1) {
+        sprintf ( filename, "%s.corr", obs_name );
+        FILE * ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stdout, "[hvp_analyse] Error from fopen for file %s %s %d\n", filename, __FILE__, __LINE__ );
+          EXIT(12);
+        }
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf ( ofs, "%5d%25.16e%8d %c\n", it, data[iconf][it], conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
+          }
+        }
+        fclose ( ofs );
+      }  /* end of if write data  */
+
+      fini_2level_dtable ( &data );
+
+    }  /* end of loop on re / im */
+
+  }  /* end of loop on irreps */
+
+  fini_5level_dtable ( &hvp_pirrep_projected );
 
   /**********************************************************
    * free the allocated memory, finalize
