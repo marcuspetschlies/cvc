@@ -784,7 +784,7 @@ int main(int argc, char **argv) {
           double haux[4][4];
           for ( int imu = 0; imu < 4; imu++ ) {
           for ( int inu = 0; inu < 4; inu++ ) {
-            haux[imu][inu] = hvp[iconf][isrc][imom][imu][inu][2*it+ireim] - hvp_zero[imu][inu][ireim];
+            haux[imu][inu] = hvp[iconf][isrc][imom][imu][inu][2*it+ireim];
           }}
  
           for ( int imu = 0; imu < 4; imu++ ) {
