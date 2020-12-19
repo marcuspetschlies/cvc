@@ -644,6 +644,9 @@ int main(int argc, char **argv) {
    * dep. on 4-momentum
    **********************************************************/
   double **** hvp_scalar = init_4level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+  double ***** hvp_irrep           = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+  double ***** hvp_irrep_projected = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
+
 #pragma omp parallel for
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
     for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
@@ -684,8 +687,10 @@ int main(int argc, char **argv) {
             }
           }
 
-
-
+  
+          /**********************************************************
+           * trace of projected tensor, with subtraction at zero
+           **********************************************************/
           hvp_scalar[iconf][isrc][imom][2*it  ] = 0;     
           hvp_scalar[iconf][isrc][imom][2*it+1] = 0;     
 
@@ -700,17 +705,6 @@ int main(int argc, char **argv) {
           hvp_scalar[iconf][isrc][imom][2*it  ] /= 3. * sinpp * sinpp;
           hvp_scalar[iconf][isrc][imom][2*it+1] /= 3. * sinpp * sinpp;
 
-#if 0
-          for(int nu = 1; nu<4; nu++ ) {
-            hvp_scalar[iconf][isrc][imom][2*it  ] += hvp[iconf][isrc][imom][nu][nu][2*it];
-            hvp_scalar[iconf][isrc][imom][2*it+1] += hvp[iconf][isrc][imom][nu][nu][2*it+1];
-          }
-          for(int nu = 1; nu<4; nu++ ) {
-            hvp_scalar[iconf][isrc][imom][2*it  ] += hvp[iconf][isrc][imom][0][nu][2*it  ] + hvp[iconf][isrc][imom][nu][0][2*it  ];
-            hvp_scalar[iconf][isrc][imom][2*it+1] += hvp[iconf][isrc][imom][0][nu][2*it+1] + hvp[iconf][isrc][imom][nu][0][2*it+1];
-          }
-
-#endif
         }
       }
     }
