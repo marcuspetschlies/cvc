@@ -1,0 +1,755 @@
+T = 128
+LX = 64
+LY = 64
+LZ = 64
+filename_prefix = mod_Diagramm
+Nconf = CONFNUMBER
+BeginTwopointFunctionGeneric
+  n       = 1
+  d       = 4
+  type    = b-b
+  tag     = piN
+  reorder = 0
+  T       = 128
+EndTwopointFunction
+
+seq_source_momentum = 0,0,0
+seq_source_momentum = 0,0,1
+seq_source_momentum = 0,0,-1
+seq_source_momentum = 0,-1,0
+seq_source_momentum = -1,0,0
+seq_source_momentum = 1,0,0
+seq_source_momentum = 0,1,0
+seq_source_momentum = 0,-1,1
+seq_source_momentum = 0,-1,-1
+seq_source_momentum = 0,1,1
+seq_source_momentum = 0,1,-1
+seq_source_momentum = -1,0,1
+seq_source_momentum = -1,0,-1
+seq_source_momentum = 1,0,1
+seq_source_momentum = 1,0,-1
+seq_source_momentum = -1,-1,0
+seq_source_momentum = -1,1,0
+seq_source_momentum = 1,-1,0
+seq_source_momentum = 1,1,0
+seq_source_momentum = -1,-1,1
+seq_source_momentum = -1,-1,-1
+seq_source_momentum = -1,1,1
+seq_source_momentum = -1,1,-1
+seq_source_momentum = 1,-1,1
+seq_source_momentum = 1,-1,-1
+seq_source_momentum = 1,1,1
+seq_source_momentum = 1,1,-1
+
+source_coords = 12,1,31,63
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1g
+  listofmomentumf1 = 0 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 0, 1, 1, 2, 2, 3, 3
+  sourcepionnucleontotalmomentum = 0 , 0, 1, 1, 2, 2, 3, 3
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2Oh
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1u
+  listofmomentumf1 = 0 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 0, 1, 1, 2, 2, 3, 3
+  sourcepionnucleontotalmomentum = 0 , 0, 1, 1, 2, 2, 3, 3
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2Oh
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = Hg
+  listofmomentumf1 = 0 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 1, 2, 2, 3, 3
+  sourcepionnucleontotalmomentum =  1, 1, 2, 2, 3, 3
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2Oh
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = Hu
+  listofmomentumf1 = 0 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 1, 2, 2, 3, 3
+  sourcepionnucleontotalmomentum = 1, 1, 2, 2, 3, 3
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2Oh
+EndTwopointFunction
+
+
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 0 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 0 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 -1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 0 , 1, 1, 2, 2, 3, 1, 0, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G2
+  listofmomentumf1 = 0 0 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G2
+  listofmomentumf1 = 0 0 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G2
+  listofmomentumf1 = 0 1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G2
+  listofmomentumf1 = 0 -1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G2
+  listofmomentumf1 = 1 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G2
+  listofmomentumf1 = -1 0 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sourcepionnucleontotalmomentum = 1, 2, 2, 3, 2, 1, 3, 2
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C4v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 -1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 0 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 0 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 0 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 -1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 0 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit 
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 0 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 -1 0
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sourcepionnucleontotalmomentum = 0, 2, 1, 1, 1, 3, 2, 0, 3, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C2v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sourcepionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sourcepionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sourcepionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sourcepionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = 1 -1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sourcepionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = G1
+  listofmomentumf1 = -1 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sourcepionnucleontotalmomentum = 0, 3, 1, 2, 2, 1, 3, 0
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K1
+  listofmomentumf1 = 1 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum = 1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K1
+  listofmomentumf1 = -1 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 1
+  sourcepionnucleontotalmomentum = 1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K1
+  listofmomentumf1 = 1 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K1
+  listofmomentumf1 = 1 1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K1
+  listofmomentumf1 = 1 -1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K1
+  listofmomentumf1 = -1 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K2
+  listofmomentumf1 = 1 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum = 1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K2
+  listofmomentumf1 = -1 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 1
+  sourcepionnucleontotalmomentum = 1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K2
+  listofmomentumf1 = 1 -1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K2
+  listofmomentumf1 = 1 1 -1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K2
+  listofmomentumf1 = 1 -1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum = 1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
+
+BeginTwopointFunctionInit
+  particlenamesource = piN
+  particlenamesink   = piN
+  irrep            = K2
+  listofmomentumf1 = -1 1 1
+  listofmomentumf2 = 0 0 0
+  sinkpionnucleontotalmomentum =  1, 2, 2, 1
+  sourcepionnucleontotalmomentum =  1, 2, 2, 1
+  sinkspin  = 1
+  sourcespin = 1
+  listofgammasf1 = 14,4 11,5 8,4 2,5
+  listofgammasi1 = 14,4 11,5 8,4 2,5
+  group         = 2C3v
+EndTwopointFunction
