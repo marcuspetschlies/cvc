@@ -1285,6 +1285,9 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
 
 /**********************************************************
  * prepare sequential FHT source with loop
+ *
+ * scalar_field is a complex = 2 x double per site field
+ * here only the real part is used
  **********************************************************/
 int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, double * const scalar_field, int const gamma_id, double _Complex * const ephase ) {
 
@@ -1306,7 +1309,7 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
       double * const _s = seq_source[isc] + iix;
 
       _fv_eq_gamma_ti_fv ( spinor1, gamma_id, _p );
-      _fv_ti_eq_re ( spinor1, scalar_field[ix] );
+      _fv_ti_eq_re ( spinor1, scalar_field[2*ix] );
 
       _fv_eq_fv_ti_d2 ( _s, spinor1, (double*)(ephase + (ix % VOL3)) );
 
