@@ -67,8 +67,8 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_II  1  /* B/Z and D1c/i sequential diagrams */
-#define _PART_III 1  /* W type sequential diagrams */
+#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 using namespace cvc;
 
@@ -207,7 +207,7 @@ int main(int argc, char **argv) {
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
   */
   int read_loop_field = 0;
-  char read_loop_filename[400];
+  int write_loop_field = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -218,7 +218,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:l:")) != -1) {
+  while ((c = getopt(argc, argv, "rwch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -227,9 +227,11 @@ int main(int argc, char **argv) {
     case 'c':
       check_propagator_residual = 1;
       break;
-    case 'l':
+    case 'r':
       read_loop_field = 1;
-      strcpy ( read_loop_filename, optarg );
+      break;
+    case 'w':
+      write_loop_field = 1;
       break;
     case 'h':
     case '?':
@@ -463,7 +465,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    ***************************************************************************
    **
-   ** Part I
+   ** Part Ia
    **
    ** prepare stochastic sources and propagators
    ** to contract the loop for insertion as part of
@@ -593,57 +595,97 @@ int main(int argc, char **argv) {
       loop[0][0][ix] /= (double)g_nsample;
     }
 
+    /***************************************************************************
+     * write loop field to lime file
+     ***************************************************************************/
+    if ( write_loop_field ) {
+      sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
+      char loop_type[2000];
+
+      sprintf( loop_type, "<source_type>\n  %d\n</source_type>\n<noise_type>\n  %d</noise_type>", g_source_type, g_noise_type );
+
+      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 288, loop_type, Nconf, 0);
+      if ( exitstatus != 0  ) {
+        fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(12);
+      }
+
+    }  /* end of if write_loop_field */
+
+
   } else {
 
     /***************************************************************************
-     * read loop field from file
-     * for testing
+     * read loop field from lime file
      ***************************************************************************/
+    sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
 
-    if ( g_cart_id == 0 ) {
-      fprintf ( stdout, "# [njjn_fht_invert_contract] reading loop field from file %s %s %d\n", read_loop_filename,  __FILE__, __LINE__ );
+    if ( io_proc == 2 && g_verbose > 0 ) {
+      fprintf ( stdout, "# [njjn_fht_invert_contract] reading loop field from file %s %s %d\n", filename,  __FILE__, __LINE__ );
     }
-#ifndef HAVE_MPI
-    FILE * lfs = fopen ( read_loop_filename, "r" );
-    if ( lfs == NULL ) {
-      fprintf ( stderr, "[njjn_fht_invert_contract] Error from fopen %s %d\n", __FILE__, __LINE__ );
+
+    exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 288, 0 );
+    if ( exitstatus != 0  ) {
+      fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
     }
 
-    /***************************************************************************
-     * !!! THIS IS TEMPORARY; ADAPT TO WHAT IS NEEDED !!!
-     ***************************************************************************/
-
-    /* for ( unsigned int ix = 0; ix < VOLUME; ix++ ) */
-    for ( unsigned int ix = 0; ix < 1; ix++ )
-    {
-      double dtmp;
-      for ( int i = 0; i< 12; i++ ) {
-        for ( int k = 0; k< 12; k++ ) {
-          if ( fscanf ( lfs, "%lf ", &dtmp ) != 1 ) {
-            fprintf ( stderr, "[njjn_fht_invert_contract] Error from fscanf %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
-          loop[ix][i][k] = dtmp;
-        }
-        fscanf ( lfs, "\n" );
-      }
-      /* TEST */
-      for ( int i = 0; i< 12; i++ ) {
-        for ( int k = 0; k< 12; k++ ) {
-          fprintf ( stdout, "# [njjn_fht_invert_contract] loop[0][%2d][%2d] = %25.16e + I %25.16e\n", i, k, creal( loop[ix][i][k] ), cimag( loop[ix][i][k] ) );
-        }
-      }
-      /* END OF TEST */
-    }
-    fclose ( lfs );
-
-    for ( unsigned int ix = 1; ix < VOLUME; ix++ ) {
-      memcpy ( loop[ix][0], loop[0][0], 144 * sizeof ( double _Complex ) );
-    }
-
-#endif  /* end of if HAVE_MPI not defined */
   }  /* end of if on read stoch. source  */
+
+
+  /***************************************************************************
+   ***************************************************************************
+   **
+   ** Part Ib
+   **
+   ** prepare stochastic sources for W-type sequential sources and propagators
+   **
+   ***************************************************************************
+   ***************************************************************************/
+
+  double ** scalar_field = init_2level_dtable ( g_nsample_oet, VOLUME );
+  if( scalar_field == NULL ) {
+    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(132);
+  }
+
+  if ( ! read_loop_field ) {
+
+    /***************************************************************************
+     * draw a stochastic binary source (real, +/1 one per site )
+     ***************************************************************************/
+    ranbinaryd ( scalar_field[0], g_nsample_oet * VOLUME );
+
+    /***************************************************************************
+     * write loop field to lime file
+     ***************************************************************************/
+    if ( write_loop_field ) {
+      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
+      
+      char field_type[2000];
+
+      sprintf( field_type, "<source_type>\n  %d\n</source_type>\n<noise_type>\n  binary real</noise_type>", g_source_type );
+
+      for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+        exitstatus = write_lime_contraction( scalar_field[isample], filename, 64, 1, field_type, Nconf, ( isample > 0 ) );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(12);
+        }
+      }
+    }  /* end of if write_loop_field */
+
+  } else {
+    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
+      
+    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+      exitstatus = read_lime_contraction ( scalar_field[isample], filename, 1, isample );
+      if ( exitstatus != 0  ) {
+        fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(12);
+      }
+    }
+  }  /* end of if read scalar field */
 
   /***************************************************************************
    *
@@ -664,22 +706,6 @@ int main(int argc, char **argv) {
      * allocate point-to-all propagators,
      * spin-color dilution (i.e. 12 fields per flavor of size 24xVOLUME real )
      ***************************************************************************/
-
-    /* up and down quark propagator with source smearing */
-    double *** propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
-    if( propagator == NULL ) {
-      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-      EXIT(123);
-    }
-
-    /* up and down quark propagator with source and sink smearing,
-     * to use for baryon 2-pt function 
-     */
-    double *** propagator_snk_smeared = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
-    if ( propagator_snk_smeared == NULL ) {
-      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-      EXIT(123);
-    }
 
     /***************************************************************************
      * determine source coordinates,
@@ -726,11 +752,31 @@ int main(int argc, char **argv) {
     EXIT(15);
 #endif
 
-    /**********************************************************
-     *
-     * point-to-all propagators with source at gsx
-     *
-     **********************************************************/
+    /* up and down quark propagator with source smearing */
+    double *** propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
+    if( propagator == NULL ) {
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    /* up and down quark propagator with source and sink smearing,
+     * to use for baryon 2-pt function 
+     */
+    double *** propagator_snk_smeared = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
+    if ( propagator_snk_smeared == NULL ) {
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    /***************************************************************************
+     ***************************************************************************
+     **
+     ** Part IIa
+     **
+     ** point-to-all propagators with source at gsx 
+     **
+     ***************************************************************************
+     ***************************************************************************/
 
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
     {
@@ -809,31 +855,11 @@ int main(int argc, char **argv) {
     fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
 
     /***************************************************************************
-     * vx holds the x-dependent nucleon-nucleon spin propagator,
-     * i.e. a 4x4 complex matrix per space time point
-     ***************************************************************************/
-    double ** vx = init_2level_dtable ( VOLUME, 32 );
-    if ( vx == NULL ) {
-      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
-      EXIT(47);
-    }
-
-    /***************************************************************************
-     * vp holds the nucleon-nucleon spin propagator in momentum space,
-     * i.e. the momentum projected vx
-     ***************************************************************************/
-    double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
-    if ( vp == NULL ) {
-      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT(47);
-    }
-
-    /***************************************************************************
      ***************************************************************************
      **
-     ** Part II
+     ** Part IIb
      **
-     ** fwd propagator contractions for baryon 2pts
+     ** point-to-all propagator contractions for baryon 2pts
      **
      ***************************************************************************
      ***************************************************************************/
@@ -844,6 +870,26 @@ int main(int argc, char **argv) {
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
+
+      /***************************************************************************
+       * vx holds the x-dependent nucleon-nucleon spin propagator,
+       * i.e. a 4x4 complex matrix per space time point
+       ***************************************************************************/
+      double ** vx = init_2level_dtable ( VOLUME, 32 );
+      if ( vx == NULL ) {
+        fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+        EXIT(47);
+      }
+
+      /***************************************************************************
+       * vp holds the nucleon-nucleon spin propagator in momentum space,
+       * i.e. the momentum projected vx
+       ***************************************************************************/
+      double *** vp = init_3level_dtable ( T, g_source_momentum_number, 32 );
+      if ( vp == NULL ) {
+        fprintf(stderr, "[njjn_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(47);
+      }
 
       /***************************************************************************
        *
@@ -888,7 +934,7 @@ int main(int argc, char **argv) {
          ***************************************************************************/
         sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
-        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[njjn_fht_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(48);
@@ -899,13 +945,16 @@ int main(int argc, char **argv) {
          ***************************************************************************/
         sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
-        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[njjn_fht_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(48);
         }
 
       }}  /* end of loop on Dirac Gamma structures */
+
+      fini_2level_dtable ( &vx );
+      fini_3level_dtable ( &vp );
 
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "njjn_fht_invert_contract", "n1-n2-reduce-project-write", g_cart_id == 0 );
@@ -931,7 +980,7 @@ int main(int argc, char **argv) {
       if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [njjn_fht_invert_contract] start seq source mom %3d %3d %3d  %s %d\n", 
           momentum[0], momentum[1], momentum[2], __FILE__, __LINE__);
 
-#if _PART_II
+#if _PART_III
       /***************************************************************************
        * loop on flavor
        ***************************************************************************/
@@ -940,6 +989,26 @@ int main(int argc, char **argv) {
 
         if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [njjn_fht_invert_contract] start seq source flavor %3d   %s %d\n", 
             iflavor, __FILE__, __LINE__);
+
+        /***************************************************************************
+         * vx holds the x-dependent nucleon-nucleon spin propagator,
+         * i.e. a 4x4 complex matrix per space time point
+         ***************************************************************************/
+        double ** vx = init_2level_dtable ( VOLUME, 32 );
+        if ( vx == NULL ) {
+          fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+          EXIT(47);
+        }
+
+        /***************************************************************************
+         * vp holds the nucleon-nucleon spin propagator in momentum space,
+         * i.e. the momentum projected vx
+         ***************************************************************************/
+        double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+        if ( vp == NULL ) {
+          fprintf(stderr, "[njjn_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(47);
+        }
 
         /***************************************************************************
          ***************************************************************************
@@ -1263,13 +1332,16 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on seq. source type */
 
+	fini_2level_dtable ( &vx );
+        fini_3level_dtable ( &vp );
+
       }  /* loop on flavor type */
-#endif  /* of if _PART_II */
+#endif  /* of if _PART_III */
 
       /***************************************************************************/
       /***************************************************************************/
 
-#if _PART_III
+#if _PART_IV
       /***************************************************************************
        ***************************************************************************
        **
@@ -1297,17 +1369,6 @@ int main(int argc, char **argv) {
             EXIT(132);
           }
 
-          double * scalar_field = init_1level_dtable ( VOLUME );
-          if( scalar_field == NULL ) {
-            fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-            EXIT(132);
-          }
-
-          /***************************************************************************
-           * draw a stochastic binary source (real, +/1 one per site )
-           ***************************************************************************/
-          ranbinaryd ( scalar_field, VOLUME );
-
           /***************************************************************************
            * loop on sequential source gamma matrices
            ***************************************************************************/
@@ -1326,7 +1387,7 @@ int main(int argc, char **argv) {
 
                 gettimeofday ( &ta, (struct timezone *)NULL );
 
-                exitstatus =  prepare_sequential_fht_twinpeak_source ( sequential_source, propagator[iflavor], scalar_field, sequential_gamma_id[igamma][ig], ephase[imom] ) ;
+                exitstatus =  prepare_sequential_fht_twinpeak_source ( sequential_source, propagator[iflavor], scalar_field[isample], sequential_gamma_id[igamma][ig], ephase[imom] ) ;
                 if ( exitstatus != 0 ) {
                   fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_sequential_fht_twinpeak_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(123);
@@ -1373,7 +1434,7 @@ int main(int argc, char **argv) {
                     }
                   }
                 }
-	      
+	
 		gettimeofday ( &tb, (struct timezone *)NULL );
                 show_time ( &ta, &tb, "njjn_fht_invert_contract", "sequential-source-w-invert-check-smear", g_cart_id == 0 );
 
@@ -1392,6 +1453,26 @@ int main(int argc, char **argv) {
               for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
 
 		gettimeofday ( &ta, (struct timezone *)NULL );
+
+                /***************************************************************************
+                 * vx holds the x-dependent nucleon-nucleon spin propagator,
+                 * i.e. a 4x4 complex matrix per space time point
+                 ***************************************************************************/
+                double ** vx = init_2level_dtable ( VOLUME, 32 );
+                if ( vx == NULL ) {
+                  fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+                  EXIT(47);
+                }
+
+                /***************************************************************************
+                 * vp holds the nucleon-nucleon spin propagator in momentum space,
+                 * i.e. the momentum projected vx
+                 ***************************************************************************/
+                double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+                if ( vp == NULL ) {
+                  fprintf(stderr, "[njjn_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+                  EXIT(47);
+                }
 
                 char aff_tag_prefix[200];
                 sprintf ( aff_tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
@@ -1449,6 +1530,9 @@ int main(int argc, char **argv) {
     
                 }} // end of loop on Dirac gamma structures
 
+                fini_2level_dtable ( &vx );
+                fini_3level_dtable ( &vp );
+	
 	        gettimeofday ( &tb, (struct timezone *)NULL );
                 show_time ( &ta, &tb, "njjn_fht_invert_contract", "w-uuuu-diagram-reduce-project-write", g_cart_id == 0 );
 
@@ -1462,6 +1546,27 @@ int main(int argc, char **argv) {
               for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
 
                 gettimeofday ( &ta, (struct timezone *)NULL );
+
+                /***************************************************************************
+                 * vx holds the x-dependent nucleon-nucleon spin propagator,
+                 * i.e. a 4x4 complex matrix per space time point
+                 ***************************************************************************/
+                double ** vx = init_2level_dtable ( VOLUME, 32 );
+                if ( vx == NULL ) {
+                  fprintf(stderr, "[njjn_fht_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+                  EXIT(47);
+                }
+
+                /***************************************************************************
+                 * vp holds the nucleon-nucleon spin propagator in momentum space,
+                 * i.e. the momentum projected vx
+                 ***************************************************************************/
+                double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+                if ( vp == NULL ) {
+                  fprintf(stderr, "[njjn_fht_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+                  EXIT(47);
+                }
+
 
                 char aff_tag_prefix[200], aff_tag_prefix2[200];
 
@@ -1555,6 +1660,9 @@ int main(int argc, char **argv) {
 
                 }} // end of loop on Dirac gamma structures
 
+                fini_2level_dtable ( &vx );
+                fini_3level_dtable ( &vp );
+	
 	        gettimeofday ( &tb, (struct timezone *)NULL );
                 show_time ( &ta, &tb, "njjn_fht_invert_contract", "w-uudd-diagram-reduce-project-write", g_cart_id == 0 );
 
@@ -1564,13 +1672,12 @@ int main(int argc, char **argv) {
             }  /* end of loop on gamma id inside gamma set */
           }  /* end of loop on gamma set */
 
-          fini_1level_dtable ( &scalar_field );
           fini_2level_dtable ( &sequential_source );
           fini_3level_dtable ( &sequential_propagator );
 
       }  /* end of loop oet samples  */
 
-#endif  /* of _PART_III  */
+#endif  /* of _PART_IV  */
     }  /* loop on sequential source momenta */
 
     /***************************************************************************/
@@ -1582,8 +1689,6 @@ int main(int argc, char **argv) {
     free_fp_field ( &fp  );
     free_fp_field ( &fp2 );
     free_fp_field ( &fp3 );
-    fini_2level_dtable ( &vx );
-    fini_3level_dtable ( &vp );
 
 #ifdef HAVE_LHPC_AFF
     /***************************************************************************
@@ -1615,6 +1720,7 @@ int main(int argc, char **argv) {
   fini_2level_ztable ( &ephase );
 
   fini_3level_ztable ( &loop );
+  fini_2level_dtable ( &scalar_field );
 
 
   fini_rng_state ( &g_rng_state);
