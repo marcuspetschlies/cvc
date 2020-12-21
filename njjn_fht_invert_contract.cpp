@@ -67,8 +67,9 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  1  /* W type sequential diagrams */
+#define _PART_IIb 0  /* N1, N2 */
+#define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
+#define _PART_IV  0  /* W type sequential diagrams */
 
 using namespace cvc;
 
@@ -602,9 +603,9 @@ int main(int argc, char **argv) {
       sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
       char loop_type[2000];
 
-      sprintf( loop_type, "<source_type>\n  %d\n</source_type>\n<noise_type>\n  %d</noise_type>", g_source_type, g_noise_type );
+      sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type>", g_source_type, g_noise_type );
 
-      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 288, loop_type, Nconf, 0);
+      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
@@ -624,7 +625,7 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [njjn_fht_invert_contract] reading loop field from file %s %s %d\n", filename,  __FILE__, __LINE__ );
     }
 
-    exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 288, 0 );
+    exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 144, 0 );
     if ( exitstatus != 0  ) {
       fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
@@ -643,7 +644,7 @@ int main(int argc, char **argv) {
    ***************************************************************************
    ***************************************************************************/
 
-  double ** scalar_field = init_2level_dtable ( g_nsample_oet, VOLUME );
+  double ** scalar_field = init_2level_dtable ( g_nsample_oet, 2*VOLUME );
   if( scalar_field == NULL ) {
     fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
     EXIT(132);
@@ -654,7 +655,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * draw a stochastic binary source (real, +/1 one per site )
      ***************************************************************************/
-    ranbinaryd ( scalar_field[0], g_nsample_oet * VOLUME );
+    ranbinary ( scalar_field[0], 2 * g_nsample_oet * VOLUME );
 
     /***************************************************************************
      * write loop field to lime file
@@ -664,7 +665,7 @@ int main(int argc, char **argv) {
       
       char field_type[2000];
 
-      sprintf( field_type, "<source_type>\n  %d\n</source_type>\n<noise_type>\n  binary real</noise_type>", g_source_type );
+      sprintf( field_type, "<source_type>%d</source_type><noise_type>binary real</noise_type>", g_source_type );
 
       for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
         exitstatus = write_lime_contraction( scalar_field[isample], filename, 64, 1, field_type, Nconf, ( isample > 0 ) );
@@ -863,7 +864,7 @@ int main(int argc, char **argv) {
      **
      ***************************************************************************
      ***************************************************************************/
-
+#if _PART_IIb
     /***************************************************************************
      * loop on flavor combinations
      ***************************************************************************/
@@ -961,6 +962,8 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on flavor */
     
+#endif  /* end of if _PART_IIb  */
+
     /***************************************************************************
      *
      * sequential inversion and contraction
