@@ -594,7 +594,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 #endif
 
   retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
+  if( g_cart_id == 0 && g_verbose > 2) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
   return(0);
 }  /* end of momentum_projection2 */
 
