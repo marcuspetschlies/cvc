@@ -67,9 +67,9 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_IIb 0  /* N1, N2 */
-#define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IIb 1  /* N1, N2 */
+#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 using namespace cvc;
 
@@ -137,15 +137,13 @@ int main(int argc, char **argv) {
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
 
   const int sequential_gamma_sets = 4;
-
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
-
   int const sequential_gamma_id[4][4] = {
     { 0,  1,  2,  3 },
     { 6,  7,  8,  9 },
     { 4, -1, -1, -1 },
     { 5, -1, -1, -1 } };
-    
+
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
 
   char const gamma_id_to_Cg_ascii[16][10] = {
@@ -603,7 +601,7 @@ int main(int argc, char **argv) {
       sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
       char loop_type[2000];
 
-      sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type>", g_source_type, g_noise_type );
+      sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
 
       exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
       if ( exitstatus != 0  ) {
