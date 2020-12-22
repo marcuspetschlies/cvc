@@ -503,6 +503,26 @@ int main(int argc, char **argv) {
       }
 
       for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+          
+        /***************************************************************************
+         * prepare stochastic timeslice source at source momentum
+         ***************************************************************************/
+
+        int source_momentum[3] = { 0, 0, 0 };
+        exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, spin_dilution, color_dilution, 0 );
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[cpff_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(64);
+        }
+        if ( g_write_source ) {
+          for ( int i = 0; i < spin_color_dilution; i++ ) {
+            sprintf(filename, "%s.%c.%.4d.t%d.%d.%.5d", filename_prefix, flavor_tag[1-iflavor], Nconf, gts, i, isample);
+            if ( ( exitstatus = write_propagator( stochastic_source_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+              fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+          }
+        }
 
         /***************************************************************************
          * invert for stochastic timeslice propagator at zero momentum
@@ -555,7 +575,7 @@ int main(int argc, char **argv) {
   
         if ( g_write_propagator ) {
           for ( int i = 0; i < spin_color_dilution; i++ ) {
-            sprintf(filename, "%s.%.4d.t%d.%d.%.5d.inverted", filename_prefix, Nconf, gts, i, isample);
+            sprintf(filename, "%s.%c.%.4d.t%d.%d.%.5d.inverted", filename_prefix, flavor_tag[1-iflavor], Nconf, gts, i, isample);
             if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[cpff_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -585,6 +605,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[cpff_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(64);
           }
+
           if ( g_write_source ) {
             for ( int i = 0; i < spin_color_dilution; i++ ) {
               sprintf(filename, "%s.%.4d.t%d.px%dpy%dpz%d.%d.%.5d", filename_prefix, Nconf, gts, 
