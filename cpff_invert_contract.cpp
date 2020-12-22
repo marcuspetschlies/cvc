@@ -103,8 +103,9 @@ int main(int argc, char **argv) {
 
   int const gamma_current_number = 10;
   int gamma_current_list[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-  /* int const gamma_current_number = 2;
-  int gamma_current_list[10] = {0, 1 }; */
+
+  int const gamma_v_number = 4;
+  int gamma_v_list[4] = { 0, 1, 2, 3  };
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -972,58 +973,71 @@ int main(int argc, char **argv) {
                   }
   
 #if _DERIV
-                  for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
+		  for ( int icurrent_gamma = 0; icurrent_gamma < gamma_v_number; icurrent_gamma++ )
+		  {
+                    int gamma_current = gamma_v_list[icurrent_gamma];
+
+                    for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
   
-                    int gamma_source = g_source_gamma_id_list[isrc_gamma];
+                      int gamma_source = g_source_gamma_id_list[isrc_gamma];
+   
+                      double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
+                      if ( contr_p == NULL ) {
+                        fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                        EXIT(47);
+                      }
   
-                    double ** contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
-                    if ( contr_p == NULL ) {
-                      fprintf(stderr, "[cpff_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-                      EXIT(47);
-                    }
+                      /*****************************************************************
+                       * loop on source momenta
+                       *****************************************************************/
+                      for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
   
-                    /*****************************************************************
-                     * loop on source momenta
-                     *****************************************************************/
-                    for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) {
+                        int source_momentum[3] = {
+                          g_source_momentum_list[isrc_mom][0],
+                          g_source_momentum_list[isrc_mom][1],
+                          g_source_momentum_list[isrc_mom][2] };
   
-                      int source_momentum[3] = {
-                        g_source_momentum_list[isrc_mom][0],
-                        g_source_momentum_list[isrc_mom][1],
-                        g_source_momentum_list[isrc_mom][2] };
+                        int current_momentum[3] = {
+                          -( source_momentum[0] + seq_source_momentum[0] ),
+                          -( source_momentum[1] + seq_source_momentum[1] ),
+                          -( source_momentum[2] + seq_source_momentum[2] ) };
+
+                        int const current_momentum_sqr =
+                          _SQR( current_momentum[0] ) +
+                          _SQR( current_momentum[1] ) +
+                          _SQR( current_momentum[2] );
+
+                        if ( current_momentum_sqr > current_momentum_sqr_max ) continue;
+
+                        contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  gamma_current, 
+                            stochastic_propagator_mom_list[isrc_mom], 
+                            sequential_propagator_displ_list, spin_dilution, color_dilution, current_momentum, 1);
   
-                      int current_momentum[3] = {
-                        -( source_momentum[0] + seq_source_momentum[0] ),
-                        -( source_momentum[1] + seq_source_momentum[1] ),
-                        -( source_momentum[2] + seq_source_momentum[2] ) };
+                      }  /* end of loop on source momenta */
   
-                      contract_twopoint_snk_momentum ( contr_p[isrc_mom], gamma_source,  mu, 
-                          stochastic_propagator_mom_list[isrc_mom], 
-                          sequential_propagator_displ_list, spin_dilution, color_dilution, current_momentum, 1);
-  
-                    }  /* end of loop on source momenta */
-  
-                    sprintf ( data_tag, "/%c-gd-s%c%c-gi/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
-                        flavor_tag[iflavor],
-                        flavor_tag[iflavor], flavor_tag[1-iflavor],
-                        gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
-                        seq_source_gamma, mu, mu, fbwd_str[ifbwd], gamma_source,
-                        seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+                      sprintf ( data_tag, "/%c-gd-s%c%c-gi/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pfx%dpfy%dpfz%d/", 
+                          flavor_tag[iflavor],
+                          flavor_tag[iflavor], flavor_tag[1-iflavor],
+                          gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                          seq_source_gamma, gamma_current, mu, fbwd_str[ifbwd], gamma_source,
+                          seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
   
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-                    exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+                      exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
 #elif ( defined HAVE_HDF5 )
-                    exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
+                      exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, g_source_momentum_list, g_source_momentum_number, io_proc );
 #endif
-                    if(exitstatus != 0) {
-                      fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(3);
-                    }
+                      if(exitstatus != 0) {
+                        fprintf(stderr, "[cpff_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        EXIT(3);
+                      }
                 
-                    fini_2level_dtable ( &contr_p );
+                      fini_2level_dtable ( &contr_p );
   
-                  }  /* end of loop on source gamma id */
-  
+                    }  /* end of loop on source gamma id */
+
+		  }  /* end of loop on current gamma */
+
 #endif  /* of if _DERIV */
   
                   /*****************************************************************/
