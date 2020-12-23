@@ -1282,6 +1282,114 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
 #ifdef HAVE_LHPC_AFF
 /***********************************************************
+ * read AFF contraction
+ ***********************************************************/
+int read_aff_contraction ( void * const contr, void * const areader, void * const afilename, char * tag, unsigned int const nc) {
+
+  static struct AffReader_s *affr = NULL;
+  static struct AffNode_s *affn = NULL;
+  static int reader_opened = 0;
+  static char filename[400] = "NA";
+  struct AffNode_s *affdir = NULL;
+  uint32_t items = nc;
+  int exitstatus;
+
+  if ( areader != NULL ) {
+    /***********************************************************
+     * passed reader; 
+     ***********************************************************/
+    if ( affr == (struct AffReader_s *) areader ) {
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] keep existing AFF reader at %s %d\n",  __FILE__, __LINE__ );
+    } else {
+
+      /***********************************************************
+       * reader changed in calling function, new reader
+       ***********************************************************/
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] change to new AFF reader at %s %d\n",  __FILE__, __LINE__ );
+      if ( reader_opened ) {
+        aff_reader_close ( affr );
+        reader_opened = 0;
+      }
+
+      affr = (struct AffReader_s *) areader;
+
+      /***********************************************************
+       * for new AFF reader determine new root node
+       ***********************************************************/
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[read_aff_contraction] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        return( 2 );
+      }
+    }
+  } else if ( afilename != NULL ) {
+
+    if ( strcmp ( filename, (char*)afilename ) == 0 ) {
+      /***********************************************************
+       * keep existing reader
+       ***********************************************************/
+       if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] keep existing AFF reader at %s %d\n",  __FILE__, __LINE__ );
+
+    } else {
+
+      /***********************************************************
+       * new AFF reader
+       ***********************************************************/
+      strcpy ( filename, (char*)afilename );
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] open new AFF reader %s at %s %d\n", filename,  __FILE__, __LINE__ );
+      if ( reader_opened ) {
+        if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] close existing AFF reader %s %d\n", __FILE__, __LINE__ );
+        aff_reader_close ( affr );
+        reader_opened = 0;
+      }
+
+      affr = aff_reader (filename);
+      if( const char * aff_status_str = aff_reader_errstr(affr) ) {
+        fprintf(stderr, "[read_aff_contraction] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+        return( 4 );
+      } else {
+        if (g_verbose > 2 ) fprintf(stdout, "# [read_aff_contraction] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+      }
+      reader_opened = 1;
+
+      /***********************************************************
+       * for new AFF reader determine new root node
+       ***********************************************************/
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[read_aff_contraction] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        return( 2 );
+      }
+
+    }
+
+  } else {
+    if ( reader_opened ) {
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] close existing AFF reader %s %d\n", __FILE__, __LINE__ );
+      aff_reader_close ( affr );
+    }
+    return ( 0 );
+  }
+
+  affdir = aff_reader_chpath ( affr, affn, tag );
+  if ( affdir == NULL ) {
+    fprintf(stderr, "[read_aff_contraction] Error from affdir for dir %s %s %d\n", tag, __FILE__, __LINE__);
+    return( 2 );
+  }
+
+  /* fprintf ( stdout, "# [read_aff_contraction] items = %u path = %s\n", items , tag); */
+
+  exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*) contr, items );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[read_aff_contraction] Error from aff_node_get_complex for key \"%s\", status was %d errmsg %s %s %d\n", tag, exitstatus,
+       aff_reader_errstr ( affr ), __FILE__, __LINE__);
+    return ( 105 );
+  }
+
+  return ( 0 );
+
+}  /* end of read_aff_contraction */
+
+
+/***********************************************************
  * write AFF contraction
  ***********************************************************/
 int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type) {
@@ -1289,7 +1397,7 @@ int write_aff_contraction ( void * const contr, void * const awriter, void * con
   struct AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir = NULL;
   uint32_t items = nc;
-  int exitstatus;
+  int exitstatus = 0;
 
   if ( awriter != NULL ) {
     affw = (struct AffWriter_s *) awriter;
