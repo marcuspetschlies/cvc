@@ -602,6 +602,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_HDF5
     exitstatus = contract_loop_write_to_h5_file ( loop, output_filename, data_tag, g_sink_momentum_number, 16, io_proc );
 #else
+#warning "no other output method than hdf5 implemented"
     exitstatus = 1;
 #endif
     if(exitstatus != 0) {
