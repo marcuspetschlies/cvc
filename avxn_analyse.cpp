@@ -47,7 +47,7 @@
 #define _TWOP_CYD 0
 #define _TWOP_AFF 1
 #define _TWOP_H5  0
-#define _TWOP_STATS 0
+#define _TWOP_STATS 1
 
 #define _LOOP_ANALYSIS 1
 
@@ -1153,16 +1153,25 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
+            /* real part */
             loop_sub[imom][iconf][imu][idir][it][0] = 0.5 * ( 
                         loop[imom][iconf][imu][idir][it][0] +       loop[imom][iconf][idir][imu][it][0] 
                 + loop_exact[imom][iconf][imu][idir][it][0] + loop_exact[imom][iconf][idir][imu][it][0] 
                 );
+            /* imaginary part */
             loop_sub[imom][iconf][imu][idir][it][1] = 0.5 * ( 
                         loop[imom][iconf][imu][idir][it][1] +       loop[imom][iconf][idir][imu][it][1] 
                 + loop_exact[imom][iconf][imu][idir][it][1] + loop_exact[imom][iconf][idir][imu][it][1] 
                 );
-            /* subtract trace for diagonal */
-            if ( imu == idir ) {
+
+            /**********************************************************
+             * subtract trace for diagonal
+             *
+             * loop_sub = loop - 1/4 tr loop
+             **********************************************************/
+            if ( imu == idir )
+            {
+              /* real part */
               loop_sub[imom][iconf][imu][idir][it][0] -= 0.25 * ( 
                          loop[imom][iconf][0][0][it][0]
                  +       loop[imom][iconf][1][1][it][0]
@@ -1174,6 +1183,7 @@ int main(int argc, char **argv) {
                  + loop_exact[imom][iconf][3][3][it][0] 
                  );
 
+              /* imarginary */
               loop_sub[imom][iconf][imu][idir][it][1] -= 0.25 * ( 
                          loop[imom][iconf][0][0][it][1]
                  +       loop[imom][iconf][1][1][it][1]
@@ -1502,7 +1512,7 @@ int main(int argc, char **argv) {
           threep[0][iconf][isrc][0][it] *= norm44;
         }
 
-        /* Oik divide by (p^2)^2 */
+        /* Oik divide by (p^2) */
         double const mom[3] = {
           2 * M_PI * g_sink_momentum_list[0][0] / (double)LX_global,
           2 * M_PI * g_sink_momentum_list[0][1] / (double)LY_global,
@@ -1512,7 +1522,7 @@ int main(int argc, char **argv) {
 
         int const mom_is_zero = g_sink_momentum_list[0][0] == 0 && g_sink_momentum_list[0][1] == 0 && g_sink_momentum_list[0][2] == 0;
 
-        double const normik = mom_is_zero ? 0. : 1. / ( mom_squared * mom_squared ) / (double)g_sink_momentum_number;
+        double const normik = mom_is_zero ? 0. : 1. / mom_squared / (double)g_sink_momentum_number;
 
         for ( int it = 0; it < 2 * T_global; it++ ) {
           threep[1][iconf][isrc][0][it] *= normik;

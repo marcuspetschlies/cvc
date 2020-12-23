@@ -49,10 +49,11 @@
 
 #define _TWOP_STATS 1
 
-#define _TWOP_AFF 0
-#define _TWOP_H5  1
+#define _TWOP_AFF 1
+#define _TWOP_H5  0
 
-#define _THREEP_H5 1
+#define _THREEP_AFF 1
+#define _THREEP_H5  0
 
 using namespace cvc;
 
@@ -131,6 +132,8 @@ int main(int argc, char **argv) {
   char const reim_str[2][3] = { "re", "im" };
 
   char const threep_tag[3][12] = { "g4_D4", "gi_Dk", "g4_Dk" };
+
+  char const fbwd_str[2][4] = { "fwd", "bwd" };
 
   int c;
   int filename_set = 0;
@@ -397,7 +400,7 @@ int main(int argc, char **argv) {
 
         /***********************************************************
          * NOTE: NO SOURCE PHASE NECESSARY
-         * ONLY REORDERUNG from source
+         * ONLY REORDERING from source
          ***********************************************************/
 #pragma omp parallel for
         for ( int it = 0; it < T_global; it++ ) {
@@ -423,6 +426,114 @@ int main(int argc, char **argv) {
   show_time ( &ta, &tb, "avxn_conn_analyse", "read-twop-h5", g_cart_id == 0 );
 
 #endif  /* end of _TWOP_H5 */
+
+
+/**********************************************************/
+#if _TWOP_AFF
+/**********************************************************/
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  /***********************************************************
+   * loop on configs
+   ***********************************************************/
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    double *** buffer = init_3level_dtable ( 2, T_global, 2 );
+
+    /***********************************************************
+     * loop on sources
+     ***********************************************************/
+    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+      /***********************************************************
+       * open AFF reader
+       ***********************************************************/
+      char data_filename[500];
+      char key[400];
+    
+      sprintf( data_filename, "stream_%c/%s/%s.%.4d.t%d.aff",
+          conf_src_list[iconf][isrc][0],
+          filename_prefix,
+          filename_prefix2,
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2] );
+
+      /***********************************************************
+       * loop on sink momenta
+       ***********************************************************/
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+        int pf[3] = {
+          g_sink_momentum_list[ipf][0],
+          g_sink_momentum_list[ipf][1],
+          g_sink_momentum_list[ipf][2] 
+        };
+
+        int pi[3] = {
+          -pf[0],
+          -pf[1],
+          -pf[2] 
+        };
+
+        if ( twop_weight[0] != 0. ) {
+          
+          sprintf( key, "/u-gf-d-gi/t%d/s0/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                  conf_src_list[iconf][isrc][2], 
+                  pi[0], pi[1], pi[2],
+                  pf[0], pf[1], pf[2]);
+
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_conn_analyse] key = %s\n", key );
+
+          exitstatus = read_aff_contraction ( (void*)(buffer[0][0]), NULL, data_filename, key, T_global );
+          if ( exitstatus != 0 ) {
+            fprintf( stderr, "[avxn_conn_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+        }
+
+        if ( twop_weight[1] != 0. ) {
+          sprintf( key, "/d-gf-u-gi/t%d/s0/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+                  conf_src_list[iconf][isrc][2], 
+                  -pi[0], -pi[1], -pi[2],
+                  -pf[0], -pf[1], -pf[2]);
+
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_conn_analyse] key = %s\n", key );
+
+          exitstatus = read_aff_contraction ( (void*)(buffer[1][0]), NULL, data_filename, key, T_global );
+          if ( exitstatus != 0 ) {
+            fprintf( stderr, "[avxn_conn_analyse] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+        }
+
+        /***********************************************************
+         * NOTE: NO SOURCE PHASE NECESSARY
+         * ONLY REORDERING from source
+         ***********************************************************/
+#pragma omp parallel for
+        for ( int it = 0; it < T_global; it++ ) {
+          int const itt = ( it + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+          twop[ipf][iconf][isrc][it][0] = ( twop_weight[0] * buffer[0][itt][0] + twop_weight[1] * buffer[1][itt][0] ) / ( fabs( twop_weight[0] ) + fabs( twop_weight[1] ) ); 
+          twop[ipf][iconf][isrc][it][1] = ( twop_weight[0] * buffer[0][itt][1] + twop_weight[1] * buffer[1][itt][1] ) / ( fabs( twop_weight[0] ) + fabs( twop_weight[1] ) ); 
+        }
+
+        /***********************************************************
+         * NOTE: opposite parity transformed case is given by 
+         *       complex conjugate
+         *       
+         ***********************************************************/
+
+      }  /* end of loop on sink momenta */
+
+    }  /* end of loop on sources */
+
+    fini_3level_dtable ( &buffer );
+  }  /* end of loop on configs */
+          
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "avxn_conn_analyse", "read-twop-aff", g_cart_id == 0 );
+
+#endif  /* end of _TWOP_AFF */
 
   /**********************************************************
    * average 2-pt over momentum orbit
@@ -487,7 +598,8 @@ int main(int argc, char **argv) {
 
     if ( num_conf < 6 ) {
       fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-      EXIT(1);
+      /* EXIT(1); */
+      continue;
     }
 
     double ** data = init_2level_dtable ( num_conf, T_global );
@@ -667,7 +779,6 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on sink momenta */
 
-
       }  /* end of loop on sources */
   
       fini_2level_dtable ( &buffer );
@@ -677,6 +788,146 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "avxn_conn_analyse", "read-threep-h5", g_cart_id == 0 );
 
 #endif  /* end of if _THREEP_H5 */
+
+/**********************************************************/
+#if _THREEP_AFF
+/**********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+  
+    /***********************************************************
+     * loop on configs
+     ***********************************************************/
+    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+      double *** buffer = init_3level_dtable ( 2, T_global, 2 );
+  
+      /***********************************************************
+       * loop on sources
+       ***********************************************************/
+      for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+        /***********************************************************
+         * open h5 reader
+         ***********************************************************/
+        char data_filename[500];
+        char key[400];
+  
+        sprintf( data_filename, "stream_%c/%s/%s.%.4d.t%d.aff",
+            conf_src_list[iconf][isrc][0],
+            filename_prefix,
+            filename_prefix2,
+            conf_src_list[iconf][isrc][1],
+            conf_src_list[iconf][isrc][2] );
+  
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_conn_analyse] reading from data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
+
+        /***********************************************************
+         * loop on sink momenta
+         ***********************************************************/
+        for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+  
+          int pf[3] = {
+              g_sink_momentum_list[ipf][0],
+              g_sink_momentum_list[ipf][1],
+              g_sink_momentum_list[ipf][2] 
+            };
+
+          int pc[3] = {
+            g_insertion_momentum_list[0][0],
+            g_insertion_momentum_list[0][1],
+            g_insertion_momentum_list[0][2] };
+  
+          int pi[3] = {
+            -( pf[0] + pc[0] ),
+            -( pf[1] + pc[1] ),
+            -( pf[2] + pc[2] )
+          };
+
+          for ( int igc =0; igc < 4; igc++ ) {
+
+            for ( int idim=0; idim<4; idim++ ) {
+
+              /* if ( igc != idim ) continue; */
+
+            for ( int idir=0; idir<2; idir++ ) {
+
+              if ( twop_weight[0] != 0. ) {
+                /***********************************************************
+                 * read AFF data key ...
+                 ***********************************************************/
+                sprintf( key, "/u-gd-sud-gi/t%d/s0/dt%d/gf5/gc%d/d%d/%s/gi5/pfx%dpfy%dpfz%d/px%dpy%dpz%d",
+                    conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt],
+                    igc, idim, fbwd_str[idir],
+                    pf[0], pf[1], pf[2], 
+                    pi[0], pi[1], pi[2] );
+                  
+                if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_conn_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
+  
+                exitstatus = read_aff_contraction ( (void*)(buffer[0][0]), NULL, data_filename, key, T_global );
+                if ( exitstatus != 0 ) {
+                  fprintf( stderr, "[avxn_conn_analyse] Error fro read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(1);
+                }
+
+              }
+
+              if ( twop_weight[1] != 0. ) {
+  
+                /***********************************************************
+                 * ... and twisted parity partner
+                 ***********************************************************/
+                sprintf( key, "/d-gd-sdu-gi/t%d/s0/dt%d/gf5/gc%d/d%d/%s/gi5/pfx%dpfy%dpfz%d/px%dpy%dpz%d",
+                    conf_src_list[iconf][isrc][2], g_sequential_source_timeslice_list[idt],
+                    igc, idim, fbwd_str[idir],
+                    -pf[0], -pf[1], -pf[2], 
+                    -pi[0], -pi[1], -pi[2] );
+                  
+                if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_conn_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
+   
+                exitstatus = read_aff_contraction ( (void*)(buffer[1][0]), NULL, data_filename, key, T_global );
+                if ( exitstatus != 0 ) {
+                  fprintf( stderr, "[]avxn_conn_analyse Error fro read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(1);
+                }
+              }
+  
+              /***********************************************************
+               * NOTE: NO SOURCE PHASE NECESSARY
+               * ONLY REORDERING NECESSARY
+               ***********************************************************/
+              double const threep_norm = 1. / ( fabs( twop_weight[0] ) + fabs( twop_weight[1] ) );
+              int const parity_sign = ( 2 * ( igc == 0 ) - 1 ) * ( 2 * ( idim == 0 ) - 1 );
+#pragma omp parallel for
+              for ( int it = 0; it < T_global; it++ ) {
+                int const itt = ( it + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+                /***********************************************************
+                 * add up with parity sign
+                 ***********************************************************/
+                threep[ipf][iconf][isrc][igc][idim][idir][it][0] = ( twop_weight[0] * buffer[0][itt][0] + parity_sign * twop_weight[1] * buffer[1][itt][0] ) * threep_norm;
+                threep[ipf][iconf][isrc][igc][idim][idir][it][1] = ( twop_weight[0] * buffer[0][itt][1] + parity_sign * twop_weight[1] * buffer[1][itt][1] ) * threep_norm;
+              }
+  
+              /***********************************************************
+               * NOTE: opposite parity transformed case is given by 
+               *       complex conjugate
+               ***********************************************************/
+
+            }}  /* end of loop on idir, idim */
+
+          }  /* end of loop on igc */
+
+        }  /* end of loop on sink momenta */
+
+      }  /* end of loop on sources */
+  
+      fini_3level_dtable ( &buffer );
+    }  /* end of loop on configs */
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "avxn_conn_analyse", "read-threep-h5", g_cart_id == 0 );
+
+#endif  /* end of if _THREEP_H5 */
+
 
 #if _RAT_METHOD
       /**********************************************************
@@ -740,7 +991,7 @@ int main(int argc, char **argv) {
              **********************************************************
              **********************************************************/
             for ( int ireim = 0; ireim < 2; ireim++ ) {
-              tensor_trace[ireim] = 0.25 * ( 
+              tensor_trace[ireim] = 0.25 * 0.25 * ( 
                        /* fwd                                             - bwd                                         */
                 /* 
                  * right-application in time direction                                                                  
@@ -767,6 +1018,7 @@ int main(int argc, char **argv) {
              **********************************************************/
             for ( int ireim = 0; ireim < 2; ireim++ ) {
               tensor_sym_sub[0][0][ireim] = /* g_0 D_0 */
+                0.25 * ( 
                 /*
                  * right-application 
                  */
@@ -776,7 +1028,8 @@ int main(int argc, char **argv) {
                  *  left-application. becomes right-application with fwd - bwd -> - ( bwd - fwd ) 
                  */
                 /*          fwd                                             - bwd */
-                    +     ( threep[imom][iconf][isrc][0][0][0][itm1][ireim] - threep[imom][iconf][isrc][0][0][1][itp1][ireim] );
+                    +     ( threep[imom][iconf][isrc][0][0][0][itm1][ireim] - threep[imom][iconf][isrc][0][0][1][itp1][ireim] )
+                )
                 /*
                  * subtract trace term
                  */
@@ -789,7 +1042,7 @@ int main(int argc, char **argv) {
             for ( int imu = 1; imu < 4; imu++ ) {
               for ( int ireim = 0; ireim < 2; ireim++ ) {
                 tensor_sym_sub[imu][0][ireim] =   /* 1/2 ( g_i D_0 + g_0 D_i ) */
-                  0.5 * ( 
+                  0.125 * ( 
                       /*
                        * right application g_mu Dright_0, fwd - bwd
                        */
@@ -822,7 +1075,7 @@ int main(int argc, char **argv) {
 
                   /* factor 0.5 from symmetrization; factor 2 from sum over l/r application */
                   tensor_sym_sub[imu][idim][ireim] =  /* 1/2 ( g_i D_k + g_k D_i ) */
-                    0.5 * 2. * (
+                    0.125 * 2. * (
                     /* fwd                                                - bwd */
                        threep[imom][iconf][isrc][imu][idim][0][it][ireim] - threep[imom][iconf][isrc][imu][idim][1][it][ireim] 
                     /* fwd                                                - bwd */
@@ -910,7 +1163,7 @@ int main(int argc, char **argv) {
 
         int const mom_is_zero = g_sink_momentum_list[0][0] == 0 && g_sink_momentum_list[0][1] == 0 && g_sink_momentum_list[0][2] == 0;
 
-        double const normik = mom_is_zero ? 0. : 1. / ( mom_squared * mom_squared ) / (double)g_sink_momentum_number;
+        double const normik = mom_is_zero ? 0. : 1. / mom_squared / (double)g_sink_momentum_number;
 
         for ( int it = 0; it < 2 * T_global; it++ ) {
           threep_op[1][iconf][isrc][0][it] *= normik;
@@ -959,7 +1212,8 @@ int main(int argc, char **argv) {
 
       if ( num_conf < 6 ) {
         fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-        EXIT(1);
+        /* EXIT(1); */
+        continue;
       }
 
       for ( int ireim = 0; ireim < 2; ireim++ ) {
@@ -1075,6 +1329,10 @@ int main(int argc, char **argv) {
 
   /**********************************************************/
   /**********************************************************/
+
+#if _TWOP_AFF || _THREEP_AFF
+  read_aff_contraction ( NULL, NULL, NULL, NULL, 0 );
+#endif
 
   fini_5level_dtable ( &twop );
   fini_4level_dtable ( &twop_orbit );
