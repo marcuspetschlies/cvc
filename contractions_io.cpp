@@ -61,6 +61,9 @@ extern "C"
 #include "cvc_utils.h"
 #include "cvc_timer.h"
 
+
+#define MAX_SUBGROUP_NUMBER 20
+
 namespace cvc {
 
 /* write an N-comp. contraction to file */
@@ -901,7 +904,7 @@ int write_h5_attribute ( const char * filename, const char * attr_name, const ch
  *
  ***************************************************************************/
 
-int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type, int const ncdim, const int * const cdim ) {
+int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, const char * data_type, int const ncdim, const int * const cdim ) {
 
   char * filename = (char *)afilename;
   if ( filename == NULL ) {
