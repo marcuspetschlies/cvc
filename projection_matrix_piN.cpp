@@ -48,6 +48,7 @@ extern "C"
 #include "group_projection.h"
 #include "little_group_projector_set.h"
 #include "contract_diagrams.h"
+#include "contractions_io.h"
 
 #define _NORM_SQR_3D(_a) ( (_a)[0] * (_a)[0] + (_a)[1] * (_a)[1] + (_a)[2] * (_a)[2] )
 
@@ -592,9 +593,28 @@ int main(int argc, char **argv) {
              ****************************************************/
             int const dim[2] = { rank, matrix_dim };
             char tag[400];
-            STOPPED HERE
-            exitstatus = write_h5_contraction ( projection_matrix_gs[1][0], NULL, filename, tag, "double", 2, dim );
+            
+            sprintf( filename, "subduction.%s-%s", interpolator_name[0], interpolator_name[1] );
 
+            sprintf( tag, "/%s/%s/%d/%d/%d/%d/%d/%d/s",
+                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+            
+            exitstatus = write_h5_contraction ( projection_matrix_gs[0][0], NULL, filename, tag, "double", 2, dim );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+
+            sprintf( tag, "/%s/%s/%d/%d/%d/%d/%d/%d/u",
+                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+            
+            exitstatus = write_h5_contraction ( projection_matrix_gs[1][0], NULL, filename, tag, "double", 2, dim );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
 
             /****************************************************
              * print the operator in mixed 
@@ -607,7 +627,7 @@ int main(int argc, char **argv) {
 
             FILE * ofs2 = fopen ( filename, "w" );
             if ( ofs2 == NULL ) {
-              fprintf ( stderr, "# [projection_matrix_piN] Error from fopen %s %d\n", __FILE__, __LINE__);
+              fprintf ( stderr, "[projection_matrix_piN] Error from fopen %s %d\n", __FILE__, __LINE__);
               EXIT(2);
             }
 
