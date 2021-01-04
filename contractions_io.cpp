@@ -61,6 +61,8 @@ extern "C"
 #include "cvc_utils.h"
 #include "cvc_timer.h"
 
+#define MAX_SUBGROUP_NUMBER 20
+
 namespace cvc {
 
 /* write an N-comp. contraction to file */
