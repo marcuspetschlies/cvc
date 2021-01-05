@@ -89,14 +89,14 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
   /* contraction */
   exitstatus = reduce ( vx, fa, fb, fc, N );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from reduce, status was %d\n", exitstatus);
+    fprintf(stderr, "[reduce_project_write] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     return( 1 );
   }
 
   /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
   exitstatus = contract_vn_momentum_projection ( vp, vx, nd, momentum_list, momentum_number);
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from contract_vn_momentum_projection, status was %d\n", exitstatus);
+    fprintf(stderr, "[reduce_project_write] Error from contract_vn_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     return( 2 );
   }
 
@@ -105,7 +105,7 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
   exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
 #endif
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from contract_vn_write, status was %d\n", exitstatus);
+    fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
     return( 3 );
   }
 
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   const char outfile_prefix[] = "njjn_fht";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
-
+/*
   const int sequential_gamma_sets = 4;
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
   int const sequential_gamma_id[4][4] = {
@@ -147,6 +147,16 @@ int main(int argc, char **argv) {
     { 5, -1, -1, -1 } };
 
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
+*/
+  /* for TESTING */
+  const int sequential_gamma_sets = 1;
+  int const sequential_gamma_num[4] = {4};
+  int const sequential_gamma_id[1][4] = {
+    { 0,  1,  2,  3 } };
+
+  char const sequential_gamma_tag[1][3] = { "vv" };
+
+
 
   char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
@@ -192,21 +202,22 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
-  char filename[100];
+  char filename[400];
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   double *gauge_field_smeared = NULL;
   struct timeval ta, tb, start_time, end_time;
 
+  /*
   int const    gamma_f1_number                           = 4;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 , 11,  8,  2 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 , +1, -1, -1 };
+  */
 
-  /*
   int const    gamma_f1_number                           = 1;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
-  */
+
   int read_loop_field = 0;
   int write_loop_field = 0;
 
@@ -1193,7 +1204,7 @@ int main(int argc, char **argv) {
                         flavor_tag[iflavor],
                         flavor_tag[1-iflavor],
                         sequential_propagator_name, flavor_tag[iflavor], flavor_tag[loop_flavor], flavor_tag[iflavor],
-                        gsx[0], gsx[1], gsx[2], gsx[3],
+                        csx[0], csx[1], csx[2], csx[3],
                         momentum[0], momentum[1], momentum[2],
                         g_nsample,
                         sequential_gamma_tag[igamma] );
