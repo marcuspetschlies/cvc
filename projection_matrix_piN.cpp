@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
   int const interpolator_cartesian[2] = {   0,   0 };   // spherical basis (0) or cartesian basis (1) ? cartesian basis only meaningful for J = 1, J2 = 2, i.e. 3-dim. representation
   int const interpolator_J2[2]        = {   0 ,  1 };   // 2 * spin
 
-  char const interpolator_name[2][12]  = { "pi", "N "};  // name used in operator listing
+  char const interpolator_name[2][12]  = { "pi", "N"};  // name used in operator listing
   char const interpolator_tex_name[2][2][12]  = { { "\\pi", "\\pi^\\dagger"}, {"N", "\\bar{N}" } };  // name used in operator listing
 
   char const correlator_name[]    = "pixN";
@@ -239,7 +239,6 @@ int main(int argc, char **argv) {
      * d-vector and reference rotation
      ****************************************************/
     int Ptot[3] = { lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2] };
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [projection_matrix_piN] Ptot = %3d %3d %3d %s %d\n", Ptot[0], Ptot[1], Ptot[2], __FILE__, __LINE__);
 
     /****************************************************
      * determine list and number of sink momenta 
@@ -292,7 +291,7 @@ int main(int argc, char **argv) {
     interpolator_momentum_list[1][2] = -momentum_list[0][0] + Ptot[2];
 
     if ( refframerot > -1 ) {
-#if 0
+
       double _Complex ** refframerot_p = rot_init_rotation_matrix ( 3 );
       if ( refframerot_p == NULL ) {
         fprintf(stderr, "[projection_matrix_piN] Error rot_init_rotation_matrix %s %d\n", __FILE__, __LINE__);
@@ -314,8 +313,12 @@ int main(int argc, char **argv) {
       if ( g_verbose > 2 ) fprintf ( stdout, "# [projection_matrix_piN] Ptot = %3d %3d %3d   R[%2d] ---> Ptot = %3d %3d %3d\n",
           lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2],
           refframerot, Ptot[0], Ptot[1], Ptot[2] );
-#endif
-#warning "[projection_matrix_piN] do not use reference frame rotation yet"
+
+    }
+    
+    if ( g_verbose > 2 ) {
+      fprintf ( stdout, "# [projection_matrix_piN] Pref = %3d %3d %3d %s %d\n", lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2] , __FILE__, __LINE__);
+      fprintf ( stdout, "# [projection_matrix_piN] Ptot = %3d %3d %3d %s %d\n", Ptot[0], Ptot[1], Ptot[2], __FILE__, __LINE__);
     }
 
     /****************************************************
@@ -591,14 +594,25 @@ int main(int argc, char **argv) {
              * write coefficient matrices to hdf5 file
              * 
              ****************************************************/
-            int const dim[2] = { rank, matrix_dim };
-            char tag[400];
+            int const dim[2] = { matrix_dim, matrix_dim };
+            char tag_prefix[400], tag[500];
             
-            sprintf( filename, "subduction.%s-%s", interpolator_name[0], interpolator_name[1] );
+            sprintf( filename, "subduction.%s-%s.h5", interpolator_name[0], interpolator_name[1] );
 
-            sprintf( tag, "/%s/%s/%d/%d/%d/%d/%d/%d/s",
-                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu,
+            sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
+                operator_side[iac],
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
                 interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+            
+            sprintf( tag, "%s/v", tag_prefix );
+
+            exitstatus = write_h5_contraction ( projection_matrix[0], NULL, filename, tag, "double", 2, dim );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+
+            sprintf( tag, "%s/s", tag_prefix );
             
             exitstatus = write_h5_contraction ( projection_matrix_gs[0][0], NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
@@ -606,9 +620,7 @@ int main(int argc, char **argv) {
               EXIT(2);
             }
 
-            sprintf( tag, "/%s/%s/%d/%d/%d/%d/%d/%d/u",
-                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu,
-                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+            sprintf( tag, "%s/u", tag_prefix );
             
             exitstatus = write_h5_contraction ( projection_matrix_gs[1][0], NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
@@ -621,8 +633,8 @@ int main(int argc, char **argv) {
              * text + coefficient form
              ****************************************************/
        
-            sprintf ( filename, "lg_%s.irrep_%s.row_%d.refrow_%d.j2_%d_%d.ac_%d.opr.tex",
-                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu, ibeta,
+            sprintf ( filename, "lg_%s.rref%d.irrep_%s.row_%d.refrow_%d.j2_%d_%d.ac_%d.opr.tex",
+                lg[ilg].name, refframerot,  lg[ilg].lirrep[i_irrep], imu, ibeta,
                 interpolator_J2[0], interpolator_J2[1], iac );
 
             FILE * ofs2 = fopen ( filename, "w" );
@@ -631,8 +643,8 @@ int main(int argc, char **argv) {
               EXIT(2);
             }
 
-            fprintf( ofs2, " $LG = %s$,  $\\Lambda = %s$, $\\lambda = %d$, $J = %d/2(%d) \\oplus %d/2(%d)$, $\\beta_{\\mathrm{ref}} = %d$\n",
-                lg[ilg].name, lg[ilg].lirrep[i_irrep], imu,
+            fprintf( ofs2, " $LG = %s$, $\\vec{P}_{\\mathrm{tot}} = (%d,\\,%d,\\,%d)$, $\\Lambda = %s$, $\\lambda = %d$, $J = %d/2(%d) \\oplus %d/2(%d)$, $\\beta_{\\mathrm{ref}} = %d$\n",
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
                 interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
 
 
