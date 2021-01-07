@@ -56,7 +56,7 @@ using namespace cvc;
 
 int main(int argc, char **argv) {
 
-  double const eps = 1.e-14;
+  double const eps = 1.e-12;
 
   char const operator_side [2][16] = { "annihilation", "creation" };
 
@@ -220,9 +220,51 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
+  for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ )
   /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
-  for ( int ilg = 0; ilg < 1; ilg++ )
   {
+
+    int const Ptot[3] = {
+      g_total_momentum_list[iptot][0],
+      g_total_momentum_list[iptot][1],
+      g_total_momentum_list[iptot][2] };
+
+    /****************************************************
+     * get reference momentum vector for Ptot and
+     * the reference frame rotation number
+     ****************************************************/
+    int Pref[3];
+
+    exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[projection_matrix_D] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(10);
+    }
+
+    /****************************************************
+     * no rotation = -1 ---> 0 = identity
+     ****************************************************/
+    if ( refframerot == -1 ) refframerot = 0;
+
+    int ilg;
+    for ( ilg=0; ilg <nlg; ilg++ ) {
+      if ( 
+          ( lg[ilg].d[0] == Pref[0] ) &&
+          ( lg[ilg].d[1] == Pref[1] ) &&
+          ( lg[ilg].d[2] == Pref[2] )  ) {
+        break;
+      }
+    }
+    if ( ilg == nlg ) {
+      fprintf(stderr, "[projection_matrix_D] Error, could not match Pref to lg %s %d\n", __FILE__, __LINE__);
+      EXIT(10);
+    } else {
+      fprintf ( stdout, "# [projection_matrix_D] Ptot %3d %3d %3d   Pref %3d %3d %3d R %2d  lg %s   %s %d\n",
+         Ptot[0], Ptot[1], Ptot[2],
+         Pref[0], Pref[1], Pref[2],
+         refframerot+1, lg[ilg].name, __FILE__, __LINE__);
+    }
+
 
     /****************************************************
      * complete the interpolator momentum list
@@ -238,6 +280,7 @@ int main(int argc, char **argv) {
     interpolator_momentum_list[1][1] = lg[ilg].d[1];
     interpolator_momentum_list[1][2] = lg[ilg].d[2];
 
+#if 0
     /****************************************************
      * get the total momentum given
      * d-vector and reference rotation
@@ -264,13 +307,14 @@ int main(int argc, char **argv) {
           lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2],
           refframerot, Ptot[0], Ptot[1], Ptot[2] );
     }
+#endif
 
     /****************************************************
      * loop on irreps
      *   within little group
      ****************************************************/
-    /* for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ ) */
-    for ( int i_irrep = 7; i_irrep < 8; i_irrep++ )
+    for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ )
+    // for ( int i_irrep = 7; i_irrep < 8; i_irrep++ )
     {
 
       /****************************************************
@@ -295,7 +339,7 @@ int main(int argc, char **argv) {
        * momentum tag
        ****************************************************/
       char momentum_str[100];
-      sprintf( momentum_str, ".px%d_py%d_pz%d", interpolator_momentum_list[0][0], interpolator_momentum_list[0][1], interpolator_momentum_list[0][2] );
+      sprintf( momentum_str, ".px%d_py%d_pz%d", Ptot[0], Ptot[1], Ptot[2] );
 
       /****************************************************
        * output file
@@ -338,11 +382,11 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [projection_matrix_D] irrep_dim   = %d\n", irrep_dim );
 
       /* for ( int iac = 0; iac <= 1; iac++ )  */
-      for ( int iac = 0; iac <= 0; iac++ ) 
+      for ( int iac = 1; iac <= 1; iac++ ) 
       {
 
-        for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
-        /* for ( int ibeta = 0; ibeta < 1; ibeta++ ) */
+        // for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
+        for ( int ibeta = 0; ibeta < 1; ibeta++ )
         {
 
           /****************************************************
@@ -380,7 +424,6 @@ int main(int argc, char **argv) {
            * loop on irrep multiplet members
            ****************************************************/
           for ( int imu = 0; imu < r_irrep.dim; imu++ )
-          /* for ( int imu = 0; imu < 1; imu++ ) */
           {
 
             for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
@@ -413,147 +456,215 @@ int main(int argc, char **argv) {
                         p.parity[0] * p.parity[1] *       p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1]   * conj ( p.rtarget->IR[ir][imu][ibeta]   );
                 }}
               }}
-          }  /* end of loop on rotations / rotation-inversions */
+            }  /* end of loop on rotations / rotation-inversions */
 
-          /* normalize */
-          rot_mat_ti_eq_re ( projection_matrix_v[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
+            /* normalize */
+            rot_mat_ti_eq_re ( projection_matrix_v[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
 
-          int const rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
+            int const rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
 
-          fprintf ( stdout, "\n\n# [projection_matrix_D] lg %20s irrep %20s beta %2d mu %2d rank %d\n", lg[ilg].name, lg[ilg].lirrep[i_irrep], ibeta, imu, rank );
-
-          fprintf( stdout, "\n" );
-          for ( int ir = 0; ir < matrix_dim; ir++ ) {
-          for ( int is = 0; is < matrix_dim; is++ ) {
-            // if ( cabs( projection_matrix[imu][ir][is] ) > eps  ) {
-              fprintf (stdout, "%s V %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                  __dgeps( creal( projection_matrix_v[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_v[imu][ir][is] ), eps ) );
-            //}
-          }}
-
-          fprintf( stdout, "\n" );
-          for ( int ir = 0; ir < rank; ir++ ) {
-          for ( int is = 0; is < matrix_dim; is++ ) {
-            // if ( cabs( projection_matrix_s[imu][ir][is] ) > eps  ) {
-              fprintf (stdout, "%s S %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                  __dgeps( creal( projection_matrix_s[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_s[imu][ir][is] ), eps ) );
-            //}
-          }}
-
-          fprintf( stdout, "\n" );
-          for ( int ir = 0; ir < rank; ir++ ) {
-          for ( int is = 0; is < matrix_dim; is++ ) {
-            // if ( cabs( projection_matrix_u[imu][ir][is] ) > eps  ) {
-              fprintf (stdout, "%s U %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                  __dgeps( creal( projection_matrix_u[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_u[imu][ir][is] ), eps ) );
-            //}
-          }}
-
-          /****************************************************/
-          /****************************************************/
-
-          /****************************************************
-           * write coefficient matrices to hdf5 file
-           *
-           ****************************************************/
-          int const dim[2] = { matrix_dim, matrix_dim };
-          char tag_prefix[400], tag[500];
-
-          sprintf( filename, "subduction.%s.h5", interpolator_name[0] );
-
-          sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
-              operator_side[iac],
-              lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-              interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
-
-          sprintf( tag, "%s/v", tag_prefix );
-
-          exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, filename, tag, "double", 2, dim );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-          }
-
-          sprintf( tag, "%s/s", tag_prefix );
-
-          exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, filename, tag, "double", 2, dim );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-          }
-
-          sprintf( tag, "%s/u", tag_prefix );
-
-          exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, filename, tag, "double", 2, dim );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(2);
-          }
-
-          /****************************************************/
-          /****************************************************/
-
-          /****************************************************
-           * print the operator in mixed
-           * text + coefficient form
-           ****************************************************/
-
-          sprintf ( filename, "lg_%s.rref%d.irrep_%s.row_%d.refrow_%d.j2_%d_%d.ac_%d.opr.tex",
-              lg[ilg].name, refframerot,  lg[ilg].lirrep[i_irrep], imu, ibeta,
-              interpolator_J2[0], interpolator_J2[1], iac );
-
-          FILE * ofs2 = fopen ( filename, "w" );
-          if ( ofs2 == NULL ) {
-            fprintf ( stderr, "[projection_matrix_D] Error from fopen %s %d\n", __FILE__, __LINE__);
-            EXIT(2);
-          }
-
-          fprintf( ofs2, " $LG = %s$, $\\vec{P}_{\\mathrm{tot}} = (%d,\\,%d,\\,%d)$, $\\Lambda = %s$, $\\lambda = %d$, $J = %d/2(%d) \\oplus %d/2(%d)$, $\\beta_{\\mathrm{ref}} = %d$\n",
-              lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-              interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
-
-          for ( int ir = 0; ir < rank; ir++ )
-          {
-
-            fprintf ( ofs2, "\n\\begin{align}\n" );
-
-            if ( iac == 0 ) {
-              fprintf( ofs2, "O_{%d} &= \n%%\\label{}\n\\\\\n", ir+1);
-            } else {
-              fprintf( ofs2, "\\bar{O}_{%d} &= \n%%\\label{}\n\\\\\n", ir+1);
-            }
+#if 0
+            fprintf ( stdout, "\n\n# [projection_matrix_D] lg %20s irrep %20s beta %2d mu %2d rank %d\n", lg[ilg].name, lg[ilg].lirrep[i_irrep], ibeta, imu, rank );
+ 
+            fprintf( stdout, "\n" );
+            for ( int ir = 0; ir < matrix_dim; ir++ ) {
             for ( int is = 0; is < matrix_dim; is++ ) {
+              // if ( cabs( projection_matrix[imu][ir][is] ) > eps  ) {
+                fprintf (stdout, "%s V %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
+                    __dgeps( creal( projection_matrix_v[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_v[imu][ir][is] ), eps ) );
+              //}
+            }}
 
-              int const ispin[2] = { is / p.rspin[1].dim, is % p.rspin[1].dim };
+            fprintf( stdout, "\n" );
+            for ( int ir = 0; ir < rank; ir++ ) {
+            for ( int is = 0; is < matrix_dim; is++ ) {
+              // if ( cabs( projection_matrix_s[imu][ir][is] ) > eps  ) {
+                fprintf (stdout, "%s S %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
+                    __dgeps( creal( projection_matrix_s[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_s[imu][ir][is] ), eps ) );
+              //}
+            }}
 
-              double _Complex z = projection_matrix_u[imu][ir][is];
-              if ( cabs ( z ) > eps ) {
+            fprintf( stdout, "\n" );
+            for ( int ir = 0; ir < rank; ir++ ) {
+            for ( int is = 0; is < matrix_dim; is++ ) {
+              // if ( cabs( projection_matrix_u[imu][ir][is] ) > eps  ) {
+                fprintf (stdout, "%s U %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
+                    __dgeps( creal( projection_matrix_u[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_u[imu][ir][is] ), eps ) );
+              //}
+            }}
+#endif
+            /****************************************************/
+            /****************************************************/
 
-                fprintf( ofs2, " &\\quad + %s_{%s,\\,%s}\\left(%d,%d,%d \\right) \\, \\left[%+8.7f  %+8.7f\\,i\\right]  \\nonumber \\\\\n",
-                    interpolator_tex_name[0][iac], cartesian_vector_name[ispin[0]], bispinor_name[ispin[1]],
-                    Ptot[0], Ptot[1], Ptot[2],
-                    __dgeps ( creal(z), eps ), __dgeps ( cimag(z), eps ) );
+            /****************************************************
+             * write coefficient matrices to hdf5 file
+             *
+             ****************************************************/
+            int const dim[2] = { matrix_dim, matrix_dim };
+            char tag_prefix[400], tag[500];
+  
+            sprintf( filename, "subduction.%s.h5", interpolator_name[0] );
+  
+            sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
+                operator_side[iac],
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+  
+            sprintf( tag, "%s/v", tag_prefix );
+  
+            exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, filename, tag, "double", 2, dim );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+  
+            sprintf( tag, "%s/s", tag_prefix );
+  
+            exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, filename, tag, "double", 2, dim );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+  
+            sprintf( tag, "%s/u", tag_prefix );
+  
+            exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, filename, tag, "double", 2, dim );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+  
+            /****************************************************/
+            /****************************************************/
+  
+            /****************************************************
+             * print the operator in mixed
+             * text + coefficient form
+             ****************************************************/
+  
+            sprintf ( filename, "lg_%s.rref%d.irrep_%s.row_%d.refrow_%d.j2_%d_%d.ac_%d.opr.tex",
+                lg[ilg].name, refframerot,  lg[ilg].lirrep[i_irrep], imu, ibeta,
+                interpolator_J2[0], interpolator_J2[1], iac );
+  
+            FILE * ofs2 = fopen ( filename, "w" );
+            if ( ofs2 == NULL ) {
+              fprintf ( stderr, "[projection_matrix_D] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(2);
+            }
+  
+            fprintf( ofs2, " $LG = %s$, $\\vec{P}_{\\mathrm{tot}} = (%d,\\,%d,\\,%d)$, $\\Lambda = %s$, $\\lambda = %d$, $J = %d/2(%d) \\oplus %d/2(%d)$, $\\beta_{\\mathrm{ref}} = %d$\n",
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+  
+            for ( int ir = 0; ir < rank; ir++ )
+            {
+  
+              fprintf ( ofs2, "\n\\begin{align}\n" );
+  
+              if ( iac == 0 ) {
+                fprintf( ofs2, "O_{%d} &= \n%%\\label{}\n\\\\\n", ir+1);
+              } else {
+                fprintf( ofs2, "\\bar{O}_{%d} &= \n%%\\label{}\n\\\\\n", ir+1);
               }
-            }  /* end of loop on matrix dimension */
+              for ( int is = 0; is < matrix_dim; is++ ) {
+  
+                int const ispin[2] = { is / p.rspin[1].dim, is % p.rspin[1].dim };
+  
+                double _Complex z = projection_matrix_u[imu][ir][is];
+                if ( cabs ( z ) > eps ) {
+  
+                  fprintf( ofs2, " &\\quad + %s_{%s,\\,%s}\\left(%d,%d,%d \\right) \\, \\left[%+8.7f  %+8.7f\\,i\\right]  \\nonumber \\\\\n",
+                      interpolator_tex_name[0][iac], cartesian_vector_name[ispin[0]], bispinor_name[ispin[1]],
+                      Ptot[0], Ptot[1], Ptot[2],
+                      __dgeps ( creal(z), eps ), __dgeps ( cimag(z), eps ) );
+                }
+              }  /* end of loop on matrix dimension */
+  
+              fprintf ( ofs2, "& \\nonumber\n\\end{align}\n\n" );
+  
+            }  /* end of loop on rank = loop on operators */
+  
+            fclose ( ofs2 );
 
-            fprintf ( ofs2, "& \\nonumber\n\\end{align}\n\n" );
+          }  /* end of loop on target irrep rows */
 
-          }  /* end of loop on rank = loop on operators */
+          /****************************************************
+           * test irrep multiplet rotation property
+           ****************************************************/
+          for ( int imu = 0; imu < r_irrep.dim; imu++ ) {
 
-          fclose ( ofs2 );
+            for ( int irot = 0; irot < p.rtarget->n; irot++ )  {
 
-        }  /* end of loop on target irrep rows */
+              double _Complex ** A = init_2level_ztable ( matrix_dim, matrix_dim );
+              double _Complex ** B = init_2level_ztable ( matrix_dim, matrix_dim );
 
-        /****************************************************
-         * deallocate matrices
-         ****************************************************/
-        fini_3level_ztable ( &projection_matrix_v );
-        fini_3level_ztable ( &projection_matrix_s );
-        fini_3level_ztable ( &projection_matrix_u );
+              if ( iac == 1 ) {
 
-      }  /* end of loop on irrep matrix ref. rows */
+                 /****************************************************
+                  * multiplication A_ik <- V_il S(R)_kl
+                 ****************************************************/
+                for (int i = 0; i < matrix_dim; i++ ) {
+                for (int k = 0; k < matrix_dim; k++ ) {
+                  double _Complex z = 0.;
+                  for ( int l = 0; l < matrix_dim; l++ ) {
+                    z += projection_matrix_v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
+                  }
+                  A[i][k] = z;
+                }}
 
-    }  /* end of source / sink side */
+                /****************************************************
+                 * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
+                 ****************************************************/
+                for (int i = 0; i < matrix_dim; i++ ) {
+                for (int k = 0; k < matrix_dim; k++ ) {
+                  double _Complex z = 0.;
+
+                  for ( int igamma = 0; igamma < irrep_dim; igamma++ ) {
+                    z += p.rtarget->R[irot][igamma][imu] * projection_matrix_v[igamma][i][k];
+                  }
+                  B[i][k] = z;
+                }}
+              }
+
+              /****************************************************
+               * compare
+               ****************************************************/
+              fprintf( stdout, "multiplett /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d\n",
+                operator_side[iac],
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 );
+
+              double normdiff = 0.;
+              for (int i = 0; i < matrix_dim; i++ ) {
+              for (int k = 0; k < matrix_dim; k++ ) {
+                fprintf( stdout, "multiplett  %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ),
+                   cabs( A[i][k] - B[i][k] ), cabs( A[i][k] ) );
+                normdiff += cabs( A[i][k] - B[i][k] );
+              }}
+              fprintf( stdout, "multiplett /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d normdiff %e  %s\n",
+                operator_side[iac],
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 , normdiff, normdiff > eps ? "wrong" : "okay" );
+
+              /****************************************************
+               * deallocate temporary matrices
+               ****************************************************/
+              fini_2level_ztable ( &A );
+              fini_2level_ztable ( &B );
+
+            }  /* end of loop on rotations */
+          }  /* end of loop on target irrep rows */
+
+          /****************************************************
+           * deallocate matrices
+           ****************************************************/
+          fini_3level_ztable ( &projection_matrix_v );
+          fini_3level_ztable ( &projection_matrix_s );
+          fini_3level_ztable ( &projection_matrix_u );
+
+        }  /* end of loop on irrep matrix ref. rows */
+
+      }  /* end of source / sink side */
 
       /****************************************************/
       /****************************************************/
@@ -572,7 +683,7 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on irreps */
 
-  }  /* end of loop on little groups */
+  }  /* end of loop on total momenta */
 
 
   /****************************************************/
