@@ -960,7 +960,7 @@ static inline void mult_with_t( double ***buffer_accum,  double *** buffer_write
 }
 
 
-static inline void sink_and_source_gamma_list( char *filename, char *tagname, int number_of_gammas_source, int number_of_gammas_sink, char ***gamma_string_source, char ***gamma_string_sink, int pion_source){
+static inline void sink_and_source_gamma_list( char *filename, char *tagname, int number_of_gammas_source, int number_of_gammas_sink, char ***gamma_string_source, char ***gamma_string_sink, int pion_source, char *diagram_name){
 
 #if 0
     hid_t file_id, dataset_id, attr_id; /* identifiers */
@@ -986,16 +986,69 @@ static inline void sink_and_source_gamma_list( char *filename, char *tagname, in
     for (int j=0; j<number_of_gammas_sink; j++){
       (*gamma_string_sink)[j]=(char *)malloc(sizeof(char)*100);
     }
-    snprintf((*gamma_string_source)[0],100,"%s","Cg5");
-    snprintf((*gamma_string_source)[1],100,"%s","C");
-    snprintf((*gamma_string_source)[2],100,"%s","Cg5g4");
-    snprintf((*gamma_string_source)[3],100,"%s","Cg4");
 
-    snprintf((*gamma_string_sink)[0],100,"%s","Cg5");
-    snprintf((*gamma_string_sink)[1],100,"%s","C");
-    snprintf((*gamma_string_sink)[2],100,"%s","Cg5g4");
-    snprintf((*gamma_string_sink)[3],100,"%s","Cg4");
+    if (strcmp(diagram_name, "T")==0){
+      snprintf((*gamma_string_source)[0],100,"%s","Cg5");
+      snprintf((*gamma_string_source)[1],100,"%s","C");
+      snprintf((*gamma_string_source)[2],100,"%s","Cg5g4");
+      snprintf((*gamma_string_source)[3],100,"%s","Cg4");
 
+      snprintf((*gamma_string_sink)[0],100,"%s","cg1");
+      snprintf((*gamma_string_sink)[1],100,"%s","cg2");
+      snprintf((*gamma_string_sink)[2],100,"%s","cg3");
+      snprintf((*gamma_string_sink)[3],100,"%s","cg1g4");
+      snprintf((*gamma_string_sink)[4],100,"%s","cg2g4");
+      snprintf((*gamma_string_sink)[5],100,"%s","cg3g4");
+      snprintf((*gamma_string_sink)[6],100,"%s","cg1g4g5");
+      snprintf((*gamma_string_sink)[7],100,"%s","cg2g4g5");
+      snprintf((*gamma_string_sink)[8],100,"%s","cg3g4g5");
+
+    }
+    else if (strcmp(diagram_name ,"piN")==0){
+      snprintf((*gamma_string_source)[0],100,"%s","Cg5");
+      snprintf((*gamma_string_source)[1],100,"%s","C");
+      snprintf((*gamma_string_source)[2],100,"%s","Cg5g4");
+      snprintf((*gamma_string_source)[3],100,"%s","Cg4");
+   
+      snprintf((*gamma_string_sink)[0],100,"%s","Cg5");
+      snprintf((*gamma_string_sink)[1],100,"%s","C");
+      snprintf((*gamma_string_sink)[2],100,"%s","Cg5g4");
+      snprintf((*gamma_string_sink)[3],100,"%s","Cg4");
+    }
+    else if (strcmp(diagram_name ,"D")==0){
+      snprintf((*gamma_string_source)[0],100,"%s","cg1");
+      snprintf((*gamma_string_source)[1],100,"%s","cg2");
+      snprintf((*gamma_string_source)[2],100,"%s","cg3");
+      snprintf((*gamma_string_source)[3],100,"%s","cg1g4");
+      snprintf((*gamma_string_source)[4],100,"%s","cg2g4");
+      snprintf((*gamma_string_source)[5],100,"%s","cg3g4");
+      snprintf((*gamma_string_source)[6],100,"%s","cg1g4g5");
+      snprintf((*gamma_string_source)[7],100,"%s","cg2g4g5");
+      snprintf((*gamma_string_source)[8],100,"%s","cg3g4g5");
+
+
+      snprintf((*gamma_string_sink)[0],100,"%s","cg1");
+      snprintf((*gamma_string_sink)[1],100,"%s","cg2");
+      snprintf((*gamma_string_sink)[2],100,"%s","cg3");
+      snprintf((*gamma_string_sink)[3],100,"%s","cg1g4");
+      snprintf((*gamma_string_sink)[4],100,"%s","cg2g4");
+      snprintf((*gamma_string_sink)[5],100,"%s","cg3g4");
+      snprintf((*gamma_string_sink)[6],100,"%s","cg1g4g5");
+      snprintf((*gamma_string_sink)[7],100,"%s","cg2g4g5");
+      snprintf((*gamma_string_sink)[8],100,"%s","cg3g4g5");
+
+    }
+    else if (strcmp(diagram_name ,"N")==0){
+      snprintf((*gamma_string_source)[0],100,"%s","Cg5");
+      snprintf((*gamma_string_source)[1],100,"%s","C");
+      snprintf((*gamma_string_source)[2],100,"%s","Cg5g4");
+      snprintf((*gamma_string_source)[3],100,"%s","Cg4");
+
+      snprintf((*gamma_string_sink)[0],100,"%s","Cg5");
+      snprintf((*gamma_string_sink)[1],100,"%s","C");
+      snprintf((*gamma_string_sink)[2],100,"%s","Cg5g4");
+      snprintf((*gamma_string_sink)[3],100,"%s","Cg4");
+    }
 
 #if 0
     char *token;
@@ -1054,7 +1107,7 @@ int i2index( int pi2x, int pi2y, int pi2z ){
    return ret_index;
 }
 
-int f1f2index( int ** buffer_mom, int pf1x, int pf1y, int pf1z, int pf2x, int pf2y, int pf2z ){
+int f1f2index_piN( int ** buffer_mom, int pf1x, int pf1y, int pf1z, int pf2x, int pf2y, int pf2z ){
    int ret_index=-1;
    for (int i=0; i<343; ++i){
      if ((buffer_mom[i][3]==pf1x) && (buffer_mom[i][4]==pf1y) && (buffer_mom[i][5]==pf1z) && (buffer_mom[i][6]==pf2x) && (buffer_mom[i][7]==pf2y) && (buffer_mom[i][8]==pf2z)){
@@ -1065,10 +1118,38 @@ int f1f2index( int ** buffer_mom, int pf1x, int pf1y, int pf1z, int pf2x, int pf
    return ret_index;
 }
 
-int gammaindex( int sink , int source ) {
+
+int f1f2index_T( int ** buffer_mom, int pf1x, int pf1y, int pf1z ){
+   int ret_index=-1;
+   for (int i=0; i<27; ++i){
+     if ((buffer_mom[i][3]==pf1x) && (buffer_mom[i][4]==pf1y) && (buffer_mom[i][5]==pf1z) ){
+       ret_index=i;
+       break;
+     }
+   }
+   return ret_index;
+}
+
+
+int f1f2index_D( int ** buffer_mom, int pf1x, int pf1y, int pf1z ){
+   int ret_index=-1;
+   for (int i=0; i<27; ++i){
+     if ((buffer_mom[i][0]==pf1x) && (buffer_mom[i][1]==pf1y) && (buffer_mom[i][2]==pf1z) ){
+       ret_index=i;
+       break;
+     }
+   }
+   return ret_index;
+}
+
+
+
+
+int gammaindex( int sink , int source, char *diagram_name ) {
 
    int sink_index;
    int source_index;
+   if (strcmp(diagram_name, "T")==0){
    if ( sink == 14 ){
        sink_index= 0;
    }
@@ -1080,6 +1161,33 @@ int gammaindex( int sink , int source ) {
    }
    else if (sink == 2){
        sink_index=3; 
+   }
+   else if (sink == 9){
+       sink_index=0;
+   }
+   else if (sink == 0){
+       sink_index=1;
+   }
+   else if (sink == 7){
+       sink_index=2;
+   }
+   else if (sink ==13){
+       sink_index=3;
+   }
+   else if (sink ==4){
+       sink_index=4;
+   }
+   else if (sink == 15) {
+       sink_index=5;
+   }
+   else if (sink == 12){
+       sink_index=6;
+   }
+   else if (sink == 5){
+       sink_index=7;
+   }     
+   else if (sink == 10){
+       sink_index=8;
    }
    else { 
     fprintf(stderr, "Unregocnized sink gamma %d\n",sink);
@@ -1102,6 +1210,136 @@ int gammaindex( int sink , int source ) {
     exit(1); 
    } 
    return ( sink_index* 4 + source_index);
+   }
+   else if ((strcmp(diagram_name, "piN")==0) && (strcmp(diagram_name, "N")==0)) {
+   if ( source == 14 ){
+       source_index= 0;
+   }
+   else if (source == 11) {
+       source_index= 1;
+   }
+   else if (source == 8){
+       source_index= 2;
+   }
+   else if (source == 2){
+       source_index=3;
+   }
+   else {
+    fprintf(stderr, "Unregocnized source gamma %d\n",source);
+    exit(1);
+   }
+   if ( sink == 14 ){
+       sink_index= 0;
+   }
+   else if (sink == 11) {
+       sink_index= 1;
+   }
+   else if (sink == 8){
+       sink_index= 2;
+   }
+   else if (sink == 2){
+       sink_index=3;
+   }
+   else {
+    fprintf(stderr, "Unregocnized sink gamma %d\n",sink);
+    exit(1);
+   }
+   return ( sink_index* 4 + source_index);
+   }
+   else if (strcmp(diagram_name, "D")==0){
+   if ( sink == 14 ){
+       sink_index= 0;
+   }
+   else if (sink == 11) {
+       sink_index= 1;
+   }
+   else if (sink == 8){
+       sink_index= 2;
+   }
+   else if (sink == 2){
+       sink_index=3;
+   }
+   else if (sink == 9){
+       sink_index=0;
+   }
+   else if (sink == 0){
+       sink_index=1;
+   }
+   else if (sink == 7){
+       sink_index=2;
+   }
+   else if (sink ==13){
+       sink_index=3;
+   }
+   else if (sink ==4){
+       sink_index=4;
+   }
+   else if (sink == 15) {
+       sink_index=5;
+   }
+   else if (sink == 12){
+       sink_index=6;
+   }
+   else if (sink == 5){
+       sink_index=7;
+   }
+   else if (sink == 10){
+       sink_index=8;
+   }
+   else {
+    fprintf(stderr, "Unregocnized sink gamma %s %d\n",diagram_name, sink);
+    exit(1);
+   }
+   if ( source == 14 ){
+       source_index= 0;
+   }
+   else if (source == 11) {
+       source_index= 1;
+   }
+   else if (source == 8){
+       source_index= 2;
+   }
+   else if (source == 2){
+       source_index=3;
+   }
+   else if (source == 9){
+       source_index=0;
+   }
+   else if (source == 0){
+       source_index=1;
+   }
+   else if (source == 7){
+       source_index=2;
+   }
+   else if (source ==13){
+       source_index=3;
+   }
+   else if (source ==4){
+       source_index=4;
+   }
+   else if (source == 15) {
+       source_index=5;
+   }
+   else if (source == 12){
+       source_index=6;
+   }
+   else if (source == 5){
+       source_index=7;
+   }
+   else if (source == 10){
+       source_index=8;
+   }
+   else {
+    fprintf(stderr, "Unregocnized source gamma %s %d\n", diagram_name, source);
+    exit(1);
+   }
+   return ( sink_index* 9 + source_index);
+   }
+   else {
+     fprintf(stdout,"Diagram is not implemented\n");
+     exit(1);
+   }
+
 }
 
 int udli_id_lookup_piNpiN( char udli_list[][500], int udli_count, int *momtable_sink_f2, char *gamma_string_sink_member, int *momtable_sink_f1, int *momtable_source_i2, char *gamma_string_source_member){
@@ -1369,7 +1607,7 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_reference_rotation = 1;
-      fprintf ( stdout, "# [piN2piN_projection] check_reference_rotation set to %d\n", check_reference_rotation );
+      fprintf ( stdout, "# [piN2piN_projection_apply_plegma] check_reference_rotation set to %d\n", check_reference_rotation );
       break;
     case 'h':
     case '?':
@@ -1388,7 +1626,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
   omp_set_num_threads(g_num_threads);
 #else
-  fprintf(stdout, "[piN2piN_projection] Warning, resetting global thread number to 1\n");
+  fprintf(stdout, "# [piN2piN_projection_apply_plegma] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
@@ -1401,7 +1639,7 @@ int main(int argc, char **argv) {
    * report git version
    ***********************************************************/
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [piN2piN_projection] git version = %s\n", g_gitversion);
+    fprintf(stdout, "# [piN2piN_projection_apply_plegma] git version = %s\n", g_gitversion);
   }
 
   /***********************************************************
@@ -1409,7 +1647,7 @@ int main(int argc, char **argv) {
    ***********************************************************/
   exitstatus = init_geometry();
   if( exitstatus != 0 ) {
-    fprintf(stderr, "[piN2piN_projection] Error from init_geometry, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    fprintf(stderr, "# [piN2piN_projection_apply_plegma] Error from init_geometry, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
   }
   geometry();
@@ -1423,7 +1661,7 @@ int main(int argc, char **argv) {
    * TEST: report size of twopoint_function_type
    ***********************************************************/
   if ( io_proc == 0 ) {
-    fprintf ( stdout, "# [piN2piN_projection] sizeof twopoint_function_type = %lu\n", sizeof ( twopoint_function_type ) );
+    fprintf ( stdout, "# [piN2piN_projection_apply_plegma] sizeof twopoint_function_type = %lu\n", sizeof ( twopoint_function_type ) );
   }
 
   int const momentum_orbit_pref[4][3] = { {0,0,0}, {0,0,1}, {1,1,0}, {1,1,1} };
@@ -1510,39 +1748,83 @@ int main(int argc, char **argv) {
     /***********************************************************
      * read data block from h5 file
      ***********************************************************/
-    snprintf ( filename, 400, "plegma_format_piN_%04d.h5",
+
+    if ( (strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"piN")==0)) {
+      snprintf ( filename, 400, "plegma_format_piN_%04d.h5",
                          Nconf);
-                         //source_coords_list[0][1],
-                         //source_coords_list[0][2],
-                         //source_coords_list[0][3],
-                         //source_coords_list[0][0] );
-    int ** buffer_mom = init_2level_itable ( 343, 9 );
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+      snprintf ( filename, 400, "mod_Diagramm%04d_sx%02dsy%02dsz%02dst%03d_T.h5", Nconf,
+                                                                                source_coords_list[k][1],
+                                                                                source_coords_list[k][2],
+                                                                                source_coords_list[k][3],
+                                                                                source_coords_list[k][0]);
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"D")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+      snprintf ( filename, 400, "mod_Diagramm%04d_sx%02dsy%02dsz%02dst%03d_D.h5", Nconf,
+                                                                                source_coords_list[k][1],
+                                                                                source_coords_list[k][2],
+                                                                                source_coords_list[k][3],
+                                                                                source_coords_list[k][0]);
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"N")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"N")==0)) {
+      snprintf ( filename, 400, "mod_Diagramm%04d_sx%02dsy%02dsz%02dst%03d_N.h5", Nconf,
+                                                                                source_coords_list[k][1],
+                                                                                source_coords_list[k][2],
+                                                                                source_coords_list[k][3],
+                                                                                source_coords_list[k][0]);
+    }
+
+    int ** buffer_mom ;
+    if ( (strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"piN")==0)) {
+
+      buffer_mom=init_2level_itable ( 343, 9 );
+
+    }
+    else if ( (strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+
+      buffer_mom=init_2level_itable ( 27, 6 );
+
+    }
+    else if ( (strcmp(g_twopoint_function_list[0].particlename_source,"D")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+
+      buffer_mom=init_2level_itable ( 27, 3 );
+
+    }
+    else if ( (strcmp(g_twopoint_function_list[0].particlename_source,"N")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"N")==0)) {
+
+      buffer_mom=init_2level_itable ( 27, 3 );
+
+    }
+
     if ( buffer_mom == NULL ) {
        fprintf(stderr, "# [piN2piN_projection_apply_plegma]  Error from ,init_2level_itable %s %d\n", __FILE__, __LINE__ );
        EXIT(12);
     }
-    snprintf(tagname, 400, "/%04d/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mvec",Nconf,
-                         source_coords_list[0][1],
-                         source_coords_list[0][2],
-                         source_coords_list[0][3],
-                         source_coords_list[0][0],
-                         pi2[0],pi2[1],pi2[2]);
 
-    printf("Try to read in momenta %s %s\n",filename, tagname);
+    if (((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"piN")==0)) ||
+        ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0))) {
+       snprintf(tagname, 400, "sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mvec",
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0],
+                         pi2[0],pi2[1],pi2[2]);
+    }
+    else if (((strcmp(g_twopoint_function_list[0].particlename_source,"N")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"N")==0)) ||
+             ((strcmp(g_twopoint_function_list[0].particlename_source,"D")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0))) {
+       snprintf(tagname, 400, "sx%.02dsy%.02dsz%.02dst%.02d/mvec",
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0]);
+    }
+
+    fprintf(stdout, "# [piN2piN_projection_apply_plegma] Try to read in momenta %s %s\n",filename, tagname);
     exitstatus = read_from_h5_file ( (void*)(buffer_mom[0]), filename, tagname, io_proc, 1 );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[piN2piN_projection_apply_plegma] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
-    }
-    int *indextable_i2_to_minus_i2 = (int *)malloc(sizeof(int)*g_seq_source_momentum_number);
-
-    for (int i=0; i<g_seq_source_momentum_number; ++i){
-      for (int j=0; j<g_seq_source_momentum_number; ++j){
-        if ( (g_seq_source_momentum_list[j][0]==-g_seq_source_momentum_list[i][0]) && ( g_seq_source_momentum_list[j][1]==-g_seq_source_momentum_list[i][1] ) &&  ( g_seq_source_momentum_list[j][2]==-g_seq_source_momentum_list[i][2] )){
-          indextable_i2_to_minus_i2[i]=j;
-          break;
-        }
-      }
     }
 #endif
 
@@ -1550,49 +1832,100 @@ int main(int argc, char **argv) {
     char **gamma_string_list_source;
     char **gamma_string_list_sink;
 
-
+/*
     snprintf ( filename, 400, "plegma_format_piN_%04d.h5",
                          Nconf
                           );
+*/
 
-    snprintf ( tagname, 400, "/%04d/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mxb-mxb",
+    if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"piN")==0)) {
+       sink_and_source_gamma_list( filename, tagname, 4, 4, &gamma_string_list_source, &gamma_string_list_sink, 1,"piN");
+
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+       sink_and_source_gamma_list( filename, tagname, 4, 9, &gamma_string_list_source, &gamma_string_list_sink, 1,"T");
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"D")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+       sink_and_source_gamma_list( filename, tagname, 9, 9, &gamma_string_list_source, &gamma_string_list_sink, 1,"D");
+
+    } 
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"N")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"N")==0)) {
+       sink_and_source_gamma_list( filename, tagname, 4, 4, &gamma_string_list_source, &gamma_string_list_sink, 1,"N");
+    }
+
+
+
+    double ******buffer_sum;
+
+    if ((strcmp(g_twopoint_function_list[0].particlename_source,"D")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+      buffer_sum  = init_6level_dtable(1,  g_twopoint_function_list[0].T, 27, 81, 16, 2  );
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"N")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"N")==0)) {
+      buffer_sum  = init_6level_dtable(1,  g_twopoint_function_list[0].T, 27, 16, 16, 2  );
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+      buffer_sum  = init_6level_dtable(27,  g_twopoint_function_list[0].T, 27, 36, 16, 2  );
+    }
+    else if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"piN")==0)) {
+      buffer_sum  = init_6level_dtable(27,  g_twopoint_function_list[0].T, 343, 16, 16, 2  );
+    }
+
+
+
+
+
+
+    for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
+
+
+      if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"piN")==0)) {
+       snprintf ( tagname, 400, "/%04d/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mxb-mxb",
                          Nconf,
                          source_coords_list[k][1],
                          source_coords_list[k][2],
                          source_coords_list[k][3],
                          source_coords_list[k][0],
-                         g_seq_source_momentum_list[0][0],
-                         g_seq_source_momentum_list[0][1],
-                         g_seq_source_momentum_list[0][2]);
+                         g_seq_source_momentum_list[ipi2][0],
+                         g_seq_source_momentum_list[ipi2][1],
+                         g_seq_source_momentum_list[ipi2][2]);
+      }
+      else if ((strcmp(g_twopoint_function_list[0].particlename_source,"piN")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+       snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/T",
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0],
+                         g_seq_source_momentum_list[ipi2][0],
+                         g_seq_source_momentum_list[ipi2][1],
+                         g_seq_source_momentum_list[ipi2][2]);
+      }
+      else if ((strcmp(g_twopoint_function_list[0].particlename_source,"D")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"D")==0)) {
+       snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/D",
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0]);
+      }  
+      else if ((strcmp(g_twopoint_function_list[0].particlename_source,"N")==0) && (strcmp(g_twopoint_function_list[0].particlename_sink,"N")==0)) {
+       snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%.02d/N",
+                         source_coords_list[k][1],
+                         source_coords_list[k][2],
+                         source_coords_list[k][3],
+                         source_coords_list[k][0]);
+      }
 
 
-    sink_and_source_gamma_list( filename, tagname, 4, 4, &gamma_string_list_source, &gamma_string_list_sink, 1);
-
-
-    double ******buffer_sum = init_6level_dtable(27,  g_twopoint_function_list[0].T, 343, 16, 16, 2  );
-
-    for ( int ipi2 = 0; ipi2 < g_seq_source_momentum_number; ipi2++ ) {
-      int const pi2[3] = {
-         g_seq_source_momentum_list[ipi2][0],
-         g_seq_source_momentum_list[ipi2][1],
-         g_seq_source_momentum_list[ipi2][2] };
-
-      snprintf ( tagname,400, "/%04d/sx%.02dsy%.02dsz%.02dst%.02d/pi2=%d_%d_%d/mxb-mxb",Nconf,source_coords_list[k][1],
-                      source_coords_list[k][2],
-                      source_coords_list[k][3],
-                      source_coords_list[k][0],
-                      pi2[0],pi2[1],pi2[2]);
       exitstatus = read_from_h5_file ( (void*)(buffer_sum[ipi2][0][0][0][0]), filename, tagname, io_proc );
+
       if ( exitstatus != 0 ) {
-         fprintf(stderr, "# [piN2piN_diagram_sum_per_type] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+         fprintf(stderr, "# [piN2piN_projection_apply_plegma] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
          EXIT(12);
       }
-      fprintf(stdout,"reading fine\n");
 
     }/* loop over pi2 */
 
 
-    fprintf(stdout, "reading done\n");
+    fprintf(stdout, "# [piN2piN_projection_apply_plegma] reading done\n");
    
   /******************************************************
    * loop on 2-point functions
@@ -1714,6 +2047,12 @@ int main(int argc, char **argv) {
 
           for ( int icombination_source=0; icombination_source < g_twopoint_function_list[i2pt].ncombination_total_momentum_source ; ++icombination_source ) {
 
+            snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
+              g_twopoint_function_list[i2pt].particlename_source,
+              g_twopoint_function_list[i2pt].group,
+              g_twopoint_function_list[i2pt].irrep );
+
+
             if (strcmp( g_twopoint_function_list[i2pt].particlename_source, "piN") == 0){
               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_source[icombination_source], g_twopoint_function_list[i2pt].total_momentum_nucleon_source[icombination_source], imu, ibeta );
             }
@@ -1760,6 +2099,12 @@ int main(int argc, char **argv) {
           }
           for ( int icombination_sink=0; icombination_sink < g_twopoint_function_list[i2pt].ncombination_total_momentum_sink ; ++icombination_sink ) {
 
+            snprintf ( filename, 400, "projection_coefficients_%s_group_%s_irrep_%s.h5",
+              g_twopoint_function_list[i2pt].particlename_sink,
+              g_twopoint_function_list[i2pt].group,
+              g_twopoint_function_list[i2pt].irrep );
+
+
             if (strcmp( g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0){
               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d_pi%dN%d/mu_%d/beta_%d/Nreplicas_Nps_Ndimirrep",  Ptot[0],Ptot[1], Ptot[2], g_twopoint_function_list[i2pt].total_momentum_pion_sink[icombination_sink], g_twopoint_function_list[i2pt].total_momentum_nucleon_sink[icombination_sink], imu, ibeta );
             }
@@ -1799,6 +2144,7 @@ int main(int argc, char **argv) {
               snprintf( tagname, 400, "/pfx%dpfy%dpfz%d/mu_%d/beta_%d/a_data_ort",  Ptot[0],Ptot[1], Ptot[2],  imu, ibeta );
 
             }
+            printf("Filename %s Tagname %s\n", filename, tagname );
             exitstatus = read_from_h5_file ( (void*)(projection_coeff_a_ORT[ibeta][imu][icombination_sink][0][0]), filename, tagname, io_proc, 0 );
             if (exitstatus != 0){
               fprintf(stderr, "# [piN2piN_projection_apply] Error in opening %s %s\n",filename, tagname );
@@ -1811,6 +2157,7 @@ int main(int argc, char **argv) {
          }
     
        }
+
 
       /******************************************************
        * Open the table for creation and annihilation interpolating operator coefficients 
@@ -2050,20 +2397,6 @@ int main(int argc, char **argv) {
 
                                char *gamma_string_sink_member=convert_gamma_to_string( gamma_table_sink[i2_sink]);
 
-                               int pf1x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][0];
-                               int pf1y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][1];
-                               int pf1z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][2];
-                               int pf2x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][3];
-                               int pf2y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][4];
-                               int pf2z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][5];
-
-                               int pi1x=momtable_source[ibeta][imu][icombination_source][i1_source][0];
-                               int pi1y=momtable_source[ibeta][imu][icombination_source][i1_source][1];
-                               int pi1z=momtable_source[ibeta][imu][icombination_source][i1_source][2];
-                               int pi2x=momtable_source[ibeta][imu][icombination_source][i1_source][3];
-                               int pi2y=momtable_source[ibeta][imu][icombination_source][i1_source][4];
-                               int pi2z=momtable_source[ibeta][imu][icombination_source][i1_source][5];
-
                                char *correlation_function_filename_suffix=(char *)malloc(sizeof(char)*100);
                                char *correlation_function_tagname_suffix =(char *)malloc(sizeof(char)*100);
 
@@ -2094,12 +2427,27 @@ int main(int argc, char **argv) {
 
                                }
                                else { 
-                                fprintf(stderr, "#[piN2piN_projection_apply] only piN -delta system is implemented\n");
+                                fprintf(stderr, "# [piN2piN_projection_apply_plegma] only piN -delta system is implemented\n");
                                 exit(1);
                                }
 
  
                                if ((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "piN") == 0)){
+
+
+                                 int pf1x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][0];
+                                 int pf1y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][1];
+                                 int pf1z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][2];
+                                 int pf2x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][3];
+                                 int pf2y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][4];
+                                 int pf2z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][5];
+
+                                 int pi1x=momtable_source[ibeta][imu][icombination_source][i1_source][0];
+                                 int pi1y=momtable_source[ibeta][imu][icombination_source][i1_source][1];
+                                 int pi1z=momtable_source[ibeta][imu][icombination_source][i1_source][2];
+                                 int pi2x=momtable_source[ibeta][imu][icombination_source][i1_source][3];
+                                 int pi2y=momtable_source[ibeta][imu][icombination_source][i1_source][4];
+                                 int pi2z=momtable_source[ibeta][imu][icombination_source][i1_source][5];
 
                                  
                                  int applied_transformations=0;
@@ -2142,8 +2490,9 @@ int main(int argc, char **argv) {
 //                                   correlation_function_symmetrized[udli_count]=init_3level_dtable( time_extent, spin1212_dimension ,2 );
                                      
                                    int i2idx=i2index( pi2x, pi2y, pi2z);
-                                   int f1f2idx=f1f2index( buffer_mom, pf1x, pf1y, pf1z, pf2x, pf2y, pf2z ); 
-                                   int gammaidx=gammaindex(gamma_table_sink[i2_sink],gamma_table_source[i2_source]);
+                                   int f1f2idx=f1f2index_piN(buffer_mom, pf1x, pf1y, pf1z, pf2x, pf2y, pf2z);
+                                   int gammaidx=gammaindex(gamma_table_sink[i2_sink],gamma_table_source[i2_source],"piN");
+                                   
                                    
                                    for (int time_c=0; time_c<time_extent; ++time_c){
                                      for (int spin_index=0; spin_index < spin1212_dimension; ++ spin_index){
@@ -2364,37 +2713,43 @@ int main(int argc, char **argv) {
                                } else if (((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "N") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "N") == 0)) || (((strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0)))){
                                  udliid=udli_id_lookup_BB( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,gamma_string_source_member);
                                  if (udliid==-1){
-                                   snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
-                                                        source_coords_list[k][2],
-                                                        source_coords_list[k][3],
-                                                        source_coords_list[k][0],
-                                                        gamma_string_sink_member,
-                                                        pf1x,
-                                                        pf1y,
-                                                        pf1z,
-                                                        gamma_string_source_member,
-                                                        pi1x,
-                                                        pi1y,
-                                                        pi1z,
-                                                        correlation_function_tagname_suffix);
+                                   int pf1x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][0];
+                                   int pf1y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][1];
+                                   int pf1z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][2];
+                                   int pi1x=momtable_source[ibeta][imu][icombination_source][i1_source][0];
+                                   int pi1y=momtable_source[ibeta][imu][icombination_source][i1_source][1];
+                                   int pi1z=momtable_source[ibeta][imu][icombination_source][i1_source][2];
 
                                    const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
 
-                                   snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
-                                                        filename_prefix,
-                                                        Nconf,
-                                                        momentum_orbit_pref[i_total_momentum][0],
-                                                        momentum_orbit_pref[i_total_momentum][1],
-                                                        momentum_orbit_pref[i_total_momentum][2],
-                                                        correlation_function_filename_suffix);
-
                                    correlation_function[udli_count]=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
+				   const int spin1212_dimension=g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ;
+                                   const int time_extent=g_twopoint_function_list[i2pt].T;
 
-                                   exitstatus = read_from_h5_file ( (void*)(correlation_function[udli_count][0][0]), filename, tagname, io_proc, 0 );
-                                   if (exitstatus!=0){
-                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in opening file %s %s\n", filename, tagname );
-                                     exit(1);
+                                   
+                                   int f1f2idx=f1f2index_D( buffer_mom, pf1x, pf1y, pf1z );
+                                   int gammaidx=gammaindex(gamma_table_sink[i2_sink],gamma_table_source[i2_source],"D");
+
+                                   for (int time_c=0; time_c<time_extent; ++time_c){
+                                     for (int spin_index=0; spin_index < spin1212_dimension; ++ spin_index){
+                                       for (int realimag=0; realimag < 2; ++realimag ){
+                                         correlation_function[udli_count][time_c][spin_index][realimag]=buffer_sum[0][time_c][f1f2idx][gammaidx][spin_index][realimag];
+                                       }
+                                     }
+                                     if ((gamma_table_source[i1_source]==12) || (gamma_table_source[i1_source]==5) || (gamma_table_source[i1_source]==10) ){
+                                       mult_with_gamma5_matrix_adj_source(correlation_function[udli_count][time_c]);
+                                     }
+                                     if ((gamma_table_sink[i1_sink]==12) || (gamma_table_sink[i1_sink]==5) || (gamma_table_sink[i1_sink]==10)) {
+                                       mult_with_gamma5_matrix_sink(correlation_function[udli_count][time_c]);
+                                     }
+/*                                     for (int spin_index=0; spin_index < spin1212_dimension; ++ spin_index){
+                                       for (int realimag=0; realimag < 2; ++realimag ){
+                                         correlation_function_symmetrized[udli_count][time_c][spin_index][realimag]=correlation_function[udli_count][time_c][spin_index][realimag];
+
+                                       }
+                                     }*/
                                    }
+
 
                                    udli_id_store_BB( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,gamma_string_source_member);
                                    udliid=udli_count;
@@ -2408,41 +2763,52 @@ int main(int argc, char **argv) {
  
                                } else  if ( (strcmp(g_twopoint_function_list[i2pt].particlename_sink, "D") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "piN") == 0 )){
                                  udliid=udli_id_lookup_piND( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_source[ibeta][imu][icombination_source][i1_source][0],&momtable_source[ibeta][imu][icombination_source][i1_source][3],gamma_string_source_member);
+
                                  if (udliid==-1){
-                                   snprintf ( tagname, 400, "/sx%.02dsy%.02dsz%.02dst%03d/gf1%s/pf1x%.02dpf1y%.02dpf1z%.02d/gi25/pi2x%.02dpi2y%.02dpi2z%.02d/gi1%s/pi1x%.02dpi1y%.02dpi1z%.02d/%s", source_coords_list[k][1],
-                                                        source_coords_list[k][2],
-                                                        source_coords_list[k][3],
-                                                        source_coords_list[k][0],
-                                                        gamma_string_sink_member,
-                                                        pf1x,
-                                                        pf1y,
-                                                        pf1z,
-                                                        pi2x,
-                                                        pi2y,
-                                                        pi2z,
-                                                        gamma_string_source_member,
-                                                        pi1x,
-                                                        pi1y,
-                                                        pi1z,
-                                                        correlation_function_tagname_suffix);
+                                   int pf1x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][0];
+                                   int pf1y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][1];
+                                   int pf1z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][2];
+  
+                                   int pi1x=momtable_source[ibeta][imu][icombination_source][i1_source][0];
+                                   int pi1y=momtable_source[ibeta][imu][icombination_source][i1_source][1];
+                                   int pi1z=momtable_source[ibeta][imu][icombination_source][i1_source][2];
+                                   int pi2x=momtable_source[ibeta][imu][icombination_source][i1_source][3];
+                                   int pi2y=momtable_source[ibeta][imu][icombination_source][i1_source][4];
+                                   int pi2z=momtable_source[ibeta][imu][icombination_source][i1_source][5];
+
 
                                    const int i_total_momentum=Ptot[0]*Ptot[0]+Ptot[1]*Ptot[1]+Ptot[2]*Ptot[2];
 
-                                   snprintf ( filename, 400, "%s%04d_PX%.02dPY%.02dPZ%.02d_%s.h5",
-                                                        filename_prefix,
-                                                        Nconf,
-                                                        momentum_orbit_pref[i_total_momentum][0],
-                                                        momentum_orbit_pref[i_total_momentum][1],
-                                                        momentum_orbit_pref[i_total_momentum][2],
-                                                        correlation_function_filename_suffix);
 
                                    correlation_function[udli_count]=init_3level_dtable( g_twopoint_function_list[i2pt].T,g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ,2 );
 
-                                   exitstatus = read_from_h5_file ( (void*)(correlation_function[udli_count][0][0]), filename, tagname, io_proc, 0 );
-                                   if (exitstatus!=0){
-                                     fprintf(stderr,"# [piN2piN_projection_apply] Error in opening file %s %s\n", filename, tagname );
-                                     exit(1);
+                                   const int spin1212_dimension=g_twopoint_function_list[i2pt].d*g_twopoint_function_list[i2pt].d ;
+                                   const int time_extent=g_twopoint_function_list[i2pt].T;
+
+                                   int i2idx=i2index( pi2x, pi2y, pi2z);
+                                   int f1f2idx=f1f2index_T( buffer_mom, pf1x, pf1y, pf1z );
+                                   int gammaidx=gammaindex(gamma_table_sink[i2_sink],gamma_table_source[i2_source],"T");
+
+                                   for (int time_c=0; time_c<time_extent; ++time_c){
+                                     for (int spin_index=0; spin_index < spin1212_dimension; ++ spin_index){
+                                       for (int realimag=0; realimag < 2; ++realimag ){
+                                         correlation_function[udli_count][time_c][spin_index][realimag]=buffer_sum[i2idx][time_c][f1f2idx][gammaidx][spin_index][realimag];
+                                       }
+                                     }
+                                     if ((gamma_table_source[i1_source]==11) || (gamma_table_source[i1_source]==2)){
+                                       mult_with_gamma5_matrix_adj_source(correlation_function[udli_count][time_c]);
+                                     }
+                                     if ((gamma_table_sink[i1_sink]==12) || (gamma_table_sink[i1_sink]==5) || (gamma_table_sink[i1_sink]==10)) {
+                                       mult_with_gamma5_matrix_sink(correlation_function[udli_count][time_c]);
+                                     }
+/*                                     for (int spin_index=0; spin_index < spin1212_dimension; ++ spin_index){
+                                       for (int realimag=0; realimag < 2; ++realimag ){
+                                         correlation_function_symmetrized[udli_count][time_c][spin_index][realimag]=correlation_function[udli_count][time_c][spin_index][realimag];
+
+                                       }
+                                     }*/
                                    }
+
                                    udli_id_store_piND( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_source[ibeta][imu][icombination_source][i1_source][0],&momtable_source[ibeta][imu][icombination_source][i1_source][3],gamma_string_source_member);
                                    udliid=udli_count;
                                    ++udli_count;
@@ -2454,6 +2820,19 @@ int main(int argc, char **argv) {
                                  }
 
                                } else if ( (strcmp(g_twopoint_function_list[i2pt].particlename_sink, "piN") == 0) && (strcmp(g_twopoint_function_list[i2pt].particlename_source, "D") == 0) ){
+
+                                 int pf1x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][0];
+                                 int pf1y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][1];
+                                 int pf1z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][2];
+                                 int pf2x=momtable_sink[ibeta][imu][icombination_sink][i1_sink][3];
+                                 int pf2y=momtable_sink[ibeta][imu][icombination_sink][i1_sink][4];
+                                 int pf2z=momtable_sink[ibeta][imu][icombination_sink][i1_sink][5];
+
+                                 int pi1x=momtable_source[ibeta][imu][icombination_source][i1_source][0];
+                                 int pi1y=momtable_source[ibeta][imu][icombination_source][i1_source][1];
+                                 int pi1z=momtable_source[ibeta][imu][icombination_source][i1_source][2];
+
+
 
                                  udliid=udli_id_lookup_DpiN( udli_list, udli_count, &momtable_sink[ibeta][imu][icombination_sink][i1_sink][0], gamma_string_sink_member,&momtable_sink[ibeta][imu][icombination_sink][i1_sink][3],&momtable_source[ibeta][imu][icombination_source][i1_source][0],gamma_string_source_member);
                                  if (udliid==-1){
@@ -2582,6 +2961,7 @@ int main(int argc, char **argv) {
                          }/*i2_source*/
 
                        }/*i1_source*/
+
 
                        snprintf ( tagname, 400, "/sx%0.2dsy%0.2dsz%0.2dst%03d/px%dpy%dpz%d/beta_%d/mu_%d/source_totmomN%dp%d/sink_totmomN%dp%d/source_%s/sink_%s/Replicasource_%d/Replicasink_%d/data", source_coords_list[k][1],
                          source_coords_list[k][2],
@@ -2730,9 +3110,9 @@ int main(int argc, char **argv) {
 #endif
    if(g_cart_id == 0) {
     g_the_time = time(NULL);
-    fprintf(stdout, "# [piN2piN_projection] %s# [piN2piN_projection] end fo run\n", ctime(&g_the_time));
+    fprintf(stdout, "# [piN2piN_projection_apply_plegma] %s# [piN2piN_projection_apply_plegma] end fo run\n", ctime(&g_the_time));
     fflush(stdout);
-    fprintf(stderr, "# [piN2piN_projection] %s# [piN2piN_projection] end fo run\n", ctime(&g_the_time));
+    fprintf(stderr, "# [piN2piN_projection_apply_plegma] %s# [piN2piN_projection_apply_plegma] end fo run\n", ctime(&g_the_time));
     fflush(stderr);
    }
 
