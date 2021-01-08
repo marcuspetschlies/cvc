@@ -54,6 +54,78 @@ extern "C"
 
 using namespace cvc;
 
+
+int check_multiplett_rotation ( double _Complex *** v , int const rank, little_group_projector_type p , int const ac) {
+
+  int const matrix_dim = p.rspin[0].dim * p.rspin[1].dim;
+
+  for ( int irot = 0; irot < p.rtarget->n; irot++ )  {
+
+    double _Complex ** A = init_2level_ztable ( rank, matrix_dim );
+    double _Complex ** B = init_2level_ztable ( rank, matrix_dim );
+
+    if ( ac == 1 ) {
+
+      /****************************************************
+       * multiplication A_ik <- V_il S(R)_kl
+       ****************************************************/
+      for (int i = 0; i < matrix_dim; i++ ) {
+      for (int k = 0; k < matrix_dim; k++ ) {
+        double _Complex z = 0.;
+        for ( int l = 0; l < matrix_dim; l++ ) {
+          z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
+        }
+        A[i][k] = z;
+      }}
+
+      /****************************************************
+       * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
+       ****************************************************/
+      for (int i = 0; i < matrix_dim; i++ ) {
+      for (int k = 0; k < matrix_dim; k++ ) {
+        double _Complex z = 0.;
+
+        for ( int igamma = 0; igamma < irrep_dim; igamma++ ) {
+          z += p.rtarget->R[irot][igamma][imu] * v[igamma][i][k];
+        }
+        B[i][k] = z;
+      }}
+    }
+
+    /****************************************************
+     * compare
+     ****************************************************/
+    fprintf( stdout, "check_multiplett_rotation /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d\n",
+        operator_side[iac],
+        lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+        interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 );
+
+    double normdiff = 0.;
+    for (int i = 0; i < matrix_dim; i++ ) {
+    for (int k = 0; k < matrix_dim; k++ ) {
+      fprintf( stdout, "multiplett  %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ),
+          cabs( A[i][k] - B[i][k] ), cabs( A[i][k] ) );
+          normdiff += cabs( A[i][k] - B[i][k] );
+    }}
+    fprintf( stdout, "check_multiplett_rotation /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d normdiff %e  %s\n",
+        operator_side[iac],
+        lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+        interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 , normdiff, normdiff > eps ? "wrong" : "okay" );
+
+    /****************************************************
+     * deallocate temporary matrices
+     ****************************************************/
+    fini_2level_ztable ( &A );
+    fini_2level_ztable ( &B );
+
+  }  /* end of loop on rotations */
+
+}  /* end of check_multiplett_rotation  */
+
+/****************************************************/
+/****************************************************/
+
+
 int main(int argc, char **argv) {
 
   double const eps = 1.e-12;
@@ -653,6 +725,7 @@ int main(int argc, char **argv) {
               fini_2level_ztable ( &B );
 
             }  /* end of loop on rotations */
+
           }  /* end of loop on target irrep rows */
 
           /****************************************************
