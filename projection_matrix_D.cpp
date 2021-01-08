@@ -54,73 +54,131 @@ extern "C"
 
 using namespace cvc;
 
+char const operator_side[2][16] = { "annihilation", "creation" };
 
-int check_multiplett_rotation ( double _Complex *** v , int const rank, little_group_projector_type p , int const ac) {
+#if 0
+/****************************************************
+ * check irrep multiplett-rotation property
+ * for subduction matrix v
+ ****************************************************/
+int check_multiplett_rotation ( double _Complex *** const v , int const rank, little_group_projector_type const p , int const ac) {
+
+  double const eps = 1.e-12;
 
   int const matrix_dim = p.rspin[0].dim * p.rspin[1].dim;
 
-  for ( int irot = 0; irot < p.rtarget->n; irot++ )  {
+  int any_wrong = 0;
 
-    double _Complex ** A = init_2level_ztable ( rank, matrix_dim );
-    double _Complex ** B = init_2level_ztable ( rank, matrix_dim );
+  char tag[800];
+  sprintf( tag, "/%s/%s/refframerot%d/%s/%s/%s/refrow%d", operator_side[ac], p.rtarget->group, p.refframerot, p.rtarget->irrep, p.rspin[0].irrep, p.rspin[1].irrep, p.ref_row_target );
+  
+  /****************************************************
+   * matrices for rotated v
+   ****************************************************/
+  double _Complex ** A = init_2level_ztable ( rank, matrix_dim );
+  double _Complex ** B = init_2level_ztable ( rank, matrix_dim );
 
-    if ( ac == 1 ) {
+  /****************************************************
+   * loop on multiplet members
+   ****************************************************/
+  for ( int imu = 0; imu < p.rtarget->dim; imu++ ) {
+
+    for ( int irot = 0; irot < 2*p.rtarget->n; irot++ )  {
+  
+      double _Complex ** const r0 = irot < p.rtarget->n ? p.rspin[0].R[irot] : p.rspin[0].IR[irot % p.rtarget->n ];
+      double _Complex ** const r1 = irot < p.rtarget->n ? p.rspin[1].R[irot] : p.rspin[1].IR[irot % p.rtarget->n ];
+      double _Complex ** const tt = irot < p.rtarget->n ? p.rtarget->R[irot] : p.rtarget->IR[irot % p.rtarget->n ];
+
+      double const parity = irot < p.rtarget->n ? 1. : p.parity[0] * p.parity[1];
+
+      if ( ac == 1 ) {
+  
+        /****************************************************
+         * multiplication A_ik <- V_il S(R)_kl
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+        for (int k = 0; k < matrix_dim; k++ ) {
+          double _Complex z = 0.;
+          for ( int l = 0; l < matrix_dim; l++ ) {
+            // z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
+            z += v[imu][i][l] * r0[k/p.rspin[1].dim][l/p.rspin[1].dim] * r1[k%p.rspin[1].dim][l%p.rspin[1].dim];
+          }
+          A[i][k] = z * parity;
+        }}
+  
+        /****************************************************
+         * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+        for (int k = 0; k < matrix_dim; k++ ) {
+          double _Complex z = 0.;
+  
+          for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
+            // z += p.rtarget->R[irot][igamma][imu] * v[igamma][i][k];
+            z += tt[igamma][imu] * v[igamma][i][k];
+          }
+          B[i][k] = z;
+        }}
+      } else if ( ac == 0 ) {
+
+        /****************************************************
+         * multiplication A_ik <- V_il S(R)_kl
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+        for (int k = 0; k < matrix_dim; k++ ) {
+          double _Complex z = 0.;
+          for ( int l = 0; l < matrix_dim; l++ ) {
+            z += v[imu][i][l] * conj( r0[k/p.rspin[1].dim][l/p.rspin[1].dim] * r1[k%p.rspin[1].dim][l%p.rspin[1].dim] );
+          }
+          A[i][k] = z * parity;
+        }}
+  
+        /****************************************************
+         * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+        for (int k = 0; k < matrix_dim; k++ ) {
+          double _Complex z = 0.;
+  
+          for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
+            z += conj ( tt[igamma][imu] ) * v[igamma][i][k];
+          }
+          B[i][k] = z;
+        }}
+
+      }
 
       /****************************************************
-       * multiplication A_ik <- V_il S(R)_kl
+       * compare
        ****************************************************/
-      for (int i = 0; i < matrix_dim; i++ ) {
+      double gnorm = 0., gdiff = 0.;
+      for (int i = 0; i < rank; i++ ) {
       for (int k = 0; k < matrix_dim; k++ ) {
-        double _Complex z = 0.;
-        for ( int l = 0; l < matrix_dim; l++ ) {
-          z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
-        }
-        A[i][k] = z;
+        double const diff = cabs( A[i][k] - B[i][k] );
+        double const avrg = cabs( A[i][k] + B[i][k] ) * 0.5;
+        if ( g_verbose > 5 ) fprintf( stdout, "multiplett %d   %2d   %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", 
+            imu, irot, i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ), diff , avrg );
+            gnorm += avrg;
+            gdiff += diff;
       }}
+      char const * const state = ( gnorm > eps && gdiff/gnorm > eps  ) ? any_wrong=1, "wrong" : "okay";
+      fprintf( stdout, "# [check_multiplett_rotation] %s/row%d/rot%d normdiff %e   %e  %s\n", tag, imu, irot, gdiff , gnorm, state );
 
-      /****************************************************
-       * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
-       ****************************************************/
-      for (int i = 0; i < matrix_dim; i++ ) {
-      for (int k = 0; k < matrix_dim; k++ ) {
-        double _Complex z = 0.;
+  
+    }  /* end of loop on rotations */
 
-        for ( int igamma = 0; igamma < irrep_dim; igamma++ ) {
-          z += p.rtarget->R[irot][igamma][imu] * v[igamma][i][k];
-        }
-        B[i][k] = z;
-      }}
-    }
+  }  /* end of loop on multiplet members */
 
-    /****************************************************
-     * compare
-     ****************************************************/
-    fprintf( stdout, "check_multiplett_rotation /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d\n",
-        operator_side[iac],
-        lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-        interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 );
+  /****************************************************
+   * deallocate temporary matrices
+   ****************************************************/
+  fini_2level_ztable ( &A );
+  fini_2level_ztable ( &B );
 
-    double normdiff = 0.;
-    for (int i = 0; i < matrix_dim; i++ ) {
-    for (int k = 0; k < matrix_dim; k++ ) {
-      fprintf( stdout, "multiplett  %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ),
-          cabs( A[i][k] - B[i][k] ), cabs( A[i][k] ) );
-          normdiff += cabs( A[i][k] - B[i][k] );
-    }}
-    fprintf( stdout, "check_multiplett_rotation /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d normdiff %e  %s\n",
-        operator_side[iac],
-        lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-        interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 , normdiff, normdiff > eps ? "wrong" : "okay" );
-
-    /****************************************************
-     * deallocate temporary matrices
-     ****************************************************/
-    fini_2level_ztable ( &A );
-    fini_2level_ztable ( &B );
-
-  }  /* end of loop on rotations */
+  return ( any_wrong );
 
 }  /* end of check_multiplett_rotation  */
+#endif
 
 /****************************************************/
 /****************************************************/
@@ -129,8 +187,6 @@ int check_multiplett_rotation ( double _Complex *** v , int const rank, little_g
 int main(int argc, char **argv) {
 
   double const eps = 1.e-12;
-
-  char const operator_side [2][16] = { "annihilation", "creation" };
 
   char const cartesian_vector_name[3][2] = {"x", "y", "z"};
   char const bispinor_name[4][2] = { "0", "1", "2", "3" };
@@ -453,13 +509,13 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [projection_matrix_D] spinor_dime = %d\n", spinor_dim  );
       fprintf ( stdout, "# [projection_matrix_D] irrep_dim   = %d\n", irrep_dim );
 
-      /* for ( int iac = 0; iac <= 1; iac++ )  */
-      for ( int iac = 1; iac <= 1; iac++ ) 
+      for ( int iac = 0; iac <= 1; iac++  )
       {
 
-        // for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
-        for ( int ibeta = 0; ibeta < 1; ibeta++ )
+        for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
         {
+
+          p.ref_row_target = ibeta;
 
           /****************************************************
            * allocate subduction matrices / 
@@ -491,6 +547,7 @@ int main(int argc, char **argv) {
             EXIT(2);
           }
 
+          int rank = -1;
 
           /****************************************************
            * loop on irrep multiplet members
@@ -533,38 +590,34 @@ int main(int argc, char **argv) {
             /* normalize */
             rot_mat_ti_eq_re ( projection_matrix_v[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
 
-            int const rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
+            /****************************************************
+             * output tag prefix
+             ****************************************************/
+            char tag_prefix[400];
+  
+            sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
+                operator_side[iac],
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
 
-#if 0
-            fprintf ( stdout, "\n\n# [projection_matrix_D] lg %20s irrep %20s beta %2d mu %2d rank %d\n", lg[ilg].name, lg[ilg].lirrep[i_irrep], ibeta, imu, rank );
- 
-            fprintf( stdout, "\n" );
-            for ( int ir = 0; ir < matrix_dim; ir++ ) {
-            for ( int is = 0; is < matrix_dim; is++ ) {
-              // if ( cabs( projection_matrix[imu][ir][is] ) > eps  ) {
-                fprintf (stdout, "%s V %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                    __dgeps( creal( projection_matrix_v[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_v[imu][ir][is] ), eps ) );
-              //}
-            }}
+            /****************************************************
+             * coefficients coefficients for operator onb from GS
+             ****************************************************/
+            if ( rank == -1 ) {
+              rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
+            } else {
+              int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
+              if ( rank != new_rank ) {
+                fprintf( stderr, "[projection_matrix_D] Error, %s row %d has rank %d different from %d %s %d\n", tag_prefix, imu, rank, new_rank,  __FILE__, __LINE__ );
+                EXIT(14);
+              }
+            }
 
-            fprintf( stdout, "\n" );
-            for ( int ir = 0; ir < rank; ir++ ) {
-            for ( int is = 0; is < matrix_dim; is++ ) {
-              // if ( cabs( projection_matrix_s[imu][ir][is] ) > eps  ) {
-                fprintf (stdout, "%s S %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                    __dgeps( creal( projection_matrix_s[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_s[imu][ir][is] ), eps ) );
-              //}
-            }}
+            if ( rank == 0 ) {
+              fprintf( stdout, "# [projection_matrix_D] %s rank is zero; continue %s %d\n", tag_prefix, __FILE__, __LINE__ );
+              continue;
+            }
 
-            fprintf( stdout, "\n" );
-            for ( int ir = 0; ir < rank; ir++ ) {
-            for ( int is = 0; is < matrix_dim; is++ ) {
-              // if ( cabs( projection_matrix_u[imu][ir][is] ) > eps  ) {
-                fprintf (stdout, "%s U %2d %2d    %2d %2d    %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir/p.rspin[1].dim, ir%p.rspin[1].dim, is/p.rspin[1].dim, is%p.rspin[1].dim, ir, is,
-                    __dgeps( creal( projection_matrix_u[imu][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_u[imu][ir][is] ), eps ) );
-              //}
-            }}
-#endif
             /****************************************************/
             /****************************************************/
 
@@ -573,14 +626,9 @@ int main(int argc, char **argv) {
              *
              ****************************************************/
             int const dim[2] = { matrix_dim, matrix_dim };
-            char tag_prefix[400], tag[500];
+            char tag[500];
   
             sprintf( filename, "subduction.%s.h5", interpolator_name[0] );
-  
-            sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
-                operator_side[iac],
-                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
   
             sprintf( tag, "%s/v", tag_prefix );
   
@@ -663,70 +711,22 @@ int main(int argc, char **argv) {
           /****************************************************
            * test irrep multiplet rotation property
            ****************************************************/
-          for ( int imu = 0; imu < r_irrep.dim; imu++ ) {
+          if ( rank > 0 ) {
 
-            for ( int irot = 0; irot < p.rtarget->n; irot++ )  {
+            /* exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v , matrix_dim, p , operator_side[iac] );
+            if ( exitstatus != 0 ) {
+              fprintf( stderr, "[projection_matrix_D] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(12);
+            } */
 
-              double _Complex ** A = init_2level_ztable ( matrix_dim, matrix_dim );
-              double _Complex ** B = init_2level_ztable ( matrix_dim, matrix_dim );
+            exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_u , rank, p , operator_side[iac] );
+            if ( exitstatus != 0 ) {
+              fprintf( stderr, "[projection_matrix_D] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(12);
+            }
 
-              if ( iac == 1 ) {
+          }
 
-                 /****************************************************
-                  * multiplication A_ik <- V_il S(R)_kl
-                 ****************************************************/
-                for (int i = 0; i < matrix_dim; i++ ) {
-                for (int k = 0; k < matrix_dim; k++ ) {
-                  double _Complex z = 0.;
-                  for ( int l = 0; l < matrix_dim; l++ ) {
-                    z += projection_matrix_v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
-                  }
-                  A[i][k] = z;
-                }}
-
-                /****************************************************
-                 * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
-                 ****************************************************/
-                for (int i = 0; i < matrix_dim; i++ ) {
-                for (int k = 0; k < matrix_dim; k++ ) {
-                  double _Complex z = 0.;
-
-                  for ( int igamma = 0; igamma < irrep_dim; igamma++ ) {
-                    z += p.rtarget->R[irot][igamma][imu] * projection_matrix_v[igamma][i][k];
-                  }
-                  B[i][k] = z;
-                }}
-              }
-
-              /****************************************************
-               * compare
-               ****************************************************/
-              fprintf( stdout, "multiplett /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d\n",
-                operator_side[iac],
-                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 );
-
-              double normdiff = 0.;
-              for (int i = 0; i < matrix_dim; i++ ) {
-              for (int k = 0; k < matrix_dim; k++ ) {
-                fprintf( stdout, "multiplett  %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ),
-                   cabs( A[i][k] - B[i][k] ), cabs( A[i][k] ) );
-                normdiff += cabs( A[i][k] - B[i][k] );
-              }}
-              fprintf( stdout, "multiplett /%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d/rot%.2d normdiff %e  %s\n",
-                operator_side[iac],
-                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta, irot+1 , normdiff, normdiff > eps ? "wrong" : "okay" );
-
-              /****************************************************
-               * deallocate temporary matrices
-               ****************************************************/
-              fini_2level_ztable ( &A );
-              fini_2level_ztable ( &B );
-
-            }  /* end of loop on rotations */
-
-          }  /* end of loop on target irrep rows */
 
           /****************************************************
            * deallocate matrices
