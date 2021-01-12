@@ -230,15 +230,50 @@ int main(int argc, char **argv) {
   /****************************************************
    * loop on little groups
    ****************************************************/
-  // for ( int ilg = 0; ilg < nlg; ilg++ )
-  for ( int ilg = 0; ilg < 1; ilg++ )
+  for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ )
+  /* for ( int ilg = 0; ilg < nlg; ilg++ ) */
   {
 
+    int const Ptot[3] = {
+      g_total_momentum_list[iptot][0],
+      g_total_momentum_list[iptot][1],
+      g_total_momentum_list[iptot][2] };
+
     /****************************************************
-     * get the total momentum given
-     * d-vector and reference rotation
+     * get reference momentum vector for Ptot and
+     * the reference frame rotation number
      ****************************************************/
-    int Ptot[3] = { lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2] };
+    int Pref[3];
+
+    exitstatus = get_reference_rotation ( Pref, &refframerot, Ptot );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[projection_matrix_D] Error from get_reference_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(10);
+    }
+
+    /****************************************************
+     * no rotation = -1 ---> 0 = identity
+     ****************************************************/
+    if ( refframerot == -1 ) refframerot = 0;
+
+    int ilg;
+    for ( ilg=0; ilg <nlg; ilg++ ) {
+      if (
+          ( lg[ilg].d[0] == Pref[0] ) &&
+          ( lg[ilg].d[1] == Pref[1] ) &&
+          ( lg[ilg].d[2] == Pref[2] )  ) {
+        break;
+      }
+    }
+    if ( ilg == nlg ) {
+      fprintf(stderr, "[projection_matrix_D] Error, could not match Pref to lg %s %d\n", __FILE__, __LINE__);
+      EXIT(10);
+    } else {
+      fprintf ( stdout, "# [projection_matrix_D] Ptot %3d %3d %3d   Pref %3d %3d %3d R %2d  lg %s   %s %d\n",
+         Ptot[0], Ptot[1], Ptot[2],
+         Pref[0], Pref[1], Pref[2],
+         refframerot+1, lg[ilg].name, __FILE__, __LINE__);
+    }
 
     /****************************************************
      * determine list and number of sink momenta 
@@ -290,6 +325,7 @@ int main(int argc, char **argv) {
     interpolator_momentum_list[1][1] = -momentum_list[0][0] + Ptot[1];
     interpolator_momentum_list[1][2] = -momentum_list[0][0] + Ptot[2];
 
+#if 0
     if ( refframerot > -1 ) {
 
       double _Complex ** refframerot_p = rot_init_rotation_matrix ( 3 );
@@ -320,13 +356,13 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [projection_matrix_piN] Pref = %3d %3d %3d %s %d\n", lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2] , __FILE__, __LINE__);
       fprintf ( stdout, "# [projection_matrix_piN] Ptot = %3d %3d %3d %s %d\n", Ptot[0], Ptot[1], Ptot[2], __FILE__, __LINE__);
     }
+#endif
 
     /****************************************************
      * loop on irreps
      *   within little group
      ****************************************************/
-    /* for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ ) */
-    for ( int i_irrep = 7; i_irrep < 8; i_irrep++ )
+    for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ )
     {
 
       /****************************************************
@@ -455,8 +491,16 @@ int main(int argc, char **argv) {
          * loop on irrep matrix ref. row
          ****************************************************/
         for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
-        /* for ( int ibeta = 0; ibeta < 1; ibeta++ ) */
         {
+
+      
+          int const matrix_dim = spinor_dim * momentum_number;
+
+          double _Complex *** projection_matrix = init_3level_ztable ( r_irrep.dim, matrix_dim, matrix_dim );  /* annihilation and creation operator */
+          if ( projection_matrix == NULL ) {
+            fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
+            EXIT(2);
+          }
 
           /****************************************************
            * loop on irrep row
@@ -464,15 +508,6 @@ int main(int argc, char **argv) {
           for ( int imu = 0; imu < r_irrep.dim; imu++ )
           // for ( int imu = 0; imu < 1; imu++ ) 
           {
-      
-            int const matrix_dim = spinor_dim * momentum_number;
-
-            double _Complex ** projection_matrix = init_2level_ztable ( matrix_dim, matrix_dim );  /* annihilation and creation operator */
-            if ( projection_matrix == NULL ) {
-              fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
-              EXIT(2);
-            }
-
             /****************************************************
              * loop on proper- / inversion- rotations 
              ****************************************************/
