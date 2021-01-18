@@ -506,7 +506,6 @@ int main(int argc, char **argv) {
            * loop on irrep row
            ****************************************************/
           for ( int imu = 0; imu < r_irrep.dim; imu++ )
-          // for ( int imu = 0; imu < 1; imu++ ) 
           {
             /****************************************************
              * loop on proper- / inversion- rotations 
