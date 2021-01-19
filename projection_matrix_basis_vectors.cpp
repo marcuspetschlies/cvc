@@ -436,6 +436,7 @@ int main(int argc, char **argv) {
              ****************************************************/
             for ( int imu = 0; imu < r_irrep.dim; imu++ )
             {
+              memset ( projection_matrix_aux[imu][0], 0, spinor_dim*spinor_dim*sizeof(double _Complex ) );
 
               for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
 
@@ -470,8 +471,11 @@ int main(int argc, char **argv) {
               }  /* end of loop on rotations / rotation-inversions */
 
               /* normalize */
-              rot_mat_ti_eq_re ( projection_matrix_aux[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
+              rot_mat_ti_eq_re ( projection_matrix_aux[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), spinor_dim );
 
+              /****************************************************
+               * reduction to target J2 with CG coefficients
+               ****************************************************/
               for ( int k = 0; k < spinor_dim; k++ ) {
                 for ( int j = 0; j < matrix_dim; j++ ) {
                   projection_matrix_v[imu][k][j] = 0;
@@ -484,6 +488,20 @@ int main(int argc, char **argv) {
                   }}
                 }
               }
+
+              for ( int i = 0; i < spinor_dim; i++ ) {
+              for ( int k = 0; k < spinor_dim; k++ ) {
+                fprintf( stdout, "projection_matrix_aux[%d][%d][%d] %25.16e + I %25.16e\n", imu, i, k, 
+                    creal ( projection_matrix_aux[imu][i][k] ),
+                    cimag ( projection_matrix_aux[imu][i][k] ) );
+              }}
+              for ( int i = 0; i < spinor_dim; i++ ) {
+              for ( int k = 0; k < matrix_dim; k++ ) {
+                fprintf( stdout, "projection_matrix_v[%d][%d][%d] %25.16e + I %25.16e\n", imu, i, k, 
+                    creal ( projection_matrix_v[imu][i][k] ),
+                    cimag ( projection_matrix_v[imu][i][k] ) );
+              }}
+
 
               /****************************************************
                * output tag prefix
@@ -501,6 +519,7 @@ int main(int argc, char **argv) {
                * coefficients coefficients for operator onb from GS
                ****************************************************/
               int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], spinor_dim, matrix_dim );
+              fprintf( stdout, "# [projection_matrix_basis_vectors] %s new rank is %d %s %d\n", tag_prefix, new_rank, __FILE__, __LINE__ );
               if ( rank == -1 ) {
                 rank = new_rank;
               } else {
