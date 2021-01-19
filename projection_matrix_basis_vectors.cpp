@@ -379,6 +379,8 @@ int main(int argc, char **argv) {
               for ( int m0 = 0; m0 <= interpolator_J2[0]; m0++ ) {
               for ( int m1 = 0; m1 <= interpolator_J2[1]; m1++ ) {
                 cg[k][m0][m1] = clebsch_gordan_coeff ( J2_target, J2_target-2*k, interpolator_J2[0], interpolator_J2[0]-2*m0, interpolator_J2[1], interpolator_J2[1]-2*m1 );
+                fprintf( stdout, "cg %3d %3d     %3d %3d     %3d %3d     %10.7f\n",
+                    J2_target, J2_target-2*k, interpolator_J2[0], interpolator_J2[0]-2*m0, interpolator_J2[1], interpolator_J2[1]-2*m1 ,  cg[k][m0][m1] );
               }}
             }
 
