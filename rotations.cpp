@@ -2889,7 +2889,8 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
   int ONE = 1;
   double _Complex z;
   char CHAR_N = 'N';
-  double _Complex Z_1 = 1., Z_0 = 0.;
+  double _Complex Z_1 = 1.;
+  double _Complex Z_0 = 0.;
 
   double _Complex *** r  = init_3level_ztable ( 3, n, n );
   double _Complex **  q  = init_2level_ztable ( n, dim );
@@ -2908,6 +2909,8 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
 
     for ( int j = rank-1; j >= 0 ; j--) {
       int const k = pivot[j];
+      /* fprintf ( stdout, "# [gs_onb_mat] i = %d at rank = %d using pivot k %d \n", i, rank , k); */
+
 
       /* z <- u^k+ v^i */
       z = _F(zdotc)( &DIM, q[k], &ONE, v[i], &ONE );
@@ -2917,6 +2920,7 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
 
       /* temporary R_ik <- z */
       r[1][i][k] = z;
+      /* fprintf ( stdout, "# [gs_onb_mat] i %d k %d z = %25.16e  %25.16e\n", i, k, creal(z), cimag(z) ); */
 
       /* u^i <- u^i + z u^k  */
       _F(zaxpy) ( &DIM, &z, q[k], &ONE, q[i], &ONE );
@@ -2934,11 +2938,13 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
 
     norm2[i] = creal( z );
     if ( norm2[i] > eps ) {
-      /* fprintf ( stdout, "# [] new entry i = %d at rank = %d\n", i, rank ); */
+      /* fprintf ( stdout, "# [gs_onb_mat] new entry i = %d at rank = %d\n", i, rank ); */
       norm2[i] = 1. / norm2[i];
       pivot[rank] = i;
       _F(zcopy) ( &DIM, q[i], &ONE, u[rank], &ONE );
-      _F(zcopy) ( &DIM, r[0][i], &ONE, s[rank], &ONE );
+      _F(zcopy) ( &N, r[0][i], &ONE, s[rank], &ONE );
+
+      /* for ( int l = 0; l < n; l++ ) fprintf ( stdout, "# [gs_onb_mat] r %d %d %25.16e %25.16e\n ", i, l, creal( r[0][i][l] ), cimag( r[0][i][l] ) ); */
  
       rank++;
     } else {
@@ -2967,6 +2973,10 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
       double const eps_comp_equality = 1.e-12;
   
       double _Complex ** u_aux = init_2level_ztable ( n, dim );
+      if ( u_aux == NULL ) {
+        fprintf( stderr, "[gs_onb_mat] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__ );
+        return ( -5 );
+      }
   
       char BLAS_TRANSA = CHAR_N;
       char BLAS_TRANSB = CHAR_N;
@@ -2974,6 +2984,7 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
       int BLAS_M = dim;
       int BLAS_N = n;
       int BLAS_K = n;
+
       int BLAS_LDA = BLAS_M;
       int BLAS_LDB = BLAS_K;
       int BLAS_LDC = BLAS_M;
@@ -2985,14 +2996,24 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
       double _Complex BLAS_ALPHA = Z_1;
       double _Complex BLAS_BETA  = Z_0;
   
+
       _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
-  
+
+/*
+     for ( int i = 0; i < n; i++ ) {
+     for ( int j = 0; j < dim; j++ ) {
+       u_aux[i][j] = 0.;
+       for ( int k = 0; k < n; k++ ) {
+         u_aux[i][j] += s[i][k] * v[k][j];
+       }
+     }}
+*/
       /* _F(zgemm) ( &CHAR_N, &CHAR_N, &DIM, &N, &N, &Z_1, v[0], &N, s[0], &N, &Z_0, u_aux[0], &N, 1, 1 ); */
   
       for ( int i1 = 0; i1 < n; i1++ ) {
         for ( int i2 = 0; i2 < dim; i2++ ) {
           double const diff = cabs( u_aux[i1][i2] - u[i1][i2] );
-          double const norm = cabs( u_aux[i1][i2] + u[i1][i2] ) / 2;
+          double const norm = ( cabs( u_aux[i1][i2] ) + cabs ( u[i1][i2] ) ) / 2;
           fprintf( stdout, "# [gs_onb_mat] %3d %3d      %25.16e %25.16e     %25.16e %25.16e    %16.7e / %16.7e", 
               i1, i2, creal ( u_aux[i1][i2] ), cimag ( u_aux[i1][i2] ), creal ( u[i1][i2] ), cimag ( u[i1][i2] ) , diff , norm);
           if( norm > eps_comp_equality && diff/norm > eps_comp_equality ) {

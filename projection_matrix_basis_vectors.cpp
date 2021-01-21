@@ -18,19 +18,6 @@
 #include <getopt.h>
 #include "ranlxd.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#  ifdef HAVE_TMLQCD_LIBWRAPPER
-#    include "tmLQCD.h"
-#  endif
-
-#ifdef __cplusplus
-}
-#endif
-
 #define MAIN_PROGRAM
 
 #include "iblas.h"
@@ -54,8 +41,27 @@ extern "C"
 
 #define _NORM_SQR_3D(_a) ( (_a)[0] * (_a)[0] + (_a)[1] * (_a)[1] + (_a)[2] * (_a)[2] )
 
-
 using namespace cvc;
+
+char * spin_tag ( char * const r, int const j2 ) {
+  if ( j2 % 2 ) {
+    sprintf ( r, "%d/2", j2 );
+  } else {
+    sprintf ( r, "%d", j2/2 );
+  }
+  return( r );
+}  /* spin_tag */
+
+char * spin_irrep_name ( char * const r, int const j2 ) {
+  if ( j2 % 2 ) {
+    sprintf ( r, "spin%d_2", j2 );
+  } else {
+    sprintf ( r, "spin%d", j2/2 );
+  }
+  printf ( "# [spin_irrep_name] j2 = %d  r = %s\n", j2 , r);
+  return( r );
+}  /* spin_irrep_name */
+
 
 char const operator_side[2][16] = { "annihilation", "creation" };
 
@@ -314,18 +320,6 @@ int main(int argc, char **argv) {
       sprintf( momentum_str, ".px%d_py%d_pz%d", Ptot[0], Ptot[1], Ptot[2] );
 
       /****************************************************
-       * output file
-       ****************************************************/
-      sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_%s_Rref%.2d.sbd",
-      lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], momentum_str, refframerot );
-
-      FILE*ofs = fopen ( filename, "w" );
-      if ( ofs == NULL ) {
-        fprintf ( stderr, "# [projection_matrix_basis_vectors] Error from fopen %s %d\n", __FILE__, __LINE__);
-        EXIT(2);
-      }
-
-      /****************************************************
        * row of target irrep
        ****************************************************/
       int const row_target = -1;
@@ -344,6 +338,18 @@ int main(int argc, char **argv) {
       /****************************************************/
       /****************************************************/
    
+      /****************************************************
+       * output file
+       ****************************************************/
+      sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_%s_Rref%.2d.sbd",
+      lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], momentum_str, refframerot );
+
+      FILE*ofs = fopen ( filename, "w" );
+      if ( ofs == NULL ) {
+        fprintf ( stderr, "# [projection_matrix_basis_vectors] Error from fopen %s %d\n", __FILE__, __LINE__);
+        EXIT(2);
+      }
+
       exitstatus = little_group_projector_show ( &p, ofs , 1 );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[projection_matrix_basis_vectors] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -418,7 +424,7 @@ int main(int argc, char **argv) {
               EXIT(2);
             }
 
-            double _Complex *** projection_matrix_s = init_3level_ztable ( irrep_dim, spinor_dim, matrix_dim );  /* for Gram-Schmidt decomposition */
+            double _Complex *** projection_matrix_s = init_3level_ztable ( irrep_dim, spinor_dim, spinor_dim );  /* for Gram-Schmidt decomposition */
             if ( projection_matrix_s == NULL ) {
               fprintf ( stderr, "[projection_matrix_basis_vectors] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
               EXIT(2);
@@ -432,10 +438,22 @@ int main(int argc, char **argv) {
             int rank = -1;
 
             /****************************************************
+             * output tag prefix
+             ****************************************************/
+            char tag_prefix[500], J2_target_tag[20];
+            if ( J2_target % 2 == 0 ) {
+              sprintf ( J2_target_tag, "spin%d", J2_target/2 );
+            } else {
+              sprintf ( J2_target_tag, "spin%d_2", J2_target );
+            }
+  
+            sprintf( tag_prefix, "/%s/%s/%s/%s/%s/%s/refrow%d", operator_side[iac], p.rtarget->group, p.rtarget->irrep, J2_target_tag,  p.rspin[0].irrep, p.rspin[1].irrep, p.ref_row_target );
+
+            /****************************************************
              * loop on irrep multiplet members
              ****************************************************/
-            for ( int imu = 0; imu < r_irrep.dim; imu++ )
-            {
+            for ( int imu = 0; imu < r_irrep.dim; imu++ ) {
+
               memset ( projection_matrix_aux[imu][0], 0, spinor_dim*spinor_dim*sizeof(double _Complex ) );
 
               for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
@@ -489,64 +507,82 @@ int main(int argc, char **argv) {
                 }
               }
 
+              /*
               for ( int i = 0; i < spinor_dim; i++ ) {
               for ( int k = 0; k < spinor_dim; k++ ) {
-                fprintf( stdout, "projection_matrix_aux[%d][%d][%d] %25.16e + I %25.16e\n", imu, i, k, 
+                fprintf( stdout, "projection_matrix_aux %d %d %d    %25.16e %25.16e\n", imu, i, k, 
                     creal ( projection_matrix_aux[imu][i][k] ),
                     cimag ( projection_matrix_aux[imu][i][k] ) );
               }}
               for ( int i = 0; i < spinor_dim; i++ ) {
               for ( int k = 0; k < matrix_dim; k++ ) {
-                fprintf( stdout, "projection_matrix_v[%d][%d][%d] %25.16e + I %25.16e\n", imu, i, k, 
+                fprintf( stdout, "projection_matrix_v   %d %d %d    %25.16e %25.16e\n", imu, i, k, 
                     creal ( projection_matrix_v[imu][i][k] ),
                     cimag ( projection_matrix_v[imu][i][k] ) );
               }}
-
-
-              /****************************************************
-               * output tag prefix
-               ****************************************************/
-              char tag_prefix[500], J2_target_tag[20];
-              if ( J2_target % 2 == 0 ) {
-                sprintf ( J2_target_tag, "spin%d", J2_target/2 );
-              } else {
-                sprintf ( J2_target_tag, "spin%d_2", J2_target );
-              }
-  
-              sprintf( tag_prefix, "/%s/%s/%s/%s/%s/%s/refrow%d/row%d", operator_side[iac], p.rtarget->group, p.rtarget->irrep, J2_target_tag,  p.rspin[0].irrep, p.rspin[1].irrep, p.ref_row_target, imu );
+              */
 
               /****************************************************
                * coefficients coefficients for operator onb from GS
                ****************************************************/
+
+              memset ( projection_matrix_s[imu][0], 0, spinor_dim * spinor_dim * sizeof(double _Complex ) );
+              memset ( projection_matrix_u[imu][0], 0, spinor_dim * matrix_dim * sizeof(double _Complex ) );
+
               int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], spinor_dim, matrix_dim );
-              fprintf( stdout, "# [projection_matrix_basis_vectors] %s new rank is %d %s %d\n", tag_prefix, new_rank, __FILE__, __LINE__ );
+              fprintf( stdout, "# [projection_matrix_basis_vectors] %s/row%d new rank is %d %s %d\n", tag_prefix, imu, new_rank, __FILE__, __LINE__ );
               if ( rank == -1 ) {
                 rank = new_rank;
               } else {
                 if ( rank != new_rank ) {
-                  fprintf( stderr, "[projection_matrix_basis_vectors] Error, %s row %d has rank %d different from %d %s %d\n", tag_prefix, imu, rank, new_rank,  __FILE__, __LINE__ );
+                  fprintf( stderr, "[projection_matrix_basis_vectors] Error, %s/row%d has rank %d different from %d %s %d\n", tag_prefix, imu, rank, new_rank,  __FILE__, __LINE__ );
                   EXIT(14);
                 }
               }
 
-              if ( rank == 0 ) {
-                fprintf( stdout, "# [projection_matrix_basis_vectors] %s rank is zero; continue %s %d\n", tag_prefix, __FILE__, __LINE__ );
-                continue;
+#if 0
+              if ( g_verbose > 5 ) {
+
+                fprintf( stdout, "\n\n" ); 
+                for ( int i = 0; i < spinor_dim; i++ ) {
+                for ( int k = 0; k < spinor_dim; k++ ) {
+                  fprintf( stdout, "projection_matrix_s   %d %d %d    %25.16e %25.16e\n", imu, i, k, 
+                      creal ( projection_matrix_s[imu][i][k] ),
+                      cimag ( projection_matrix_s[imu][i][k] ) );
+                }}
+                fprintf( stdout, "\n\n" ); 
+
+                for ( int i = 0; i < spinor_dim; i++ ) {
+                for ( int k = 0; k < matrix_dim; k++ ) {
+                  fprintf( stdout, "projection_matrix_u   %d %d %d    %25.16e %25.16e\n", imu, i, k, 
+                      creal ( projection_matrix_u[imu][i][k] ),
+                      cimag ( projection_matrix_u[imu][i][k] ) );
+                }}
+                fprintf( stdout, "\n\n" ); 
               }
+#endif
+            
+            }  /* end of loop on target irrep rows */
 
-              /****************************************************/
-              /****************************************************/
+            /****************************************************/
+            /****************************************************/
+            
+            if ( rank == 0 ) {
+              fprintf( stdout, "# [projection_matrix_basis_vectors] %s rank is zero; continue %s %d\n", tag_prefix, __FILE__, __LINE__ );
+              continue;
+            }
 
-              /****************************************************
-               * write coefficient matrices to hdf5 file
-               *
-               ****************************************************/
+            /****************************************************
+             * write coefficient matrices to hdf5 file
+             *
+             ****************************************************/
+            sprintf( filename, "subduction.basis_vectors.h5" );
+
+            for ( int imu = 0; imu < r_irrep.dim; imu++ ) {
               int const dim[2] = { spinor_dim, matrix_dim };
               char tag[600];
   
-              sprintf( filename, "subduction.basis_vectors.h5" );
-  
-              sprintf( tag, "%s/v", tag_prefix );
+              sprintf( tag, "%s/row%d/v", tag_prefix, imu );
   
               exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, filename, tag, "double", 2, dim );
               if ( exitstatus != 0 ) {
@@ -554,7 +590,7 @@ int main(int argc, char **argv) {
                 EXIT(2);
               }
   
-              sprintf( tag, "%s/s", tag_prefix );
+              sprintf( tag, "%s/row%d/s", tag_prefix, imu );
   
               exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, filename, tag, "double", 2, dim );
               if ( exitstatus != 0 ) {
@@ -562,7 +598,7 @@ int main(int argc, char **argv) {
                 EXIT(2);
               }
   
-              sprintf( tag, "%s/u", tag_prefix );
+              sprintf( tag, "%s/row%d/u", tag_prefix, imu );
   
               exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, filename, tag, "double", 2, dim );
               if ( exitstatus != 0 ) {
@@ -570,48 +606,49 @@ int main(int argc, char **argv) {
                 EXIT(2);
               }
   
-              /****************************************************/
-              /****************************************************/
+            }
+
+            /****************************************************/
+            /****************************************************/
   
-              /****************************************************
-               * print the operator in mixed
-               * text + coefficient form
-               ****************************************************/
-              sprintf ( filename, "lg_%s.rref%d.irrep_%s.row_%d.refrow_%d.j2_%d_%d.ac_%d.opr.tex",
-                  lg[ilg].name, refframerot,  lg[ilg].lirrep[i_irrep], imu, ibeta,
-                  interpolator_J2[0], interpolator_J2[1], iac );
+            /****************************************************
+             * print the operator in mixed
+             * text + coefficient form
+             ****************************************************/
+            char j_tag[12] = "NA", j0_tag[12] = "NA", j1_tag[12] = "NA", m_tag[12] = "NA";
+            sprintf ( filename, "lg_%s.irrep_%s.refrow_%d.%s.%s.%s.%s.tex",
+                lg[ilg].name, lg[ilg].lirrep[i_irrep], ibeta,
+                spin_irrep_name(j_tag, J2_target), spin_irrep_name( j0_tag, interpolator_J2[0] ), spin_irrep_name ( j1_tag, interpolator_J2[1] ), operator_side[iac] );
+
+            FILE * ofs2 = fopen ( filename, "w" );
+            if ( ofs2 == NULL ) {
+              fprintf ( stderr, "[projection_matrix_basis_vectors] Error from fopen %s %d\n", __FILE__, __LINE__);
+              EXIT(2);
+            } else {
+              fprintf ( stdout, "# [projection_matrix_basis_vectors] Writing to file %s %s %d\n", filename, __FILE__, __LINE__);
+            }
   
-              FILE * ofs2 = fopen ( filename, "w" );
-              if ( ofs2 == NULL ) {
-                fprintf ( stderr, "[projection_matrix_basis_vectors] Error from fopen %s %d\n", __FILE__, __LINE__);
-                EXIT(2);
-              }
-  
-              fprintf( ofs2, " $LG = %s$, \\, \\Lambda = %s$, $\\lambda = %d$, $J = %d/2 \\leftarrow j1=%d/2 \\oplus j2=%d/2$, $\\beta_{\\mathrm{ref}} = %d$\n",
-                  lg[ilg].name, lg[ilg].lirrep[i_irrep], imu, J2_target, interpolator_J2[0],  interpolator_J2[1], ibeta );
-  
-              for ( int ir = 0; ir < rank; ir++ )
-              {
-  
+            for ( int ir = 0; ir < rank; ir++ ) {
+            
+              for ( int imu = 0; imu < r_irrep.dim; imu++ ) {
 
                 for ( int is = 0; is < matrix_dim; is++ ) {
                   double _Complex z = projection_matrix_u[imu][ir][is];
                   if ( cabs ( z ) > eps ) {
 
-                    fprintf ( ofs2, "%s & %s & %s & $%d/2$ & $%d/2$ & $%d/2$ & $%d$ & $%d$ & $%d/2$  & $%+8.7f  %+8.7f\\,i$ \\\\\n",
-                        operator_side[iac], p.rtarget->group, p.rtarget->irrep, J2_target, interpolator_J2[0],  interpolator_J2[1],
-                        imu, ir, J2_target-2*is, 
+                    fprintf ( ofs2, "%6s & %6s & $%4s$ & $%4s$ & $%4s$ & $%d$ & $%d$ & $%4s$  & $%+8.7f  %+8.7f\\,i$ \\\\\n",
+                        p.rtarget->group, p.rtarget->irrep, 
+                        spin_tag(j_tag, J2_target), spin_tag( j0_tag, interpolator_J2[0] ),  spin_tag( j1_tag, interpolator_J2[1] ),
+                        ir, imu, spin_tag( m_tag, J2_target-2*is ), 
                         __dgeps ( creal(z), eps ), __dgeps ( cimag(z), eps ) );
                   }
                 }  /* end of loop on matrix dimension */
   
-                fprintf ( ofs2, "\\hline\n" );
-  
               }  /* end of loop on rank = loop on operators / rank */
   
-              fclose ( ofs2 );
-
             }  /* end of loop on target irrep rows */
+            fprintf ( ofs2, "\\hline\n" );
+            fclose ( ofs2 );
 
             /****************************************************
              * deallocate matrices
@@ -687,19 +724,11 @@ int main(int argc, char **argv) {
   fini_2level_itable ( &interpolator_momentum_list );
   free_geometry();
 
-#ifdef HAVE_MPI
-  MPI_Barrier(g_cart_grid);
-#endif
-
   if(g_cart_id==0) {
     g_the_time = time(NULL);
     fprintf(stdout, "# [projection_matrix_basis_vectors] %s# [projection_matrix_basis_vectors] end of run\n", ctime(&g_the_time));
     fprintf(stderr, "# [projection_matrix_basis_vectors] %s# [projection_matrix_basis_vectors] end of run\n", ctime(&g_the_time));
   }
 
-#ifdef HAVE_MPI
-  mpi_fini_datatypes();
-  MPI_Finalize();
-#endif
   return(0);
 }
