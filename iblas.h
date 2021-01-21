@@ -4,6 +4,9 @@
  * iblas.h
  ***************************************************/
 #include <complex.h>
+#ifdef HAVE_OPENMP
+#include <omp.h>
+#endif
 
 #ifdef F_
 #define _F(s) s##_
