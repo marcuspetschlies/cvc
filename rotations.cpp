@@ -2992,7 +2992,7 @@ int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double 
       for ( int i1 = 0; i1 < n; i1++ ) {
         for ( int i2 = 0; i2 < dim; i2++ ) {
           double const diff = cabs( u_aux[i1][i2] - u[i1][i2] );
-          double const norm = cabs( u[i1][i2] );
+          double const norm = cabs( u_aux[i1][i2] + u[i1][i2] ) / 2;
           fprintf( stdout, "# [gs_onb_mat] %3d %3d      %25.16e %25.16e     %25.16e %25.16e    %16.7e / %16.7e", 
               i1, i2, creal ( u_aux[i1][i2] ), cimag ( u_aux[i1][i2] ), creal ( u[i1][i2] ), cimag ( u[i1][i2] ) , diff , norm);
           if( norm > eps_comp_equality && diff/norm > eps_comp_equality ) {
