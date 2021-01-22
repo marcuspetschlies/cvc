@@ -2791,9 +2791,13 @@ int rot_mat_table_rotate_multiplett_product (
  * return reference rotation
  ***********************************************************/
 
+#ifndef _SQR
 #define _SQR(_a) ((_a)*(_a))
+#endif
 
+#ifndef _INT3_EQ_INT3
 #define _INT3_EQ_INT3(_p,_q) ( ( (_p)[0] == (_q)[0] ) && ( (_p)[1] == (_q)[1] ) && ( (_p)[2] == (_q)[2] ) )
+#endif
 
 inline int comp_int3_abs ( int const a[3] , int const b[3] ) {
   int a2[3] = { abs(a[0]), abs(a[1]), abs(a[2]) };
@@ -3131,12 +3135,17 @@ int get_little_group_elements ( int const p[3], rot_mat_table_type * const rtab 
 /****************************************************
  * check irrep multiplett-rotation property
  * for subduction matrix v
+ *
+ * use momentum_mapping == identity,
+ * in case momentum_mapping == NULL
  ****************************************************/
-int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , int const rank, little_group_projector_type const p , char const * const ac) {
+int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , int const rank, little_group_projector_type const p , char const * const ac, 
+    int const momentum_number, int *** const momentum_mapping ) {
 
   double const eps = 1.e-12;
 
-  int const matrix_dim = p.rspin[0].dim * p.rspin[1].dim;
+  int const spinor_dim = p.rspin[0].dim * p.rspin[1].dim;
+  int const matrix_dim = spinor_dim * momentum_number;
 
   int any_wrong = 0;
 
@@ -3148,6 +3157,10 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
    ****************************************************/
   double _Complex ** A = init_2level_ztable ( rank, matrix_dim );
   double _Complex ** B = init_2level_ztable ( rank, matrix_dim );
+  if ( A == NULL || B == NULL ) {
+    fprintf( stderr, "[check_subduction_matrix_multiplett_rotation] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__ );
+    return (1);
+  }
 
   /****************************************************
    * loop on multiplet members
@@ -3168,54 +3181,88 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
          * multiplication A_ik <- V_il S(R)_kl
          ****************************************************/
         for (int i = 0; i < rank; i++ ) {
-        for (int k = 0; k < matrix_dim; k++ ) {
-          double _Complex z = 0.;
-          for ( int l = 0; l < matrix_dim; l++ ) {
-            // z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
-            z += v[imu][i][l] * r0[k/p.rspin[1].dim][l/p.rspin[1].dim] * r1[k%p.rspin[1].dim][l%p.rspin[1].dim];
+          for (int k = 0; k < matrix_dim; k++ ) {
+
+            int const ip_k    = k / spinor_dim;
+            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
+            int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
+
+            double _Complex z = 0.;
+
+            for ( int l = 0; l < spinor_dim; l++ ) {
+
+              int const alpha_l = l / p.rspin[1].dim;
+              int const beta_l  = l % p.rspin[1].dim;
+
+              int const ll = ip_l * spinor_dim + l;
+
+              // z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
+              z += v[imu][ i ][ ll ] * r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ];
+            }
+            A[i][k] = z * parity;
           }
-          A[i][k] = z * parity;
-        }}
+        }
   
         /****************************************************
          * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
          ****************************************************/
         for (int i = 0; i < rank; i++ ) {
-        for (int k = 0; k < matrix_dim; k++ ) {
-          double _Complex z = 0.;
+ 
+          for (int k = 0; k < matrix_dim; k++ ) {
+            double _Complex z = 0.;
   
-          for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
-            // z += p.rtarget->R[irot][igamma][imu] * v[igamma][i][k];
-            z += tt[igamma][imu] * v[igamma][i][k];
+            for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
+              // z += p.rtarget->R[irot][igamma][imu] * v[igamma][i][k];
+              z += tt[igamma][imu] * v[igamma][i][k];
+            }
+            B[i][k] = z;
           }
-          B[i][k] = z;
-        }}
+        }
       } else if ( strcmp( ac, "annihilation" ) == 0 ) {
 
         /****************************************************
          * multiplication A_ik <- V_il S(R)_kl
          ****************************************************/
         for (int i = 0; i < rank; i++ ) {
-        for (int k = 0; k < matrix_dim; k++ ) {
-          double _Complex z = 0.;
-          for ( int l = 0; l < matrix_dim; l++ ) {
-            z += v[imu][i][l] * conj( r0[k/p.rspin[1].dim][l/p.rspin[1].dim] * r1[k%p.rspin[1].dim][l%p.rspin[1].dim] );
+
+          for (int k = 0; k < matrix_dim; k++ ) {
+
+            int const ip_k    = k / spinor_dim;
+            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
+            int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
+
+            double _Complex z = 0.;
+
+            for ( int l = 0; l < spinor_dim; l++ ) {
+
+              int const alpha_l = l / p.rspin[1].dim;
+              int const beta_l  = l % p.rspin[1].dim;
+
+              int const ll = ip_l * spinor_dim + l;
+
+              /* z += v[imu][i][l] * conj( r0[k/p.rspin[1].dim][l/p.rspin[1].dim] * r1[k%p.rspin[1].dim][l%p.rspin[1].dim] ); */
+              z += v[imu][ i ][ ll ] * conj( r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ] );
+            }
+
+            A[i][k] = z * parity;
           }
-          A[i][k] = z * parity;
-        }}
+        }
   
         /****************************************************
          * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
          ****************************************************/
         for (int i = 0; i < rank; i++ ) {
-        for (int k = 0; k < matrix_dim; k++ ) {
-          double _Complex z = 0.;
+          for (int k = 0; k < matrix_dim; k++ ) {
+            double _Complex z = 0.;
   
-          for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
-            z += conj ( tt[igamma][imu] ) * v[igamma][i][k];
+            for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
+              z += conj ( tt[igamma][imu] ) * v[igamma][i][k];
+            }
+            B[i][k] = z;
           }
-          B[i][k] = z;
-        }}
+        }
 
       }
 
