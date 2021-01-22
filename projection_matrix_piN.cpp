@@ -557,12 +557,18 @@ int main(int argc, char **argv) {
 
             int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
 
+            char tag_prefix[400];
+
+            sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
+                operator_side[iac],
+                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
+                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
+            
             if ( rank == -1 ) rank = new_rank;
 
-             if ( rank != new_rank ) {
-                fprintf( stderr, "[projection_matrix_piN] Error, %s row %d has rank %d different from %d %s %d\n", tag_prefix, imu, rank, new_rank,  __FILE__, __LINE__ );
-                EXIT(14);
-              }
+            if ( rank != new_rank ) {
+              fprintf( stderr, "[projection_matrix_piN] Error, %s row %d has rank %d different from %d %s %d\n", tag_prefix, imu, rank, new_rank,  __FILE__, __LINE__ );
+              EXIT(14);
             }
 
             if ( rank == 0 ) {
@@ -570,12 +576,6 @@ int main(int argc, char **argv) {
               continue;
             }
 
-            char tag_prefix[400];
-
-            sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
-                operator_side[iac],
-                lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
-                interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
             
             /****************************************************
              * write coefficient matrices to hdf5 file
@@ -691,6 +691,13 @@ int main(int argc, char **argv) {
             continue;
           }
 
+          exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v, rank, p, operator_side[iac],
+              momentum_number, rotated_momentum_id );
+          if ( exitstatus == 0 ) {
+            fprintf( stderr, "[projection_matrix_piN] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n",
+               exitstatus,  __FILE__, __LINE__ );
+            EXIT(290);
+          }
 
            
           fini_3level_ztable ( &projection_matrix_v );
