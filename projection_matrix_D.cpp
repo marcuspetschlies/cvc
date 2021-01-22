@@ -719,7 +719,7 @@ int main(int argc, char **argv) {
               EXIT(12);
             } */
 
-            exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_u , rank, p , operator_side[iac] );
+            exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_u , rank, p , operator_side[iac], 1, NULL );
             if ( exitstatus != 0 ) {
               fprintf( stderr, "[projection_matrix_D] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(12);

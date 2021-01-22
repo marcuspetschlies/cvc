@@ -88,13 +88,13 @@ int main(int argc, char **argv) {
   char filename[100];
   int exitstatus;
   int refframerot = -1;  // no reference frame rotation
-
+  int write_projector = 0;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:r:")) != -1) {
+  while ((c = getopt(argc, argv, "ph?f:r:")) != -1) {
     switch (c) {
       case 'f':
         strcpy(filename, optarg);
@@ -103,6 +103,10 @@ int main(int argc, char **argv) {
       case 'r':
         refframerot = atoi ( optarg );
         fprintf ( stdout, "# [projection_matrix_piN] using Reference frame rotation no. %d\n", refframerot );
+        break;
+      case 'p':
+        write_projector = 1;
+        fprintf ( stdout, "# [projection_matrix_piN] write_projector set to %d\n", write_projector );
         break;
       case 'h':
       case '?':
@@ -325,39 +329,6 @@ int main(int argc, char **argv) {
     interpolator_momentum_list[1][1] = -momentum_list[0][0] + Ptot[1];
     interpolator_momentum_list[1][2] = -momentum_list[0][0] + Ptot[2];
 
-#if 0
-    if ( refframerot > -1 ) {
-
-      double _Complex ** refframerot_p = rot_init_rotation_matrix ( 3 );
-      if ( refframerot_p == NULL ) {
-        fprintf(stderr, "[projection_matrix_piN] Error rot_init_rotation_matrix %s %d\n", __FILE__, __LINE__);
-        EXIT(10);
-      }
-
-#if defined CUBIC_GROUP_DOUBLE_COVER
-      rot_mat_spin1_cartesian ( refframerot_p, cubic_group_double_cover_rotations[refframerot].n, cubic_group_double_cover_rotations[refframerot].w );
-#elif defined CUBIC_GROUP_SINGLE_COVER
-      rot_rotation_matrix_spherical_basis_Wigner_D ( refframerot_p, 2, cubic_group_rotations_v2[refframerot].a );
-      rot_spherical2cartesian_3x3 ( refframerot_p, refframerot_p );
-#endif
-      if ( ! ( rot_mat_check_is_real_int ( refframerot_p, 3) ) ) {
-        fprintf(stderr, "[projection_matrix_piN] Error rot_mat_check_is_real_int refframerot_p %s %d\n", __FILE__, __LINE__);
-        EXIT(72);
-      }
-      rot_point ( Ptot, Ptot, refframerot_p );
-      rot_fini_rotation_matrix ( &refframerot_p );
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [projection_matrix_piN] Ptot = %3d %3d %3d   R[%2d] ---> Ptot = %3d %3d %3d\n",
-          lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2],
-          refframerot, Ptot[0], Ptot[1], Ptot[2] );
-
-    }
-    
-    if ( g_verbose > 2 ) {
-      fprintf ( stdout, "# [projection_matrix_piN] Pref = %3d %3d %3d %s %d\n", lg[ilg].d[0], lg[ilg].d[1], lg[ilg].d[2] , __FILE__, __LINE__);
-      fprintf ( stdout, "# [projection_matrix_piN] Ptot = %3d %3d %3d %s %d\n", Ptot[0], Ptot[1], Ptot[2], __FILE__, __LINE__);
-    }
-#endif
-
     /****************************************************
      * loop on irreps
      *   within little group
@@ -381,17 +352,8 @@ int main(int argc, char **argv) {
       int const irrep_dim    = r_irrep.dim;
       int const spinor_dim   = ( 1 + interpolator_bispinor[0] ) * ( interpolator_J2[0] + 1 ) * ( 1 + interpolator_bispinor[1] ) * ( interpolator_J2[1] + 1 ); 
 
-      /****************************************************
-       * output file
-       ****************************************************/
-      sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_Rref%.2d.sbd",
-      lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], refframerot );
-
-      FILE*ofs = fopen ( filename, "w" );
-      if ( ofs == NULL ) {
-        fprintf ( stderr, "# [projection_matrix_piN] Error from fopen %s %d\n", __FILE__, __LINE__);
-        EXIT(2);
-      }
+      fprintf ( stdout, "# [projection_matrix_piN] spinor_dime = %d\n", spinor_dim  );
+      fprintf ( stdout, "# [projection_matrix_piN] irrep_dim   = %d\n", irrep_dim );
 
       /****************************************************
        * row of target irrep
@@ -412,14 +374,32 @@ int main(int argc, char **argv) {
       /****************************************************/
       /****************************************************/
    
-      exitstatus = little_group_projector_show ( &p, ofs , 1 );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "# [projection_matrix_piN] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(2);
-      }
+      if ( write_projector ) {
 
-      fprintf ( stdout, "# [projection_matrix_piN] spinor_dime = %d\n", spinor_dim  );
-      fprintf ( stdout, "# [projection_matrix_piN] irrep_dim   = %d\n", irrep_dim );
+        /****************************************************
+         * output file
+         ****************************************************/
+        sprintf ( filename, "lg_%s_irrep_%s_J2_%d_%d_Rref%.2d.sbd",
+        lg[ilg].name, lg[ilg].lirrep[i_irrep], interpolator_J2[0], interpolator_J2[1], refframerot );
+
+        FILE*ofs = fopen ( filename, "w" );
+        if ( ofs == NULL ) {
+          fprintf ( stderr, "# [projection_matrix_piN] Error from fopen %s %d\n", __FILE__, __LINE__);
+          EXIT(2);
+        }
+
+        exitstatus = little_group_projector_show ( &p, ofs , 1 );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "# [projection_matrix_piN] Error from little_group_projector_show, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+
+        /****************************************************
+         * close output file
+         ****************************************************/
+        fclose ( ofs );
+
+      }
 
       /****************************************************
        * build the momentum id lists for
@@ -493,20 +473,35 @@ int main(int argc, char **argv) {
         for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
         {
 
-      
           int const matrix_dim = spinor_dim * momentum_number;
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [projection_matrix_piN] matrix_dim = %d %s %d\n", matrix_dim, __FILE__, __LINE__);
 
-          double _Complex *** projection_matrix = init_3level_ztable ( r_irrep.dim, matrix_dim, matrix_dim );  /* annihilation and creation operator */
-          if ( projection_matrix == NULL ) {
+          double _Complex *** projection_matrix_v = init_3level_ztable ( r_irrep.dim, matrix_dim, matrix_dim );  /* annihilation and creation operator */
+          if ( projection_matrix_v == NULL ) {
             fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
             EXIT(2);
           }
+
+          double _Complex *** projection_matrix_s = init_3level_ztable ( r_irrep.dim, matrix_dim, matrix_dim );  /* for Gram-Schmidt decomposition, rotation matrix */
+          if ( projection_matrix_s == NULL ) {
+            fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
+            EXIT(2);
+          }
+
+          double _Complex *** projection_matrix_u = init_3level_ztable ( r_irrep.dim, matrix_dim, matrix_dim );  /* for Gram-Schmidt decomposition, operators coefficients */
+          if ( projection_matrix_u == NULL ) {
+            fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
+            EXIT(2);
+          }
+
+          int rank = -1;
 
           /****************************************************
            * loop on irrep row
            ****************************************************/
           for ( int imu = 0; imu < r_irrep.dim; imu++ )
           {
+
             /****************************************************
              * loop on proper- / inversion- rotations 
              ****************************************************/
@@ -537,37 +532,16 @@ int main(int argc, char **argv) {
                     int const kl2 = p.rspin[1].dim * k2 + l2;
                     int const idx_bare_pr = rotated_momentum_id[imom][ir][0] * spinor_dim + kl2;
                     int const idx_bare_ir = rotated_momentum_id[imom][ir][1] * spinor_dim + kl2;
-#if 0
-                    /* add the proper rotation */
-                    projection_matrix[idx_r][idx]  += ( iac == 0 ) ? \
-                        /* annihilation */ \
-                        conj( p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1] )  *        p.rtarget->R[ir][imu][ibeta] : \
-                        /* creation  */ \
-                              p.rspin[0].R[ir][k1][k2]  * p.rspin[1].R[ir][l1][l2]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
-
-                        /* annihilation */ \
-                        conj( p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1] )  *        p.rtarget->R[ir][imu][ibeta] : \
-                        /* creation  */ \
-                              p.rspin[0].R[ir][k1][k2]  * p.rspin[1].R[ir][l1][l2]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
-
-
-                    /* add the rotation-inversion */
-                    projection_matrix[idx_ir][idx] += ( iac == 0 ) ? \
-                        /* annihilation */ \
-                        p.parity[0] * p.parity[1] * conj( p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1] ) *        p.rtarget->IR[ir][imu][ibeta] : \
-                        /* creation */ \
-                        p.parity[0] * p.parity[1] *       p.rspin[0].IR[ir][k1][k2] * p.rspin[1].IR[ir][l1][l2]   * conj ( p.rtarget->IR[ir][imu][ibeta]   );
-#endif
 
                     /* add the proper rotation */
-                    projection_matrix[idx_projected][idx_bare_pr]  += ( iac == 0 ) ? \
+                    projection_matrix_v[imu][idx_projected][idx_bare_pr]  += ( iac == 0 ) ? \
                         /* annihilation; means S(R^-1)_MM' = S(R)_M'M^* */ \
                                                     conj( p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1] )  *        p.rtarget->R[ir][imu][ibeta] : \
                         /* creation; means S(R)_M'M  */ \
                                                           p.rspin[0].R[ir][k2][k1]  * p.rspin[1].R[ir][l2][l1]    * conj ( p.rtarget->R[ir][imu][ibeta]   );
 
                     /* add the rotation-inversion */
-                    projection_matrix[idx_projected][idx_bare_ir] += ( iac == 0 ) ? \
+                    projection_matrix_v[imu][idx_projected][idx_bare_ir] += ( iac == 0 ) ? \
                         /* annihilation */ \
                         p.parity[0] * p.parity[1] * conj( p.rspin[0].IR[ir][k2][k1] * p.rspin[1].IR[ir][l2][l1] ) *        p.rtarget->IR[ir][imu][ibeta] : \
                         /* creation */ \
@@ -579,68 +553,42 @@ int main(int argc, char **argv) {
             }  /* end of loop on rotations / rotation-inversions */
 
             /* normalize */
-            rot_mat_ti_eq_re ( projection_matrix, (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
+            rot_mat_ti_eq_re ( projection_matrix_v[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
 
-            double _Complex *** projection_matrix_gs = init_3level_ztable ( 2, matrix_dim, matrix_dim );  /* for Gram-Schmidt decomposition */
-            if ( projection_matrix_gs == NULL ) {
-              fprintf ( stderr, "[projection_matrix_piN] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__);
-              EXIT(2);
+            int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
+
+            if ( rank == -1 ) rank = new_rank;
+
+             if ( rank != new_rank ) {
+                fprintf( stderr, "[projection_matrix_piN] Error, %s row %d has rank %d different from %d %s %d\n", tag_prefix, imu, rank, new_rank,  __FILE__, __LINE__ );
+                EXIT(14);
+              }
             }
 
-            int const rank = gs_onb_mat ( projection_matrix_gs[0], projection_matrix_gs[1], projection_matrix, matrix_dim, matrix_dim );
-
-            if ( g_verbose > 2 ) {
-              
-              fprintf ( stdout, "\n\n# [projection_matrix_piN] lg %20s irrep %20s beta %2d mu %2d rank %d\n", lg[ilg].name, lg[ilg].lirrep[i_irrep], ibeta, imu, rank );
-
-              fprintf( stdout, "\n" );
-              for ( int ir = 0; ir < matrix_dim; ir++ ) {
-              for ( int is = 0; is < matrix_dim; is++ ) {
-                // if ( cabs( projection_matrix[ir][is] ) > eps  ) {
-                  fprintf (stdout, "%s P %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir, is,
-                      __dgeps( creal( projection_matrix[ir][is] ), eps  ), __dgeps( cimag( projection_matrix[ir][is] ), eps ) );
-                //}
-              }}
-
-              fprintf( stdout, "\n" );
-              for ( int ir = 0; ir < rank; ir++ ) {
-              for ( int is = 0; is < matrix_dim; is++ ) {
-                // if ( cabs( projection_matrix_gs[0][ir][is] ) > eps  ) {
-                  fprintf (stdout, "%s R %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir, is,
-                      __dgeps( creal( projection_matrix_gs[0][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_gs[0][ir][is] ), eps ) );
-                //}
-              }}
-
-              fprintf( stdout, "\n" );
-              // for ( int ir = 0; ir < rank; ir++ ) 
-              for ( int ir = 0; ir < matrix_dim; ir++ ) 
-              {
-              for ( int is = 0; is < matrix_dim; is++ ) {
-                // if ( cabs( projection_matrix_gs[1][ir][is] ) > eps  ) {
-                  fprintf (stdout, "%s Q %2d %2d    %25.16e %25.16e\n", operator_side[iac], ir, is,
-                      __dgeps( creal( projection_matrix_gs[1][ir][is] ), eps  ), __dgeps( cimag( projection_matrix_gs[1][ir][is] ), eps ) );
-                //}
-              }}
-
+            if ( rank == 0 ) {
+              fprintf( stdout, "# [projection_matrix_piN] %s rank is zero; continue %s %d\n", tag_prefix, __FILE__, __LINE__ );
+              continue;
             }
 
-            /****************************************************
-             * write coefficient matrices to hdf5 file
-             * 
-             ****************************************************/
-            int const dim[2] = { matrix_dim, matrix_dim };
-            char tag_prefix[400], tag[500];
-            
-            sprintf( filename, "subduction.%s-%s.h5", interpolator_name[0], interpolator_name[1] );
+            char tag_prefix[400];
 
             sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/row%d/J2_%d/bispinor_%d/J2_%d/bispinor_%d/refrow%d",
                 operator_side[iac],
                 lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
                 interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
             
+            /****************************************************
+             * write coefficient matrices to hdf5 file
+             * 
+             ****************************************************/
+            int const dim[2] = { matrix_dim, matrix_dim };
+            char tag[500];
+            
+            sprintf( filename, "subduction.%s-%s.h5", interpolator_name[0], interpolator_name[1] );
+
             sprintf( tag, "%s/v", tag_prefix );
 
-            exitstatus = write_h5_contraction ( projection_matrix[0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -648,7 +596,7 @@ int main(int argc, char **argv) {
 
             sprintf( tag, "%s/s", tag_prefix );
             
-            exitstatus = write_h5_contraction ( projection_matrix_gs[0][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -656,7 +604,7 @@ int main(int argc, char **argv) {
 
             sprintf( tag, "%s/u", tag_prefix );
             
-            exitstatus = write_h5_contraction ( projection_matrix_gs[1][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -709,7 +657,7 @@ int main(int argc, char **argv) {
                     ( is % spinor_dim ) / p.rspin[1].dim,
                     ( is % spinor_dim ) % p.rspin[1].dim };
 
-                double _Complex z = projection_matrix_gs[1][ir][is];
+                double _Complex z = projection_matrix_u[imu][ir][is];
                 if ( cabs ( z ) > eps ) {
 
                   /* fprintf( ofs2, "  %s(%d,%d,%d) %d %s(%d,%d,%d) %d [%e,%e]  +  ", 
@@ -732,10 +680,22 @@ int main(int argc, char **argv) {
 
             fclose ( ofs2 );
 
-            fini_2level_ztable ( &projection_matrix );
-            fini_3level_ztable ( &projection_matrix_gs );
-
           }  /* end of loop on target irrep rows */
+
+          /****************************************************
+           * check irrep multiplett rotation
+           ****************************************************/
+
+          if ( rank == 0 ) {
+            fprintf( stdout, "# [projection_matrix_piN] rank is zero, no test %s %d\n", __FILE__, __LINE__ );
+            continue;
+          }
+
+
+           
+          fini_3level_ztable ( &projection_matrix_v );
+          fini_3level_ztable ( &projection_matrix_s );
+          fini_3level_ztable ( &projection_matrix_u );
 
         }  /* end of loop on irrep matrix ref. rows */
 
@@ -751,12 +711,6 @@ int main(int argc, char **argv) {
       /****************************************************/
       /****************************************************/
  
-      /****************************************************
-       * close output file
-       ****************************************************/
-      fclose ( ofs );
-
-
       fini_rot_mat_table ( &r_irrep );
 
     }  /* end of loop on irreps */
