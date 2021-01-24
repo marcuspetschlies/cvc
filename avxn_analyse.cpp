@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 
-  char const threep_tag[3][12] = { "g4_D4", "gi_Dk", "g4_Dk" };
+  char const threep_tag[5][12] = { "g4_D4", "gi_Dk", "g4_Dk" , "44_nosub", "jj_nosub"};
 
   double const TWO_MPI = 2. * M_PI;
 
@@ -890,6 +890,7 @@ int main(int argc, char **argv) {
   double ****** loop = NULL;
   double ****** loop_exact = NULL;
   double ****** loop_sub = NULL;
+  double ****** loop_sym = NULL;
 
   loop = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
   if ( loop == NULL ) {
@@ -1144,6 +1145,12 @@ int main(int argc, char **argv) {
     EXIT(25);
   }
 
+  loop_sym = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
+  if ( loop_sym == NULL ) {
+    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(25);
+  }
+
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
     for ( int imu = 0; imu < 4; imu++ ) {
@@ -1154,12 +1161,12 @@ int main(int argc, char **argv) {
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
             /* real part */
-            loop_sub[imom][iconf][imu][idir][it][0] = 0.5 * ( 
+            loop_sym[imom][iconf][imu][idir][it][0] = 0.5 * ( 
                         loop[imom][iconf][imu][idir][it][0] +       loop[imom][iconf][idir][imu][it][0] 
                 + loop_exact[imom][iconf][imu][idir][it][0] + loop_exact[imom][iconf][idir][imu][it][0] 
                 );
             /* imaginary part */
-            loop_sub[imom][iconf][imu][idir][it][1] = 0.5 * ( 
+            loop_sym[imom][iconf][imu][idir][it][1] = 0.5 * ( 
                         loop[imom][iconf][imu][idir][it][1] +       loop[imom][iconf][idir][imu][it][1] 
                 + loop_exact[imom][iconf][imu][idir][it][1] + loop_exact[imom][iconf][idir][imu][it][1] 
                 );
@@ -1169,6 +1176,9 @@ int main(int argc, char **argv) {
              *
              * loop_sub = loop - 1/4 tr loop
              **********************************************************/
+            loop_sub[imom][iconf][imu][idir][it][0] = loop_sym[imom][iconf][imu][idir][it][0];
+            loop_sub[imom][iconf][imu][idir][it][1] = loop_sym[imom][iconf][imu][idir][it][1];
+
             if ( imu == idir )
             {
               /* real part */
@@ -1257,6 +1267,51 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    /**********************************************************
+     * analyse SYMMETRIZED LOOP
+     **********************************************************/
+    for ( int ireim = 0; ireim < 2; ireim++ ) {
+      
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int idir = 0; idir < 4; idir++ ) {
+
+        double ** data = init_2level_dtable ( num_conf, T_global );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[avxn_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        /* fill data array */
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = loop_sym[imom][iconf][imu][idir][it][ireim];
+          }
+        }
+
+        char obs_name[100];
+        sprintf ( obs_name, "loop_sym.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+            loop_type, 
+            loop_tag,
+            imu, idir,
+            g_insertion_momentum_list[imom][0],
+            g_insertion_momentum_list[imom][1],
+            g_insertion_momentum_list[imom][2], reim_str[ireim] );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        fini_2level_dtable ( &data );
+      }}
+    }  /* end of loop on re / im */
+
+    /**********************************************************
+     * analyse SYMMETRIZED - SUBTRACTED / BTRACELESS LOOP
+     **********************************************************/
     for ( int ireim = 0; ireim < 2; ireim++ ) {
       
       for ( int imu = 0; imu < 4; imu++ ) {
@@ -1311,7 +1366,7 @@ int main(int argc, char **argv) {
    **********************************************************/
   for ( int idt = 0; idt < g_sequential_source_timeslice_number; idt++ ) {
 
-    double ***** threep = init_5level_dtable ( 3, num_conf, num_src_per_conf, T_global, 2 ) ;
+    double ***** threep = init_5level_dtable ( 5, num_conf, num_src_per_conf, T_global, 2 ) ;
     if ( threep == NULL ) {
       fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
@@ -1499,6 +1554,42 @@ int main(int argc, char **argv) {
 
             }  /* end of loop on spatial momentum index */
 
+
+            /**********************************************************
+             * O44 with symmetrized, NOT SUBTRACTED loop
+             **********************************************************/
+            threep[3][iconf][isrc][it][0] += threep_norm * (
+                    /* twop */
+                    twop_weight[0] * (
+                          fbwd_weight[0] * a_fwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][3][3][tins_fwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][3][3][tins_fwd_2][0] )
+                        + fbwd_weight[1] * a_bwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][3][3][tins_bwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][3][3][tins_bwd_2][0] )
+                      )
+                    /* twop parity partner */
+                  + twop_weight[1] * (
+                          fbwd_weight[0] * b_fwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][3][3][tins_fwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][3][3][tins_fwd_2][0] )
+                        + fbwd_weight[1] * b_bwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][3][3][tins_bwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][3][3][tins_bwd_2][0] )
+                      )
+                  );
+
+            /**********************************************************
+             * Ojj/3 with symmetrized, NOT SUBTRACTED loop
+             **********************************************************/
+            for ( int k = 0; k < 3; k++ ) {
+              threep[4][iconf][isrc][it][0] += threep_norm * (
+                    /* twop */
+                    twop_weight[0] * (
+                          fbwd_weight[0] * a_fwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][k][k][tins_fwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][k][k][tins_fwd_2][0] )
+                        + fbwd_weight[1] * a_bwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][k][k][tins_bwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][k][k][tins_bwd_2][0] )
+                      )
+                    /* twop parity partner */
+                  + twop_weight[1] * (
+                          fbwd_weight[0] * b_fwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][k][k][tins_fwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][k][k][tins_fwd_2][0] )
+                        + fbwd_weight[1] * b_bwd_phase[0] * ( mirror_weight[0] * loop_sym[0][iconf][k][k][tins_bwd_1][0] + mirror_weight[1] * loop_sym[0][iconf][k][k][tins_bwd_2][0] )
+                      )
+                  );
+            }
+
+
           }  /* end of loop on it */
 
         }  /* end of loop on imom */
@@ -1533,6 +1624,15 @@ int main(int argc, char **argv) {
 
         for ( int it = 0; it < 2 * T_global; it++ ) {
           threep[2][iconf][isrc][0][it] *= norm4k;
+        }
+
+        /* O44 unsubtracted */
+        for ( int it = 0; it < 2 * T_global; it++ ) {
+          threep[3][iconf][isrc][0][it] *= norm44;
+        }
+        /* Ojj unsubtracted */
+        for ( int it = 0; it < 2 * T_global; it++ ) {
+          threep[4][iconf][isrc][0][it] *= norm44 / 3.;
         }
 
       }  /* end of loop on isrc */
@@ -1572,7 +1672,7 @@ int main(int argc, char **argv) {
     /**********************************************************
      * loop on 3pt function types
      **********************************************************/
-    for ( int k = 0; k < 3; k++ ) {
+    for ( int k = 0; k < 5; k++ ) {
  
 
       if ( num_conf < 6 ) {
@@ -2340,6 +2440,7 @@ int main(int argc, char **argv) {
 
 
   fini_6level_dtable ( &loop_sub );
+  fini_6level_dtable ( &loop_sym );
 
 #endif  /* end of ifdef _LOOP_ANALYSIS */
 
