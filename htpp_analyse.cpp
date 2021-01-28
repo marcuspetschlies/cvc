@@ -55,6 +55,7 @@ extern "C"
 #include "twopoint_function_utils.h"
 #include "gamma.h"
 #include "uwerr.h"
+#include "derived_quantities.h"
 #include "cvc_timer.h"
 
 using namespace cvc;
@@ -66,10 +67,112 @@ void usage() {
   EXIT(0);
 }
 
+
+char const gamma_bin_to_name[16][8] = { "id", "gx", "gy", "gxgy", "gz", "gxgz", "gygz", "gtg5", "gt", "gxgt", "gygt", "gzg5", "gzgt", "gyg5", "gxg5", "g5" };
+
+inline int mom_vec_p_eq_null ( int const p[3] ) {
+  return ( p[0] == 0 && p[1] == 0 && p[2] == 0 );
+}
+
+inline int mom_vec_p_eq_q ( int const p[3], int const q[3] ) {
+  return ( p[0] == q[0] && p[1] == q[1] && p[2] == q[2] );
+}
+
+inline int mom_vec_p_eq_mq ( int const p[3], int const q[3] ) {
+  return ( p[0] == -q[0] && p[1] == -q[1] && p[2] == -q[2] );
+}
+
+inline int get_momentum_id ( int const p[3], int (* const momentum_list)[3] , int const momentum_number ) {
+
+  for (int i = 0; i < momentum_number; i++ ) {
+    if ( mom_vec_p_eq_q( p, momentum_list[i] ) ) return ( i );
+  }
+  return ( -1 );
+}
+
+/***********************************************************
+ * make observable name
+ ***********************************************************/
+
+inline void get_obs_name (char * const obs_name, twopoint_function_type * const tp , int const dt , const char * const reim_str) {
+  
+  if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+
+    sprintf ( obs_name,
+        "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%dpcy%dpcz%d_gi_%s_pix%dpiy%dpiz%d",
+        tp->name,
+        gamma_bin_to_name[tp->gf1[0]], 
+        tp->pf1[0], tp->pf1[1], tp->pf1[2],
+        dt,
+        gamma_bin_to_name[tp->gf2], 
+        tp->pf2[0], tp->pf2[1], tp->pf2[2],
+        gamma_bin_to_name[tp->gi1[0]], 
+        tp->pi1[0], tp->pi1[1], tp->pi1[2] );
+
+  } else if ( strcmp( tp->type , "mxm-j-m" ) == 0 )  {
+    sprintf ( obs_name,
+        "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%dpcy%dpcz%d_gi2_%s_pi2x%dpi2y%dpi2z%d_gi1_%s_pi1x%dpi1y%dpi1z%d",
+        tp->name,
+        gamma_bin_to_name[tp->gf1[0]],
+        tp->pf1[0], tp->pf1[1], tp->pf1[2],
+        dt,
+        gamma_bin_to_name[tp->gf2], 
+        tp->pf2[0], tp->pf2[1], tp->pf2[2],
+        gamma_bin_to_name[tp->gi2],
+        tp->pi2[0], tp->pi2[1], tp->pi2[2],
+        gamma_bin_to_name[tp->gi1[0]],
+        tp->pi1[0], tp->pi1[1], tp->pi1[2] );
+
+  } else if ( strcmp( tp->type , "m-m" ) == 0 )  {
+    sprintf ( obs_name,
+        "%s_gf_%s_pfx%dpfy%dpfz%d_gi1_%s_pi1x%dpi1y%dpi1z%d",
+        tp->name,
+        gamma_bin_to_name[tp->gf1[0]],
+        tp->pf1[0], tp->pf1[1], tp->pf1[2],
+        gamma_bin_to_name[tp->gi1[0]],
+        tp->pi1[0], tp->pi1[1], tp->pi1[2] );
+
+  } else {
+    sprintf ( obs_name, "NA" );
+    return;
+  }
+  sprintf( obs_name, "%s.%s", obs_name, reim_str );
+}  /* end of get_obs_name */
+
+
+/***************************************************************************
+ * momentum filter
+ ***************************************************************************/
+inline int momentum_filter ( twopoint_function_type * const tp ) {
+
+  if ( strcmp ( tp->type , "m-m" ) == 0 ) {
+
+    return ( ( tp->pi1[0] + tp->pf1[0] == 0 ) &&
+             ( tp->pi1[1] + tp->pf1[1] == 0 ) &&
+             ( tp->pi1[2] + tp->pf1[2] == 0 ) );
+
+  } else if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+  
+    return ( ( tp->pi1[0] + tp->pf1[0] + tp->pf2[0] == 0 ) &&
+             ( tp->pi1[1] + tp->pf1[1] + tp->pf2[1] == 0 ) &&
+             ( tp->pi1[2] + tp->pf1[2] + tp->pf2[2] == 0 ) );
+
+  } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
+
+    return ( ( tp->pi1[0] + tp->pi2[0] + tp->pf1[0] + tp->pf2[0] == 0 ) &&
+             ( tp->pi1[1] + tp->pi2[1] + tp->pf1[1] + tp->pf2[1] == 0 ) &&
+             ( tp->pi1[2] + tp->pi2[2] + tp->pf1[2] + tp->pf2[2] == 0 ) );
+  } else {
+    return ( 1 == 0 );
+  }
+
+} /* end of mometnum_filter */
+
+/***********************************************************
+ *
+ ***********************************************************/
 int main(int argc, char **argv) {
   
-  char const gamma_bin_to_name[16][8] = { "id", "gx", "gy", "gxgy", "gz", "gxgz", "gygz", "gtg5", "gt", "gxgt", "gygt", "gzg5", "gzgt", "gyg5", "gxg5", "g5" };
-
   int const gamma_parity_sign[16] = {       1,   -1,   -1,      1,   -1,      1,      1,     -1,    1,     -1,     -1,      1,     -1,      1,      1,   -1 };
 
   int const gamma_chargeconjugation_sign[16] = {
@@ -77,6 +180,8 @@ int main(int argc, char **argv) {
 
   int const gamma_g5herm_sign[16] = {       1,   -1,   -1,     -1,   -1,     -1,     -1,      1,   -1,     -1,     -1,      1,     -1,      1,      1,    1 };
 
+  int const gamma_timereversal_sign[16] = { 1,    1,    1,      1,    1,      1,      1,      1,   -1,     -1,     -1,     -1,     -1,     -1,     -1,   -1 };
+  
   char const reim_str[2][3]  = { "re", "im" };
   int c;
   int filename_set = 0;
@@ -85,6 +190,7 @@ int main(int argc, char **argv) {
   char ensemble_name[100] = "NA";
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
+  int fold_correlator = 0;
 
   struct timeval ta, tb;
   struct timeval start_time, end_time;
@@ -93,7 +199,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:E:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:E:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -110,6 +216,10 @@ int main(int argc, char **argv) {
     case 'E':
       strcpy ( ensemble_name, optarg );
       fprintf ( stdout, "# [htpp_analyse] ensemble name set to %s\n", ensemble_name );
+      break;
+    case 'F':
+      fold_correlator = atoi(  optarg );
+      fprintf ( stdout, "# [htpp_analyse] fold_correlator set to %d\n", fold_correlator );
       break;
     case 'h':
     case '?':
@@ -243,10 +353,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
   int const n_tc = g_src_snk_time_separation + 1;
   int const num_meas_per_conf = num_src_per_conf * g_coherent_source_number;
-  int const num_meas = num_conf * num_meas_per_conf;
 
-  double ****** corr = init_6level_dtable (g_twopoint_function_number, g_sink_momentum_number, g_source_momentum_number, num_conf, num_meas_per_conf, 2 * n_tc );
-  if ( corr == NULL ) {
+  double ******** corr       = init_8level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, 2, num_conf, num_meas_per_conf, 2 * n_tc );
+  double ******* corr_latsym = init_7level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, num_conf, num_meas_per_conf, 2 * n_tc );
+  if ( corr == NULL || corr_latsym == NULL ) {
     fprintf( stderr, "[htpp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(2);
   }
@@ -278,8 +388,14 @@ int main(int argc, char **argv) {
       /***********************************************************
        * reader for aff output file
        ***********************************************************/
-      sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff",
-          filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      if ( ( strcmp ( g_twopoint_function_list[0].type , "m-j-m" ) == 0 ) || ( strcmp ( g_twopoint_function_list[0].type , "mxm-j-m" ) == 0 ) ) {
+        /* sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+        sprintf ( filename, "%s/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      } else if ( ( strcmp ( g_twopoint_function_list[0].type , "m-m" ) == 0 )) {
+        sprintf ( filename, "%s/stream_%c/%s.%.4d.tbase%.2d.aff", filename_prefix, stream, filename_prefix2, Nconf, gsx[0] );
+      } else {
+        continue;
+      }
    
       struct AffReader_s * affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -316,10 +432,6 @@ int main(int argc, char **argv) {
             for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
               /***********************************************************
-               * add some filter if wanted
-               ***********************************************************/
-            
-              /***********************************************************
                * loop on parity
                ***********************************************************/
               for ( int iparity = 0; iparity < 2; iparity++ ) {
@@ -327,19 +439,19 @@ int main(int argc, char **argv) {
 
                 int const parity_sign =
                       gamma_parity_sign[tp->gi1[0]]
-                    * gamma_parity_sign[tp->gi1[1]]
+                    * gamma_parity_sign[tp->gi2]
                     * gamma_parity_sign[tp->gf1[0]]
                     * gamma_parity_sign[tp->gf2];
 
                 int const charge_conjugation_sign = 
                       gamma_chargeconjugation_sign[tp->gi1[0]]
-                    * gamma_chargeconjugation_sign[tp->gi1[1]]
+                    * gamma_chargeconjugation_sign[tp->gi2]
                     * gamma_chargeconjugation_sign[tp->gf1[0]] 
                     * gamma_chargeconjugation_sign[tp->gf2];
 
                 int const g5herm_sign =
                         gamma_g5herm_sign[tp->gi1[0]]
-                      * gamma_g5herm_sign[tp->gi1[1]]
+                      * gamma_g5herm_sign[tp->gi2]
                       * gamma_g5herm_sign[tp->gf1[0]]
                       * gamma_g5herm_sign[tp->gf2];
 
@@ -369,7 +481,20 @@ int main(int argc, char **argv) {
                   ptot[0] - pf[0],
                   ptot[1] - pf[1],
                   ptot[2] - pf[2] };
+ 
+                /***********************************************************
+                 * set twop function momenta an filter
+                 ***********************************************************/
+                memcpy( tp->pi1, pi1, 3*sizeof(int) );
+                memcpy( tp->pi2, pi2, 3*sizeof(int) );
+                memcpy( tp->pf1, pf,  3*sizeof(int) );
+                memcpy( tp->pf2, pc,  3*sizeof(int) );
 
+                if ( ! momentum_filter ( tp ) ) continue;
+
+                /***********************************************************
+                 * latsym selection weights
+                 ***********************************************************/
                 double const amp_re_factor = 0.25 * ( iparity == 0 ? ( 1 + parity_sign * charge_conjugation_sign * g5herm_sign ) : ( parity_sign + charge_conjugation_sign * g5herm_sign) );
                 double const amp_im_factor = 0.25 * ( iparity == 0 ? ( 1 - parity_sign * charge_conjugation_sign * g5herm_sign ) : ( parity_sign - charge_conjugation_sign * g5herm_sign) );
 
@@ -396,14 +521,21 @@ int main(int argc, char **argv) {
                         pc[0], pc[1], pc[2] );
                   } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
                     sprintf ( key,
-                        /* /sll+-g1-scl-g2/pfx0pfy0pfz0/gf_g5/dt12/pi2x0pi2y0pi2z0/gi2_g5/g1_gx/g2_g5/x0_y0_z0 */
+                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
                         "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
                         diagram_name,
                         pf[0], pf[1], pf[2],
                         gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
-                        pi2[0], pi2[1], pi2[2], gamma_bin_to_name[tp->gi1[1]],
+                        pi2[0], pi2[1], pi2[2], gamma_bin_to_name[tp->gi2],
                         gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
                         pc[0], pc[1], pc[2] );
+                  } else if ( strcmp ( tp->type , "m-m" ) == 0 ) {
+                    sprintf ( key,
+                        /* /fs-fc/t70x02y11z20/gf02_gi02/PX0_PY0_PZ0 */
+                        "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d_gi%.2d/PX%d_PY%d_PZ%d",
+                        diagram_name, gsx[0], gsx[1], gsx[2], gsx[3],
+                        tp->gf1[0], tp->gi1[0],
+                        pf[0], pf[1], pf[2] );
                   } else {
                     continue;
                   }
@@ -454,8 +586,13 @@ int main(int argc, char **argv) {
                       int const tt = ( csx[0] + it ) % tp->T; 
                       double _Complex const zbuffer = tp->c[i_diag][tt][0][0] * ephase;
               
-                      corr[i_2pt][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh][2*it  ] += amp_re_factor * creal ( zbuffer );
-                      corr[i_2pt][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh][2*it+1] += amp_im_factor * cimag ( zbuffer );
+                      corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh][2*it  ] = creal ( zbuffer );
+                      corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh][2*it+1] = cimag ( zbuffer );
+
+                      /*
+                       * add correlator using discrete quantum numbers */
+                      corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh][2*it  ] += amp_re_factor * creal ( zbuffer );
+                      corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh][2*it+1] += amp_im_factor * cimag ( zbuffer );
                     }
 
                   }  /* end of loop on coherent sources */
@@ -488,7 +625,7 @@ int main(int argc, char **argv) {
 
         for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-         int pc[3] = {
+          int pc[3] = {
             g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
             g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
             g_total_momentum_list[iptot][2] - g_sink_momentum_list[ipf][2] };
@@ -498,32 +635,18 @@ int main(int argc, char **argv) {
             -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
             -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
  
+          memcpy ( tp->pi1, g_source_momentum_list[ipi], 3*sizeof(int) );
+          memcpy ( tp->pi2, pi2, 3*sizeof(int) );
+          memcpy ( tp->pf1, g_sink_momentum_list[ipf], 3*sizeof(int) );
+          memcpy ( tp->pf2, pc, 3*sizeof(int) );
+
+          if ( ! momentum_filter ( tp ) ) continue;
+
+
           char output_filename[2000];
+            
+          get_obs_name ( output_filename, tp , g_src_snk_time_separation, "corr" );
 
-          if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
-
-            sprintf ( output_filename, 
-                /* "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d", */
-                "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi_%s_pix%d_piy%d_piz%d",
-                tp->name,
-                gamma_bin_to_name[tp->gf1[0]], g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
-                g_src_snk_time_separation, gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
-                gamma_bin_to_name[tp->gi1[0]], g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2] );
-          } else if ( strcmp( tp->type , "mxm-j-m" ) == 0 )  {
-            sprintf ( output_filename, 
-                "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi2_%s_pi2x%dpi2y%dpi2z%d_gi1_pi1x%dpi1y%dpi1z%d",
-                tp->name,
-                gamma_bin_to_name[tp->gf1[0]],
-                g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
-                g_src_snk_time_separation,
-                gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
-                gamma_bin_to_name[tp->gi1[1]], 
-                pi2[0], pi2[1], pi2[2],
-                gamma_bin_to_name[tp->gi1[0]],
-                g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2] );
-          } else { 
-            continue;
-          }
           fprintf ( stdout, "# [htpp_analyse] output_filename = %s\n", output_filename );
 
           FILE * ofs = fopen ( output_filename, "w" );
@@ -544,8 +667,8 @@ int main(int argc, char **argv) {
                 fprintf ( ofs, "# /%c/conf%d/t%d_x%d_y%d_z%d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], csx[0], csx[1], csx[2], csx[3]  );
                 for ( int it = 0; it < n_tc; it++ ) {
                   fprintf ( ofs, "%4d %25.16e %25.16e\n", it,
-                  corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it  ],
-                  corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
+                  corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it  ],
+                  corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
                 } 
 
               }
@@ -568,12 +691,15 @@ int main(int argc, char **argv) {
 
     twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
 
+    /***************************************************************************
+     * UWerr analysis for latsym-averaged observables
+     ***************************************************************************/
     for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
         for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
-
+     
           int pc[3] = {
             g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
             g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
@@ -583,6 +709,13 @@ int main(int argc, char **argv) {
             -g_total_momentum_list[iptot][0] - g_source_momentum_list[ipi][0],
             -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
             -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
+
+          memcpy ( tp->pi1, g_source_momentum_list[ipi], 3*sizeof(int) );
+          memcpy ( tp->pi2, pi2,                         3*sizeof(int) );
+          memcpy ( tp->pf1, g_sink_momentum_list[ipf],   3*sizeof(int) );
+          memcpy ( tp->pf2, pc,                          3*sizeof(int) );
+
+          if ( ! momentum_filter ( tp ) ) continue;
 
           for ( int ireim =0; ireim < 2; ireim++ ) {
             gettimeofday ( &ta, (struct timezone *)NULL );
@@ -594,56 +727,67 @@ int main(int argc, char **argv) {
               EXIT(12);
             }
 
-#pragma omp parallel for
+#pragma omp parallel for shared(fold_correlator)
             for ( int iconf = 0; iconf < num_conf; iconf++ ) {
               for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
                 for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
                   for ( int it = 0; it < n_tc; it++ ) {
-                    data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr[i_2pt][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
+                    data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
                   }
+
+                  /***************************************************************************
+                   * fold correlator·, use time reversal property
+                   ***************************************************************************/
+                  if ( (strcmp ( tp->type , "m-m" ) == 0) && fold_correlator ) {
+                    for ( int it = 1; it < n_tc/2; it++ ) {
+                      int const itt = ( n_tc - it ) % n_tc;
+                      double const dtmp = 0.5 * ( 
+                            data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] 
+                          + gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]] * data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] );
+                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]  = dtmp;
+                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] = dtmp * gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]];
+                    }
+                  }
+
                 }
               }
-            }
+            }  /* end of loop on num_conf */
 
             char obs_name[2000];
 
-            sprintf ( obs_name, "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d.%s",
-                           tp->name,
-                           g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
-                           gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
-                           gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
-                           pc[0], pc[1], pc[2], reim_str[ireim] );
-        
-
-            if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
-
-              sprintf ( obs_name,
-                  /* "%s_pfx%dpfy%dpfz%d_gf_%s_dt%d_g1_%s_g2_%s_PX%d_PY%d_PZ%d", */
-                  "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi_%s_pix%d_piy%d_piz%d.%s",
-                  tp->name,
-                  gamma_bin_to_name[tp->gf1[0]], g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
-                  g_src_snk_time_separation, gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
-                  gamma_bin_to_name[tp->gi1[0]], g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2], reim_str[ireim] );
-            } else if ( strcmp( tp->type , "mxm-j-m" ) == 0 )  {
-              sprintf ( obs_name,
-                  "%s_gf_%s_pfx%dpfy%dpfz%d_dt%d_gc_%s_pcx%d_pcy%d_pcz%d_gi2_%s_pi2x%dpi2y%dpi2z%d_gi1_pi1x%dpi1y%dpi1z%d.%s",
-                  tp->name,
-                  gamma_bin_to_name[tp->gf1[0]],
-                  g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2],
-                  g_src_snk_time_separation,
-                  gamma_bin_to_name[tp->gf2], pc[0], pc[1], pc[2],
-                  gamma_bin_to_name[tp->gi1[1]],
-                  pi2[0], pi2[1], pi2[2],
-                  gamma_bin_to_name[tp->gi1[0]],
-                  g_source_momentum_list[ipi][0], g_source_momentum_list[ipi][1], g_source_momentum_list[ipi][2], reim_str[ireim] );
-            } else {
-              continue;
-            }
+            get_obs_name ( obs_name, tp , g_src_snk_time_separation, reim_str[ireim] );
+            strcat ( obs_name, ".latsymavg" );
 
             exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
-            if ( exitstatus != NULL ) {
+            if ( exitstatus != 0 ) {
               fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(14);
+            }
+
+           /***************************************************************************
+            * effective mass analysis
+            ***************************************************************************/
+            if ( strcmp( "m-m", tp->type ) == 0 ) {
+            
+              int const Thp1 = n_tc / 2 + 1;
+     
+              for ( int itau = 1; itau < Thp1/2; itau++ ) {
+                int narg = 3;
+                int arg_first[3] = { 0, 2 * itau, itau };
+                int arg_stride[3] = {1,1,1};
+                int nT = Thp1 - 2 * itau;
+
+                char obs_name2[2000];
+                sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
+
+                exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
+                if ( exitstatus != 0 ) {
+                  fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(115);
+                }
+
+              }
+
             }
 
             fini_2level_dtable ( &data );
@@ -655,6 +799,211 @@ int main(int argc, char **argv) {
         }  /* ipi */
       }  /* iptot */
     }  /* ipf */
+
+    /***************************************************************************
+     * UWerr analysis for non-latsy-averaged data
+     ***************************************************************************/
+    for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+
+        for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
+
+          for ( int iparity = 0; iparity < 2; iparity++ ) {
+            int const sparity = 1 - 2 * iparity;
+
+            int pf[3] = {
+              sparity * g_sink_momentum_list[ipf][0],
+              sparity * g_sink_momentum_list[ipf][1],
+              sparity * g_sink_momentum_list[ipf][2] };
+
+            int ptot[3] =  {
+              sparity * g_total_momentum_list[iptot][0],
+              sparity * g_total_momentum_list[iptot][1],
+              sparity * g_total_momentum_list[iptot][2] };
+     
+            int pc[3] = {
+              ptot[0] - pf[0],
+              ptot[1] - pf[1],
+              ptot[2] - pf[2] };
+
+            int pi1[3] = {
+             sparity * g_source_momentum_list[ipi][0],
+             sparity * g_source_momentum_list[ipi][1],
+             sparity * g_source_momentum_list[ipi][2] };
+
+            int pi2[3] = {
+              -ptot[0] - pi1[0],
+              -ptot[1] - pi1[1],
+              -ptot[2] - pi1[2] };
+
+            memcpy ( tp->pi1, pi1, 3*sizeof(int) );
+            memcpy ( tp->pi2, pi2, 3*sizeof(int) );
+            memcpy ( tp->pf1, pf,  3*sizeof(int) );
+            memcpy ( tp->pf2, pc,  3*sizeof(int) );
+
+            if ( ! momentum_filter ( tp ) ) continue;
+
+
+            for ( int ireim =0; ireim < 2; ireim++ ) {
+              gettimeofday ( &ta, (struct timezone *)NULL );
+
+              int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
+              double ** data = init_2level_dtable ( nmeas, n_tc );
+              if ( data == NULL ) {
+                fprintf ( stderr, "[htpp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+                EXIT(12);
+              }
+
+#pragma omp parallel for shared(fold_correlator)
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                  for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
+                    for ( int it = 0; it < n_tc; it++ ) {
+                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
+                    }
+
+                    /***************************************************************************
+                     * fold correlator·, use time reversal property
+                     ***************************************************************************/
+                    if ( (strcmp ( tp->type , "m-m" ) == 0) && fold_correlator ) {
+                      for ( int it = 1; it < n_tc/2; it++ ) {
+                        int const itt = ( n_tc - it ) % n_tc;
+                        double const dtmp = 0.5 * ( 
+                              data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] 
+                            + gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]] * data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] );
+                        data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]  = dtmp;
+                        data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] = dtmp * gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]];
+                      }
+                    }
+
+                  }
+                }
+              }  /* end of loop on num_conf */
+
+              char obs_name[2000];
+
+              get_obs_name ( obs_name, tp , g_src_snk_time_separation, reim_str[ireim] );
+
+              exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(14);
+              }
+
+              fini_2level_dtable ( &data );
+  
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "htpp_analyse", "stats-uwerr-analysis", io_proc == 2 );
+
+            }  /* end of loop on ireim */
+          }  /* end of loop on iparity */
+        }  /* ipi */
+      }  /* iptot */
+    }  /* ipf */
+
+    /***************************************************************************
+     * simple orbit average for m-m 2pt
+     ***************************************************************************/
+    if ( strcmp( "m-m", tp->type ) == 0 ) {
+
+      for ( int ireim =0; ireim < 2; ireim++ ) {
+
+        int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
+        double ** data = init_2level_dtable ( nmeas, n_tc );
+        if ( data == NULL ) {
+          fprintf ( stderr, "[htpp_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(12);
+        }
+
+#pragma omp parallel for shared(fold_correlator)
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+            for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
+              for ( int it = 0; it < n_tc; it++ ) {
+
+                for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+                  int pf[3] = {  g_sink_momentum_list[ipf][0],  g_sink_momentum_list[ipf][1],  g_sink_momentum_list[ipf][2] };
+                  int pi[3] = { -g_sink_momentum_list[ipf][0], -g_sink_momentum_list[ipf][1], -g_sink_momentum_list[ipf][2] };
+
+                  int const ipi   = get_momentum_id ( pi, g_source_momentum_list, g_source_momentum_number );
+                  int const iptot = get_momentum_id ( pf, g_total_momentum_list, g_total_momentum_number );
+                  if ( ipi == -1 || iptot == -1 ) {
+                    fprintf ( stderr, "[htpp_analyse] Error from get_momentum_id %s %d\n", __FILE__, __LINE__ );
+                    EXIT(123);
+                  } else if ( g_verbose > 4 && iconf == 0 && isrc == 0 && icoh == 0 ) 
+                    fprintf( stdout, "# [htpp_analyse] ipf %d   ipi %d   iptot %d %s %d\n", ipf, ipi, iptot, __FILE__, __LINE__ );
+
+                  data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] += corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
+                }
+                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] /= (double)g_sink_momentum_number;
+              }
+
+              /***************************************************************************
+               * fold correlator·, use time reversal property
+               ***************************************************************************/
+              for ( int it = 1; it < n_tc/2; it++ ) {
+                int const itt = ( n_tc - it ) % n_tc;
+                double const dtmp = 0.5 * (
+                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]
+                    + gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]] * data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] );
+                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]  = dtmp;
+                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] = dtmp * gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]];
+              }
+            }
+
+          }
+        } /* end of loop on num_conf */
+
+        char obs_name[2000];
+      
+        sprintf ( obs_name,
+            "%s_gf_%s_pfx%dpfy%dpfz%d_gi1_%s_pi1x%dpi1y%dpi1z%d.%s.orbit",
+            tp->name,
+            gamma_bin_to_name[tp->gf1[0]],
+            g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
+            gamma_bin_to_name[tp->gi1[0]],
+            -g_sink_momentum_list[0][0], -g_sink_momentum_list[0][1], -g_sink_momentum_list[0][2],
+            reim_str[ireim] );
+
+
+        exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(14);
+        }
+
+        /***************************************************************************
+         * effective mass analysis
+         ***************************************************************************/
+
+        int const Thp1 = n_tc / 2 + 1;
+
+        for ( int itau = 1; itau < Thp1/2; itau++ ) {
+          int narg = 3;
+          int arg_first[3] = { 0, 2 * itau, itau };
+          int arg_stride[3] = {1,1,1};
+          int nT = Thp1 - 2 * itau;
+
+          char obs_name2[2000];
+          sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
+
+          exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[htpp_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(115);
+          }
+
+        }
+
+
+        fini_2level_dtable ( &data );
+      }  /* of ireim */
+
+    }  /* end of if type = m-m */
+
+
+
   }  /* i2pt */
 
   /***************************************************************************/
@@ -663,7 +1012,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * free the correlator field
    ***************************************************************************/
-  fini_6level_dtable ( &corr );
+  fini_8level_dtable ( &corr );
+  fini_7level_dtable ( &corr_latsym );
 
   /***************************************************************************/
   /***************************************************************************/
