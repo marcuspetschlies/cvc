@@ -1704,7 +1704,8 @@ int main(int argc, char **argv) {
      * sequential propagator part
      ***********************************************************/
 
-    /* loop on sequential source momenta */
+    /*  */
+    int pi2[3] = {0,0,0};
     for( int iseq_mom=0; iseq_mom < g_seq_source_momentum_number; iseq_mom++) {
 
       /***********************************************************
