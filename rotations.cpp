@@ -31,6 +31,9 @@
 #include "gamma.h"
 #include "rotations.h"
 #include "cvc_utils.h"
+#include "table_init_d.h"
+#include "table_init_z.h"
+#include "table_init_i.h"
 
 namespace cvc {
 
@@ -118,6 +121,25 @@ void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs ) {
   }
 }  /* end of rot_printf_matrix */
  
+/***********************************************************
+ *
+ ***********************************************************/
+void rot_printm_matrix (double _Complex ** const R, int const N, char * const A, FILE*ofs ) {
+  const double eps = 5.e-14;
+  if ( g_cart_id == 0 ) {
+    fprintf(ofs, "%s\n", A );
+    for( int ik = 0; ik < N; ik++ ) {
+      for( int il = 0; il < N; il++ ) {
+        double dre = creal( R[ik][il] );
+        double dim = cimag( R[ik][il] );
+        // fprintf(ofs, "%25.16e   %25.16e   ", ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
+        fprintf(ofs, "%16.7e   %16.7e   ", ( fabs(dre) > eps ? dre : 0. ), ( fabs(dim) > eps ? dim : 0. ) );
+      }
+      fprintf ( ofs, "\n" );
+    }
+    fflush(ofs);
+  }
+}  /* end of rot_printm_matrix */
 
 /***********************************************************/
 /***********************************************************/
@@ -2101,7 +2123,11 @@ void rot_inversion_matrix_spherical_basis ( double _Complex**R, int J2, int bisp
 
   if ( ( J2 == 1 && bispinor ) || ( J2 == 3 ) ) {
     gamma_matrix_type g;
+    /* This for inversion matrix in cvc convention */
     gamma_matrix_set ( &g, 0, 1 );
+
+    /* This for cross-check with UKQCD gamma basis version */
+    /* gamma_matrix_set ( &g, 5, 1 ); */
 
     memcpy ( R[0], g.v, 16*sizeof(double _Complex) );
     return;
@@ -2691,7 +2717,327 @@ void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs )
   fflush(ofs);
 }  // end of rot_printf_matrix
 
+
 /***********************************************************************************************/
 /***********************************************************************************************/
 
+
+
+int qr_mat ( double _Complex ** q, double _Complex ** const r, double _Complex ** const a, int const dim ) {
+
+  int BLAS_INFO;
+  int BLAS_M     = dim;
+  int BLAS_N     = BLAS_M;
+  int BLAS_LDA   = BLAS_M;
+  int BLAS_LWORK = BLAS_N;
+  int BLAS_K     = _MIN( BLAS_M, BLAS_N );
+  double _Complex ** BLAS_A   = init_2level_ztable ( BLAS_M, BLAS_N );
+  double _Complex * BLAS_TAU  = init_1level_ztable ( BLAS_K );
+  double _Complex * BLAS_WORK = init_1level_ztable ( BLAS_LWORK );
+
+  if ( BLAS_A == NULL || BLAS_TAU == NULL || BLAS_WORK == NULL ) {
+    fprintf( stderr, "[qr_mat] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] Ain %2d %2d  %25.16e %25.16e\n", ir, is, creal( a[ir][is] ), cimag( a[ir][is] ) );
+    }}
+  }
+
+  rot_mat_trans ( BLAS_A, a, BLAS_M );
+
+  _F(zgeqrf) ( &BLAS_M, &BLAS_N, BLAS_A[0], &BLAS_LDA, BLAS_TAU, BLAS_WORK, &BLAS_LWORK, &BLAS_INFO );
+
+  if ( BLAS_INFO != 0 ) {
+    fprintf( stderr, "[qr_mat] Error from zgeqrf, status was %d %s %d\n", BLAS_INFO, __FILE__, __LINE__ );
+    return(1);
+  }  else {
+    if ( g_verbose > 4 ) fprintf( stdout, "# [qr_mat] zgeqrf BLAS_INFO = %d\n", BLAS_INFO );
+  }
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] A %2d %2d  %25.16e %25.16e\n", ir, is, creal( BLAS_A[ir][is] ), cimag( BLAS_A[ir][is] ) );
+    }} 
+
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_K; ir++ ) {
+      fprintf( stdout, "# [qr_mat] TAU %2d    %25.16e %25.16e\n", ir, creal( BLAS_TAU[ir] ), cimag( BLAS_TAU[ir] ) );
+    }
+
+  }
+
+  memset ( r[0], 0, dim*dim*sizeof(double _Complex) );
+  for ( int ir = 0; ir < BLAS_M; ir++ ){
+  for ( int is = ir; is < BLAS_N; is++ ){
+    /* extract upper triangular part of BLAS_A into r
+     * TRANSPOSE AGAIN */
+    r[ir][is] = BLAS_A[is][ir];
+  }}
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] R %2d %2d  %25.16e %25.16e\n", ir, is, creal( r[ir][is] ), cimag( r[ir][is] ) );
+    }}
+  }
+
+  _F(zungqr) ( &BLAS_M, &BLAS_N, &BLAS_K, BLAS_A[0], &BLAS_LDA, BLAS_TAU,  BLAS_WORK, &BLAS_LWORK, &BLAS_INFO);
+
+  if ( BLAS_INFO != 0 ) {
+    fprintf( stderr, "[qr_mat] Error from zungqr, status was %d %s %d\n", BLAS_INFO, __FILE__, __LINE__ );
+    return(2);
+  }  else {
+    if ( g_verbose > 4 ) fprintf( stdout, "# [qr_mat] zungqr BLAS_INFO = %d\n", BLAS_INFO );
+  }
+   
+  /* transpose Q */
+  rot_mat_trans ( q, BLAS_A, BLAS_M );
+
+  if ( g_verbose > 4 ) {
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] Q %2d %2d  %25.16e %25.16e\n", ir, is, creal( q[ir][is] ), cimag( q[ir][is] ) );
+    }}
+  }
+   
+  /**************************************************************
+   * test QR decompostion of a
+   **************************************************************/
+  if ( g_verbose > 4 ) {
+  
+    rot_mat_ti_mat ( BLAS_A, q, r, BLAS_M );
+
+    fprintf( stdout, "\n\n");
+    for ( int ir = 0; ir < BLAS_M; ir++ ) {
+    for ( int is = 0; is < BLAS_N; is++ ) {
+      fprintf( stdout, "# [qr_mat] comp %2d %2d    %25.16e %25.16e    %25.16e %25.16e   %16.7e %16.7e\n", ir, is, creal( BLAS_A[ir][is] ), cimag( BLAS_A[ir][is] ), creal( a[ir][is] ), cimag( a[ir][is] ),
+          cabs( BLAS_A[ir][is] - a[ir][is] ), cabs(a[ir][is]) );
+    }}
+  }
+   
+  fini_1level_ztable ( &BLAS_TAU  );
+  fini_1level_ztable ( &BLAS_WORK );
+  fini_2level_ztable ( &BLAS_A    );
+
+  return ( 0 );
+}  /* end of qr_mat */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
+
+/***********************************************************************************************
+ * some linal helper functions
+ ***********************************************************************************************/
+#if 0
+inline double _Complex co_eq_v_dag_ti_w ( double _Complex * const r , double _Complex * const s , int const dim ) {
+  double _Complex res = 0.;
+  for ( int i = 0; i < dim; i++ ) res += conj( r[i] ) * s[i] ;
+  /* int ONE;
+  _F(zdotc)( &res, &dim, r, &ONE, s, &ONE ); */
+  return ( res );
+}  /* end of co_eq_v_dag_ti_w */
+
+inline double re_eq_v_dag_ti_v ( double _Complex * const r , int const dim ) {
+  double res = 0.;
+  for ( int i = 0; i < dim; i++ ) {
+    double const a = creal( r[i] );
+    double const b = cimag( r[i] );
+    res += a * a + b * b;
+  }
+  return( res );
+  /* double _Complex res = 0.;
+  int ONE;
+  _F(zdotc)( &res, &dim, r, &ONE, r, &ONE );
+  return ( creal(res) ); */
+}  /* end of re_eq_v_dag_ti_v  */
+
+
+inline void v_pl_eq_co_ti_w ( double _Complex * const v , double _Complex * const w, double _Complex const z, int const dim  ) {
+  // for ( int i =0; i<dim; i++ ) v[i] += z * w[i];
+  int ONE;
+  _F(zaxpy) ( &dim, &z, w, &ONE, v, &ONE );
+}  /* end of v_pl_eq_co_ti_w  */
+#endif
+/***********************************************************************************************
+ * Gram-Schmidt procedure
+ * NO PIVOTING at this point
+ *
+ * Determines ONB from v in u and transformation matrix s (lower-triangular), such that
+ * s v = u
+ *
+ * in:  v is n x dim
+ * out: u is n x dim
+ * out: s is n x n
+ *
+ ***********************************************************************************************/
+int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double _Complex ** const v, int const n, int const dim ) {
+  
+  double const eps = 1.e-14;
+  int rank = 0;
+  int N   = n;
+  int NN  = n * n;
+  int DIM = dim;
+  int ONE = 1;
+  double _Complex z;
+  char CHAR_N = 'N';
+  double _Complex Z_1 = 1.;
+  double _Complex Z_0 = 0.;
+
+  double _Complex *** r  = init_3level_ztable ( 3, n, n );
+  double _Complex **  q  = init_2level_ztable ( n, dim );
+  double * norm2 = init_1level_dtable ( n );
+  int * pivot = init_1level_itable ( n );
+
+  if ( r == NULL || q == NULL || norm2 == NULL || pivot == NULL ) return ( -1 );
+
+  rot_mat_unity ( r[0], n );
+
+  for ( int i = 0; i < n; i++ ) {
+
+    rot_mat_unity ( r[1], n );
+
+    _F(zcopy) ( &DIM, v[i], &ONE, q[i], &ONE );
+
+    for ( int j = rank-1; j >= 0 ; j--) {
+      int const k = pivot[j];
+      /* fprintf ( stdout, "# [gs_onb_mat] i = %d at rank = %d using pivot k %d \n", i, rank , k); */
+
+
+      /* z <- u^k+ v^i */
+      z = _F(zdotc)( &DIM, q[k], &ONE, v[i], &ONE );
+
+      /* z <- -z  */
+      z = -z * norm2[k];
+
+      /* temporary R_ik <- z */
+      r[1][i][k] = z;
+      /* fprintf ( stdout, "# [gs_onb_mat] i %d k %d z = %25.16e  %25.16e\n", i, k, creal(z), cimag(z) ); */
+
+      /* u^i <- u^i + z u^k  */
+      _F(zaxpy) ( &DIM, &z, q[k], &ONE, q[i], &ONE );
+    }
+
+    /* accumulate r2 <- r1 x r0 
+     *            r0 <- r2 
+     * THIS IS A COSTLY VERSION 
+     * reduce by using N -> rank where possible ? */
+     _F(zgemm) ( &CHAR_N, &CHAR_N, &N, &N, &N, &Z_1, r[0][0], &N, r[1][0], &N, &Z_0, r[2][0], &N, 1, 1 );
+     _F(zcopy) ( &NN, r[2][0], &ONE, r[0][0], &ONE );
+
+    /* normalization */
+    z = _F(zdotc)(  &DIM, q[i], &ONE, q[i], &ONE );
+
+    norm2[i] = creal( z );
+    if ( norm2[i] > eps ) {
+      /* fprintf ( stdout, "# [gs_onb_mat] new entry i = %d at rank = %d\n", i, rank ); */
+      norm2[i] = 1. / norm2[i];
+      pivot[rank] = i;
+      _F(zcopy) ( &DIM, q[i], &ONE, u[rank], &ONE );
+      _F(zcopy) ( &N, r[0][i], &ONE, s[rank], &ONE );
+
+      /* for ( int l = 0; l < n; l++ ) fprintf ( stdout, "# [gs_onb_mat] r %d %d %25.16e %25.16e\n ", i, l, creal( r[0][i][l] ), cimag( r[0][i][l] ) ); */
+ 
+      rank++;
+    } else {
+      norm2[i] = 0.;
+    }
+
+    /* _F(zdscal) ( &DIM, &norm2[i], q[i], &ONE ); */
+
+  }  /* end of loop on rows */
+
+  /* test the obtained matrices
+   * test the relation s v = u (C)
+   *                   v^T s^T = u^T (F)
+   *                   [ dim x n ] x [ n x n ]       = dim x n   
+   *                   M = dim
+   *                   N = n
+   *                   K = n
+   */
+
+  if ( g_verbose > 4 ) {
+
+    if ( rank == 0 ) {
+      fprintf ( stdout, "# [gs_onb_mat] rank of v is zero; no test %s %d\n", __FILE__, __LINE__ );
+    } else {
+
+      double const eps_comp_equality = 1.e-12;
+  
+      double _Complex ** u_aux = init_2level_ztable ( n, dim );
+      if ( u_aux == NULL ) {
+        fprintf( stderr, "[gs_onb_mat] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__ );
+        return ( -5 );
+      }
+  
+      char BLAS_TRANSA = CHAR_N;
+      char BLAS_TRANSB = CHAR_N;
+  
+      int BLAS_M = dim;
+      int BLAS_N = n;
+      int BLAS_K = n;
+
+      int BLAS_LDA = BLAS_M;
+      int BLAS_LDB = BLAS_K;
+      int BLAS_LDC = BLAS_M;
+  
+      double _Complex * BLAS_A = v[0];
+      double _Complex * BLAS_B = s[0];
+      double _Complex * BLAS_C = u_aux[0];
+  
+      double _Complex BLAS_ALPHA = Z_1;
+      double _Complex BLAS_BETA  = Z_0;
+  
+
+      _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+/*
+     for ( int i = 0; i < n; i++ ) {
+     for ( int j = 0; j < dim; j++ ) {
+       u_aux[i][j] = 0.;
+       for ( int k = 0; k < n; k++ ) {
+         u_aux[i][j] += s[i][k] * v[k][j];
+       }
+     }}
+*/
+      /* _F(zgemm) ( &CHAR_N, &CHAR_N, &DIM, &N, &N, &Z_1, v[0], &N, s[0], &N, &Z_0, u_aux[0], &N, 1, 1 ); */
+  
+      for ( int i1 = 0; i1 < n; i1++ ) {
+        for ( int i2 = 0; i2 < dim; i2++ ) {
+          double const diff = cabs( u_aux[i1][i2] - u[i1][i2] );
+          double const norm = ( cabs( u_aux[i1][i2] ) + cabs ( u[i1][i2] ) ) / 2;
+          fprintf( stdout, "# [gs_onb_mat] %3d %3d      %25.16e %25.16e     %25.16e %25.16e    %16.7e / %16.7e", 
+              i1, i2, creal ( u_aux[i1][i2] ), cimag ( u_aux[i1][i2] ), creal ( u[i1][i2] ), cimag ( u[i1][i2] ) , diff , norm);
+          if( norm > eps_comp_equality && diff/norm > eps_comp_equality ) {
+            fprintf( stdout, "  error\n" );
+            fprintf ( stderr, "[gs_onb_mat] Error sv=u for index  %d %d  %s %d\n", i1, i2, __FILE__, __LINE__ );
+            return ( -4 );
+          } else {
+            fprintf( stdout, "  okay\n" );
+          }
+        }
+      }
+  
+      fini_2level_ztable ( &u_aux );
+    }
+  }
+
+  fini_3level_ztable ( &r );
+  fini_2level_ztable ( &q );
+  fini_1level_dtable ( &norm2 );
+  fini_1level_itable ( &pivot );
+
+  return ( rank );
+}  /* end of gs_onb_mat */
+
+/***********************************************************************************************/
+/***********************************************************************************************/
 }  // end of namespace cvc

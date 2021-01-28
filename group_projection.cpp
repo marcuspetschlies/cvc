@@ -2791,9 +2791,13 @@ int rot_mat_table_rotate_multiplett_product (
  * return reference rotation
  ***********************************************************/
 
+#ifndef _SQR
 #define _SQR(_a) ((_a)*(_a))
+#endif
 
+#ifndef _INT3_EQ_INT3
 #define _INT3_EQ_INT3(_p,_q) ( ( (_p)[0] == (_q)[0] ) && ( (_p)[1] == (_q)[1] ) && ( (_p)[2] == (_q)[2] ) )
+#endif
 
 inline int comp_int3_abs ( int const a[3] , int const b[3] ) {
   int a2[3] = { abs(a[0]), abs(a[1]), abs(a[2]) };
@@ -3126,4 +3130,174 @@ int get_little_group_elements ( int const p[3], rot_mat_table_type * const rtab 
 
 /***********************************************************/
 /***********************************************************/
+
+
+/****************************************************
+ * check irrep multiplett-rotation property
+ * for subduction matrix v
+ *
+ * use momentum_mapping == identity,
+ * in case momentum_mapping == NULL
+ ****************************************************/
+int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , int const rank, little_group_projector_type const p , char const * const ac, 
+    int const momentum_number, int *** const momentum_mapping ) {
+
+  double const eps = 1.e-12;
+
+  int const spinor_dim = p.rspin[0].dim * p.rspin[1].dim;
+  int const matrix_dim = spinor_dim * momentum_number;
+
+  int any_wrong = 0;
+
+  char tag[800];
+  sprintf( tag, "/%s/%s/refframerot%d/%s/%s/%s/refrow%d", ac, p.rtarget->group, p.refframerot, p.rtarget->irrep, p.rspin[0].irrep, p.rspin[1].irrep, p.ref_row_target );
+  
+  /****************************************************
+   * matrices for rotated v
+   ****************************************************/
+  double _Complex ** A = init_2level_ztable ( rank, matrix_dim );
+  double _Complex ** B = init_2level_ztable ( rank, matrix_dim );
+  if ( A == NULL || B == NULL ) {
+    fprintf( stderr, "[check_subduction_matrix_multiplett_rotation] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__ );
+    return (1);
+  }
+
+  /****************************************************
+   * loop on multiplet members
+   ****************************************************/
+  for ( int imu = 0; imu < p.rtarget->dim; imu++ ) {
+
+    for ( int irot = 0; irot < 2*p.rtarget->n; irot++ )  {
+  
+      double _Complex ** const r0 = irot < p.rtarget->n ? p.rspin[0].R[irot] : p.rspin[0].IR[irot % p.rtarget->n ];
+      double _Complex ** const r1 = irot < p.rtarget->n ? p.rspin[1].R[irot] : p.rspin[1].IR[irot % p.rtarget->n ];
+      double _Complex ** const tt = irot < p.rtarget->n ? p.rtarget->R[irot] : p.rtarget->IR[irot % p.rtarget->n ];
+
+      double const parity = irot < p.rtarget->n ? 1. : p.parity[0] * p.parity[1];
+
+      if ( strcmp( ac, "creation" ) == 0  ) {
+  
+        /****************************************************
+         * multiplication A_ik <- V_il S(R)_kl
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+          for (int k = 0; k < matrix_dim; k++ ) {
+
+            int const ip_k    = k / spinor_dim;
+            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
+            int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
+
+            double _Complex z = 0.;
+
+            for ( int l = 0; l < spinor_dim; l++ ) {
+
+              int const alpha_l = l / p.rspin[1].dim;
+              int const beta_l  = l % p.rspin[1].dim;
+
+              int const ll = ip_l * spinor_dim + l;
+
+              // z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
+              z += v[imu][ i ][ ll ] * r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ];
+            }
+            A[i][k] = z * parity;
+          }
+        }
+  
+        /****************************************************
+         * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+ 
+          for (int k = 0; k < matrix_dim; k++ ) {
+            double _Complex z = 0.;
+  
+            for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
+              // z += p.rtarget->R[irot][igamma][imu] * v[igamma][i][k];
+              z += tt[igamma][imu] * v[igamma][i][k];
+            }
+            B[i][k] = z;
+          }
+        }
+      } else if ( strcmp( ac, "annihilation" ) == 0 ) {
+
+        /****************************************************
+         * multiplication A_ik <- V_il S(R)_kl
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+
+          for (int k = 0; k < matrix_dim; k++ ) {
+
+            int const ip_k    = k / spinor_dim;
+            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
+            int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
+
+            double _Complex z = 0.;
+
+            for ( int l = 0; l < spinor_dim; l++ ) {
+
+              int const alpha_l = l / p.rspin[1].dim;
+              int const beta_l  = l % p.rspin[1].dim;
+
+              int const ll = ip_l * spinor_dim + l;
+
+              /* z += v[imu][i][l] * conj( r0[k/p.rspin[1].dim][l/p.rspin[1].dim] * r1[k%p.rspin[1].dim][l%p.rspin[1].dim] ); */
+              z += v[imu][ i ][ ll ] * conj( r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ] );
+            }
+
+            A[i][k] = z * parity;
+          }
+        }
+  
+        /****************************************************
+         * multiplication B_ik <- V^gamma'_ik  T(R)^gamma',gamma
+         ****************************************************/
+        for (int i = 0; i < rank; i++ ) {
+          for (int k = 0; k < matrix_dim; k++ ) {
+            double _Complex z = 0.;
+  
+            for ( int igamma = 0; igamma < p.rtarget->dim; igamma++ ) {
+              z += conj ( tt[igamma][imu] ) * v[igamma][i][k];
+            }
+            B[i][k] = z;
+          }
+        }
+
+      }
+
+      /****************************************************
+       * compare
+       ****************************************************/
+      double gnorm = 0., gdiff = 0.;
+      for (int i = 0; i < rank; i++ ) {
+      for (int k = 0; k < matrix_dim; k++ ) {
+        double const diff = cabs( A[i][k] - B[i][k] );
+        double const avrg = cabs( A[i][k] + B[i][k] ) * 0.5;
+        if ( g_verbose > 5 ) fprintf( stdout, "multiplett %d   %2d   %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", 
+            imu, irot, i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ), diff , avrg );
+            gnorm += avrg;
+            gdiff += diff;
+      }}
+      char const * const state = ( gnorm > eps && gdiff/gnorm > eps  ) ? any_wrong=1, "wrong" : "okay";
+      fprintf( stdout, "# [check_subduction_matrix_multiplett_rotation] %s/row%d/rot%d normdiff %e   %e  %s\n", tag, imu, irot, gdiff , gnorm, state );
+
+  
+    }  /* end of loop on rotations */
+
+  }  /* end of loop on multiplet members */
+
+  /****************************************************
+   * deallocate temporary matrices
+   ****************************************************/
+  fini_2level_ztable ( &A );
+  fini_2level_ztable ( &B );
+
+  return ( any_wrong );
+
+}  /* end of check_subduction_matrix_multiplett_rotation  */
+
+/***********************************************************/
+/***********************************************************/
+
 }  /* end of namespace cvc */

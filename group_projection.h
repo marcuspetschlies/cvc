@@ -158,6 +158,8 @@ inline int comp_int3_abs ( int const a[3] , int const b[3] );
 
 int get_little_group_elements ( int const p[3], rot_mat_table_type * const rtab );
 
+int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , int const rank, little_group_projector_type const p , char const * const ac, int const momentum_number, int *** const momentum_mapping );
+
 /***********************************************************/
 /***********************************************************/
 

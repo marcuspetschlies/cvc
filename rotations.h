@@ -76,6 +76,8 @@ void rot_mat_adj_ti_mat (double _Complex **C, double _Complex **A, double _Compl
 
 void rot_printf_matrix (double _Complex **R, int N, char *A, FILE*ofs );
 
+void rot_printm_matrix (double _Complex ** const R, int const N, char * const A, FILE*ofs );
+
 void rot_printf_matrix_comp (double _Complex **R, double _Complex **S, int N, char *A, FILE*ofs );
 
 double rot_mat_norm2 (double _Complex **R, int N);
@@ -178,6 +180,11 @@ void rot_vec_eq_mat_diag ( double _Complex *w, double _Complex **A, int num );
 void co_pl_eq_mat_diag ( double _Complex * const w, double _Complex ** const A, int num );
 
 void rot_vec_printf (double _Complex * const v, int const N, char *A, FILE*ofs );
+
+int qr_mat ( double _Complex ** q, double _Complex ** const r, double _Complex ** const a, int const dim );
+
+int gs_onb_mat ( double _Complex ** const s, double _Complex ** const u, double _Complex ** const v, int const n, int const dim );
+
 
 /***********************************************************
  * check boundary status of a point
