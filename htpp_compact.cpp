@@ -351,9 +351,8 @@ int main(int argc, char **argv) {
   int const n_tc = g_src_snk_time_separation + 1;
   int const num_meas_per_conf = num_src_per_conf * g_coherent_source_number;
 
-  double ******** corr       = init_8level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, 2, num_conf, num_meas_per_conf, 2 * n_tc );
-  double ******* corr_latsym = init_7level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, num_conf, num_meas_per_conf, 2 * n_tc );
-  if ( corr == NULL || corr_latsym == NULL ) {
+  double ******** corr = init_8level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, 2, num_conf, num_meas_per_conf, 2 * n_tc );
+  if ( corr == NULL ) {
     fprintf( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(2);
   }
@@ -428,46 +427,20 @@ int main(int argc, char **argv) {
              ***********************************************************/
             for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-              /***********************************************************
-               * loop on parity
-               ***********************************************************/
-              for ( int iparity = 0; iparity < 2; iparity++ ) {
-                int const sparity = 1 - 2 * iparity;
-
-                int const parity_sign =
-                      gamma_parity_sign[tp->gi1[0]]
-                    * gamma_parity_sign[tp->gi2]
-                    * gamma_parity_sign[tp->gf1[0]]
-                    * gamma_parity_sign[tp->gf2];
-
-                int const charge_conjugation_sign = 
-                      gamma_chargeconjugation_sign[tp->gi1[0]]
-                    * gamma_chargeconjugation_sign[tp->gi2]
-                    * gamma_chargeconjugation_sign[tp->gf1[0]] 
-                    * gamma_chargeconjugation_sign[tp->gf2];
-
-                int const g5herm_sign =
-                        gamma_g5herm_sign[tp->gi1[0]]
-                      * gamma_g5herm_sign[tp->gi2]
-                      * gamma_g5herm_sign[tp->gf1[0]]
-                      * gamma_g5herm_sign[tp->gf2];
-
-                if ( g_verbose > 2 ) fprintf( stdout, "# [htpp_compact] parity_sign = %d; charge_conjugation_sign = %d; g5herm_sign = %d\n", parity_sign, charge_conjugation_sign, g5herm_sign ); 
-
                  int pf[3] = {
-                  sparity * g_sink_momentum_list[ipf][0],
-                  sparity * g_sink_momentum_list[ipf][1],
-                  sparity * g_sink_momentum_list[ipf][2] };
+                     g_sink_momentum_list[ipf][0],
+                     g_sink_momentum_list[ipf][1],
+                     g_sink_momentum_list[ipf][2] };
 
                 int pi1[3] = {
-                  sparity * g_source_momentum_list[ipi][0],
-                  sparity * g_source_momentum_list[ipi][1],
-                  sparity * g_source_momentum_list[ipi][2] };
+                     g_source_momentum_list[ipi][0],
+                     g_source_momentum_list[ipi][1],
+                     g_source_momentum_list[ipi][2] };
 
                 int ptot[3] = {
-                  sparity * g_total_momentum_list[iptot][0],
-                  sparity * g_total_momentum_list[iptot][1],
-                  sparity * g_total_momentum_list[iptot][2] };
+                     g_total_momentum_list[iptot][0],
+                     g_total_momentum_list[iptot][1],
+                     g_total_momentum_list[iptot][2] };
 
                 int pi2[3] = {
                   -( ptot[0] + pi1[0] ),
@@ -489,11 +462,6 @@ int main(int argc, char **argv) {
 
                 if ( ! momentum_filter ( tp ) ) continue;
 
-                /***********************************************************
-                 * latsym selection weights
-                 ***********************************************************/
-                double const amp_re_factor = 0.25 * ( iparity == 0 ? ( 1 + parity_sign * charge_conjugation_sign * g5herm_sign ) : ( parity_sign + charge_conjugation_sign * g5herm_sign) );
-                double const amp_im_factor = 0.25 * ( iparity == 0 ? ( 1 - parity_sign * charge_conjugation_sign * g5herm_sign ) : ( parity_sign - charge_conjugation_sign * g5herm_sign) );
 
                 /***********************************************************
                  * loop on diagrams
@@ -586,15 +554,10 @@ int main(int argc, char **argv) {
                       corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh][2*it  ] = creal ( zbuffer );
                       corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh][2*it+1] = cimag ( zbuffer );
 
-                      /*
-                       * add correlator using discrete quantum numbers */
-                      corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh][2*it  ] += amp_re_factor * creal ( zbuffer );
-                      corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh][2*it+1] += amp_im_factor * cimag ( zbuffer );
                     }
 
                   }  /* end of loop on coherent sources */
                 }  /* end of loop on diagrams */
-              }  /* end of loop on parity */
             }  /* end of loop on source momenta */
           }  /* end of loop on total momentum */
         }  /* end of loop on sink momenta */
@@ -609,408 +572,143 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on configs */
    
-  /***********************************************************
-   * write data to ascii file
-   ***********************************************************/
-  for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
-
-    twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
-
-    for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-      
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
-
-        for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
-
-          int pc[3] = {
-            g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
-            g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
-            g_total_momentum_list[iptot][2] - g_sink_momentum_list[ipf][2] };
-
-          int pi2[3] = {
-            -g_total_momentum_list[iptot][0] - g_source_momentum_list[ipi][0],
-            -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
-            -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
- 
-          memcpy ( tp->pi1, g_source_momentum_list[ipi], 3*sizeof(int) );
-          memcpy ( tp->pi2, pi2, 3*sizeof(int) );
-          memcpy ( tp->pf1, g_sink_momentum_list[ipf], 3*sizeof(int) );
-          memcpy ( tp->pf2, pc, 3*sizeof(int) );
-
-          if ( ! momentum_filter ( tp ) ) continue;
-
-
-          char output_filename[2000];
-            
-          get_obs_name ( output_filename, tp , g_src_snk_time_separation, "corr" );
-
-          fprintf ( stdout, "# [htpp_compact] output_filename = %s\n", output_filename );
-
-          FILE * ofs = fopen ( output_filename, "w" );
-
-          for( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-              for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
-
-                 int const csx[4] = { 
-                     ( conf_src_list[iconf][isrc][2] + ( T_global / g_coherent_source_number ) * icoh ) % T_global,
-                     ( conf_src_list[iconf][isrc][3] + (LX_global / g_coherent_source_number ) * icoh) % LX_global,
-                     ( conf_src_list[iconf][isrc][4] + (LY_global / g_coherent_source_number ) * icoh) % LY_global,
-                     ( conf_src_list[iconf][isrc][5] + (LZ_global / g_coherent_source_number ) * icoh) % LZ_global };
-
-                /***********************************************************
-                 * output key
-                 ***********************************************************/
-                fprintf ( ofs, "# /%c/conf%d/t%d_x%d_y%d_z%d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], csx[0], csx[1], csx[2], csx[3]  );
-                for ( int it = 0; it < n_tc; it++ ) {
-                  fprintf ( ofs, "%4d %25.16e %25.16e\n", it,
-                  corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it  ],
-                  corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+1] );
-                } 
-
-              }
-            }
-          }
-          fclose ( ofs );
-        }  /* pi */
-      }  /* ptot */
-    }  /* pf */
-  }  /* end of loop on 2pt functions */
+  /***************************************************************************/
+  /***************************************************************************/
 
   /***************************************************************************
-   ***************************************************************************
-   **
-   ** UWerr statistical analysis for corr
-   **
-   ***************************************************************************
+   * write to h5 file
    ***************************************************************************/
-  for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
+  for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-    twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
+    sprintf ( filename, "%s.dt%d.px%d_py%d_pz%d.h5", g_outfile_prefix, g_src_snk_time_separation, 
+        g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] );
 
-    /***************************************************************************
-     * UWerr analysis for latsym-averaged observables
-     ***************************************************************************/
+
     for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+      for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-        for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
-     
-          int pc[3] = {
+        int pc[3] = {
             g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
             g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
             g_total_momentum_list[iptot][2] - g_sink_momentum_list[ipf][2] };
 
-          int pi2[3] = {
+#if 0
+        int pi2[3] = {
             -g_total_momentum_list[iptot][0] - g_source_momentum_list[ipi][0],
             -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
             -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
+#endif
+        int pi1[3] = {
+            g_source_momentum_list[ipi][0],
+            g_source_momentum_list[ipi][1],
+            g_source_momentum_list[ipi][2] };
 
-          memcpy ( tp->pi1, g_source_momentum_list[ipi], 3*sizeof(int) );
-          memcpy ( tp->pi2, pi2,                         3*sizeof(int) );
-          memcpy ( tp->pf1, g_sink_momentum_list[ipf],   3*sizeof(int) );
-          memcpy ( tp->pf2, pc,                          3*sizeof(int) );
+        for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
 
-          if ( ! momentum_filter ( tp ) ) continue;
+          twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
 
-          for ( int ireim =0; ireim < 2; ireim++ ) {
-            gettimeofday ( &ta, (struct timezone *)NULL );
+          /***************************************************************************
+           * key prefix
+           ***************************************************************************/
+          char key_prefix[400];
 
-            int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
-            double ** data = init_2level_dtable ( nmeas, n_tc );
-            if ( data == NULL ) {
-              fprintf ( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-              EXIT(12);
-            }
+          if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+            sprintf ( key,
+                "/%s/pfx%dpfy%dpfz%d/gc_%s/gi_%s",
+                tp->name,
+                pf[0], pf[1], pf[2],
+                gamma_bin_to_name[tp->gf2],
+                gamma_bin_to_name[tp->gi1[0]] );
 
-#pragma omp parallel for shared(fold_correlator)
-            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
-                  for ( int it = 0; it < n_tc; it++ ) {
-                    data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
-                  }
+          } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
+            sprintf ( key,
+                "/%s/pfx%dpfy%dpfz%d/pi1x%dpi1y%dpi1z%d
+                
+                gf_%s/dt%d/
+                /gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
+                tp->name,
+                pf[0], pf[1], pf[2],
+                pi1[0], pi1[1], pi1[2],
 
-                  /***************************************************************************
-                   * fold correlator·, use time reversal property
-                   ***************************************************************************/
-                  if ( (strcmp ( tp->type , "m-m" ) == 0) && fold_correlator ) {
-                    for ( int it = 1; it < n_tc/2; it++ ) {
-                      int const itt = ( n_tc - it ) % n_tc;
-                      double const dtmp = 0.5 * ( 
-                            data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] 
-                          + gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]] * data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] );
-                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]  = dtmp;
-                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] = dtmp * gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]];
-                    }
-                  }
+                gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
+                pi2[0], pi2[1], pi2[2], gamma_bin_to_name[tp->gi2],
+                gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
+                );
 
-                }
-              }
-            }  /* end of loop on num_conf */
+          } else if ( strcmp ( tp->type , "m-m" ) == 0 ) {
+            sprintf ( key,
+                /* /fs-fc/t70x02y11z20/gf02_gi02/PX0_PY0_PZ0 */
+                "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d_gi%.2d/PX%d_PY%d_PZ%d",
+                diagram_name, gsx[0], gsx[1], gsx[2], gsx[3],
+                tp->gf1[0], tp->gi1[0],
+                pf[0], pf[1], pf[2] );
+          } else {
+            continue;
+          } 
 
-            char obs_name[2000];
-
-            get_obs_name ( obs_name, tp , g_src_snk_time_separation, reim_str[ireim] );
-            strcat ( obs_name, ".latsymavg" );
-
-            exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "[htpp_compact] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(14);
-            }
-
-           /***************************************************************************
-            * effective mass analysis
-            ***************************************************************************/
-            if ( strcmp( "m-m", tp->type ) == 0 ) {
-            
-              int const Thp1 = n_tc / 2 + 1;
-     
-              for ( int itau = 1; itau < Thp1/2; itau++ ) {
-                int narg = 3;
-                int arg_first[3] = { 0, 2 * itau, itau };
-                int arg_stride[3] = {1,1,1};
-                int nT = Thp1 - 2 * itau;
-
-                char obs_name2[2000];
-                sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
-
-                exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
-                if ( exitstatus != 0 ) {
-                  fprintf ( stderr, "[htpp_compact] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                  EXIT(115);
-                }
-
-              }
-
-            }
-
-            fini_2level_dtable ( &data );
-  
-            gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "htpp_compact", "stats-uwerr-analysis", io_proc == 2 );
-
-          }  /* end of loop on ireim */
-        }  /* ipi */
-      }  /* iptot */
-    }  /* ipf */
-
-    /***************************************************************************
-     * UWerr analysis for non-latsy-averaged data
-     ***************************************************************************/
-    for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-
-      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
-
-        for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
-
-          for ( int iparity = 0; iparity < 2; iparity++ ) {
-            int const sparity = 1 - 2 * iparity;
-
-            int pf[3] = {
-              sparity * g_sink_momentum_list[ipf][0],
-              sparity * g_sink_momentum_list[ipf][1],
-              sparity * g_sink_momentum_list[ipf][2] };
-
-            int ptot[3] =  {
-              sparity * g_total_momentum_list[iptot][0],
-              sparity * g_total_momentum_list[iptot][1],
-              sparity * g_total_momentum_list[iptot][2] };
-     
-            int pc[3] = {
-              ptot[0] - pf[0],
-              ptot[1] - pf[1],
-              ptot[2] - pf[2] };
-
-            int pi1[3] = {
-             sparity * g_source_momentum_list[ipi][0],
-             sparity * g_source_momentum_list[ipi][1],
-             sparity * g_source_momentum_list[ipi][2] };
-
-            int pi2[3] = {
-              -ptot[0] - pi1[0],
-              -ptot[1] - pi1[1],
-              -ptot[2] - pi1[2] };
-
-            memcpy ( tp->pi1, pi1, 3*sizeof(int) );
-            memcpy ( tp->pi2, pi2, 3*sizeof(int) );
-            memcpy ( tp->pf1, pf,  3*sizeof(int) );
-            memcpy ( tp->pf2, pc,  3*sizeof(int) );
-
-            if ( ! momentum_filter ( tp ) ) continue;
-
-
-            for ( int ireim =0; ireim < 2; ireim++ ) {
-              gettimeofday ( &ta, (struct timezone *)NULL );
-
-              int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
-              double ** data = init_2level_dtable ( nmeas, n_tc );
-              if ( data == NULL ) {
-                fprintf ( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-                EXIT(12);
-              }
-
-#pragma omp parallel for shared(fold_correlator)
-              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
-                    for ( int it = 0; it < n_tc; it++ ) {
-                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] = corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
-                    }
-
-                    /***************************************************************************
-                     * fold correlator·, use time reversal property
-                     ***************************************************************************/
-                    if ( (strcmp ( tp->type , "m-m" ) == 0) && fold_correlator ) {
-                      for ( int it = 1; it < n_tc/2; it++ ) {
-                        int const itt = ( n_tc - it ) % n_tc;
-                        double const dtmp = 0.5 * ( 
-                              data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] 
-                            + gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]] * data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] );
-                        data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]  = dtmp;
-                        data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] = dtmp * gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]];
-                      }
-                    }
-
-                  }
-                }
-              }  /* end of loop on num_conf */
-
-              char obs_name[2000];
-
-              get_obs_name ( obs_name, tp , g_src_snk_time_separation, reim_str[ireim] );
-
-              exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "[htpp_compact] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(14);
-              }
-
-              fini_2level_dtable ( &data );
-  
-              gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "htpp_compact", "stats-uwerr-analysis", io_proc == 2 );
-
-            }  /* end of loop on ireim */
-          }  /* end of loop on iparity */
-        }  /* ipi */
-      }  /* iptot */
-    }  /* ipf */
-
-    /***************************************************************************
-     * simple orbit average for m-m 2pt
-     ***************************************************************************/
-    if ( strcmp( "m-m", tp->type ) == 0 ) {
-
-      for ( int ireim =0; ireim < 2; ireim++ ) {
-
-        int const nmeas = num_conf * num_src_per_conf * g_coherent_source_number;
-        double ** data = init_2level_dtable ( nmeas, n_tc );
-        if ( data == NULL ) {
-          fprintf ( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-          EXIT(12);
-        }
-
-#pragma omp parallel for shared(fold_correlator)
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-          for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-            for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
-              for ( int it = 0; it < n_tc; it++ ) {
-
-                for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-                  int pf[3] = {  g_sink_momentum_list[ipf][0],  g_sink_momentum_list[ipf][1],  g_sink_momentum_list[ipf][2] };
-                  int pi[3] = { -g_sink_momentum_list[ipf][0], -g_sink_momentum_list[ipf][1], -g_sink_momentum_list[ipf][2] };
-
-                  int const ipi   = get_momentum_id ( pi, g_source_momentum_list, g_source_momentum_number );
-                  int const iptot = get_momentum_id ( pf, g_total_momentum_list, g_total_momentum_number );
-                  if ( ipi == -1 || iptot == -1 ) {
-                    fprintf ( stderr, "[htpp_compact] Error from get_momentum_id %s %d\n", __FILE__, __LINE__ );
-                    EXIT(123);
-                  } else if ( g_verbose > 4 && iconf == 0 && isrc == 0 && icoh == 0 ) 
-                    fprintf( stdout, "# [htpp_compact] ipf %d   ipi %d   iptot %d %s %d\n", ipf, ipi, iptot, __FILE__, __LINE__ );
-
-                  data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] += corr_latsym[i_2pt][iptot][ipf][ipi][iconf][isrc*g_coherent_source_number+icoh][2*it+ireim];
-                }
-                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it] /= (double)g_sink_momentum_number;
-              }
-
-              /***************************************************************************
-               * fold correlator·, use time reversal property
-               ***************************************************************************/
-              for ( int it = 1; it < n_tc/2; it++ ) {
-                int const itt = ( n_tc - it ) % n_tc;
-                double const dtmp = 0.5 * (
-                      data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]
-                    + gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]] * data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] );
-                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][it]  = dtmp;
-                data[(iconf*num_src_per_conf+isrc)*g_coherent_source_number+icoh][itt] = dtmp * gamma_timereversal_sign[tp->gi1[0]] * gamma_timereversal_sign[tp->gf1[0]];
-              }
-            }
-
-          }
-        } /* end of loop on num_conf */
-
-        char obs_name[2000];
-      
-        sprintf ( obs_name,
-            "%s_gf_%s_pfx%dpfy%dpfz%d_gi1_%s_pi1x%dpi1y%dpi1z%d.%s.orbit",
-            tp->name,
-            gamma_bin_to_name[tp->gf1[0]],
-            g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2],
-            gamma_bin_to_name[tp->gi1[0]],
-            -g_sink_momentum_list[0][0], -g_sink_momentum_list[0][1], -g_sink_momentum_list[0][2],
-            reim_str[ireim] );
-
-
-        exitstatus = apply_uwerr_real (  data[0], nmeas, n_tc, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[htpp_compact] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(14);
-        }
-
-        /***************************************************************************
-         * effective mass analysis
-         ***************************************************************************/
-
-        int const Thp1 = n_tc / 2 + 1;
-
-        for ( int itau = 1; itau < Thp1/2; itau++ ) {
-          int narg = 3;
-          int arg_first[3] = { 0, 2 * itau, itau };
-          int arg_stride[3] = {1,1,1};
-          int nT = Thp1 - 2 * itau;
-
-          char obs_name2[2000];
-          sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
-
-          exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, nT, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[htpp_compact] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(115);
+          if ( g_verbose > 2 ) {
+            fprintf ( stdout, "# [htpp_compact] h5 key = %s %s %d\n", key , __FILE__, __LINE__ );
           }
 
-        }
+          /***********************************************************
+           * loop on configs 
+           ***********************************************************/
+          for( int iconf = 0; iconf < num_conf; iconf++ ) {
 
+            /***********************************************************
+             * loop on sources per config
+             ***********************************************************/
+            for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
 
-        fini_2level_dtable ( &data );
-      }  /* of ireim */
+              char const stream = conf_src_list[iconf][isrc][0];
+              int const Nconf   = conf_src_list[iconf][isrc][1];
+              int const t_base  = conf_src_list[iconf][isrc][2];
 
-    }  /* end of if type = m-m */
+              /***********************************************************
+               * store the source coordinates
+               ***********************************************************/
+              int const gsx[4] = {
+                  conf_src_list[iconf][isrc][2],
+                  conf_src_list[iconf][isrc][3],
+                  conf_src_list[iconf][isrc][4],
+                  conf_src_list[iconf][isrc][5] };
 
+              for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
 
+                /* coherent source timeslice */
+                int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * icoh ) % T_global;
 
-  }  /* i2pt */
+                int const csx[4] = { t_coherent ,
+                                   ( gsx[1] + (LX_global / g_coherent_source_number ) * icoh) % LX_global,
+                                   ( gsx[2] + (LY_global / g_coherent_source_number ) * icoh) % LY_global,
+                                   ( gsx[3] + (LZ_global / g_coherent_source_number ) * icoh) % LZ_global };
 
-  /***************************************************************************/
-  /***************************************************************************/
+                int const cdim[1] = { 2 * n_tc };
+                char key[500];
+                sprintf ( key, "%s/c%d/t%dx%dy%dz%d", key_prefix, Nconf, csx[0], csx[1], csx[2], csx[3] );
+
+                exitstatus = write_h5_contraction ( corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh], NULL, filename, key, "double", 1, cdim );
+                if ( exitstatus != 0) {
+                  fprintf ( stderr, "[http_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(123);
+                }
+
+              }  /* end of loop on coherent sources */
+
+            }  /* end of loop on base sources */
+         
+          }  /* end of loop on configs */
+
+        }  /* end of loop on 2pt functions */
+      }  /* end if loop on source momentum / pi1 */
+    }  /* end of loop on sink momentum */
+  }  /* end of loop on total momentum */
 
   /***************************************************************************
    * free the correlator field
    ***************************************************************************/
   fini_8level_dtable ( &corr );
-  fini_7level_dtable ( &corr_latsym );
 
   /***************************************************************************/
   /***************************************************************************/
