@@ -668,7 +668,7 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
  * IN : io_proc         : I/O id
  *
  ***************************************************************************/
-int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const io_proc ) {
+int read_from_h5_file ( void * const buffer, void * file, char*tag,  const char * data_type, int const io_proc ) {
 
   if ( io_proc > 0 ) {
 
@@ -734,7 +734,18 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
       /***************************************************************************
        * some default settings for H5Dread
        ***************************************************************************/
-      hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+      hid_t mem_type_id;
+      if ( strcmp( data_type , "double" ) == 0 ) {
+        mem_type_id   = H5T_NATIVE_DOUBLE;
+      } else if ( strcmp( data_type , "int" ) == 0 ) {
+        mem_type_id   = H5T_NATIVE_INT;
+      } else if ( strcmp( data_type , "char" ) == 0 ) {
+        mem_type_id   = H5T_NATIVE_CHAR;
+      } else {
+        fprintf ( stdout, "[read_from_h5_file] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+        return ( 8 );
+      }
+
       hid_t mem_space_id  = H5S_ALL;
       hid_t file_space_id = H5S_ALL;
       hid_t xfer_plist_id = H5P_DEFAULT;
