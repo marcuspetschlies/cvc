@@ -35,7 +35,11 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader,
   const int prec, const int N, DML_Checksum * ans);
 
 #ifdef HAVE_LHPC_AFF
+
+int read_aff_contraction ( void * const contr, void * const areader, void * const afilename, char * tag, unsigned int const nc);
+
 int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type);
+
 #endif
 
 #if HAVE_HDF5

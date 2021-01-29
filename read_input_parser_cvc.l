@@ -12,7 +12,7 @@ ZT [0-9(10)(11)]
 IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
-FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/"]+
+FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/""+"]+
 CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
@@ -553,6 +553,10 @@ namespace cvc {
     cvc::g_noise_type = 1;
   } else if(strcmp(yytext, "Z2")==0 ) {
     cvc::g_noise_type = 2;
+  } else if(strcmp(yytext, "Z3")==0 ) {
+    cvc::g_noise_type = 3;
+  } else if(strcmp(yytext, "B2")==0 ) {
+    cvc::g_noise_type = 4;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] noise type set to %s\n",yytext);
 }  

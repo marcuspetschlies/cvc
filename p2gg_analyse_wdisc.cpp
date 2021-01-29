@@ -43,10 +43,10 @@
 #include "gamma.h"
 #include "contract_loop_inline.h"
 
-#undef _TWOP_COMPACT
-#define _TWOP_PERCONF
+#define _TWOP_COMPACT 1
+#define _TWOP_PERCONF 0
 
-#define _USE_SUBTRACTED
+#define _USE_SUBTRACTED 1
 
 using namespace cvc;
 
@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
   double loop_norm = 1.;
   int loop_transpose = 0;
   int loop_step = 1;
+  int loop_nev = -1;
 
   double ****** pgg_disc = NULL;
 
@@ -131,7 +132,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "tWh?f:N:S:F:O:D:w:E:r:n:s:")) != -1) {
+  while ((c = getopt(argc, argv, "tWh?f:N:S:F:O:D:w:E:r:n:s:v:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -184,6 +185,10 @@ int main(int argc, char **argv) {
     case 's':
       loop_step = atoi ( optarg );
       fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_step set to %d\n", loop_step );
+      break;
+    case 'v':
+      loop_nev = atoi( optarg );
+      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_nev set to %d\n", loop_nev );
       break;
     case 'h':
     case '?':
@@ -363,7 +368,7 @@ int main(int argc, char **argv) {
     EXIT(16);
   }
 
-#ifdef _TWOP_PERCONF
+#if _TWOP_PERCONF
 
   /***********************************************************
    * loop on configs and source locations per config
@@ -531,7 +536,7 @@ int main(int argc, char **argv) {
 
   }   /* end of loop on configurations */
 
-#elif ( defined _TWOP_COMPACT )
+#elif _TWOP_COMPACT
 
   /**********************************************************
    * loop on momenta
@@ -567,8 +572,8 @@ int main(int argc, char **argv) {
         gettimeofday ( &ta, (struct timezone *)NULL );
         struct AffNode_s *affn = NULL, *affdir = NULL;
 
-        sprintf ( filename, "%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", 
-          correlator_prefix[operator_type], flavor_tag[operator_type], gamma_v_list[mu], gamma_v_list[nu],
+        sprintf ( filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff", 
+            filename_prefix2, correlator_prefix[operator_type], flavor_tag[operator_type], gamma_v_list[mu], gamma_v_list[nu],
           sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
         affr = aff_reader ( filename );
@@ -830,8 +835,14 @@ int main(int argc, char **argv) {
 
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
-      sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev0.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+      if ( loop_nev < 0 ) {
+        sprintf ( filename, "stream_%c/%s/%d/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+          conf_src_list[iconf][0][1],
           conf_src_list[iconf][0][1], loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      } else {
+        sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
+            conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+      }
 
       if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
       FILE * ofs = fopen ( filename, "r" );
@@ -877,6 +888,9 @@ int main(int argc, char **argv) {
         loop_st_sign *= -1;
       }
 
+      /**********************************************************
+       * project loop matrices to spin structure
+       **********************************************************/
       gamma_matrix_type gf;
       gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[sequential_source_gamma_id] );
       if ( g_verbose > 2 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
@@ -887,18 +901,18 @@ int main(int argc, char **argv) {
         EXIT(112);
       }
 
-
+      if ( g_verbose > 0 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
       project_loop ( loops_proj[0][0], gf.m, loops_matrix[0][0][0][0], num_conf * g_nsample * T_global, loop_transpose );
 
+      /**********************************************************
+       * average loop over samples for each config and timeslice
+       **********************************************************/
       double ** loop_avg = init_2level_dtable ( num_conf, 2*T_global );
       if ( loop_avg == NULL ) {
         fprintf ( stderr, "[p2gg_analyse_wdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(115);
       }
 
-      /**********************************************************
-       * average loop over samples for each config and timeslice
-       **********************************************************/
 #pragma omp parallel for
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
         double const norm = loop_norm / (double)( g_nsample * loop_step );
@@ -1163,7 +1177,6 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on configurations */
 
-
       /**********************************************************
        * loop on sequential source timeslices
        **********************************************************/
@@ -1181,6 +1194,12 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(16);
         }
+
+        /* remember: loop_type_reim = 1 means use imaginary part */
+        int const loop_type_reim_sign[2] = { +1, loop_type_reim ? -1 : +1 };
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_type_reim_sign = %d, %d\n", loop_type_reim_sign[0], loop_type_reim_sign[1] );
+
+
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
@@ -1198,8 +1217,11 @@ int main(int argc, char **argv) {
               for ( int s2 = 0; s2 < 4; s2++ ) {
                 int s5d_sign = sigma_g5d[ gamma_v_list[s1] ] * sigma_g5d[ gamma_v_list[s2] ];
                 int st_sign  = sigma_t[ gamma_v_list[s1] ]   * sigma_t[ gamma_v_list[s2] ] * loop_st_sign;
+                if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] s5d_sign = %d    st_sign = %d   loop_st_sign = %d\n",
+                    s5d_sign, st_sign, loop_st_sign );
 
                 for ( int it = 0; it < T_global; it++ ) {
+
 
 /****************************************
  *
@@ -1212,24 +1234,24 @@ int main(int argc, char **argv) {
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
                       + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
                       - ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[0];
 
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
                       + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
                       - ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[1];
 
                   } else if ( loop_type == 2 ) {
                     /* Scalar */
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it  ] = (
                       + ( 1 + s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it  ] 
                       + ( st_sign + s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it  ]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[0];
 
                     pgg_disc[iconf][isrc][imom][s1][s2][2*it+1] = (
                       + ( 1 - s5d_sign * st_sign) * hvp[iconf][isrc][imom][0][s1][s2][2*it+1] 
                       + ( st_sign - s5d_sign )    * hvp[iconf][isrc][imom][1][s1][s2][2*it+1]
-                      ) * loop_pgg[iconf][2*tseq+loop_type_reim];
+                      ) * loop_pgg[iconf][2*tseq+loop_type_reim] * loop_type_reim_sign[1];
                   }
                 }
               }}
@@ -1460,7 +1482,7 @@ int main(int argc, char **argv) {
         }  /* end of loop on real / imag */
 
 
-#ifdef _USE_SUBTRACTED
+#if _USE_SUBTRACTED
         /****************************************
          * statistical analysis for orbit average
          *
@@ -1534,7 +1556,7 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on real / imag */
 
-#endif  /* of ifdef _USE_SUBTRACTED */
+#endif  /* of if _USE_SUBTRACTED */
 
         /**********************************************************
          * free p2gg table

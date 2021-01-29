@@ -17,7 +17,6 @@
 #include <math.h>
 #include <complex.h>
 #include <time.h>
-#include <getopt.h>
 
 
 namespace cvc {

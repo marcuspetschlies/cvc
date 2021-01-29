@@ -39,7 +39,10 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
-#define _TWOP_AFF
+#define _INPUT_AFF  1
+
+#define _OUTPUT_AFF 1
+#define _OUTPUT_H5  0
 
 using namespace cvc;
 
@@ -210,19 +213,26 @@ int main(int argc, char **argv) {
   /***********************************************************
    * twop array
    ***********************************************************/
-  double ******** twop = init_8level_dtable ( g_sink_gamma_id_number, g_source_gamma_id_number, g_sink_momentum_number, num_conf, num_src_per_conf, 2, T_global, 2 );
+#if _OUTPUT_AFF
+  double ******** twop = init_8level_dtable ( num_conf, num_src_per_conf, g_sink_gamma_id_number, g_source_gamma_id_number, g_sink_momentum_number, 2, T_global, 2 );
   if( twop == NULL ) {
+    fprintf ( stderr, "[compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT (24);
+  }
+#endif
+
+  double ****** twop_buffer = init_6level_dtable ( g_sink_gamma_id_number, g_source_gamma_id_number, g_sink_momentum_number, 2, T_global, 2 );
+  if( twop_buffer == NULL ) {
     fprintf ( stderr, "[compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT (24);
   }
 
   /***********************************************************
    *
-   * READ IN
+   * READ INPUT DATA
    *
    ***********************************************************/
-#ifdef _TWOP_AFF
-  gettimeofday ( &ta, (struct timezone *)NULL );
+
   /***********************************************************
    * loop on configs
    ***********************************************************/
@@ -233,6 +243,10 @@ int main(int argc, char **argv) {
      ***********************************************************/
     for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
   
+#if _INPUT_AFF
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       /***********************************************************
        * open AFF reader
        ***********************************************************/
@@ -240,13 +254,22 @@ int main(int argc, char **argv) {
       struct AffNode_s *affn = NULL, *affpath = NULL, *affdir = NULL;
       char key[400];
       char data_filename[500];
-    
-      sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
-          filename_prefix,
-          conf_src_list[iconf][0][0], 
-          filename_prefix2, 
-          conf_src_list[iconf][0][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
 
+      sprintf( data_filename, "%s/stream_%c/%s/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+          filename_prefix,
+          conf_src_list[iconf][isrc][0], 
+          filename_prefix2,
+          filename_prefix3,
+          conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+
+#if 0
+      sprintf( data_filename, "%s/stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
+          filename_prefix,
+          conf_src_list[iconf][isrc][0], 
+          conf_src_list[iconf][isrc][1], 
+          filename_prefix3,
+          conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+#endif
       fprintf(stdout, "# [compact] reading data from file %s\n", data_filename);
       affr = aff_reader ( data_filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -306,7 +329,7 @@ int main(int argc, char **argv) {
             }
   
             uint32_t uitems = T_global;
-            int texitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)twop[igf][igi][ipf][iconf][isrc][iflavor][0], uitems );
+            int texitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)twop_buffer[igf][igi][ipf][iflavor][0], uitems );
             if( texitstatus != 0 ) {
               fprintf(stderr, "[compact] Error from aff_node_get_complex, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
               EXIT(105);
@@ -321,20 +344,95 @@ int main(int argc, char **argv) {
        * close the reader
        **********************************************************/
       aff_reader_close ( affr );
-  
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "compact", "read-aff-per-src-conf", g_cart_id == 0 );
+#endif  /* of if _INPUT_AFF */
+
+#if _OUTPUT_AFF
+      /* copy buffer into twop, write later */
+      size_t items = g_sink_gamma_id_number * g_source_gamma_id_number * g_sink_momentum_number * 2 * T_global * 2;
+      memcpy ( twop[iconf][isrc][0][0][0][0][0], twop_buffer[0][0][0][0][0], items * sizeof ( double ) ); 
+
+#elif _OUTPUT_H5
+      /***********************************************************
+       *
+       * WRITE OUTPUT TO AFF
+       *
+       ***********************************************************/
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      /***********************************************************
+       * loop on flavor
+       ***********************************************************/
+      for ( int iflavor = 0; iflavor < flavor_num ; iflavor++ ) {
+        const int flavor_id = flavor_type[iflavor];
+    
+        /***********************************************************
+         * loop on gamma at sink
+         ***********************************************************/
+        for ( int igf = 0; igf < g_sink_gamma_id_number; igf++ ) {
+    
+          /***********************************************************
+           * loop on gamma at source
+           ***********************************************************/
+          for ( int igi = 0; igi < g_source_gamma_id_number; igi++ ) {
+    
+            /***********************************************************
+             * loop on sink momenta
+             ***********************************************************/
+            for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+    
+              /***********************************************************
+               * filename and key
+               ***********************************************************/
+              char key[400];
+              char data_filename[500];
+        
+              sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.h5",
+                  g_outfile_prefix,
+                  correlator_prefix[operator_type], flavor_tag[flavor_id],
+                  g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
+                  g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );
+
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [compact] output filename = %s\n", data_filename );
+    
+              sprintf( key, "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",
+                  conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
+                  conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+        
+              if ( g_verbose > 2 ) fprintf ( stdout, "# [compact] write key = %s\n", key );
+      
+              int const nc      = T_global * 2;    /* real components */
+              int const ncdim   = 2;               /* real, imag */
+              int const cdim[2] = {T_global, 2 };  /* T_global x [re,im] */
+
+              int texitstatus = write_h5_contraction ( twop_buffer[igf][igi][ipf][iflavor][0], NULL, data_filename, key, nc, "double", ncdim, cdim );
+              if( texitstatus != 0 ) {
+                fprintf(stderr, "[compact] Error from write_h5_contraction, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
+                EXIT(105);
+              }
+
+            }  /* end of loop on sink momenta */
+          }  /* end of loop on source gamma id */
+        }  /* end of loop on sink gamma id */
+      }  /* end of loop on flavor */
+      
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "compact", "write-h5-per-src-conf", g_cart_id == 0 );
+
+#endif  /* of if _OUTPUT_H5 */
+
     }  /* end of loop on sources */
   }  /* end of loop on configs */
 
-  gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "compact", "read-aff", g_cart_id == 0 );
-#endif  /* of if _TWOP_AFF */
 
+#if _OUTPUT_AFF
   /***********************************************************
    *
-   * WRITE OUT
+   * WRITE OUTPUT TO AFF
    *
    ***********************************************************/
-#ifdef _TWOP_AFF
   gettimeofday ( &ta, (struct timezone *)NULL );
 
   /***********************************************************
@@ -367,7 +465,7 @@ int main(int argc, char **argv) {
           char data_filename[500];
     
           sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
-              filename_prefix3,
+              g_outfile_prefix,
               correlator_prefix[operator_type], flavor_tag[flavor_id],
               g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
               g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );
@@ -410,7 +508,7 @@ int main(int argc, char **argv) {
               }
   
 
-              int texitstatus = aff_node_put_complex (affw, affdir, (double _Complex*)(twop[igf][igi][ipf][iconf][isrc][iflavor][0]), (uint32_t)T_global );
+              int texitstatus = aff_node_put_complex (affw, affdir, (double _Complex*)(twop[iconf][isrc][igf][igi][ipf][iflavor][0]), (uint32_t)T_global );
               if( texitstatus != 0 ) {
                 fprintf(stderr, "[compact] Error from aff_node_put_complex, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
                 EXIT(105);
@@ -432,12 +530,14 @@ int main(int argc, char **argv) {
     }  /* end of loop on sink gamma id */
   }  /* end of loop on flavor */
   
-
   gettimeofday ( &tb, (struct timezone *)NULL );
   show_time ( &ta, &tb, "compact", "write-aff", g_cart_id == 0 );
-#endif  /* of if _TWOP_AFF */
+#endif  /* of if _OUTPUT_AFF */
 
+#if _OUTPUT_AFF
   fini_8level_dtable ( &twop );
+#endif
+  fini_6level_dtable ( &twop_buffer );
 
   /**********************************************************
    * free and finalize

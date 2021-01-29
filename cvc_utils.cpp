@@ -2289,6 +2289,67 @@ int ranz2(double * y, unsigned int NRAND) {
   return(0);
 }  /* end of ranz2 */
 
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ * y must have real and imaginary part, i.e. length
+ * of 2 NRAND doubles
+ ********************************************************/
+int ranz3 ( double * const y, unsigned int const NRAND ) {
+
+  double const sqrt_three_half = 0.8660254037844386;
+  double const yre[3] = {1., -0.5,             -0.5             };
+  double const yim[3] = {0.,  sqrt_three_half, -sqrt_three_half };
+
+  double * rf = init_1level_dtable ( NRAND );
+  if ( rf == NULL )  {
+    fprintf ( stderr, "[ranz3] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+  ranlxd ( rf, NRAND );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for shared(rf)
+#endif
+  for ( unsigned int k = 0; k < NRAND; k++ ) {
+    int const idx = (int)( 3 * rf[k] );
+
+    y[2*k  ] = yre[idx];
+    y[2*k+1] = yim[idx];
+    /* if ( g_verbose > 4 ) fprintf ( stdout, "# [ranz3] k = %6u rf = %25.16e idx = %d y = %25.16e %25.16e\n", k, rf[k], idx, y[2*k], y[2*k+1] ); */
+  }
+
+  fini_1level_dtable ( &rf );
+  return(0);
+}  /* end of ranz3 */
+
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * ! USE ONLY EVERY 2ND component ( = ONLY REAL PART )
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ ********************************************************/
+int ranbinary(double * const y, unsigned int const NRAND) {
+
+  ranlxd(y, NRAND);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( unsigned int k = 0; k < NRAND; k+=2 ) {
+    y[k] = (double)(2 * (int)(y[k]>=0.5) - 1);
+    y[k+1] = 0.;
+  }
+  return(0);
+}  /* end of ranbinary */
+
+/********************************************************/
+/********************************************************/
+
 /********************************************************
  * random_gauge_field
  *
@@ -4664,9 +4725,9 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
   int status;
   int k;
   double norm;
-  double ratime, retime;
+  struct timeval start_time, end_time;
 
-  ratime = _GET_TIME;
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
 #ifdef HAVE_MPI
   int source_proc_coords[4] = { gcoords[0]/T, gcoords[1]/LX, gcoords[2]/LY, gcoords[3]/LZ };
@@ -4697,10 +4758,9 @@ int check_point_source_propagator_clover_eo(double**prop_e, double**prop_o, doub
     if(g_cart_id==0) fprintf(stdout, "# [check_point_source_propagator_clover_eo] %3d norm odd  part = %e\n", k, sqrt(norm) );
   }  /* end of loop on nf */
 
-  retime = _GET_TIME;
-  if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [check_point_source_propagator_clover_eo] time for check_point_source_propagator_clover_eo = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
-  }
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "check_point_source_propagator_clover_eo", "check-residual-pta", g_cart_id == 0 );
+
   return(0);
 }  /* end of check_source */
 
@@ -7376,6 +7436,108 @@ int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] ) {
 /****************************************************************************/
 
 /****************************************************************************
+ *
+ ****************************************************************************/
+/****************************************************************************
+ * hvp tensor ft
+ ****************************************************************************/
+int hvp_ft ( double *** const hvp, int const type ) {
+
+  double const TWO_MPI = 2. * M_PI;
+
+  for ( int nu = 0; nu < 4; nu++ ) {
+    for ( int mu = 0; mu < 4; mu++ ) {
+    
+      double * hvp_p = init_1level_dtable ( 2*T_global );
+
+      /* FT t -> k */
+      for ( int ik = 0; ik < T_global; ik++ ) {
+
+        // double const p0 = TWO_MPI * ik / (double)T_global;
+        double const p0 = TWO_MPI * ( ik < T_global/2 ? ik : ik - T_global ) / (double)T_global;
+
+        double phase_offset = 0.;
+        if ( type == 0 ) {
+          phase_offset = p0 * ( ( (mu==0) - (nu==0) ) * 0.5 );
+        } else if ( type == 2 ) {
+          phase_offset = p0 * ( (mu==0) * 0.5 );
+          /* fprintf( stdout, "# [hvp_ft] using phase_offset = %e\n", phase_offset ); */
+        }
+          
+        for ( int it = 0; it  < T; it++ ) {
+          /* double const phase = p0 * ( it + ( (mu==0) - (nu==0) ) * 0.5 ); */
+          double const phase = p0 * it + phase_offset;
+
+          double const cphase = cos ( phase );
+          double const sphase = sin ( phase );
+
+          double a[2] = { hvp[mu][nu][2*it  ], hvp[mu][nu][2*it+1] };
+
+          double const b[2] = { cphase, sphase };
+
+          hvp_p[2*ik  ] += a[0] * b[0] - a[1] * b[1];
+          hvp_p[2*ik+1] += a[0] * b[1] + a[1] * b[0];
+        }  /* end of loop on timeslices */
+
+      }  /* end of loop on momentum component 0 */
+
+      memcpy ( hvp[mu][nu], hvp_p, 2*T_global*sizeof(double) );
+
+      fini_1level_dtable ( &hvp_p );
+    }  /* end of loop on mu */
+  }  /* end of loop on nu */
+
+  return( 0 );
+}  /* end of hvp_ft */
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ *
+ ****************************************************************************/
+/****************************************************************************
+ * single componet ft
+ ****************************************************************************/
+int hvp_ft_single_component ( double * const hvp, int const shift ) {
+
+  double const TWO_MPI = 2. * M_PI;
+
+  double * hvp_p = init_1level_dtable ( 2*T_global );
+
+  /* FT t -> k */
+  for ( int ik = 0; ik < T_global; ik++ ) {
+
+        double const p0 = TWO_MPI * ik / (double)T_global;
+
+        double const phase_offset = p0 * shift * 0.5;
+          
+        for ( int it = 0; it  < T; it++ ) {
+          double const phase = p0 * it + phase_offset;
+
+          double const cphase = cos ( phase );
+          double const sphase = sin ( phase );
+
+          double a[2] = { hvp[2*it  ], hvp[2*it+1] };
+
+          double const b[2] = { cphase, sphase };
+
+          hvp_p[2*ik  ] += a[0] * b[0] - a[1] * b[1];
+          hvp_p[2*ik+1] += a[0] * b[1] + a[1] * b[0];
+        }  /* end of loop on timeslices */
+
+  }  /* end of loop on momentum component 0 */
+
+  memcpy ( hvp, hvp_p, 2*T_global*sizeof(double) );
+
+  fini_1level_dtable ( &hvp_p );
+
+  return( 0 );
+}  /* end of hvp_ft */
+
+/****************************************************************************/
+/****************************************************************************/
+/****************************************************************************
  * apply UWerr analysis to a single data set, including output
  *
  * ipo_first  = first ipo, start counting with zero
@@ -7444,7 +7606,7 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
 
   for ( unsigned int i = 0; i < ndata; i++ ) {
 
-    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i,
+    fprintf ( ofs, "%3d %25.16e %25.16e %25.16e %25.16e %25.16e\n", i,
       res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
   }
 
@@ -7525,7 +7687,7 @@ int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned i
   fprintf ( ofs, "#\n" );
 
   for ( unsigned int i = 0; i < nset; i++ ) {
-    fprintf ( ofs, "%3d %16.7e %16.7e %16.7e %16.7e %16.7e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
+    fprintf ( ofs, "%3d %25.16e %25.16e %25.16e %25.16e %25.16e\n", i, res[i][0], res[i][1], res[i][2], res[i][3], res[i][4] );
   }
 
   fclose( ofs );

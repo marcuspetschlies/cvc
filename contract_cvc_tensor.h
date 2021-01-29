@@ -97,7 +97,7 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  ****************************************************/
 void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim );
 
-void hvp_irrep_separation_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim );
+void hvp_irrep_decomposition_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3] );
 
 }  /* end of namespace cvc */
 

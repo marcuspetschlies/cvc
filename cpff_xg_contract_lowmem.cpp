@@ -41,6 +41,7 @@
 #include "Q_clover_phi.h"
 #include "smearing_techniques.h"
 #include "gluon_operators.h"
+#include "gauge_io.h"
 
 using namespace cvc;
 
@@ -53,9 +54,11 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
-#define _GLUONIC_OPERATORS_PLAQ
-#define _GLUONIC_OPERATORS_CLOV
-#define _GLUONIC_OPERATORS_RECT
+#define _GLUONIC_OPERATORS_PLAQ 1
+#define _GLUONIC_OPERATORS_CLOV 1
+#define _GLUONIC_OPERATORS_RECT 1
+
+#define _QTOP 0
 
 int main(int argc, char **argv) {
   
@@ -72,6 +75,8 @@ int main(int argc, char **argv) {
   double stout_rho = 0.;
   struct timeval ta, tb;
   struct timeval start_time, end_time;
+  int write_checkpoint = 0;
+  int read_checkpoint = 0;
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -82,7 +87,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:s:r:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:s:r:w:b:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -96,6 +101,14 @@ int main(int argc, char **argv) {
       stout_level_iter[stout_level_num] = atoi ( optarg );
       fprintf ( stdout, "# [cpff_xg_contract_lowmem] stout_level_iter %2d set to %2d\n", stout_level_num, stout_level_iter[stout_level_num] );
       stout_level_num++;
+      break;
+    case 'w':
+      write_checkpoint = atoi( optarg );
+      fprintf ( stdout, "# [cpff_xg_contract_lowmem] write checkpoint every %d iter\n", write_checkpoint );
+      break;
+    case 'b':
+      read_checkpoint = atoi( optarg );
+      fprintf ( stdout, "# [cpff_xg_contract_lowmem] read checkpoint %d iter\n", read_checkpoint );
       break;
     case 'h':
     case '?':
@@ -144,15 +157,19 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
-    /* read the gauge field */
-    sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
-    if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] reading gauge field from file %s\n", filename);
-    exitstatus = read_lime_gauge_field_doubleprec(filename);
-  } else {
+  if( strcmp(gaugefilename_prefix,"identity" ) == 0 ) {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [cpff_xg_contract_lowmem] initializing unit matrices\n");
     exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
+  } else {
+    /* read the gauge field */
+    if ( read_checkpoint ) {
+      sprintf ( filename, "%s.%.4d.stoutn%d.stoutr%6.4f", gaugefilename_prefix, Nconf, read_checkpoint, stout_rho );
+    } else {
+      sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
+    }
+    if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] reading gauge field from file %s\n", filename);
+    exitstatus = read_lime_gauge_field_doubleprec(filename);
   }
   if(exitstatus != 0) {
     fprintf ( stderr, "[cpff_xg_contract_lowmem] Error initializing gauge field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -208,7 +225,8 @@ int main(int argc, char **argv) {
     sprintf ( stout_tag, "/StoutN%u/StoutRho%6.4f", stout_level_iter[istout], stout_rho );
 
 
-    int const stout_iter = ( istout == 0 ) ? stout_level_iter[0] : stout_level_iter[istout] - stout_level_iter[istout - 1];
+    /* int const stout_iter = ( istout == 0 ) ? stout_level_iter[0] : stout_level_iter[istout] - stout_level_iter[istout - 1]; */
+    int const stout_iter = ( istout == 0 ) ? stout_level_iter[0] - read_checkpoint : stout_level_iter[istout] - stout_level_iter[istout - 1];
 
     if ( io_proc == 2 ) fprintf ( stdout, "# [cpff_xg_contract_lowmem] stout level %2d iter %2d\n", istout, stout_iter );
 
@@ -233,6 +251,25 @@ int main(int argc, char **argv) {
     sprintf( timer_tag, "stout-smear-%u", stout_iter );
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", timer_tag, io_proc==2 );
 
+    /***************************************************************************
+     * optionally write checkpoint configuration
+     ***************************************************************************/
+    if ( write_checkpoint && ( stout_level_iter[istout] % write_checkpoint == 0 ) && ( stout_level_iter[istout] > 0 ) ) {
+      sprintf ( filename, "%s.%.4d.stoutn%d.stoutr%6.4f", gaugefilename_prefix, Nconf,  stout_level_iter[istout] , stout_rho );
+      if(g_cart_id==0) fprintf(stdout, "# [cpff_xg_contract_lowmem] writing gauge field to file %s\n", filename);
+
+      double plaq = 0.;
+      plaquette2 ( &plaq, g_gauge_field );
+
+      exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
+      if(exitstatus != 0) {
+        fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from write_lime_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+    }
+
+
 #ifdef HAVE_MPI
     xchange_gauge_field ( g_gauge_field );
 #endif
@@ -246,11 +283,13 @@ int main(int argc, char **argv) {
       EXIT(14);
     }
 
-#ifdef _GLUONIC_OPERATORS_PLAQ
+#if _GLUONIC_OPERATORS_PLAQ
     /***************************************************************************
-     *
-     * Measurement from plaqettes
-     *
+     ***************************************************************************
+     **
+     ** Measurement from plaqettes
+     **
+     ***************************************************************************
      ***************************************************************************/
     exitstatus = gluonic_operators ( pl, g_gauge_field );
     if( exitstatus != 0 ) {
@@ -273,19 +312,23 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
     }  /* end of if io_proc == 2 */
-#endif
 
-#ifdef _GLUONIC_OPERATORS_CLOV
+#endif  /* end of _GLUONIC_OPERATORS_PLAQ */
 
-    /***********************************************************
-     ***********************************************************
+    /***************************************************************************/
+    /***************************************************************************/
+
+#if _GLUONIC_OPERATORS_CLOV
+
+    /***************************************************************************
+     ***************************************************************************
      **
      ** Measurement with gluonic operators from field strength tensor
      **
      ** CLOVER DEFINITION
      **
-     ***********************************************************
-     ***********************************************************/
+     ***************************************************************************
+     ***************************************************************************/
     double *** Gp = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gp == NULL ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from  init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
@@ -370,6 +413,49 @@ int main(int argc, char **argv) {
     /***********************************************************/
 
     /***********************************************************
+     * measurement of all non-zero tensor components
+     * 
+     * WITHOUT TRACE fo G FST
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    double ** p_tc = init_2level_dtable ( T_global, 21 );
+    if ( p_tc == NULL ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    exitstatus = gluonic_operators_gg_from_fst_projected ( p_tc, Gp, 1 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_gg_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_gg_from_fst_projected", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/clover-tc", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( p_tc[0], affw, NULL, data_tag, 21 * T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = 21 * T_global;
+      exitstatus = write_h5_contraction ( p_tc[0], NULL, output_filename, data_tag, 21 * T_global , "double", 1, &dims );
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
+    fini_2level_dtable ( &p_tc );
+
+    /***********************************************************/
+    /***********************************************************/
+#if _QTOP
+    /***********************************************************
      * measurement for qtop, EXCLUDING fst trace
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
@@ -398,6 +484,38 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
     }  /* end of if io_proc == 2  */
+
+    /***********************************************************
+     * measurement for qtop, INCLUDING fst trace
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    exitstatus = gluonic_operators_qtop_from_fst_projected ( &(pl[0][0]), Gp, 0 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_qtop_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/qtop-clover", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = T_global;
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double" , 1, &dims);
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
+#endif  /* of _QTOP  */
 
     /***********************************************************/
     /***********************************************************/
@@ -451,24 +569,26 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2  */
 
+    /***********************************************************/
+    /***********************************************************/
+
     fini_3level_dtable ( &Gp );
 
 #endif  /* of _GLUONIC_OPERATORS_CLOV */
 
-    /***********************************************************/
-    /***********************************************************/
+    /***************************************************************************/
+    /***************************************************************************/
 
-#ifdef _GLUONIC_OPERATORS_RECT
-
-    /***********************************************************
-     ***********************************************************
+#if _GLUONIC_OPERATORS_RECT
+    /***************************************************************************
+     ***************************************************************************
      **
      ** Measurement with gluonic operators from field strength tensor
      **
      ** RECTANGLE DEFINITION
      **
-     ***********************************************************
-     ***********************************************************/
+     ***************************************************************************
+     ***************************************************************************/
     double *** Gr = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gr == NULL ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
@@ -560,6 +680,49 @@ int main(int argc, char **argv) {
     /***********************************************************/
 
     /***********************************************************
+     * measurement of all non-zero tensor components
+     * 
+     * WITHOUT TRACE fo G FST
+     ***********************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    double ** r_tc = init_2level_dtable ( T_global, 21 );
+    if ( r_tc == NULL ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    exitstatus = gluonic_operators_gg_from_fst_projected ( r_tc, Gr, 1 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_gg_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_gg_from_fst_projected", io_proc==2 );
+
+    if ( io_proc == 2 ) {
+      sprintf ( data_tag, "%s/rectangle-tc", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( r_tc[0], affw, NULL, data_tag, 21 * T_global, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = 21 * T_global;
+      exitstatus = write_h5_contraction ( r_tc[0], NULL, output_filename, data_tag, 21 * T_global , "double", 1, &dims );
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[cpff_xg_contract_lowmem] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+    }  /* end of if io_proc == 2  */
+
+    fini_2level_dtable ( &r_tc );
+
+    /***********************************************************/
+    /***********************************************************/
+#if _QTOP
+    /***********************************************************
      *
      * measurement for qtop, EXCLUDING fst trace
      *
@@ -590,6 +753,8 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
     }  /* end of if io_proc == 2  */
+
+#endif  /* of _QTOP  */
 
     /********************************************************************/
     /********************************************************************/
@@ -685,6 +850,9 @@ int main(int argc, char **argv) {
         EXIT(48);
       }
     }
+
+    /***********************************************************/
+    /***********************************************************/
 
     fini_3level_dtable ( &Gr );
 

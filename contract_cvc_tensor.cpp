@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #ifdef HAVE_MPI
 #  include <mpi.h>
@@ -24,7 +25,6 @@
 #ifdef HAVE_OPENMP
 #  include <omp.h>
 #endif
-#include <getopt.h>
 
 #ifdef HAVE_LHPC_AFF
 #include "lhpc-aff.h"
@@ -72,12 +72,12 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4],
   int gsx[4] = {source_coords[0], source_coords[1], source_coords[2], source_coords[3] };
   int sx[4];
   int exitstatus;
-  double ratime, retime;
+  struct timeval start_time, end_time;
 
   /***********************************************************
    * determine source coordinates, find out, if source_location is in this process
    ***********************************************************/
-  ratime = _GET_TIME;
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   if( ( exitstatus = get_point_source_info (gsx, sx, &source_proc_id) ) != 0  ) {
     fprintf(stderr, "[init_contract_cvc_tensor_usource] Error from get_point_source_info, status was %d\n", exitstatus);
@@ -152,8 +152,9 @@ void init_contract_cvc_tensor_usource(double *gauge_field, int source_coords[4],
   }  /* end of loop on mu */
 #endif  /* of if 0 */
 
-  retime = _GET_TIME;
-  if(g_cart_id == 0) fprintf(stdout, "# [init_contract_cvc_tensor_usource] time for init_contract_cvc_tensor_usource = %e seconds\n", retime-ratime);
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "init_contract_cvc_tensor_usource", "init-usource", g_cart_id == 0 );
+
 }  /* end of init_contract_cvc_tensor_usource */
 
   /***********************************************************************************************************/
@@ -594,9 +595,9 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
   const unsigned int Vhalf = VOLUME / 2;
   int exitstatus, mu;
   double ***cvc_tp = NULL, *cvc_tensor_lexic=NULL;
-  double ratime, retime;
+  struct timeval ta, tb;
 
-  ratime = _GET_TIME;
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   if ( *tensor_tp == NULL ) {
     exitstatus = init_3level_buffer(tensor_tp, momentum_number, 16, 2*T);
@@ -622,8 +623,9 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
     return(3);
   }
   free ( cvc_tensor_lexic );
-  retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [cvc_tensor_eo_momentum_projection] time for momentum projection = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__);
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "cvc_tensor_eo_momentum_projection", "ft", g_cart_id == 0 );
 
   return(0);
 }  /* end of cvc_tensor_eo_momentum_projection */
@@ -635,7 +637,6 @@ int cvc_tensor_eo_momentum_projection (double****tensor_tp, double**tensor_eo, i
 int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ) {
 
   int exitstatus, i;
-  double ratime, retime;
 #ifdef HAVE_LHPC_AFF
   struct AffNode_s *affn = NULL, *affdir=NULL;
 #endif
@@ -643,6 +644,9 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   if ( io_proc == 2 ) {
 #ifdef HAVE_LHPC_AFF
@@ -657,8 +661,6 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
       return(6);
     }
   }
-
-  ratime = _GET_TIME;
 
   /* reorder cvc_tp into buffer with order time - munu - momentum */
   buffer = (double*)malloc(  momentum_number * 32 * T * sizeof(double) );
@@ -739,8 +741,8 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
   MPI_Barrier( g_cart_grid );
 #endif
 
-  retime = _GET_TIME;
-  if(io_proc == 2) fprintf(stdout, "# [cvc_tensor_tp_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "cvc_tensor_tp_write_to_aff_file", "write", g_cart_id == 0 );
 
   return(0);
 
@@ -761,7 +763,7 @@ int cvc_tensor_tp_write_to_aff_file (double***cvc_tp, struct AffWriter_s*affw, c
 int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, char*tag, const int (* momentum_list)[3], int const momentum_number, int const io_proc ) {
 
   int exitstatus, i;
-  double ratime, retime;
+  struct timeval start_time, end_time;
 
   struct AffNode_s *affn = NULL, *affdir=NULL;
 
@@ -769,6 +771,8 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
   double *buffer = NULL;
   double _Complex *aff_buffer = NULL;
   double _Complex *zbuffer = NULL;
+
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   if ( io_proc == 2 ) {
 
@@ -784,8 +788,6 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
       return(6);
     }
   }
-
-  ratime = _GET_TIME;
 
   /* reorder c_tp into buffer with order time - munu - momentum */
   buffer = (double*)malloc(  momentum_number * 2 * T * sizeof(double) );
@@ -863,8 +865,8 @@ int contract_write_to_aff_file (double ** const c_tp, struct AffWriter_s*affw, c
   }
 #endif
 
-  retime = _GET_TIME;
-  if(io_proc == 2) fprintf(stdout, "# [contract_write_to_aff_file] time for saving momentum space results = %e seconds\n", retime-ratime);
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "contract_write_to_aff_file", "collect-write", g_cart_id == 0 );
 
   return(0);
 
@@ -1485,10 +1487,14 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   const unsigned int VOL3half = VOL3 / 2;
 
   int exitstatus;
-  double ratime, retime;
+  
   double **conn_e = NULL, **conn_o = NULL, **conn_lexic = NULL;
   double **conn_p = NULL;
   char aff_tag[200];
+
+  struct timeval ta, tb, start_time, end_time;
+
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   /* auxilliary fermion propagator fields ( without halo ) */
   fermion_propagator_type *fp_S_e = create_fp_field( Vhalf );
@@ -1504,7 +1510,6 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
    **
    **********************************************************
    **********************************************************/  
-  ratime = _GET_TIME;
 
   exitstatus = init_2level_buffer ( &conn_e, T, 2*VOL3half );
   if ( exitstatus != 0 ) {
@@ -1530,6 +1535,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
     return(1);
   }
  
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
   /* fp_S_e = sprop^e */
   exitstatus = assign_fermion_propagator_from_spinor_field (fp_S_e, sprop_list_e, Vhalf);
   /* fp_S_o = sprop^o */
@@ -1539,6 +1546,11 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   /* fp_T_o = tprop^o */
   exitstatus = assign_fermion_propagator_from_spinor_field (fp_T_o, tprop_list_o, Vhalf);
 
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_local_local_2pt_eo", "assign-propagators", g_cart_id == 0 );
+
+
+
   /* loop on gamma structures at sink */
   for ( int idsink = 0; idsink < gamma_sink_num; idsink++ ) {
     /* loop on gamma structures at source */
@@ -1546,6 +1558,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
 
       memset( conn_e[0], 0, 2*Vhalf*sizeof(double) );
       memset( conn_o[0], 0, 2*Vhalf*sizeof(double) );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       /**********************************************************
        * even part
@@ -1567,16 +1581,26 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
       /* contract g5 fp_S_o^+ g5 fp_aux = g5 S^o^+ g5 Gamma_f T^o Gamma_i */
       co_field_pl_eq_tr_g5_ti_propagator_field_dagger_ti_g5_ti_propagator_field ( (complex *)(conn_o[0]), fp_S_o, fp_aux, -1., Vhalf);
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "contract_local_local_2pt_eo", "reduction", g_cart_id == 0 );
+
       /**********************************************************
        * Fourier transform
        **********************************************************/
       complex_field_eo2lexic ( conn_lexic[0], conn_e[0], conn_o[0] );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       exitstatus = momentum_projection ( conn_lexic[0], conn_p[0], T, momentum_number, momentum_list);
       if(exitstatus != 0) {
         fprintf(stderr, "[contract_local_local_2pt_eo] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         return(3);
       }
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "contract_local_local_2pt_eo", "momentum_projection", g_cart_id == 0 );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       sprintf(aff_tag, "%s/gf%.2d/gi%.2d", tag, gamma_sink_list[idsink], gamma_source_list[idsource] );
 #ifdef HAVE_LHPC_AFF
@@ -1589,6 +1613,8 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
         return(3);
       }
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "contract_local_local_2pt_eo", "contract_write_to_aff_file", g_cart_id == 0 );
     }  /* end of loop on Gamma_i */
   }  /* end of loop on Gamma_f */
 
@@ -1604,8 +1630,9 @@ int contract_local_local_2pt_eo ( double**sprop_list_e, double**sprop_list_o, do
   fini_2level_buffer ( &conn_lexic );
   fini_2level_buffer ( &conn_p );
 
-  retime = _GET_TIME;
-  if(g_cart_id==0) fprintf(stdout, "# [contract_local_local_2pt_eo] time for contract_cvc_tensor = %e seconds\n", retime-ratime);
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "contract_local_local_2pt_eo", "contract-ft-write", g_cart_id == 0 );
+
 
   return(0);
 
@@ -2582,6 +2609,9 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
 
   int exitstatus;
   complex *conn_ = NULL;
+  struct timeval ta, tb;
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
 
   /* auxilliary fermion propagator field with halo */
   fermion_propagator_type *fp_aux        = create_fp_field( (VOLUME+RAND)/2 );
@@ -2720,6 +2750,9 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
   free_fp_field( &fp_Y_gamma );
   free_fp_field( &gamma_fp_Y_gamma );
 
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_cvc_local_tensor_eo", "contract", g_cart_id == 0 );
+
   return;
 
 }  /* end of contract_cvc_local_tensor_eo */
@@ -2731,6 +2764,8 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  *
  * uses continuum momenta 2 sin( p /2 )
  ****************************************************/
+#undef  _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM
+#define _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM
 void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim ) {
 
   int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
@@ -2743,9 +2778,17 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
    */
 
   double const pnorm[3] = {
+#if    ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM )
+#  warning "[antisymmetric_orbit_average_spatial] using sine momentum"
     2. * sin( M_PI * momentum_list[0][0] / LX_global ),
     2. * sin( M_PI * momentum_list[0][1] / LY_global ),
     2. * sin( M_PI * momentum_list[0][2] / LZ_global )
+#elif ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM )
+#  warning "[antisymmetric_orbit_average_spatial] using lattice momentum"
+    2. * M_PI * momentum_list[0][0] / (double)LX_global,
+    2. * M_PI * momentum_list[0][1] / (double)LY_global,
+    2. * M_PI * momentum_list[0][2] / (double)LZ_global
+#endif
   };
   double const pnorm2 = _POWSUM23D ( pnorm );
   double const norm = ( p_elem_nonzero == 0 ) ? 0. : 1. / ( 2. * pnorm2 * (double)momentum_num );
@@ -2758,10 +2801,16 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
         for ( int imom = 0; imom < momentum_num; imom++ ) {
           /* int const p[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
           double const p[3] = {
+#if   ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM )
               2. * sin( M_PI *  momentum_list[imom][0] / LX_global ),
               2. * sin( M_PI *  momentum_list[imom][1] / LY_global ),
-              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) };
-
+              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) 
+#elif ( defined _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM )
+              2. * M_PI *  momentum_list[imom][0] / (double)LX_global,
+              2. * M_PI *  momentum_list[imom][1] / (double)LY_global,
+              2. * M_PI *  momentum_list[imom][2] / (double)LZ_global
+#endif
+          };
           /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %f %f %f\n", p[0], p[1],  p[2] ); */
           for ( int ia = 0; ia < 3; ia++ ) {
             d_out[i][l] += p[epsilon_tensor[ia][0]] * (
@@ -2796,10 +2845,9 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
  ***********************************************************/
 
 
-void hvp_irrep_separation_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3], int const reim ) {
+void hvp_irrep_decomposition_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3] ) {
 
   double const one_over_three = 1./3.;
-  double const two_over_three = 2./3.;
   int const p_elem_nonzero = ( momentum_list[0][0] != 0 ) + ( momentum_list[0][1] != 0 ) + ( momentum_list[0][2] != 0 );
 
   int const p_elem_abs_nonequal = 
@@ -2823,77 +2871,88 @@ void hvp_irrep_separation_orbit_average (double *** const d_out, double ***** co
   for ( int i = 0; i < dim[0]; i++ ) {
     for ( int l = 0; l < dim[1]; l++ ) {
 
-        d_out[0][i][l] = 0.;
-        d_out[1][i][l] = 0.;
-        d_out[2][i][l] = 0.;
-        d_out[3][i][l] = 0.;
-        d_out[4][i][l] = 0.;
+        d_out[0][i][2*l  ] = 0.;
+        d_out[0][i][2*l+1] = 0.;
+        
+        d_out[1][i][2*l  ] = 0.;
+        d_out[1][i][2*l+1] = 0.;
+        
+        d_out[2][i][2*l  ] = 0.;
+        d_out[2][i][2*l+1] = 0.;
+        
+        d_out[3][i][2*l  ] = 0.;
+        d_out[3][i][2*l+1] = 0.;
+        
+        d_out[4][i][2*l  ] = 0.;
+        d_out[4][i][2*l+1] = 0.;
 
-        /* sum over momentum orbit */
-        for ( int imom = 0; imom < momentum_num; imom++ ) {
-          /* int const psign[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
+        for ( int reim = 0; reim < 2; reim++ ) {
+        
+          /* sum over momentum orbit */
+          for ( int imom = 0; imom < momentum_num; imom++ ) {
+            /* int const psign[3] = { _ISIGN(momentum_list[imom][0]), _ISIGN(momentum_list[imom][1]), _ISIGN(momentum_list[imom][2]) }; */
 
-          double const pvec[3] = {
-              2. * sin( M_PI *  momentum_list[imom][0] / LX_global ),
-              2. * sin( M_PI *  momentum_list[imom][1] / LY_global ),
-              2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) };
+            double const pvec[3] = {
+                2. * sin( M_PI *  momentum_list[imom][0] / LX_global ),
+                2. * sin( M_PI *  momentum_list[imom][1] / LY_global ),
+                2. * sin( M_PI *  momentum_list[imom][2] / LZ_global ) };
 
-          double const pvec2_ti_one_over_three = _POWSUM23D( pvec ) * one_over_three;
+            double const pvec2_ti_one_over_three = _POWSUM23D( pvec ) * one_over_three;
 
-          /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %d %d %d\n", p[0], p[1],  p[2] ); */
+            /* fprintf ( stdout, "# [hvp_irrep_decomposition_orbit_average] p = %d %d %d\n", p[0], p[1],  p[2] ); */
 
-          /* A1 */
-          d_out[0][i][l] += d_in[i][imom][1][1][2*l+reim] + d_in[i][imom][2][2][2*l+reim] + d_in[i][imom][3][3][2*l+reim];
+            /* A1 */
+            d_out[0][i][2*l+reim] += d_in[i][imom][1][1][2*l+reim] + d_in[i][imom][2][2][2*l+reim] + d_in[i][imom][3][3][2*l+reim];
 
-          /* A1' */
-          d_out[1][i][l] += d_in[i][imom][0][0][2*l+reim];
+            /* A1' */
+            d_out[1][i][2*l+reim] += d_in[i][imom][0][0][2*l+reim];
 
-          /* T1 */
-          d_out[2][i][l] += 
-              pvec[0] * ( d_in[i][imom][0][1][2*l+reim] + d_in[i][imom][1][0][2*l+reim] ) 
-            + pvec[1] * ( d_in[i][imom][0][2][2*l+reim] + d_in[i][imom][2][0][2*l+reim] )
-            + pvec[2] * ( d_in[i][imom][0][3][2*l+reim] + d_in[i][imom][3][0][2*l+reim] );
+            /* T1 */
+            d_out[2][i][2*l+reim] += 
+                pvec[0] * ( d_in[i][imom][0][1][2*l+reim] + d_in[i][imom][1][0][2*l+reim] ) 
+              + pvec[1] * ( d_in[i][imom][0][2][2*l+reim] + d_in[i][imom][2][0][2*l+reim] )
+              + pvec[2] * ( d_in[i][imom][0][3][2*l+reim] + d_in[i][imom][3][0][2*l+reim] );
 
-          /* T2 */
-          d_out[3][i][l] += 
-              pvec[0] * pvec[1] * ( d_in[i][imom][1][2][2*l+reim] + d_in[i][imom][2][1][2*l+reim] )
-            + pvec[0] * pvec[2] * ( d_in[i][imom][1][3][2*l+reim] + d_in[i][imom][3][1][2*l+reim] )
-            + pvec[1] * pvec[2] * ( d_in[i][imom][2][3][2*l+reim] + d_in[i][imom][3][2][2*l+reim] );
+            /* T2 */
+            d_out[3][i][2*l+reim] += 
+                pvec[0] * pvec[1] * ( d_in[i][imom][1][2][2*l+reim] + d_in[i][imom][2][1][2*l+reim] )
+              + pvec[0] * pvec[2] * ( d_in[i][imom][1][3][2*l+reim] + d_in[i][imom][3][1][2*l+reim] )
+              + pvec[1] * pvec[2] * ( d_in[i][imom][2][3][2*l+reim] + d_in[i][imom][3][2][2*l+reim] );
 
-          /* E */
-          d_out[4][i][l] += 
-              ( pvec2_ti_one_over_three - pvec[0] * pvec[0] ) * d_in[i][imom][1][1][2*l+reim] 
-            + ( pvec2_ti_one_over_three - pvec[1] * pvec[1] ) * d_in[i][imom][2][2][2*l+reim] 
-            + ( pvec2_ti_one_over_three - pvec[2] * pvec[2] ) * d_in[i][imom][3][3][2*l+reim];
-            
-        }  /* end of loop on momenta */
+            /* E */
+            d_out[4][i][2*l+reim] += 
+                ( pvec2_ti_one_over_three - pvec[0] * pvec[0] ) * d_in[i][imom][1][1][2*l+reim] 
+              + ( pvec2_ti_one_over_three - pvec[1] * pvec[1] ) * d_in[i][imom][2][2][2*l+reim] 
+              + ( pvec2_ti_one_over_three - pvec[2] * pvec[2] ) * d_in[i][imom][3][3][2*l+reim];
+          }  /* end of loop on momenta */
 
-        /* A1 normalize */
-        d_out[0][i][l] *= one_over_momentum_num;
+          /* A1 normalize */
+          d_out[0][i][2*l+reim] *= one_over_momentum_num;
 
-        /* A1p normalize */
-        d_out[1][i][l] *= one_over_momentum_num;
+          /* A1p normalize */
+          d_out[1][i][2*l+reim] *= one_over_momentum_num;
      
-        /* T1 normalize */
-        d_out[2][i][l] *= one_over_momentum_num * one_over_sqrt_p2 * 0.5;
+          /* T1 normalize */
+          d_out[2][i][2*l+reim] *= one_over_momentum_num * one_over_sqrt_p2 * 0.5;
 
-        /* T2 normalize */
-        d_out[3][i][l] *= one_over_momentum_num * one_over_sqrt_p2sqr_mi_p4 * 0.5;
+          /* T2 normalize */
+          d_out[3][i][2*l+reim] *= one_over_momentum_num * one_over_sqrt_p2sqr_mi_p4 * 0.5;
 
-        /* E normalize */
-        d_out[4][i][l] *= one_over_momentum_num * one_over_sqrt_p4_mi_p2sqr_over_three;
+          /* E normalize */
+          d_out[4][i][2*l+reim] *= one_over_momentum_num * one_over_sqrt_p4_mi_p2sqr_over_three;
 
-        if ( g_verbose > 5 ) {
-          fprintf ( stdout, " i %3d l %3d reim %d    A1  %16.7e A1' %16.7e T1  %16.7e T2  %16.7e E   %16.7e\n", i, l, reim,
-              d_out[0][i][l], d_out[1][i][l], d_out[2][i][l], d_out[3][i][l], d_out[4][i][l] );
-        }
+          if ( g_verbose > 5 ) {
+            fprintf ( stdout, " i %3d l %3d reim %d    A1  %16.7e A1' %16.7e T1  %16.7e T2  %16.7e E   %16.7e\n", i, l, reim,
+                d_out[0][i][l], d_out[1][i][l], d_out[2][i][l], d_out[3][i][l], d_out[4][i][l] );
+          }
+        }  /* end of loop on reim */
 
     }  /* end of loop on dim[1] */
   }  /* end of loop on dim[0] */
 
   return;
 
-}  /* end of hvp_irrep_separation_orbit_average  */
+}  /* end of hvp_irrep_decomposition_orbit_average  */
 
 /***********************************************************/
 /***********************************************************/

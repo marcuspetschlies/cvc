@@ -57,7 +57,13 @@ int wilson_loop(complex *w, double*gauge_field, const int xstart, const int dir,
 
 int IRand(int min, int max);
 double Random_Z2();
+
 int ranz2(double * y, unsigned int NRAND);
+
+int ranz3 ( double * const y, unsigned int const NRAND );
+
+int ranbinary(double * const y, unsigned int const NRAND);
+
 void random_gauge_field(double *gfield, double h);
 void random_gauge_point(double **gauge_point, double heat);
 void random_cm(double *A, double heat);
@@ -257,11 +263,16 @@ inline void show_time ( struct timeval * const ta, struct timeval * const tb, ch
     useconds += 1000000;
     seconds--;
   }
-  if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds );
+  /* if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds ); */
+  if ( io ) fprintf ( stdout, "# [%s] time for %s %e sec\n", tag, timer, (double)seconds + (double)useconds/1000000.0 );
 
 }  /* end of show_time */
 
 int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] );
+
+int hvp_ft ( double *** const hvp, int const type );
+
+int hvp_ft_single_component ( double * const hvp, int const shift );
 
 int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const ipo_first, unsigned int const ipo_stride, char * obs_name );
 

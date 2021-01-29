@@ -670,45 +670,99 @@ int read_lime_contraction(double * const s, char * filename, const int N, const 
  ***************************************************************************/
 int read_from_h5_file ( void * const buffer, void * file, char*tag,  const char * data_type, int const io_proc ) {
 
-  if ( io_proc > 0 ) {
+#define _H5_CLOSE_FILE_ID(_fid) {\
+ do{\
+   int const _status = H5Fclose ( _fid );\
+   if( _status < 0 ) {\
+     fprintf(stderr, "[read_from_h5_file] Error from H5Fclose, status was %d %s %d\n", _status, __FILE__, __LINE__);\
+     return(6);\
+   }\
+ } while(0);\
+}
 
-    char * filename = (char *)file;
+  /***************************************************************************
+   * some default settings for H5Dread
+   ***************************************************************************/
+  static hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+  static hid_t mem_space_id  = H5S_ALL;
+  static hid_t file_space_id = H5S_ALL;
+  static hid_t xfer_plist_id = H5P_DEFAULT;
+  static hid_t dapl_id       = H5P_DEFAULT;
+  static unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
+                                              H5F_ACC_RDWR   --- Allow read and write access to file.
+                                              H5F_ACC_RDONLY --- Allow read-only access to file.
+  
+                                              H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                              An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                              This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                              but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+  static hid_t fapl_id = H5P_DEFAULT;
+  static hid_t file_id = -1;
+  herr_t  status;
 
-    /***************************************************************************
-     * time measurement
-     ***************************************************************************/
-    struct timeval ta, tb;
-    gettimeofday ( &ta, (struct timezone *)NULL );
+  char * filename = (char *)file;
+
+  static char current_filename[400] = "NA";
+  static int initialized = 0;
+  int open_new = 0;
+
+  if ( !initialized ) {
+    /* first call, not initialized,
+     * use input filename,
+     * open new file
+     */
+    strcpy ( current_filename, filename );
+    open_new = 1;
+  } else {
+    /* is initialized, there is in an open file,
+     * if input file is NULL, only close and return,
+     * else check if new name, if so, open new file with input filename 
+     */
+    if( file == NULL ) {
+      if ( io_proc == 2 ) {
+        _H5_CLOSE_FILE_ID(file_id);
+        if ( g_verbose > 2 ) fprintf( stdout, "# [read_from_h5_file] close and return\n" );
+      }
+      return ( 0 ) ;
+    }
+    if ( strcmp( current_filename, filename ) != 0 ) {
+      open_new = 1;
+      strcpy ( current_filename, filename );
+    }
+  }
+
+  struct timeval ta, tb;
 
     /***************************************************************************
      * io_proc 2 is origin of Cartesian grid and does the write to disk
      ***************************************************************************/
-    if(io_proc == 2) {
-  
-      /***************************************************************************
-       * create or open file
-       ***************************************************************************/
+  if(io_proc == 2) {
 
-      hid_t   file_id = -1;
-      herr_t  status;
+    if ( initialized && open_new ) {
+      if ( g_verbose > 2 ) fprintf( stdout, "# [read_from_h5_file] close for open new \n" );
+      _H5_CLOSE_FILE_ID(file_id);
+    }
+    
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
 
+    /***************************************************************************
+     * create or open file
+     ***************************************************************************/
+
+    if ( open_new ) {
+      if ( g_verbose > 2 ) fprintf( stdout, "# [read_from_h5_file] open new for %s\n", filename );
       struct stat fileStat;
       if ( stat( filename, &fileStat) < 0 ) {
         fprintf ( stderr, "[read_from_h5_file] Error, file %s does not exist %s %d\n", filename, __FILE__, __LINE__ );
         return ( 1 );
       } else {
         /* open an existing file. */
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] open existing file\n" );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file] open existing file\n" );
   
-        unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
-                                             H5F_ACC_RDWR   --- Allow read and write access to file.
-                                             H5F_ACC_RDONLY --- Allow read-only access to file.
-  
-                                             H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
-                                             An additional flag, H5F_ACC_DEBUG, prints debug information.
-                                             This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
-                                             but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
-        hid_t fapl_id = H5P_DEFAULT;
+
         /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
         file_id = H5Fopen (         filename,         flags,        fapl_id );
 
@@ -718,76 +772,76 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  const char 
         }
       }
   
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [read_from_h5_file] file_id = %ld\n", file_id );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file] file_id = %ld\n", file_id );
+    }
   
-      /***************************************************************************
-       * open H5 data set
-       ***************************************************************************/
-      hid_t dapl_id       = H5P_DEFAULT;
+    /***************************************************************************
+     * open H5 data set
+     ***************************************************************************/
 
-      hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
-      if ( dataset_id < 0 ) {
-        fprintf ( stderr, "[read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
-        return ( 3 );
-      }
+    hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
+    if ( dataset_id < 0 ) {
+      fprintf ( stderr, "[read_from_h5_file] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
+      return ( 3 );
+    }
 
-      /***************************************************************************
-       * some default settings for H5Dread
-       ***************************************************************************/
-      hid_t mem_type_id;
-      if ( strcmp( data_type , "double" ) == 0 ) {
-        mem_type_id   = H5T_NATIVE_DOUBLE;
-      } else if ( strcmp( data_type , "int" ) == 0 ) {
-        mem_type_id   = H5T_NATIVE_INT;
-      } else if ( strcmp( data_type , "char" ) == 0 ) {
-        mem_type_id   = H5T_NATIVE_CHAR;
-      } else {
-        fprintf ( stdout, "[read_from_h5_file] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
-        return ( 8 );
-      }
+    /***************************************************************************
+     * some default settings for H5Dread
+     ***************************************************************************/
+    hid_t mem_type_id;
+    if ( strcmp( data_type , "double" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_DOUBLE;
+    } else if ( strcmp( data_type , "int" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_INT;
+    } else if ( strcmp( data_type , "char" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_CHAR;
+    } else {
+      fprintf ( stdout, "[read_from_h5_file] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      return ( 8 );
+    }
 
-      hid_t mem_space_id  = H5S_ALL;
-      hid_t file_space_id = H5S_ALL;
-      hid_t xfer_plist_id = H5P_DEFAULT;
+    hid_t mem_space_id  = H5S_ALL;
+    hid_t file_space_id = H5S_ALL;
+    hid_t xfer_plist_id = H5P_DEFAULT;
 
-      /***************************************************************************
-       * read data set
-       ***************************************************************************/
-      status = H5Dread ( dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, buffer );
-      if ( status < 0 ) {
-        fprintf ( stderr, "[read_from_h5_file] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
-        return ( 4 );
-      }
+    /***************************************************************************
+     * read data set
+     ***************************************************************************/
+    status = H5Dread ( dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, buffer );
+    if ( status < 0 ) {
+      fprintf ( stderr, "[read_from_h5_file] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
+      return ( 4 );
+    }
 
-      /***************************************************************************
-       * close data set
-       ***************************************************************************/
-      status = H5Dclose ( dataset_id );
-      if ( status < 0 ) {
-        fprintf ( stderr, "[read_from_h5_file] Error from H5Dclose %s %d\n", __FILE__, __LINE__ );
-        return ( 5 );
-      }
+    /***************************************************************************
+     * close data set
+     ***************************************************************************/
+    status = H5Dclose ( dataset_id );
+    if ( status < 0 ) {
+      fprintf ( stderr, "[read_from_h5_file] Error from H5Dclose %s %d\n", __FILE__, __LINE__ );
+      return ( 5 );
+    }
 
-      /***************************************************************************
-       * close the file
-       ***************************************************************************/
-      status = H5Fclose ( file_id );
-      if( status < 0 ) {
-        fprintf(stderr, "[read_from_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-        return(6);
-      } 
-
-    }  /* if io_proc == 2 */
+    /***************************************************************************
+     * close the file
+     ***************************************************************************/
+    /*status = H5Fclose ( file_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[read_from_h5_file] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(6);
+    } */
 
     /***************************************************************************
      * time measurement
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "read_from_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "read_from_h5_file", "read h5", 1 );
 
-  }  /* end of of if io_proc > 0 */
-  
+  }  /* if io_proc == 2 */
+
+  if(!initialized) initialized = 1;
+
   return(0);
 
 }  /* end of read_from_h5_file */
@@ -980,7 +1034,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     if ( stat( filename, &fileStat) < 0 ) {
       /* creat a new file */
 
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] create new file\n" );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] create new file\n" );
 
       unsigned flags = H5F_ACC_TRUNC; /* IN: File access flags. Allowable values are:
                                          H5F_ACC_TRUNC --- Truncate file, if it already exists, erasing all data previously stored in the file.
@@ -1001,7 +1055,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
     } else {
       /* open an existing file. */
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] open existing file\n" );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] open existing file\n" );
 
       unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
                                          H5F_ACC_RDWR   --- Allow read and write access to file.
@@ -1020,7 +1074,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       }
     }
 
-    if ( g_verbose > 0 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
 
     /***************************************************************************
      * some default settings for H5Dwrite
@@ -1037,7 +1091,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       dtype_id = H5Tcopy( H5T_NATIVE_CHAR );
       mem_type_id   = H5T_NATIVE_CHAR;
     } else {
-      fprintf ( stdout, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      fprintf ( stderr, "[write_h5_contraction] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
       return ( 8 );
     }
     hid_t mem_space_id  = H5S_ALL;
@@ -1086,7 +1140,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   char * dataset_name = NULL;
   strcpy ( grp_name, tag );
   strcpy ( grp_name_tmp, grp_name );
-  if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] full grp_name = %s\n", grp_name );
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] full grp_name = %s\n", grp_name );
   grp_ptr = strtok ( grp_name_tmp, grp_sep );
   
   while ( grp_ptr != NULL ) {
@@ -1107,7 +1161,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     } else {
       hid_t grp;
       hid_t loc_id = ( imem == 0 ) ? file_id : grp_list[imem-1];
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
 
       grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
       if ( grp < 0 ) {
@@ -1117,10 +1171,10 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
           fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
           return ( 6 );
         } else {
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
         }
       } else {
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
       }
       grp_list[imem] = grp;
     }
@@ -1214,7 +1268,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       fprintf(stderr, "[write_h5_contraction] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(11);
     } else {
-      if ( g_verbose > 1 ) fprintf(stdout, "# [write_h5_contraction] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
+      if ( g_verbose > 2 ) fprintf(stdout, "# [write_h5_contraction] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
     }
   }
 
@@ -1247,6 +1301,114 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
 #ifdef HAVE_LHPC_AFF
 /***********************************************************
+ * read AFF contraction
+ ***********************************************************/
+int read_aff_contraction ( void * const contr, void * const areader, void * const afilename, char * tag, unsigned int const nc) {
+
+  static struct AffReader_s *affr = NULL;
+  static struct AffNode_s *affn = NULL;
+  static int reader_opened = 0;
+  static char filename[400] = "NA";
+  struct AffNode_s *affdir = NULL;
+  uint32_t items = nc;
+  int exitstatus;
+
+  if ( areader != NULL ) {
+    /***********************************************************
+     * passed reader; 
+     ***********************************************************/
+    if ( affr == (struct AffReader_s *) areader ) {
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] keep existing AFF reader at %s %d\n",  __FILE__, __LINE__ );
+    } else {
+
+      /***********************************************************
+       * reader changed in calling function, new reader
+       ***********************************************************/
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] change to new AFF reader at %s %d\n",  __FILE__, __LINE__ );
+      if ( reader_opened ) {
+        aff_reader_close ( affr );
+        reader_opened = 0;
+      }
+
+      affr = (struct AffReader_s *) areader;
+
+      /***********************************************************
+       * for new AFF reader determine new root node
+       ***********************************************************/
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[read_aff_contraction] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        return( 2 );
+      }
+    }
+  } else if ( afilename != NULL ) {
+
+    if ( strcmp ( filename, (char*)afilename ) == 0 ) {
+      /***********************************************************
+       * keep existing reader
+       ***********************************************************/
+       if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] keep existing AFF reader at %s %d\n",  __FILE__, __LINE__ );
+
+    } else {
+
+      /***********************************************************
+       * new AFF reader
+       ***********************************************************/
+      strcpy ( filename, (char*)afilename );
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] open new AFF reader %s at %s %d\n", filename,  __FILE__, __LINE__ );
+      if ( reader_opened ) {
+        if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] close existing AFF reader %s %d\n", __FILE__, __LINE__ );
+        aff_reader_close ( affr );
+        reader_opened = 0;
+      }
+
+      affr = aff_reader (filename);
+      if( const char * aff_status_str = aff_reader_errstr(affr) ) {
+        fprintf(stderr, "[read_aff_contraction] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+        return( 4 );
+      } else {
+        if (g_verbose > 2 ) fprintf(stdout, "# [read_aff_contraction] reading data from aff file %s %s %d\n", filename, __FILE__, __LINE__);
+      }
+      reader_opened = 1;
+
+      /***********************************************************
+       * for new AFF reader determine new root node
+       ***********************************************************/
+      if( (affn = aff_reader_root( affr )) == NULL ) {
+        fprintf(stderr, "[read_aff_contraction] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        return( 2 );
+      }
+
+    }
+
+  } else {
+    if ( reader_opened ) {
+      if (g_verbose > 2 ) fprintf ( stdout, "# [read_aff_contraction] close existing AFF reader %s %d\n", __FILE__, __LINE__ );
+      aff_reader_close ( affr );
+    }
+    return ( 0 );
+  }
+
+  affdir = aff_reader_chpath ( affr, affn, tag );
+  if ( affdir == NULL ) {
+    fprintf(stderr, "[read_aff_contraction] Error from affdir for dir %s %s %d\n", tag, __FILE__, __LINE__);
+    return( 2 );
+  }
+
+  /* fprintf ( stdout, "# [read_aff_contraction] items = %u path = %s\n", items , tag); */
+
+  exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*) contr, items );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[read_aff_contraction] Error from aff_node_get_complex for key \"%s\", status was %d errmsg %s %s %d\n", tag, exitstatus,
+       aff_reader_errstr ( affr ), __FILE__, __LINE__);
+    return ( 105 );
+  }
+
+  return ( 0 );
+
+}  /* end of read_aff_contraction */
+
+
+/***********************************************************
  * write AFF contraction
  ***********************************************************/
 int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type) {
@@ -1254,7 +1416,7 @@ int write_aff_contraction ( void * const contr, void * const awriter, void * con
   struct AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir = NULL;
   uint32_t items = nc;
-  int exitstatus;
+  int exitstatus = 0;
 
   if ( awriter != NULL ) {
     affw = (struct AffWriter_s *) awriter;
