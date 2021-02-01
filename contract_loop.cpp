@@ -625,7 +625,7 @@ int loop_read_from_h5_file (double *** const loop, void * file, char*tag, int co
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "loop_read_from_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "loop_read_from_h5_file", "read h5", 1 );
 
   }  /* end of of if io_proc > 0 */
   
@@ -784,7 +784,7 @@ int loop_get_momentum_list_from_h5_file ( int ** const momentum_list, void * fil
      ***************************************************************************/
     gettimeofday ( &tb, (struct timezone *)NULL );
   
-    show_time ( &ta, &tb, "loop_get_momentum_list_from_h5_file", "write h5", 1 );
+    show_time ( &ta, &tb, "loop_get_momentum_list_from_h5_file", "read h5", 1 );
 
   }  /* end of of if io_proc > 0 */
   
