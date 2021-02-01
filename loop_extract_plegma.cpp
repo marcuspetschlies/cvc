@@ -36,7 +36,7 @@
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "table_init_i.h"
-#include "contract_loop.h"
+// #include "contract_loop.h"
 #include "ranlxd.h"
 #include "gamma.h"
 
@@ -371,12 +371,12 @@ int main(int argc, char **argv) {
         }
  
         if ( have_deriv ) {
-          sprintf ( filename, "loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, idir, 
+          sprintf ( filename, "loop.%.4d.exact.%s.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, loop_type, exdef_nev, idir, 
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
         } else  {
-          sprintf ( filename, "loop.%.4d.exact.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev,
+          sprintf ( filename, "loop.%.4d.exact.%s.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, loop_type, exdef_nev,
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
@@ -418,9 +418,9 @@ int main(int argc, char **argv) {
     EXIT(48);
   }
 
-  double _Complex ***** zloop_stoch = init_5level_ztable ( (nsample/nstep)  , g_sink_momentum_number, T, 4, 4 );
+  double _Complex ****** zloop_stoch = init_6level_ztable ( (nsample/nstep), num_dir, g_sink_momentum_number, T, 4, 4 );
   if ( zloop_stoch == NULL ) {
-    fprintf(stderr, "[loop_extract_plegma] Error from init_5level_ztable %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[loop_extract_plegma] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
   }
 
@@ -462,7 +462,7 @@ int main(int argc, char **argv) {
           /* transpose and normalize */
           for ( int ia = 0; ia < 4; ia++ ) {
           for ( int ib = 0; ib < 4; ib++ ) {
-            zloop_stoch[isample][imom][it][ia][ib] = ( 
+            zloop_stoch[isample][idir][imom][it][ia][ib] = ( 
 			    loop_stoch[it][ib][ia][sink_momentum_matchid[imom]][ 0 ]
 			  + loop_stoch[it][ib][ia][sink_momentum_matchid[imom]][ 1 ] * I
 			 ) * norm;
@@ -507,8 +507,8 @@ int main(int argc, char **argv) {
           for ( int ia = 0; ia < 4; ia++ ) {
           for ( int ib = 0; ib < 4; ib++ ) {
             fprintf ( ofs, "%3d %d %d %25.16e %25.16e\n", it, ia, ib,
-			    creal ( zloop_stoch[isample][imom][it][ia][ib] ),
-			    cimag ( zloop_stoch[isample][imom][it][ia][ib] ) );
+			    creal ( zloop_stoch[isample][idir][imom][it][ia][ib] ),
+			    cimag ( zloop_stoch[isample][idir][imom][it][ia][ib] ) );
           }}
         }
   
@@ -519,7 +519,7 @@ int main(int argc, char **argv) {
     }  /* end of loop on momenta */
   }  /* end of loop on directions */
 
-  fini_5level_ztable ( &zloop_stoch );
+  fini_6level_ztable ( &zloop_stoch );
   fini_5level_dtable ( &loop_stoch );
 
 #endif  /* of _STOCHASTIC_HP */
