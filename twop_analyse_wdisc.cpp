@@ -1,9 +1,6 @@
 /****************************************************
  * twop_analyse_wdisc.c
  *
- * PURPOSE:
- * DONE:
- * TODO:
  ****************************************************/
 
 #include <stdlib.h>
@@ -66,7 +63,9 @@ int main(int argc, char **argv) {
 
   int const reim_sign[2][2] = { {1, 1}, {1, -1} };
 
-  char const loop_type_tag[3][8] = { "NA", "dOp", "Scalar" };
+  char const oet_type_tag[2][8] = { "std", "gen" };
+
+  char const loop_type_tag[3][20] = { "localLoops", "oneD", "oneDC" };
 
   int const gamma_tmlqcd_to_binary[16] = { 8, 1, 2, 4, 0,  15, 7, 14, 13, 11, 9, 10, 12, 3, 5, 6 };
 
@@ -92,7 +91,7 @@ int main(int argc, char **argv) {
   char filename[100];
   int num_src_per_conf = 0;
   int num_conf = 0;
-  char ensemble_name[100] = "cA211a.30.32";
+  char ensemble_name[100] = "na";
   struct timeval ta, tb;
   int write_data = 0;
   int loop_nev = -1;
@@ -100,6 +99,7 @@ int main(int argc, char **argv) {
   int loop_step = 1;
   int loop_transpose = 0;
   int loop_type = -1;
+  int oet_type = -1;
   int loop_type_reim[2] = { -1, -1};
   double loop_norm[2] = { 1, 1. };
   char flavor_tag[2][20];
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:E:w:D:r:n:s:v:m:Q:q:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:E:w:D:r:n:s:v:m:Q:q:O:t:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -132,39 +132,43 @@ int main(int argc, char **argv) {
       break;
     case 'D':
       loop_type = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_type set to %d\n", loop_type );
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_type set to %d\n", loop_type );
+      break;
+    case 'O':
+      oet_type = atoi ( optarg );
+      fprintf ( stdout, "# [twop_analyse_wdisc] oet_type set to %d\n", oet_type );
       break;
     case 'r':
       sscanf ( optarg, "%d,%d", loop_type_reim, loop_type_reim+1 );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_type_reim set to %d  %d\n", loop_type_reim[0], loop_type_reim[1]);
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_type_reim set to %d  %d\n", loop_type_reim[0], loop_type_reim[1]);
       break;
     case 'm':
       loop_nsample = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_nsample set to %d\n", loop_nsample );
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_nsample set to %d\n", loop_nsample );
       break;
     case 'n':
       sscanf ( optarg, "%lf,%lf", loop_norm, loop_norm+1 );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_norm set to %e  %e\n", loop_norm[0], loop_norm[1] );
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_norm set to %e  %e\n", loop_norm[0], loop_norm[1] );
       break;
     case 't':
-      loop_transpose = 1;
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_transpose set to %d\n", loop_transpose );
+      loop_transpose = atoi( optarg );
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_transpose set to %d\n", loop_transpose );
       break;
     case 's':
       loop_step = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_step set to %d\n", loop_step );
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_step set to %d\n", loop_step );
       break;
     case 'v':
       loop_nev = atoi( optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] loop_nev set to %d\n", loop_nev );
+      fprintf ( stdout, "# [twop_analyse_wdisc] loop_nev set to %d\n", loop_nev );
       break;
     case 'q':
       strcpy ( flavor_tag[1], optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] source flavor tag set to %s\n", flavor_tag[1] );
+      fprintf ( stdout, "# [twop_analyse_wdisc] source flavor tag set to %s\n", flavor_tag[1] );
       break;
     case 'Q':
       strcpy ( flavor_tag[0], optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] sink   flavor tag set to %s\n", flavor_tag[0] );
+      fprintf ( stdout, "# [twop_analyse_wdisc] sink   flavor tag set to %s\n", flavor_tag[0] );
       break;
     case 'h':
     case '?':
@@ -245,13 +249,11 @@ int main(int argc, char **argv) {
   /***********************************************************
    * how to normalize loops
    ***********************************************************/
-  if ( strcmp ( loop_type_tag[loop_type], "Scalar"  ) == 0
-    || strcmp ( loop_type_tag[loop_type], "Loops"   ) == 0
-    || strcmp ( loop_type_tag[loop_type], "LoopsCv" ) == 0 ) {
+  if ( strcmp ( oet_type_tag[oet_type], "std"  ) == 0 ) {
     loop_norm[0] *= -1;  /* -1 from single g5^ukqcd entering in the std-oet  */
     loop_norm[1] *= -1;  /* -1 from single g5^ukqcd entering in the std-oet  */
   }
-  if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] oet_type %s loop_norm = %e   %e\n", loop_type_tag[loop_type], loop_norm[0], loop_norm[1] );
+  if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] oet_type %s loop_norm = %e   %e\n", oet_type_tag[oet_type], loop_norm[0], loop_norm[1] );
 
 
   /**********************************************************
@@ -333,8 +335,10 @@ int main(int argc, char **argv) {
           sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
               conf_src_list[iconf][0][1], loop_type_tag[loop_type], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
         } else {
-          sprintf ( filename, "stream_%c/%s/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0],
-             flavor_tag[0], filename_prefix, conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          /* sprintf ( filename, "stream_%c/%s/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0],
+             flavor_tag[0], filename_prefix, conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
+          sprintf ( filename, "%s/loop.%.4d.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d",
+              filename_prefix, conf_src_list[iconf][0][1], oet_type_tag[oet_type], loop_type_tag[loop_type], loop_nev, loop_nsample, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
         }
 
         if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
@@ -375,7 +379,7 @@ int main(int argc, char **argv) {
         int const gamma_id = g_sink_gamma_id_list[ isink_gamma ];
 
         int loop_st_sign = sigma_t [ gamma_id ];
-        if ( strcmp ( loop_type_tag[loop_type], "Scalar" ) == 0 ) {
+        if ( strcmp ( oet_type_tag[oet_type], "std" ) == 0 ) {
           loop_st_sign *= -1;
         }
 
@@ -384,14 +388,14 @@ int main(int argc, char **argv) {
          **********************************************************/
         gamma_matrix_type gf;
         gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[ gamma_id] );
-        if ( g_verbose > 2 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
+        if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
 
         if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
         project_loop ( loops_proj_sink[isink_momentum][ipsign][isink_gamma][0][0], gf.m, loops_matrix[0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
 
         if ( write_data == 1 ) {
-          sprintf ( filename, "loop.%s.%s.gf%d.px%d_py%d_pz%d",
-              flavor_tag[0], loop_type_tag[loop_type], g_sink_gamma_id_list[isink_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          sprintf ( filename, "loop.%s.%s.%s.gf%d.px%d_py%d_pz%d",
+              flavor_tag[0], oet_type_tag[oet_type], loop_type_tag[loop_type], g_sink_gamma_id_list[isink_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
           FILE * fs = fopen ( filename, "w" );
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
@@ -437,8 +441,10 @@ int main(int argc, char **argv) {
           sprintf ( filename, "stream_%c/%s/loop.%d.stoch.%s.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix,
               conf_src_list[iconf][0][1], loop_type_tag[loop_type], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
         } else {
-          sprintf ( filename, "stream_%c/%s/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0],
-             flavor_tag[1], filename_prefix, conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          /* sprintf ( filename, "stream_%c/%s/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0],
+             flavor_tag[1], filename_prefix, conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
+          sprintf ( filename, "%s/loop.%.4d.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d",
+             filename_prefix, conf_src_list[iconf][0][1], oet_type_tag[oet_type], loop_type_tag[loop_type], loop_nev, loop_nsample, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
         }
 
         if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
@@ -479,7 +485,7 @@ int main(int argc, char **argv) {
         int const gamma_id = g_source_gamma_id_list[ isource_gamma ];
 
         int loop_st_sign = sigma_t [ gamma_id ];
-        if ( strcmp ( loop_type_tag[loop_type], "Scalar" ) == 0 ) {
+        if ( strcmp ( oet_type_tag[oet_type], "std" ) == 0 ) {
           loop_st_sign *= -1;
         }
 
@@ -488,7 +494,7 @@ int main(int argc, char **argv) {
          **********************************************************/
         gamma_matrix_type gf;
         gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[ gamma_id] );
-        if ( g_verbose > 2 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
+        if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
 
         if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
         project_loop ( loops_proj_source[isink_momentum][ipsign][isource_gamma][0][0], gf.m, loops_matrix[0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
@@ -591,6 +597,20 @@ int main(int argc, char **argv) {
         EXIT(16);
       }
 
+      double *** corr_bias = init_3level_dtable ( num_conf, sink_momentum_number, 2*T_global );
+      if ( corr_bias == NULL ) {
+        fprintf(stderr, "[twop_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
+#if 0
+      double *** corr_vev = init_3level_dtable ( num_conf, sink_momentum_number, 2);
+      if ( corr_vev == NULL ) {
+        fprintf(stderr, "[twop_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+#endif
+
       /**********************************************************
        * loop on sink momenta
        **********************************************************/
@@ -661,11 +681,11 @@ int main(int argc, char **argv) {
 
                 int const idt = ( it1 - it0 + T_global ) % T_global;
 
-                corr_sub[iconf][isink_momentum][2*idt] += 0.5 * ( 
+                corr_bias[iconf][isink_momentum][2*idt] += 0.5 * ( 
                       dsnk[0][0] * dsrc[0][0] - dsnk[0][1] * dsrc[0][1] 
                     + dsnk[1][0] * dsrc[1][0] - dsnk[1][1] * dsrc[1][1]  );
 
-                corr_sub[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
+                corr_bias[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
                       dsnk[0][0] * dsrc[0][1] + dsnk[0][1] * dsrc[0][0] 
                     + dsnk[1][0] * dsrc[1][1] + dsnk[1][1] * dsrc[1][0]  );
 
@@ -675,14 +695,34 @@ int main(int argc, char **argv) {
 
           double const norm_sub = 1. / ( (double)T_global * loop_nsample * ( loop_nsample - 1 ) * loop_step * loop_step * VOL3 ) * loop_norm[0] * loop_norm[1] ;
           for ( int idt = 0; idt < 2*T_global; idt++ ) {
-            corr_sub[iconf][isink_momentum][idt] =  ( corr[iconf][isink_momentum][idt] - corr_sub[iconf][isink_momentum][idt] ) * norm_sub;
+            corr_sub[iconf][isink_momentum][idt] =  ( corr[iconf][isink_momentum][idt] - corr_bias[iconf][isink_momentum][idt] ) * norm_sub;
+           }
+          for ( int idt = 0; idt < 2*T_global; idt++ ) {
+            corr_bias[iconf][isink_momentum][idt] *= norm_sub;
            }
 
           double const norm = 1. / ( (double)T_global * loop_nsample * loop_nsample * loop_step * loop_step * VOL3 ) * loop_norm[0] * loop_norm[1];
           for ( int idt = 0; idt < 2* T_global; idt++ ) {
             corr[iconf][isink_momentum][idt] *= norm;
           }
-        
+ 
+#if 0	  
+	  double vev[2][2] = { {0.,0.}, {0.,0.}};
+	  for ( int it = 0; it < T_global; it++ ) {
+
+            /* at sink */
+            vev[0][0] += 0.5 * ( loops_proj_sink[isink_momentum][0][isink_gamma][iconf][isample][2*it]   + loops_proj_sink[isink_momentum][1][isink_gamma][iconf][isample][2*it]   );
+            vev[0][1] += 0.5 * ( loops_proj_sink[isink_momentum][0][isink_gamma][iconf][isample][2*it+1] + loops_proj_sink[isink_momentum][1][isink_gamma][iconf][isample][2*it+1] );
+
+            /* at source */
+            vev[1][0] += 0.5 * ( loops_proj_src[isink_momentum][0][isink_gamma][iconf][isample][2*it]   + loops_proj_src[isink_momentum][1][isink_gamma][iconf][isample][2*it]   );
+            vev[1][1] += 0.5 * ( loops_proj_src[isink_momentum][0][isink_gamma][iconf][isample][2*it+1] + loops_proj_src[isink_momentum][1][isink_gamma][iconf][isample][2*it+1] );
+	  }
+
+          corr_vev[ip][isink_momentum][0] = ( vev[0][0] * vev[1][0] - vev[0][1] * vev[1][1] ) / (double)( T_global * T_global );
+          corr_vev[ip][isink_momentum][1] = ( vev[0][0] * vev[1][1] + vev[0][1] * vev[1][0] ) / (double)( T_global * T_global );
+#endif
+
           fini_2level_dtable ( &loops_src );
           fini_2level_dtable ( &loops_snk );
 
@@ -712,9 +752,9 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[100];
-        sprintf ( obs_name, "disc.%s-%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
+        sprintf ( obs_name, "disc.%s-%s.%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
             flavor_tag[0], flavor_tag[1],
-            loop_type_tag[loop_type],
+            oet_type_tag[oet_type], loop_type_tag[loop_type],
             g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
             sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
@@ -778,9 +818,53 @@ int main(int argc, char **argv) {
           }
         }
 
-        sprintf ( obs_name, "disc.sub.%s-%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
+        sprintf ( obs_name, "disc.sub.%s-%s.%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
             flavor_tag[0], flavor_tag[1],
-            loop_type_tag[loop_type],
+            oet_type_tag[oet_type], loop_type_tag[loop_type],
+            g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
+            sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        if ( write_data == 1 ) {
+          sprintf ( filename, "%s.corr" , obs_name );
+          FILE * fs = fopen( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
+              fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
+            }
+          }
+
+          fclose( fs );
+        }
+
+        /****************************************
+         * STATISTICAL ANALYSIS
+         * for corr_bias
+         ****************************************/
+
+        /* fill data array */
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = 0.;
+            for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
+              data[iconf][it] += corr_bias[iconf][imom][2*it+ireim];
+            }
+            data[iconf][it] /= (double)sink_momentum_number;
+          }
+        }
+
+        sprintf ( obs_name, "disc.bias.%s-%s.%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s", 
+            flavor_tag[0], flavor_tag[1],
+            oet_type_tag[oet_type], loop_type_tag[loop_type],
             g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
             sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
@@ -809,6 +893,64 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on reim */
 
+#if 0
+      /**********************************************************
+       * disc.sub with vev subtraction
+       **********************************************************/
+      for ( int ireim = 0; ireim <=1; ireim++ ) {
+
+        double ** data = init_2level_dtable ( num_conf, T_global + 2 );
+
+        /* fill data array */
+#pragma omp parallel for
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            data[iconf][it] = 0.;
+            for ( int imom = 0; imom < sink_momentum_number; imom++ ) {
+              data[iconf][it] += corr[iconf][imom][2*it+ireim];
+            }
+            data[iconf][it] /= (double)sink_momentum_number;
+          }
+	  data[iconf][T_global  ] = corr_vev[iconf][imom][0][loop_type_reim[0]];
+	  data[iconf][T_global+1] = corr_vev[iconf][imom][1][loop_type_reim[1]];
+        }
+
+        char obs_name[100];
+        sprintf ( obs_name, "disc.sub.vev.%s-%s.%s.%s.gf%d.gi%d.px%d_py%d_pz%d.%s",
+            flavor_tag[0], flavor_tag[1],
+            oet_type_tag[oet_type], loop_type_tag[loop_type],
+            g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma],
+            sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
+
+	int narg = 3;
+	int arg_first[2] = { 0, T_global, T_global+1 };
+	int arg_stride[2] = {1, 0, 0};
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0], num_conf, T_global+1, T_global, narg, arg_first, arg_stride, obs_name, a_mi_b_ti_c, da_mi_b_ti_c);
+
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+
+        if ( write_data == 1 ) {
+          sprintf ( filename, "%s.corr" , obs_name );
+          FILE * fs = fopen( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < T_global; it++ ) {
+              /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
+              fprintf ( fs, "%3d %25.16e %25.16e %6d\n", it, data[iconf][it], data[iconf][T_global], iconf * g_gauge_step );
+            }
+          }
+
+          fclose( fs );
+        }
+
+        fini_2level_dtable ( &data );
+      }
+#endif
       /**********************************************************/
       /**********************************************************/
 
@@ -817,7 +959,10 @@ int main(int argc, char **argv) {
        **********************************************************/
       fini_3level_dtable ( &corr );
       fini_3level_dtable ( &corr_sub );
-
+      fini_3level_dtable ( &corr_bias );
+#if 0
+      fini_4level_dtable ( &corr_vev );
+#endif
     }  /* end of loop on source gamma id */
   }  /* end of loop on sink gamma id */
 
