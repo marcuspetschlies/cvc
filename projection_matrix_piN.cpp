@@ -693,7 +693,7 @@ int main(int argc, char **argv) {
 
           exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v, rank, p, operator_side[iac],
               momentum_number, rotated_momentum_id );
-          if ( exitstatus == 0 ) {
+          if ( exitstatus != 0 ) {
             fprintf( stderr, "[projection_matrix_piN] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n",
                exitstatus,  __FILE__, __LINE__ );
             EXIT(290);
