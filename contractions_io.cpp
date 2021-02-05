@@ -963,7 +963,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       }
     }
 
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
+    if ( g_verbose > 5 ) fprintf ( stdout, "# [write_h5_contraction] file_id = %ld\n", file_id );
 
     /***************************************************************************
      * some default settings for H5Dwrite
@@ -1050,7 +1050,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     } else {
       hid_t grp;
       hid_t loc_id = ( imem == 0 ) ? file_id : grp_list[imem-1];
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
+      if ( g_verbose > 5 ) fprintf ( stdout, "# [write_h5_contraction] grp_ptr = %s\n", grp_ptr );
 
       grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
       if ( grp < 0 ) {
@@ -1060,10 +1060,10 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
           fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
           return ( 6 );
         } else {
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          if ( g_verbose > 5 ) fprintf ( stdout, "# [write_h5_contraction] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
         }
       } else {
-        if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        if ( g_verbose > 5 ) fprintf ( stdout, "# [write_h5_contraction] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
       }
       grp_list[imem] = grp;
     }
@@ -1072,7 +1072,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     imem++;
   }  /* end of loop on sub-groups */
 
-  if ( g_verbose > 4 ) {
+  if ( g_verbose > 5 ) {
     fprintf ( stdout, "# [write_h5_contraction] dataset_name %s  %s %d\n", dataset_name, __FILE__, __LINE__ );
   }
 
@@ -1157,7 +1157,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       fprintf(stderr, "[write_h5_contraction] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(11);
     } else {
-      if ( g_verbose > 2 ) fprintf(stdout, "# [write_h5_contraction] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
+      if ( g_verbose > 5 ) fprintf(stdout, "# [write_h5_contraction] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
     }
   }
 
