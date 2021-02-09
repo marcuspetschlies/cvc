@@ -913,6 +913,11 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   }
 
   /***************************************************************************
+   * turn off automatic error writings
+   ***************************************************************************/
+  H5Eset_auto (H5E_DEFAULT, NULL, NULL);
+
+  /***************************************************************************
    * create or open file
    ***************************************************************************/
 
@@ -1054,7 +1059,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
       grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
       if ( grp < 0 ) {
-        fprintf ( stderr, "[write_h5_contraction] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+        if ( g_verbose > 2 ) fprintf ( stderr, "[write_h5_contraction] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
         grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
         if ( grp < 0 ) {
           fprintf ( stderr, "[write_h5_contraction] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
