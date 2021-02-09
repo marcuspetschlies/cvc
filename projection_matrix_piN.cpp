@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
   char filename[100];
   int exitstatus;
   int refframerot = -1;  // no reference frame rotation
-  int write_projector = 0;
+  int write_projector = 1;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -333,7 +333,8 @@ int main(int argc, char **argv) {
      * loop on irreps
      *   within little group
      ****************************************************/
-    for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ )
+    // for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ )
+    for ( int i_irrep = 5; i_irrep <= 5; i_irrep++ )
     {
 
       /****************************************************
@@ -470,7 +471,8 @@ int main(int argc, char **argv) {
         /****************************************************
          * loop on irrep matrix ref. row
          ****************************************************/
-        for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
+        // for ( int ibeta = 0; ibeta < r_irrep.dim; ibeta++ )
+        for ( int ibeta = 0; ibeta < 1; ibeta++ )
         {
 
           int const matrix_dim = spinor_dim * momentum_number;
@@ -555,7 +557,6 @@ int main(int argc, char **argv) {
             /* normalize */
             rot_mat_ti_eq_re ( projection_matrix_v[imu], (double)p.rtarget->dim/(2.*p.rtarget->n), matrix_dim );
 
-            int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
 
             char tag_prefix[400];
 
@@ -563,7 +564,12 @@ int main(int argc, char **argv) {
                 operator_side[iac],
                 lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep], imu,
                 interpolator_J2[0], interpolator_bispinor[0], interpolator_J2[1], interpolator_bispinor[1], ibeta );
-            
+
+           if ( g_verbose > 2 ) fprintf ( stdout, "# [projection_matrix_piN] processing %s/row%d %s %d\n", tag_prefix, imu, __FILE__, __LINE__ );
+           
+#if 0            
+            int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
+
             if ( rank == -1 ) rank = new_rank;
 
             if ( rank != new_rank ) {
@@ -679,20 +685,20 @@ int main(int argc, char **argv) {
             }  /* end of loop on rank = loop on operators */
 
             fclose ( ofs2 );
+#endif
 
           }  /* end of loop on target irrep rows */
 
           /****************************************************
            * check irrep multiplett rotation
            ****************************************************/
-
+#if 0
           if ( rank == 0 ) {
             fprintf( stdout, "# [projection_matrix_piN] rank is zero, no test %s %d\n", __FILE__, __LINE__ );
             continue;
           }
-
-          exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v, rank, p, operator_side[iac],
-              momentum_number, rotated_momentum_id );
+#endif
+          exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v, matrix_dim, p, operator_side[iac], momentum_number, rotated_momentum_id );
           if ( exitstatus != 0 ) {
             fprintf( stderr, "[projection_matrix_piN] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n",
                exitstatus,  __FILE__, __LINE__ );

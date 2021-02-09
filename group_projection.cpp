@@ -1,4 +1,4 @@
-  /****************************************************
+/****************************************************
  * group_projection.cpp
  *
  * Fr 10. Nov 16:15:09 CET 2017
@@ -3176,15 +3176,39 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
       double const parity = irot < p.rtarget->n ? 1. : p.parity[0] * p.parity[1];
 
       if ( strcmp( ac, "creation" ) == 0  ) {
+
+        fprintf ( stdout, "# [check_subduction_matrix_multiplett_rotation] checking creation side %s %d\n", __FILE__, __LINE__ );
   
         /****************************************************
          * multiplication A_ik <- V_il S(R)_kl
+         *
+         * BUT NOTE:
+         *
+         * ip_k is running momentum index in matrix multiplication
+         * ip_l is target momentum index
+         *
+         * W_{(M,P) ; (M'',P'')} <- V_{(M,P) ; (M',P')} U_{ (M'',P''); (M',P')} 
+         *
+         * and P'' = R P'
+         *
+         * ip_l = R ip_k and
+         *  
+         * P'  <-> ip_k running momentum index
+         * P'' <-> ip_l target momentum index
+         *
+         * BETTER: xchange ip_l and ip_k below
+         *
          ****************************************************/
+
         for (int i = 0; i < rank; i++ ) {
           for (int k = 0; k < matrix_dim; k++ ) {
 
-            int const ip_k    = k / spinor_dim;
-            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            // int const ip_k    = k / spinor_dim;
+            // int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+
+            int const ip_l    = k / spinor_dim;
+            int const ip_k    = ( momentum_mapping == NULL ) ? ip_l : momentum_mapping [ ip_l ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+
             int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
             int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
 
@@ -3199,8 +3223,11 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
 
               // z += v[imu][i][l] * p.rspin[0].R[irot][k/p.rspin[1].dim][l/p.rspin[1].dim] * p.rspin[1].R[irot][k%p.rspin[1].dim][l%p.rspin[1].dim];
               z += v[imu][ i ][ ll ] * r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ];
+
+              // z += v[imu][ i ][ ip_k * spinor_dim + alpha_l * p.rspin[1].dim + beta_l ] * r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ];
             }
-            A[i][k] = z * parity;
+            // A[i][k] = z * parity;
+            A[i][ ip_k * spinor_dim + alpha_k * p.rspin[1].dim + beta_k ] = z * parity;
           }
         }
   
@@ -3219,6 +3246,7 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
             B[i][k] = z;
           }
         }
+
       } else if ( strcmp( ac, "annihilation" ) == 0 ) {
 
         /****************************************************
@@ -3228,8 +3256,8 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
 
           for (int k = 0; k < matrix_dim; k++ ) {
 
-            int const ip_k    = k / spinor_dim;
-            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            int const ip_l    = k / spinor_dim;
+            int const ip_k    = ( momentum_mapping == NULL ) ? ip_l : momentum_mapping [ ip_l ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
             int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
             int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
 
@@ -3246,7 +3274,8 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
               z += v[imu][ i ][ ll ] * conj( r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ] );
             }
 
-            A[i][k] = z * parity;
+            /* A[i][k] = z * parity; */
+            A[i][ ip_k * spinor_dim + alpha_k * p.rspin[1].dim + beta_k ] = z * parity;
           }
         }
   
@@ -3274,10 +3303,10 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
       for (int k = 0; k < matrix_dim; k++ ) {
         double const diff = cabs( A[i][k] - B[i][k] );
         double const avrg = cabs( A[i][k] + B[i][k] ) * 0.5;
-        if ( g_verbose > 5 ) fprintf( stdout, "multiplett %d   %2d   %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", 
-            imu, irot, i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ), diff , avrg );
+        /* if ( g_verbose > 5 ) fprintf( stdout, "multiplett %d   %2d   %2d %2d       %25.16e %25.16e      %25.16e %25.16e      %e   %e \n", 
+            imu, irot, i, k, creal( A[i][k] ), cimag( A[i][k] ), creal( B[i][k] ), cimag( B[i][k] ), diff , avrg ); */
             gnorm += avrg;
-            gdiff += diff;
+            gdiff += diff; 
       }}
       char const * const state = ( gnorm > eps && gdiff/gnorm > eps  ) ? any_wrong=1, "wrong" : "okay";
       fprintf( stdout, "# [check_subduction_matrix_multiplett_rotation] %s/row%d/rot%d normdiff %e   %e  %s\n", tag, imu, irot, gdiff , gnorm, state );
