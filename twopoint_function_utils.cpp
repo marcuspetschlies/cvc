@@ -1603,11 +1603,11 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
    * for now, check, that d is 4
    * this should be generalized
    ******************************************************/
-  if ( d != 4 ) {
+  /* if ( d != 4 ) {
     fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
     return(1);
-  }
-
+  } */
+ 
   if ( p->c == NULL ) {
     fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Error, data array not initialized %s %d\n", __FILE__, __LINE__ );
     return(2);
@@ -1628,14 +1628,17 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for ( int t = 0; t < nT; t++ ) {
-      zm4x4_ti_eq_re ( diagram[t], norm );
+    for ( int k = 0; k < nT * p->d * p->d; k++ ) {
+      diagram[0][0][k] *= norm;
     }
+    /* for ( int t = 0; t < nT; t++ ) {
+      zm4x4_ti_eq_re ( diagram[t], norm );
+    } */
 
   }  // end of loop on data sets
 
   double retime = _GET_TIME;
-  if ( g_verbose > 0 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] time for apply norm = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] time for apply norm = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
   return ( 0 );
 }  /* end of twopoint_function_apply_diagram_norm */
 
@@ -1667,8 +1670,12 @@ int twopoint_function_accum_diagrams ( double _Complex *** const z, twopoint_fun
    * which is already in z
    ******************************************************/
   for ( int i = 1; i < nD; i++ ) {
-    contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( z, p->c[i], p->T );
-  }
+    /* contract_diagram_zm4x4_field_pl_eq_zm4x4_field ( z, p->c[i], p->T ); */
+#pragma omp parallel for
+    for ( int k = 0; k < p->T * p->d * p->d ; k++ ) {
+      z[0][0][k] += p->c[i][0][0][k];
+    }
+  }  /* end of loop on diagrams */
 
   return( 0 );
 }  /* end of twopoint_function_accum_diagrams */
