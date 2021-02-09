@@ -51,9 +51,11 @@ extern "C"
 #include "contract_diagrams.h"
 #include "twopoint_function_utils.h"
 #include "gamma.h"
-#include "uwerr.h"
-#include "derived_quantities.h"
 #include "cvc_timer.h"
+
+#ifndef TIMERS
+#define TIMERS 0
+#endif
 
 using namespace cvc;
 
@@ -140,25 +142,46 @@ inline void get_obs_name (char * const obs_name, twopoint_function_type * const 
 /***************************************************************************
  * momentum filter
  ***************************************************************************/
-inline int momentum_filter ( twopoint_function_type * const tp ) {
+inline int momentum_filter ( twopoint_function_type * const tp, int const pp_max ) {
+
+  /* check mometnum conservation  */
 
   if ( strcmp ( tp->type , "m-m" ) == 0 ) {
 
-    return ( ( tp->pi1[0] + tp->pf1[0] == 0 ) &&
-             ( tp->pi1[1] + tp->pf1[1] == 0 ) &&
-             ( tp->pi1[2] + tp->pf1[2] == 0 ) );
+    int const is_conserved = ( tp->pi1[0] + tp->pf1[0] == 0 ) && ( tp->pi1[1] + tp->pf1[1] == 0 ) && ( tp->pi1[2] + tp->pf1[2] == 0 );
+
+    int const is_lessequal = \
+            ( tp->pi1[0] * tp->pi1[0] + tp->pi1[1] * tp->pi1[1] + tp->pi1[2] * tp->pi1[2]  <= pp_max ) \
+        &&  ( tp->pf1[0] * tp->pf1[0] + tp->pf1[1] * tp->pf1[1] + tp->pf1[2] * tp->pf1[2]  <= pp_max );
+
+    return ( is_conserved && is_lessequal );
 
   } else if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
   
-    return ( ( tp->pi1[0] + tp->pf1[0] + tp->pf2[0] == 0 ) &&
-             ( tp->pi1[1] + tp->pf1[1] + tp->pf2[1] == 0 ) &&
-             ( tp->pi1[2] + tp->pf1[2] + tp->pf2[2] == 0 ) );
+    int const is_conserved = ( tp->pi1[0] + tp->pf1[0] + tp->pf2[0] == 0 ) && \
+                             ( tp->pi1[1] + tp->pf1[1] + tp->pf2[1] == 0 ) && \
+                             ( tp->pi1[2] + tp->pf1[2] + tp->pf2[2] == 0 );
+
+    int const is_lessequal = \
+           ( tp->pi1[0] * tp->pi1[0] + tp->pi1[1] * tp->pi1[1] + tp->pi1[2] * tp->pi1[2]  <= pp_max ) \
+        && ( tp->pf2[0] * tp->pf2[0] + tp->pf2[1] * tp->pf2[1] + tp->pf2[2] * tp->pf2[2]  <= pp_max ) \
+        && ( tp->pf1[0] * tp->pf1[0] + tp->pf1[1] * tp->pf1[1] + tp->pf1[2] * tp->pf1[2]  <= pp_max );
+
+    return ( is_conserved && is_lessequal );
 
   } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
 
-    return ( ( tp->pi1[0] + tp->pi2[0] + tp->pf1[0] + tp->pf2[0] == 0 ) &&
-             ( tp->pi1[1] + tp->pi2[1] + tp->pf1[1] + tp->pf2[1] == 0 ) &&
-             ( tp->pi1[2] + tp->pi2[2] + tp->pf1[2] + tp->pf2[2] == 0 ) );
+    int const is_conserved = ( tp->pi1[0] + tp->pi2[0] + tp->pf1[0] + tp->pf2[0] == 0 ) &&
+                             ( tp->pi1[1] + tp->pi2[1] + tp->pf1[1] + tp->pf2[1] == 0 ) &&
+                             ( tp->pi1[2] + tp->pi2[2] + tp->pf1[2] + tp->pf2[2] == 0 );
+
+    int const is_lessequal = \
+           ( tp->pi1[0] * tp->pi1[0] + tp->pi1[1] * tp->pi1[1] + tp->pi1[2] * tp->pi1[2]  <= pp_max ) \
+        && ( tp->pi2[0] * tp->pi2[0] + tp->pi2[1] * tp->pi2[1] + tp->pi2[2] * tp->pi2[2]  <= pp_max ) \
+        && ( tp->pf2[0] * tp->pf2[0] + tp->pf2[1] * tp->pf2[1] + tp->pf2[2] * tp->pf2[2]  <= pp_max ) \
+        && ( tp->pf1[0] * tp->pf1[0] + tp->pf1[1] * tp->pf1[1] + tp->pf1[2] * tp->pf1[2]  <= pp_max );
+
+    return ( is_conserved && is_lessequal );
   } else {
     return ( 1 == 0 );
   }
@@ -170,16 +193,20 @@ inline int momentum_filter ( twopoint_function_type * const tp ) {
  ***********************************************************/
 int main(int argc, char **argv) {
   
-  int const gamma_parity_sign[16] = {       1,   -1,   -1,      1,   -1,      1,      1,     -1,    1,     -1,     -1,      1,     -1,      1,      1,   -1 };
+  /* int const gamma_parity_sign[16] = {       1,   -1,   -1,      1,   -1,      1,      1,     -1,    1,     -1,     -1,      1,     -1,      1,      1,   -1 }; */
 
-  int const gamma_chargeconjugation_sign[16] = {
-                                            1,   -1,   -1,     -1,   -1,     -1,     -1,      1,   -1,     -1,     -1,      1,     -1,      1,      1,    1 };
+  /* int const gamma_chargeconjugation_sign[16] = { 
+                                            1,   -1,   -1,     -1,   -1,     -1,     -1,      1,   -1,     -1,     -1,      1,     -1,      1,      1,    1 }; */
 
-  int const gamma_g5herm_sign[16] = {       1,   -1,   -1,     -1,   -1,     -1,     -1,      1,   -1,     -1,     -1,      1,     -1,      1,      1,    1 };
+  /* int const gamma_g5herm_sign[16] = {       1,   -1,   -1,     -1,   -1,     -1,     -1,      1,   -1,     -1,     -1,      1,     -1,      1,      1,    1 }; */
 
-  int const gamma_timereversal_sign[16] = { 1,    1,    1,      1,    1,      1,      1,      1,   -1,     -1,     -1,     -1,     -1,     -1,     -1,   -1 };
+  /* int const gamma_timereversal_sign[16] = { 1,    1,    1,      1,    1,      1,      1,      1,   -1,     -1,     -1,     -1,     -1,     -1,     -1,   -1 }; */
   
-  char const reim_str[2][3]  = { "re", "im" };
+  /* char const reim_str[2][3]  = { "re", "im" }; */
+
+  int const max_single_particle_momentum_squared = 3;
+
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -187,7 +214,6 @@ int main(int argc, char **argv) {
   char ensemble_name[100] = "NA";
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
-  int fold_correlator = 0;
 
   struct timeval ta, tb;
   struct timeval start_time, end_time;
@@ -196,7 +222,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:E:F:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -213,10 +239,6 @@ int main(int argc, char **argv) {
     case 'E':
       strcpy ( ensemble_name, optarg );
       fprintf ( stdout, "# [htpp_compact] ensemble name set to %s\n", ensemble_name );
-      break;
-    case 'F':
-      fold_correlator = atoi(  optarg );
-      fprintf ( stdout, "# [htpp_compact] fold_correlator set to %d\n", fold_correlator );
       break;
     case 'h':
     case '?':
@@ -349,26 +371,43 @@ int main(int argc, char **argv) {
    * field to store all data
    ***********************************************************/
   int const n_tc = g_src_snk_time_separation + 1;
-  int const num_meas_per_conf = num_src_per_conf * g_coherent_source_number;
 
-  double ******** corr = init_8level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, 2, num_conf, num_meas_per_conf, 2 * n_tc );
+#if 0
+  int const num_meas_per_conf = num_src_per_conf * g_coherent_source_number;
+  double ******* corr = init_7level_dtable (g_twopoint_function_number, g_total_momentum_number, g_sink_momentum_number, g_source_momentum_number, num_conf, num_meas_per_conf, 2 * n_tc );
   if ( corr == NULL ) {
     fprintf( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(2);
   }
+#endif
+  double * corr = init_1level_dtable (  2 * n_tc );
+  if ( corr == NULL ) {
+    fprintf( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(2);
+  }
+
+  double _Complex * corr_buffer = init_1level_ztable ( T_global );
+  if ( corr_buffer == NULL ) {
+    fprintf( stderr, "[htpp_compact] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(2);
+  }
+
      
   /***********************************************************
+   * ORIGINAL DATA INPUT
+   *
    * loop on configs 
    ***********************************************************/
   for( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
+    char const stream = conf_src_list[iconf][0][0];
+    int const Nconf   = conf_src_list[iconf][0][1];
           
     /***********************************************************
      * loop on sources per config
      ***********************************************************/
     for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
 
-      char const stream = conf_src_list[iconf][isrc][0];
-      int const Nconf   = conf_src_list[iconf][isrc][1];
       int const t_base  = conf_src_list[iconf][isrc][2];
 
       /***********************************************************
@@ -384,11 +423,11 @@ int main(int argc, char **argv) {
       /***********************************************************
        * reader for aff output file
        ***********************************************************/
-      if ( ( strcmp ( g_twopoint_function_list[0].type , "m-j-m" ) == 0 ) || ( strcmp ( g_twopoint_function_list[0].type , "mxm-j-m" ) == 0 ) ) {
-        /* sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-        sprintf ( filename, "%s/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-      } else if ( ( strcmp ( g_twopoint_function_list[0].type , "m-m" ) == 0 )) {
-        sprintf ( filename, "%s/stream_%c/%s.%.4d.tbase%.2d.aff", filename_prefix, stream, filename_prefix2, Nconf, gsx[0] );
+      if (   ( strcmp ( g_twopoint_function_list[0].type , "m-j-m"   ) == 0 ) \
+          || ( strcmp ( g_twopoint_function_list[0].type , "mxm-j-m" ) == 0 ) ) {
+
+        sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+ 
       } else {
         continue;
       }
@@ -403,55 +442,71 @@ int main(int argc, char **argv) {
       }
 #endif
 
-      /***************************************************************************
-       * loop on twopoint functions
-       ***************************************************************************/
-      for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
+      /***********************************************************
+       * loop on source momenta
+       ***********************************************************/
+      for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
-
-        twopoint_function_allocate ( tp );
+        int ptot[3] = {
+                 g_total_momentum_list[iptot][0],
+                 g_total_momentum_list[iptot][1],
+                 g_total_momentum_list[iptot][2] };
 
         /***********************************************************
-         * loop on sink momenta
+         * output filename
          ***********************************************************/
-        for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+        sprintf ( filename, "%s.dt%d.px%d_py%d_pz%d.h5", g_outfile_prefix, g_src_snk_time_separation, ptot[0], ptot[1], ptot[2] );
+
+       /***************************************************************************
+        * loop on twopoint functions
+         ***************************************************************************/
+        for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
+
+          twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
+  
+          /* twopoint_function_allocate ( tp ); */
 
           /***********************************************************
-           * loop on source momenta
+           * assuming one diagram only
            ***********************************************************/
-          for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
+          char diagram_name[500];
+          char key[500];
 
+          twopoint_function_get_diagram_name ( diagram_name,  tp, 0 );
+
+          /***********************************************************
+           * loop on sink momenta
+           ***********************************************************/
+          for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+            int pf[3] = {
+                g_sink_momentum_list[ipf][0],
+                g_sink_momentum_list[ipf][1],
+                g_sink_momentum_list[ipf][2] };
+
+            int pc[3] = {
+                  ptot[0] - pf[0],
+                  ptot[1] - pf[1],
+                  ptot[2] - pf[2] };
+ 
             /***********************************************************
              * loop on source momenta
              ***********************************************************/
             for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
-
-                 int pf[3] = {
-                     g_sink_momentum_list[ipf][0],
-                     g_sink_momentum_list[ipf][1],
-                     g_sink_momentum_list[ipf][2] };
 
                 int pi1[3] = {
                      g_source_momentum_list[ipi][0],
                      g_source_momentum_list[ipi][1],
                      g_source_momentum_list[ipi][2] };
 
-                int ptot[3] = {
-                     g_total_momentum_list[iptot][0],
-                     g_total_momentum_list[iptot][1],
-                     g_total_momentum_list[iptot][2] };
-
                 int pi2[3] = {
                   -( ptot[0] + pi1[0] ),
                   -( ptot[1] + pi1[1] ),
                   -( ptot[2] + pi1[2] )};
+#if TIMERS
+                gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
 
-                int pc[3] = {
-                  ptot[0] - pf[0],
-                  ptot[1] - pf[1],
-                  ptot[2] - pf[2] };
- 
                 /***********************************************************
                  * set twop function momenta an filter
                  ***********************************************************/
@@ -460,23 +515,12 @@ int main(int argc, char **argv) {
                 memcpy( tp->pf1, pf,  3*sizeof(int) );
                 memcpy( tp->pf2, pc,  3*sizeof(int) );
 
-                if ( ! momentum_filter ( tp ) ) continue;
+                if ( ! momentum_filter ( tp , max_single_particle_momentum_squared ) ) continue;
 
-
-                /***********************************************************
-                 * loop on diagrams
-                 ***********************************************************/
-                for ( int i_diag = 0; i_diag < tp->n; i_diag++ ) {
-
-                  char diagram_name[500];
-                  char key[500];
-
-                  twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
-        
-                  if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
-                    sprintf ( key,
-                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
-                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/x%d_y%d_z%d",
+                if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+                  sprintf ( key,
+                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/x%d_y%d_z%d", */
                         diagram_name,
                         /* tp->pf1[0], tp->pf1[1], tp->pf1[2], */
                         pf[0], pf[1], pf[2],
@@ -484,86 +528,169 @@ int main(int argc, char **argv) {
                         gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
                         /* tp->pf2[0], tp->pf2[1], tp->pf2[2]  */
                         pc[0], pc[1], pc[2] );
-                  } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
-                    sprintf ( key,
-                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d", */
-                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
+                } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
+                  sprintf ( key,
+                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d", */
                         diagram_name,
                         pf[0], pf[1], pf[2],
                         gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
                         pi2[0], pi2[1], pi2[2], gamma_bin_to_name[tp->gi2],
                         gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
                         pc[0], pc[1], pc[2] );
-                  } else if ( strcmp ( tp->type , "m-m" ) == 0 ) {
-                    sprintf ( key,
-                        /* /fs-fc/t70x02y11z20/gf02_gi02/PX0_PY0_PZ0 */
-                        "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d_gi%.2d/PX%d_PY%d_PZ%d",
-                        diagram_name, gsx[0], gsx[1], gsx[2], gsx[3],
-                        tp->gf1[0], tp->gi1[0],
-                        pf[0], pf[1], pf[2] );
-                  } else {
-                    continue;
-                  }
 
-                  if ( g_verbose > 2 ) {
-                    fprintf ( stdout, "# [htpp_compact] key = %s %s %d\n", key , __FILE__, __LINE__ );
-                  }
+                } else {
+                  continue;
+                }
 
-                  gettimeofday ( &ta, (struct timezone *)NULL );
+                if ( g_verbose > 2 ) {
+                  fprintf ( stdout, "# [htpp_compact] key = %s %s %d\n", key , __FILE__, __LINE__ );
+                }
+#if TIMERS
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "htpp_compact", "momentum-filter-and-key", io_proc == 2 );
+#endif
 
-                  exitstatus = read_aff_contraction ( (void*)(tp->c[i_diag][0][0]), affr, NULL, key, T_global * tp->d * tp->d );
-                  if ( exitstatus != 0 ) {
-                    fprintf(stderr, "[htpp_compact] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                    EXIT(12);
-                  }
+                /***********************************************************/
+                /***********************************************************/
 
-                  gettimeofday ( &tb, (struct timezone *)NULL );
-                  show_time ( &ta, &tb, "htpp_compact", "read_aff_contraction", io_proc == 2 );
+#if TIMERS
+                gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
 
-                  for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
+                exitstatus = read_aff_contraction (  corr_buffer, affr, NULL, key, T_global );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[htpp_compact] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(12);
+                }
+
+#if TIMERS
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "htpp_compact", "read_aff_contraction", io_proc == 2 );
+#endif
+
+#if 0
+                /***********************************************************
+                 * apply input diagram norm
+                 ***********************************************************/
+                exitstatus = twopoint_function_apply_diagram_norm ( tp );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[htpp_compact] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(12);
+                }
+
+
+                /***********************************************************
+                 * sum up diagrams
+                 ***********************************************************/
+                exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[htpp_compact] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(12);
+                }
+#endif
+
+
+                for( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
  
-                    /* coherent source timeslice */
-                    int t_coherent = ( t_base + ( T_global / g_coherent_source_number ) * icoh ) % T_global;
+#if TIMERS
+                  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+                  /* coherent source coords */
   
-                    int const csx[4] = { t_coherent ,
-                                 ( gsx[1] + (LX_global / g_coherent_source_number ) * icoh) % LX_global,
-                                 ( gsx[2] + (LY_global / g_coherent_source_number ) * icoh) % LY_global,
-                                 ( gsx[3] + (LZ_global / g_coherent_source_number ) * icoh) % LZ_global };
+                  int const csx[4] = {
+                               ( gsx[0] + ( T_global / g_coherent_source_number ) * icoh ) % T_global,
+                               ( gsx[1] + (LX_global / g_coherent_source_number ) * icoh ) % LX_global,
+                               ( gsx[2] + (LY_global / g_coherent_source_number ) * icoh ) % LY_global,
+                               ( gsx[3] + (LZ_global / g_coherent_source_number ) * icoh ) % LZ_global };
 
-                    /***********************************************************
-                     * source phase factor
-                     ***********************************************************/
-                    double _Complex const ephase = cexp ( 2. * M_PI * ( 
-                          pi1[0] * csx[1] / (double)LX_global 
-                        + pi1[1] * csx[2] / (double)LY_global 
-                        + pi1[2] * csx[3] / (double)LZ_global ) * I );
+                  /***********************************************************
+                   * source phase factor
+                   * and order from source
+                   ***********************************************************/
+                  double _Complex const ephase = cexp ( 2. * M_PI * ( 
+                        pi1[0] * csx[1] / (double)LX_global 
+                      + pi1[1] * csx[2] / (double)LY_global 
+                      + pi1[2] * csx[3] / (double)LZ_global ) * I );
             
-                    if ( g_verbose > 4 ) fprintf ( stdout, "# [htpp_compact] pi1 = %3d %3d %3d csx = %3d %3d %3d  ephase = %16.7e %16.7e\n",
-                        pi1[0], pi1[1], pi1[2],
-                        csx[1], csx[2], csx[3],
-                        creal( ephase ), cimag( ephase ) );
+                  if ( g_verbose > 4 ) fprintf ( stdout, "# [htpp_compact] pi1 = %3d %3d %3d csx = %3d %3d %3d  ephase = %16.7e %16.7e\n",
+                      pi1[0], pi1[1], pi1[2],
+                      csx[1], csx[2], csx[3],
+                      creal( ephase ), cimag( ephase ) );
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-                    for ( int it = 0; it < n_tc; it++ ) {
-                      /* order from source */
-                      int const tt = ( csx[0] + it ) % tp->T; 
-                      double _Complex const zbuffer = tp->c[i_diag][tt][0][0] * ephase;
+                  for ( int it = 0; it < n_tc; it++ ) {
+                    /* it = time relative to source
+                     * tt = lattice timeslice
+                     */
+                    int const tt = ( csx[0] + it ) % tp->T; 
+                    double _Complex const zbuffer = corr_buffer[tt] * ephase;
               
-                      corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh][2*it  ] = creal ( zbuffer );
-                      corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh][2*it+1] = cimag ( zbuffer );
+                    corr[2*it  ] = creal ( zbuffer );
+                    corr[2*it+1] = cimag ( zbuffer );
 
-                    }
+                  }
 
-                  }  /* end of loop on coherent sources */
-                }  /* end of loop on diagrams */
-            }  /* end of loop on source momenta */
-          }  /* end of loop on total momentum */
-        }  /* end of loop on sink momenta */
+#if TIMERS
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "htpp_compact", "source-phase-and-reorder", io_proc == 2 );
+#endif
+                  /***************************************************************************
+                   * h5 key 
+                   ***************************************************************************/
+#if TIMERS
+                  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+                  char key[500];
 
-        twopoint_function_fini ( tp );
-      }  /* end of loop on 2pt functions */
+                  if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+                    sprintf ( key, "/%s/pfx%dpfy%dpfz%d/gc_%s/gi_%s/s%c/c%d/t%dx%dy%dz%d",
+                        tp->name,
+                        pf[0], pf[1], pf[2],
+                        gamma_bin_to_name[tp->gf2],
+                        gamma_bin_to_name[tp->gi1[0]],
+                        stream, Nconf, csx[0], csx[1], csx[2], csx[3] );
+
+                  } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
+
+                    sprintf ( key, "/%s/pfx%dpfy%dpfz%d/pi1x%dpi1y%dpi1z%d/gc_%s/s%c/c%d/t%dx%dy%dz%d",
+                        tp->name,
+                        pf[0], pf[1], pf[2],
+                        pi1[0], pi1[1], pi1[2],
+                        gamma_bin_to_name[tp->gf2],
+                        stream, Nconf, csx[0], csx[1], csx[2], csx[3] );
+
+                  } else {
+                    continue;
+                  } 
+
+                  if ( g_verbose > 2 ) {
+                    fprintf ( stdout, "# [htpp_compact] h5 key = %s %s %d\n", key , __FILE__, __LINE__ );
+                  }
+
+                  int const cdim[1] = { 2 * n_tc };
+
+                  exitstatus = write_h5_contraction ( corr, NULL, filename, key, "double", 1, cdim );
+                  if ( exitstatus != 0) {
+                    fprintf ( stderr, "[http_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(123);
+                  }
+
+#if TIMERS
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "htpp_compact", "write_h5_contraction", io_proc == 2 );
+#endif
+
+                }  /* end of loop on coherent sources */
+              }  /* end of loop on source momenta */
+          }  /* end of loop on sink momenta */
+
+          twopoint_function_fini ( tp );
+        }  /* end of loop on 2pt functions */
+
+      }  /* end of loop on total momentum */
 
 #ifdef HAVE_LHPC_AFF
       aff_reader_close ( affr );
@@ -571,42 +698,71 @@ int main(int argc, char **argv) {
     }  /* end of loop on base sources */
 
   }  /* end of loop on configs */
+                  
+  /***************************************************************************
+   * free the correlator field
+   ***************************************************************************/
+  fini_1level_dtable ( &corr );
+  fini_1level_ztable ( &corr_buffer );
    
   /***************************************************************************/
   /***************************************************************************/
 
+#if 0
   /***************************************************************************
+   * COMPACT OUTPUT
+   *
    * write to h5 file
    ***************************************************************************/
   for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-    sprintf ( filename, "%s.dt%d.px%d_py%d_pz%d.h5", g_outfile_prefix, g_src_snk_time_separation, 
-        g_total_momentum_list[iptot][0], g_total_momentum_list[iptot][1], g_total_momentum_list[iptot][2] );
+    int ptot[3] = {
+        g_total_momentum_list[iptot][0],
+        g_total_momentum_list[iptot][1],
+        g_total_momentum_list[iptot][2] };
 
+
+    sprintf ( filename, "%s.dt%d.px%d_py%d_pz%d.h5", g_outfile_prefix, g_src_snk_time_separation, ptot[0], ptot[1], ptot[2] );
 
     for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
+      int pf[3] = {
+          g_sink_momentum_list[ipf][0],
+          g_sink_momentum_list[ipf][1],
+          g_sink_momentum_list[ipf][2] };
+
+      int pc[3] = {
+          ptot[0] - pf[0],
+          ptot[1] - pf[1],
+          ptot[2] - pf[2] };
+
+
       for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-        int pc[3] = {
-            g_total_momentum_list[iptot][0] - g_sink_momentum_list[ipf][0],
-            g_total_momentum_list[iptot][1] - g_sink_momentum_list[ipf][1],
-            g_total_momentum_list[iptot][2] - g_sink_momentum_list[ipf][2] };
-
-#if 0
-        int pi2[3] = {
-            -g_total_momentum_list[iptot][0] - g_source_momentum_list[ipi][0],
-            -g_total_momentum_list[iptot][1] - g_source_momentum_list[ipi][1],
-            -g_total_momentum_list[iptot][2] - g_source_momentum_list[ipi][2] };
-#endif
         int pi1[3] = {
             g_source_momentum_list[ipi][0],
             g_source_momentum_list[ipi][1],
             g_source_momentum_list[ipi][2] };
 
+        int pi2[3] = {
+            -( ptot[0] + pi1[0] ),
+            -( ptot[1] + pi1[1] ),
+            -( ptot[2] + pi1[2] )};
+
         for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
 
           twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
+
+          /***********************************************************
+           * set twop function momenta an filter
+           ***********************************************************/
+          memcpy( tp->pi1, pi1, 3*sizeof(int) );
+          memcpy( tp->pi2, pi2, 3*sizeof(int) );
+          memcpy( tp->pf1, pf,  3*sizeof(int) );
+          memcpy( tp->pf2, pc,  3*sizeof(int) );
+
+          if ( ! momentum_filter ( tp, max_single_particle_momentum_squared ) ) continue;
+
 
           /***************************************************************************
            * key prefix
@@ -614,41 +770,26 @@ int main(int argc, char **argv) {
           char key_prefix[400];
 
           if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
-            sprintf ( key,
-                "/%s/pfx%dpfy%dpfz%d/gc_%s/gi_%s",
+            sprintf ( key_prefix, "/%s/pfx%dpfy%dpfz%d/gc_%s/gi_%s",
                 tp->name,
                 pf[0], pf[1], pf[2],
                 gamma_bin_to_name[tp->gf2],
                 gamma_bin_to_name[tp->gi1[0]] );
 
           } else if ( strcmp ( tp->type , "mxm-j-m" ) == 0 ) {
-            sprintf ( key,
-                "/%s/pfx%dpfy%dpfz%d/pi1x%dpi1y%dpi1z%d
-                
-                gf_%s/dt%d/
-                /gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
+
+            sprintf ( key_prefix, "/%s/pfx%dpfy%dpfz%d/pi1x%dpi1y%dpi1z%d/gc_%s",
                 tp->name,
                 pf[0], pf[1], pf[2],
                 pi1[0], pi1[1], pi1[2],
+                gamma_bin_to_name[tp->gf2] );
 
-                gamma_bin_to_name[tp->gf1[0]], g_src_snk_time_separation,
-                pi2[0], pi2[1], pi2[2], gamma_bin_to_name[tp->gi2],
-                gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
-                );
-
-          } else if ( strcmp ( tp->type , "m-m" ) == 0 ) {
-            sprintf ( key,
-                /* /fs-fc/t70x02y11z20/gf02_gi02/PX0_PY0_PZ0 */
-                "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d_gi%.2d/PX%d_PY%d_PZ%d",
-                diagram_name, gsx[0], gsx[1], gsx[2], gsx[3],
-                tp->gf1[0], tp->gi1[0],
-                pf[0], pf[1], pf[2] );
           } else {
             continue;
           } 
 
           if ( g_verbose > 2 ) {
-            fprintf ( stdout, "# [htpp_compact] h5 key = %s %s %d\n", key , __FILE__, __LINE__ );
+            fprintf ( stdout, "# [htpp_compact] h5 key_prefix = %s %s %d\n", key_prefix , __FILE__, __LINE__ );
           }
 
           /***********************************************************
@@ -686,9 +827,9 @@ int main(int argc, char **argv) {
 
                 int const cdim[1] = { 2 * n_tc };
                 char key[500];
-                sprintf ( key, "%s/c%d/t%dx%dy%dz%d", key_prefix, Nconf, csx[0], csx[1], csx[2], csx[3] );
+                sprintf ( key, "%s/s%c/c%d/t%dx%dy%dz%d", key_prefix, stream, Nconf, csx[0], csx[1], csx[2], csx[3] );
 
-                exitstatus = write_h5_contraction ( corr[i_2pt][iptot][ipf][ipi][iparity][iconf][isrc * g_coherent_source_number + icoh], NULL, filename, key, "double", 1, cdim );
+                exitstatus = write_h5_contraction ( corr[i_2pt][iptot][ipf][ipi][iconf][isrc * g_coherent_source_number + icoh], NULL, filename, key, "double", 1, cdim );
                 if ( exitstatus != 0) {
                   fprintf ( stderr, "[http_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                   EXIT(123);
@@ -704,11 +845,7 @@ int main(int argc, char **argv) {
       }  /* end if loop on source momentum / pi1 */
     }  /* end of loop on sink momentum */
   }  /* end of loop on total momentum */
-
-  /***************************************************************************
-   * free the correlator field
-   ***************************************************************************/
-  fini_8level_dtable ( &corr );
+#endif
 
   /***************************************************************************/
   /***************************************************************************/
