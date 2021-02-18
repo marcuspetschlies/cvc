@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
      
-  double * corr_buffer = init_1level_ztable ( T_global );
+  double _Complex * corr_buffer = init_1level_ztable ( T_global );
   if ( corr_buffer == NULL ) {
     fprintf( stderr, "[htpp_compact_twop] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(2);
@@ -312,12 +312,14 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[ipf][1],
               g_sink_momentum_list[ipf][2] };
 
-        int pi2[3] = { -pf[0], -pf[1], -pf[2]};
+        int pi1[3] = { -pf[0], -pf[1], -pf[2]};
 
         sprintf ( filename, "%s.px%d_py%d_pz%d.h5", g_outfile_prefix, pf[0], pf[1], pf[2] );
 
         /***************************************************************************
          * loop on twopoint functions
+         *
+         * ASSUME ONLY SINGLE DIAGRAM
          ***************************************************************************/
         for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
 
@@ -328,9 +330,9 @@ int main(int argc, char **argv) {
           char diagram_name[500];
           char key[500];
 
-          twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
+          twopoint_function_get_diagram_name ( diagram_name,  tp, 0 );
         
-          for ( int icoh = 0; ico < g_coherent_source_number; icoh++ ) {
+          for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
           
             int const csx[4] = { ( gsx[0] + ( T_global  / g_coherent_source_number ) * icoh ) % T_global,
                                  ( gsx[1] + ( LX_global / g_coherent_source_number ) * icoh ) % LX_global,
@@ -339,10 +341,11 @@ int main(int argc, char **argv) {
             
             if ( strcmp ( tp->type , "m-m" ) == 0 ) {
               sprintf ( key,
-                    /* /fs-fc/t70x02y11z20/gf02_gi02/PX0_PY0_PZ0 */
-                    "/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d_gi%.2d/PX%d_PY%d_PZ%d",
+                    /* /fl-fl/t15x07y03z12/g1_gy/g2_gx/PX0_PY0_PZ0 */
+                    "/%s/t%.2dx%.2dy%.2dz%.2d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
                     diagram_name, csx[0], csx[1], csx[2], csx[3],
-                    tp->gf1[0], tp->gi1[0],
+                    gamma_bin_to_name[ tp->gf1[0] ],
+                    gamma_bin_to_name[ tp->gi1[0] ],
                     pf[0], pf[1], pf[2] );
             } else {
               continue;
@@ -392,7 +395,7 @@ int main(int argc, char **argv) {
 
             int const cdim[1] = { 2 * n_tc };
                  
-            if ( strcmp ( tp->type , "m-j-m" ) == 0 ) {
+            if ( strcmp ( tp->type , "m-m" ) == 0 ) {
               sprintf ( key, "/%s/gf_%s/gi_%s/s%c/c%d/t%dx%dy%dz%d",
                         tp->name,
                         gamma_bin_to_name[tp->gf1[0]],
