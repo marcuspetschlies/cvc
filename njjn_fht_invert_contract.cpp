@@ -71,6 +71,11 @@ extern "C"
 #define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
 #define _PART_IV  1  /* W type sequential diagrams */
 
+#ifndef _USE_TIME_DILUTION
+#define _USE_TIME_DILUTION 1
+#endif
+
+
 using namespace cvc;
 
 /* typedef int ( * reduction_operation ) (double**, double*, fermion_propagator_type*, unsigned int ); */
@@ -513,7 +518,7 @@ int main(int argc, char **argv) {
         EXIT(12);
       }
  
-      double ** spinor_work = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
+      double ** spinor_work = init_2level_dtable ( 3, _GSI( VOLUME+RAND ) );
       if ( spinor_work == NULL ) {
         fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
@@ -532,64 +537,124 @@ int main(int argc, char **argv) {
        *   for each inversion we select only a single spin-color component 
        *   from stochastic_source
        ***************************************************************************/
-      for ( int ispin = 0; ispin < 4; ispin++ ) {
-        for ( int icol = 0; icol < 3; icol++ ) {
+#if _USE_TIME_DILUTION
+      for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
+      {
+#endif
 
-          int const isc = 3 * ispin + icol;
+        for ( int ispin = 0; ispin < 4; ispin++ ) {
 
-	  memset ( spinor_work[0], 0, sizeof_spinor_field );
+          for ( int icol = 0; icol < 3; icol++ ) {
 
-#pragma omp parallel for
-          for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-            unsigned int const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-            spinor_work[0][ iy    ] = stochastic_source[ iy     ];
-            spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
-          }
+            int const isc = 3 * ispin + icol;
 
-          /* tm-rotate stochastic propagator at source, in-place */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
-          }
-
-          /* call to (external/dummy) inverter / solver */
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
-          if(exitstatus != 0) {
-            fprintf(stderr, "[njjn_fht_invert_contract] Error from tmLQCD_invert, status was %d\n", exitstatus);
-            EXIT(12);
-          }
-
-          if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
-          }
-
-          /* tm-rotate stochastic propagator at sink */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
-          }
-
-          /***************************************************************************
-           * fill in loop matrix element ksc = (kspin, kcol ), isc = (ispin, icol )
-           * as
-           * loop[ksc][isc] = prop[ksc] * source[isc]^+
-           ***************************************************************************/
-#pragma omp parallel for
-          for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-            unsigned int const iy = _GSI( ix );
-            for ( int kspin = 0; kspin < 4; kspin++ ) {
-              for ( int kcol = 0; kcol < 3; kcol++ ) {
-                int const ksc = 3 * kspin + kcol;
+              memset ( spinor_work[0], 0, sizeof_spinor_field );
+              memset ( spinor_work[1], 0, sizeof_spinor_field );
  
-                loop[ix][ksc][isc] +=
-                    /* complex conjugate of source vector element */
-                    ( stochastic_source[ iy + 2*isc  ] - I * stochastic_source[ iy + 2*isc+1] )
-                    /* times prop vector element */
-                  * ( spinor_work[1][    iy + 2*ksc  ] + I * spinor_work[1][    iy + 2*ksc+1] );
+#if _USE_TIME_DILUTION
+            if ( timeslice / T == g_proc_coords[0] ) {
+              if ( g_cart_id > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d has global timeslice %d %s %d\n",
+                  g_cart_id, timeslice, __FILE__, __LINE__ );
+            
+              size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
+          
+#pragma omp parallel for
+              for ( unsigned int ix = 0; ix < VOL3; ix++  ) {
+                size_t const iy = offset + _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+                spinor_work[0][ iy    ] = stochastic_source[ iy     ];
+                spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
               }
             }
-          }
-        }  /* end of loop on color dilution component */
-      }  /* end of loop on spin dilution component */
 
+            if ( g_write_source ) {
+
+              sprintf( filename, "stochastic_source.c%d.n%d.t%d.s%d.c%d", Nconf, isample, timeslice, ispin, icol );
+              if ( ( exitstatus = write_propagator ( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
+                fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+            }  /* end of if write source */
+
+
+#else
+
+#pragma omp parallel for
+            for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+              size_t const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+              spinor_work[0][ iy    ] = stochastic_source[ iy     ];
+              spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
+            }
+#endif
+            /* keep a copy of the sources field to later check of residual */
+            memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
+
+            /* tm-rotate stochastic propagator at source, in-place */
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
+            }
+
+            /* call to (external/dummy) inverter / solver */
+            exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
+            if(exitstatus != 0) {
+              fprintf(stderr, "[njjn_fht_invert_contract] Error from tmLQCD_invert, status was %d\n", exitstatus);
+              EXIT(12);
+            }
+
+            if ( check_propagator_residual ) {
+              check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
+            }
+
+            /* tm-rotate stochastic propagator at sink */
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
+            }
+
+            /***************************************************************************
+             * fill in loop matrix element ksc = (kspin, kcol ), isc = (ispin, icol )
+             * as
+             * loop[ksc][isc] = prop[ksc] * source[isc]^+
+             ***************************************************************************/
+#if _USE_TIME_DILUTION
+            if ( timeslice / T == g_proc_coords[0] ) {
+              if ( g_cart_id > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d copy propagator for global timeslice %d %s %d\n", 
+                  g_cart_id, timeslice, __FILE__, __LINE__ );
+
+              size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
+              size_t const NV     = VOL3;
+#else
+              size_t const offset = 0;
+              size_t const NV     = VOLUME;
+#endif
+
+#pragma omp parallel for
+              for ( size_t ix = 0; ix < NV;   ix++ )
+              {
+
+                size_t const iy = offset + _GSI(ix);
+
+                for ( int kspin = 0; kspin < 4; kspin++ ) {
+                  for ( int kcol = 0; kcol < 3; kcol++ ) {
+                    int const ksc = 3 * kspin + kcol;
+ 
+                    loop[ix][ksc][isc] +=
+                        /* complex conjugate of source vector element */
+                        ( stochastic_source[ iy + 2*isc  ] - I * stochastic_source[ iy + 2*isc+1] )
+                        /* times prop vector element */
+                      * ( spinor_work[1][    iy + 2*ksc  ] + I * spinor_work[1][    iy + 2*ksc+1] );
+                  }
+                }
+              }  /* end of loop on volume */
+
+#if _USE_TIME_DILUTION
+            }  /* end of if have timeslice */
+#endif
+
+          }  /* end of loop on color dilution component */
+        }  /* end of loop on spin dilution component */
+
+#if _USE_TIME_DILUTION
+      }  /* end of loop on timeslices */
+#endif
       /* free fields */
       fini_1level_dtable ( &stochastic_source );
       fini_2level_dtable ( &spinor_work );
@@ -602,9 +667,13 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * normalize
      ***************************************************************************/
+    if ( g_nsample > 1 ) {
+      double const norm = 1. / (double)g_nsample;
 #pragma omp parallel for
-    for ( unsigned int ix = 0; ix < 144 * VOLUME; ix++  ) {
-      loop[0][0][ix] /= (double)g_nsample;
+      for ( unsigned int ix = 0; ix < 144 * VOLUME; ix++  ) {
+        /* loop[0][0][ix] /= (double)g_nsample; */
+        loop[0][0][ix] *= norm;
+      }
     }
 
     /***************************************************************************
