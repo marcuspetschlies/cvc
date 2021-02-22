@@ -619,9 +619,11 @@ int main(int argc, char **argv) {
               if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d copy propagator for global timeslice %d %s %d\n", 
                   g_cart_id, timeslice, __FILE__, __LINE__ );
 
-              size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
+              size_t const loffset =  ( timeslice % T ) * VOL3;
+              size_t const offset = _GSI( loffset );
               size_t const NV     = VOL3;
 #else
+              size_t const loffset = 0;
               size_t const offset = 0;
               size_t const NV     = VOLUME;
 #endif
@@ -636,7 +638,7 @@ int main(int argc, char **argv) {
                   for ( int kcol = 0; kcol < 3; kcol++ ) {
                     int const ksc = 3 * kspin + kcol;
  
-                    loop[ix][ksc][isc] +=
+                    loop[ix+loffset][ksc][isc] +=
                         /* complex conjugate of source vector element */
                         ( stochastic_source[ iy + 2*isc  ] - I * stochastic_source[ iy + 2*isc+1] )
                         /* times prop vector element */
