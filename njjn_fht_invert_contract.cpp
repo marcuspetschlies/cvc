@@ -67,9 +67,9 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_IIb 1  /* N1, N2 */
-#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  1  /* W type sequential diagrams */
+#define _PART_IIb 0  /* N1, N2 */
+#define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
+#define _PART_IV  0  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -553,7 +553,7 @@ int main(int argc, char **argv) {
  
 #if _USE_TIME_DILUTION
             if ( timeslice / T == g_proc_coords[0] ) {
-              if ( g_cart_id > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d has global timeslice %d %s %d\n",
+              if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d has global timeslice %d %s %d\n",
                   g_cart_id, timeslice, __FILE__, __LINE__ );
             
               size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
@@ -616,7 +616,7 @@ int main(int argc, char **argv) {
              ***************************************************************************/
 #if _USE_TIME_DILUTION
             if ( timeslice / T == g_proc_coords[0] ) {
-              if ( g_cart_id > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d copy propagator for global timeslice %d %s %d\n", 
+              if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d copy propagator for global timeslice %d %s %d\n", 
                   g_cart_id, timeslice, __FILE__, __LINE__ );
 
               size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
