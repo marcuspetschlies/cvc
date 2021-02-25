@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   const char outfile_prefix[] = "njjn_fht";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
-/*
+
   const int sequential_gamma_sets = 4;
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
   int const sequential_gamma_id[4][4] = {
@@ -152,16 +152,6 @@ int main(int argc, char **argv) {
     { 5, -1, -1, -1 } };
 
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
-*/
-  /* for TESTING */
-  const int sequential_gamma_sets = 1;
-  int const sequential_gamma_num[4] = {4};
-  int const sequential_gamma_id[1][4] = {
-    { 0,  1,  2,  3 } };
-
-  char const sequential_gamma_tag[1][3] = { "vv" };
-
-
 
   char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
@@ -482,244 +472,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    ***************************************************************************
    **
-   ** Part Ia
-   **
-   ** prepare stochastic sources and propagators
-   ** to contract the loop for insertion as part of
-   ** sequential source
-   **
-   ***************************************************************************
-   ***************************************************************************/
-
-  double _Complex *** loop = init_3level_ztable ( VOLUME, 12, 12 );
-  if ( loop  == NULL ) {
-    fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
-    EXIT(12);
-  }
-
-
-  if ( ! read_loop_field ) {
-
-    if ( g_cart_id == 0 ) {
-      fprintf ( stdout, "# [njjn_fht_invert_contract] produce loop field %s %d\n",  __FILE__, __LINE__ );
-    }
-
-    /***************************************************************************
-     * loop on samples
-     * invert and contract loops
-     ***************************************************************************/
-    for ( int isample = 0; isample < g_nsample; isample++ ) {
-
-      gettimeofday ( &ta, (struct timezone *)NULL );
-
-      double * stochastic_source = init_1level_dtable ( _GSI( VOLUME ) );
-      if ( stochastic_source == NULL ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
- 
-      double ** spinor_work = init_2level_dtable ( 3, _GSI( VOLUME+RAND ) );
-      if ( spinor_work == NULL ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      exitstatus = prepare_volume_source ( stochastic_source, VOLUME );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      /***************************************************************************
-       * loop on spin and color index 
-       *
-       * we use spin-color dilution here:
-       *   for each inversion we select only a single spin-color component 
-       *   from stochastic_source
-       ***************************************************************************/
-#if _USE_TIME_DILUTION
-      for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
-      {
-#endif
-
-        for ( int ispin = 0; ispin < 4; ispin++ ) {
-
-          for ( int icol = 0; icol < 3; icol++ ) {
-
-            int const isc = 3 * ispin + icol;
-
-              memset ( spinor_work[0], 0, sizeof_spinor_field );
-              memset ( spinor_work[1], 0, sizeof_spinor_field );
- 
-#if _USE_TIME_DILUTION
-            if ( timeslice / T == g_proc_coords[0] ) {
-              if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d has global timeslice %d %s %d\n",
-                  g_cart_id, timeslice, __FILE__, __LINE__ );
-            
-              size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
-          
-#pragma omp parallel for
-              for ( unsigned int ix = 0; ix < VOL3; ix++  ) {
-                size_t const iy = offset + _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-                spinor_work[0][ iy    ] = stochastic_source[ iy     ];
-                spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
-              }
-            }
-
-            if ( g_write_source ) {
-
-              sprintf( filename, "stochastic_source.c%d.n%d.t%d.s%d.c%d", Nconf, isample, timeslice, ispin, icol );
-              if ( ( exitstatus = write_propagator ( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
-                fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                EXIT(2);
-              }
-            }  /* end of if write source */
-
-
-#else
-
-#pragma omp parallel for
-            for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-              size_t const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-              spinor_work[0][ iy    ] = stochastic_source[ iy     ];
-              spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
-            }
-#endif
-            /* keep a copy of the sources field to later check of residual */
-            memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
-
-            /* tm-rotate stochastic propagator at source, in-place */
-            if( g_fermion_type == _TM_FERMION ) {
-              spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
-            }
-
-            /* call to (external/dummy) inverter / solver */
-            exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[njjn_fht_invert_contract] Error from tmLQCD_invert, status was %d\n", exitstatus);
-              EXIT(12);
-            }
-
-            if ( check_propagator_residual ) {
-              check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
-            }
-
-            /* tm-rotate stochastic propagator at sink */
-            if( g_fermion_type == _TM_FERMION ) {
-              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
-            }
-
-            /***************************************************************************
-             * fill in loop matrix element ksc = (kspin, kcol ), isc = (ispin, icol )
-             * as
-             * loop[ksc][isc] = prop[ksc] * source[isc]^+
-             ***************************************************************************/
-#if _USE_TIME_DILUTION
-            if ( timeslice / T == g_proc_coords[0] ) {
-              if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d copy propagator for global timeslice %d %s %d\n", 
-                  g_cart_id, timeslice, __FILE__, __LINE__ );
-
-              size_t const loffset =  ( timeslice % T ) * VOL3;
-              size_t const offset = _GSI( loffset );
-              size_t const NV     = VOL3;
-#else
-              size_t const loffset = 0;
-              size_t const offset = 0;
-              size_t const NV     = VOLUME;
-#endif
-
-#pragma omp parallel for
-              for ( size_t ix = 0; ix < NV;   ix++ )
-              {
-
-                size_t const iy = offset + _GSI(ix);
-
-                for ( int kspin = 0; kspin < 4; kspin++ ) {
-                  for ( int kcol = 0; kcol < 3; kcol++ ) {
-                    int const ksc = 3 * kspin + kcol;
- 
-                    loop[ix+loffset][ksc][isc] +=
-                        /* complex conjugate of source vector element */
-                        ( stochastic_source[ iy + 2*isc  ] - I * stochastic_source[ iy + 2*isc+1] )
-                        /* times prop vector element */
-                      * ( spinor_work[1][    iy + 2*ksc  ] + I * spinor_work[1][    iy + 2*ksc+1] );
-                  }
-                }
-              }  /* end of loop on volume */
-
-#if _USE_TIME_DILUTION
-            }  /* end of if have timeslice */
-#endif
-
-          }  /* end of loop on color dilution component */
-        }  /* end of loop on spin dilution component */
-
-#if _USE_TIME_DILUTION
-      }  /* end of loop on timeslices */
-#endif
-      /* free fields */
-      fini_1level_dtable ( &stochastic_source );
-      fini_2level_dtable ( &spinor_work );
-
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "njjn_fht_invert_contract", "loop-invert-contract-sample", g_cart_id == 0 );
-
-    }  /* end of loop on samples */
-
-    /***************************************************************************
-     * normalize
-     ***************************************************************************/
-    if ( g_nsample > 1 ) {
-      double const norm = 1. / (double)g_nsample;
-#pragma omp parallel for
-      for ( unsigned int ix = 0; ix < 144 * VOLUME; ix++  ) {
-        /* loop[0][0][ix] /= (double)g_nsample; */
-        loop[0][0][ix] *= norm;
-      }
-    }
-
-    /***************************************************************************
-     * write loop field to lime file
-     ***************************************************************************/
-    if ( write_loop_field ) {
-      sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
-      char loop_type[2000];
-
-      sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
-
-      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
-      if ( exitstatus != 0  ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-    }  /* end of if write_loop_field */
-
-
-  } else {
-
-    /***************************************************************************
-     * read loop field from lime file
-     ***************************************************************************/
-    sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
-
-    if ( io_proc == 2 && g_verbose > 0 ) {
-      fprintf ( stdout, "# [njjn_fht_invert_contract] reading loop field from file %s %s %d\n", filename,  __FILE__, __LINE__ );
-    }
-
-    exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 144, 0 );
-    if ( exitstatus != 0  ) {
-      fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(12);
-    }
-
-  }  /* end of if on read stoch. source  */
-
-
-  /***************************************************************************
-   ***************************************************************************
-   **
-   ** Part Ib
+   ** Part I
    **
    ** prepare stochastic sources for W-type sequential sources and propagators
    **
@@ -769,6 +522,235 @@ int main(int argc, char **argv) {
       }
     }
   }  /* end of if read scalar field */
+
+  /***************************************************************************
+   ***************************************************************************
+   **
+   ** Part Ia
+   **
+   ** prepare stochastic sources and propagators
+   ** to contract the loop for insertion as part of
+   ** sequential source
+   **
+   ***************************************************************************
+   ***************************************************************************/
+
+  double _Complex *** loop = init_3level_ztable ( VOLUME, 12, 12 );
+  if ( loop  == NULL ) {
+    fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(12);
+  }
+
+
+  if ( ! read_loop_field ) {
+
+    if ( g_cart_id == 0 ) {
+      fprintf ( stdout, "# [njjn_fht_invert_contract] produce loop field %s %d\n",  __FILE__, __LINE__ );
+    }
+
+    /***************************************************************************
+     * loop on samples
+     * invert and contract loops
+     ***************************************************************************/
+    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      double ** spinor_work = init_2level_dtable ( 3, _GSI( VOLUME+RAND ) );
+      if ( spinor_work == NULL ) {
+        fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(12);
+      }
+
+      /***************************************************************************
+       * loop on spin and color index 
+       *
+       * we use spin-color dilution here:
+       *   for each inversion we select only a single spin-color component 
+       *   from stochastic_source
+       ***************************************************************************/
+#if _USE_TIME_DILUTION
+      for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
+      {
+#endif
+
+        for ( int ispin = 0; ispin < 4; ispin++ ) {
+
+          for ( int icol = 0; icol < 3; icol++ ) {
+
+            int const isc = 3 * ispin + icol;
+
+            memset ( spinor_work[0], 0, sizeof_spinor_field );
+             memset ( spinor_work[1], 0, sizeof_spinor_field );
+ 
+#if _USE_TIME_DILUTION
+            if ( timeslice / T == g_proc_coords[0] ) {
+              if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d has global timeslice %d %s %d\n",
+                  g_cart_id, timeslice, __FILE__, __LINE__ );
+            
+              size_t const loffset = ( timeslice % T ) * VOL3;
+              size_t const offset  = _GSI( loffset );
+          
+#pragma omp parallel for
+              for ( unsigned int ix = 0; ix < VOL3; ix++  ) {
+                size_t const iy = offset + _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+                size_t const iz = 2 * ( loffset + ix );
+                spinor_work[0][ iy     ] = scalar_field[0][isample][ iz     ];
+                spinor_work[0][ iy + 1 ] = scalar_field[0][isample][ iz + 1 ];
+              }
+            }
+
+            if ( g_write_source ) {
+
+              sprintf( filename, "stochastic_source.c%d.n%d.t%d.s%d.c%d", Nconf, isample, timeslice, ispin, icol );
+              if ( ( exitstatus = write_propagator ( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
+                fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+            }  /* end of if write source */
+
+
+#else
+
+#pragma omp parallel for
+            for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+              size_t const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+              spinor_work[0][ iy    ] = scalar_field[0][isample][ 2 * ix     ];
+              spinor_work[0][ iy + 1] = scalar_field[0][isample][ 2 * ix + 1 ];
+            }
+#endif
+            /* tm-rotate stochastic propagator at source, in-place */
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
+            }
+
+            /* keep a copy of the sources field to later check of residual */
+            memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
+
+            /* call to (external/dummy) inverter / solver */
+            exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
+            if(exitstatus != 0) {
+              fprintf(stderr, "[njjn_fht_invert_contract] Error from tmLQCD_invert, status was %d\n", exitstatus);
+              EXIT(12);
+            }
+
+            if ( check_propagator_residual ) {
+              check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
+            }
+
+            /* tm-rotate stochastic propagator at sink */
+            if( g_fermion_type == _TM_FERMION ) {
+              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
+            }
+
+            /***************************************************************************
+             * fill in loop matrix element ksc = (kspin, kcol ), isc = (ispin, icol )
+             * as
+             * loop[ksc][isc] = prop[ksc] * source[isc]^+
+             ***************************************************************************/
+#if _USE_TIME_DILUTION
+            if ( timeslice / T == g_proc_coords[0] ) {
+              if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d copy propagator for global timeslice %d %s %d\n", 
+                  g_cart_id, timeslice, __FILE__, __LINE__ );
+
+              size_t const loffset =  ( timeslice % T ) * VOL3;
+              size_t const offset = _GSI( loffset );
+              size_t const NV     = VOL3;
+#else
+              size_t const loffset = 0;
+              size_t const offset = 0;
+              size_t const NV     = VOLUME;
+#endif
+
+#pragma omp parallel for
+              for ( size_t ix = 0; ix < NV;   ix++ )
+              {
+
+                size_t const iy = offset + _GSI(ix);
+
+                for ( int kspin = 0; kspin < 4; kspin++ ) {
+                  for ( int kcol = 0; kcol < 3; kcol++ ) {
+                    int const ksc = 3 * kspin + kcol;
+ 
+                    loop[ix+loffset][ksc][isc] +=
+                        /* 
+                         * complex conjugate of source vector element 
+                         */
+                        ( scalar_field[0][isample][ 2 * ( ix + loffset ) ] - I * scalar_field[0][isample][ 2 * ( ix + loffset ) + 1] )
+                        /* 
+                         * times prop vector element
+                         */
+                      * ( spinor_work[1][ iy + 2 * ksc  ] + I * spinor_work[1][ iy + 2 * ksc + 1 ] );
+                  }
+                }
+              }  /* end of loop on volume */
+
+#if _USE_TIME_DILUTION
+            }  /* end of if have timeslice */
+#endif
+
+          }  /* end of loop on color dilution component */
+        }  /* end of loop on spin dilution component */
+
+#if _USE_TIME_DILUTION
+      }  /* end of loop on timeslices */
+#endif
+      /* free fields */
+      fini_2level_dtable ( &spinor_work );
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_fht_invert_contract", "loop-invert-contract-sample", g_cart_id == 0 );
+
+    }  /* end of loop on samples */
+
+    /***************************************************************************
+     * normalize
+     ***************************************************************************/
+    if ( g_nsample_oet > 1 ) {
+      double const norm = 1. / (double)g_nsample_oet;
+#pragma omp parallel for
+      for ( unsigned int ix = 0; ix < 144 * VOLUME; ix++  ) {
+        /* loop[0][0][ix] /= (double)g_nsample; */
+        loop[0][0][ix] *= norm;
+      }
+    }
+
+    /***************************************************************************
+     * write loop field to lime file
+     ***************************************************************************/
+    if ( write_loop_field ) {
+      sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
+      char loop_type[2000];
+
+      sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
+
+      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
+      if ( exitstatus != 0  ) {
+        fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(12);
+      }
+
+    }  /* end of if write_loop_field */
+
+
+  } else {
+
+    /***************************************************************************
+     * read loop field from lime file
+     ***************************************************************************/
+    sprintf( filename, "loop.up.c%d.N%d.lime", Nconf, g_nsample );
+
+    if ( io_proc == 2 && g_verbose > 0 ) {
+      fprintf ( stdout, "# [njjn_fht_invert_contract] reading loop field from file %s %s %d\n", filename,  __FILE__, __LINE__ );
+    }
+
+    exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 144, 0 );
+    if ( exitstatus != 0  ) {
+      fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(12);
+    }
+
+  }  /* end of if on read stoch. source  */
 
   /***************************************************************************
    *
