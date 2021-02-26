@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
   const char outfile_prefix[] = "njjn_fht";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
-/*
+
   const int sequential_gamma_sets = 4;
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
   int const sequential_gamma_id[4][4] = {
@@ -152,14 +152,6 @@ int main(int argc, char **argv) {
     { 5, -1, -1, -1 } };
 
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
-*/
-  /* for TESTING */
-  const int sequential_gamma_sets = 1;
-  int const sequential_gamma_num[4] = {4};
-  int const sequential_gamma_id[1][4] = {
-    { 0,  1,  2,  3 } };
-
-  char const sequential_gamma_tag[1][3] = { "vv" };
 
 
 
@@ -585,13 +577,13 @@ int main(int argc, char **argv) {
               spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
             }
 #endif
-            /* keep a copy of the sources field to later check of residual */
-            memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
-
             /* tm-rotate stochastic propagator at source, in-place */
             if( g_fermion_type == _TM_FERMION ) {
               spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
             }
+
+            /* keep a copy of the sources field to later check of residual */
+            memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
 
             /* call to (external/dummy) inverter / solver */
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
