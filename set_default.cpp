@@ -256,6 +256,24 @@ void set_default_input_values(void) {
   g_source_gamma_id_list[14] = _default_source_gamma_id;
   g_source_gamma_id_list[15] = _default_source_gamma_id;
 
+  g_sink_gamma_id_number = _default_sink_gamma_id_number;
+  g_sink_gamma_id_list[ 0] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 1] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 2] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 3] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 4] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 5] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 6] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 7] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 8] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[ 9] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[10] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[11] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[12] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[13] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[14] = _default_sink_gamma_id;
+  g_sink_gamma_id_list[15] = _default_sink_gamma_id;
+
   g_twopoint_function_number = _default_twopoint_function_number;
   g_twopoint_function_list   = _default_twopoint_function_list;
 

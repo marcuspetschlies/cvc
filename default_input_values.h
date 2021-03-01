@@ -190,6 +190,9 @@ namespace cvc {
 #define _default_source_gamma_id -1
 #define _default_source_gamma_id_number 0
 
+#define _default_sink_gamma_id -1
+#define _default_sink_gamma_id_number 0
+
 #define _default_csw 0
 
 #define _default_fermion_type -1
