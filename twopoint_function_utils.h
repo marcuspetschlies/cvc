@@ -66,6 +66,59 @@ inline unsigned int coords_to_index ( const int * coords, const unsigned int * d
   return ( res );
 }  /* end of coords_to_index */
 
+/***************************************************************************
+ * momentum filter
+ ***************************************************************************/
+inline int momentum_filter ( int * const pf, int * const pc, int * const pi1, int * const pi2, int const pp_max ) {
+
+  /* check mometnum conservation  */
+  if ( pf == NULL || pc == NULL ) return ( 1 == 0 );
+
+  if ( pi2 == NULL && pc == NULL ) {
+
+    int const is_conserved = ( pi1[0] + pf[0] == 0 ) && ( pi1[1] + pf[1] == 0 ) && ( pi1[2] + pf[2] == 0 );
+
+    int const is_lessequal = \
+            ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2] <= pp_max ) \
+        &&  ( pf[0]  * pf[0]  + pf[1]  * pf[1]  + pf[2]  * pf[2]  <= pp_max );
+
+    return ( is_conserved && is_lessequal );
+
+  } else if ( pc != NULL ) {
+
+    if ( pi2 == NULL ) {
+
+      int const is_conserved = ( pi1[0] + pf[0] + pc[0] == 0 ) && \
+                               ( pi1[1] + pf[1] + pc[1] == 0 ) && \
+                               ( pi1[2] + pf[2] + pc[2] == 0 );
+
+      int const is_lessequal = \
+                               ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2]  <= pp_max ) \
+                            && ( pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2]  <= pp_max ) \
+                            && ( pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2]  <= pp_max );
+
+      return ( is_conserved && is_lessequal );
+
+    } else {
+
+      int const is_conserved = ( pi1[0] + pi2[0] + pf[0] + pc[0] == 0 ) &&
+                               ( pi1[1] + pi2[1] + pf[1] + pc[1] == 0 ) &&
+                               ( pi1[2] + pi2[2] + pf[2] + pc[2] == 0 );
+
+      int const is_lessequal = \
+                               ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2]  <= pp_max ) \
+                            && ( pi2[0] * pi2[0] + pi2[1] * pi2[1] + pi2[2] * pi2[2]  <= pp_max ) \
+                            && ( pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2]  <= pp_max ) \
+                            && ( pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2]  <= pp_max );
+
+      return ( is_conserved && is_lessequal );
+    }
+  } else {
+    return ( 1 == 0 );
+  }
+
+} /* end of mometnum_filter */
+
 
 }  // end of namespace cvc
 
