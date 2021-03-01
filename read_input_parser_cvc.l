@@ -144,6 +144,7 @@ namespace cvc {
 %x SEQSRCLOCATIONZ
 %x SEQSRCGAMMAID
 %x SRCGAMMAID
+%x SNKGAMMAID
 %x MMSNOMASSES
 %x NOLIGHTMASSES
 %x NOSTRANGEMASSES
@@ -304,6 +305,7 @@ namespace cvc {
 
 ^sequential_source_gamma_id{SPC}*={SPC}*   BEGIN(SEQSRCGAMMAID);
 ^source_gamma_id{SPC}*={SPC}*              BEGIN(SRCGAMMAID);
+^sink_gamma_id{SPC}*={SPC}*                BEGIN(SNKGAMMAID);
 
 
 ^no_extra_masses{SPC}*={SPC}*              BEGIN(MMSNOMASSES);
@@ -754,6 +756,16 @@ namespace cvc {
   }
   cvc::g_source_gamma_id_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in source gamma id list to %s, total number is now %d\n", yytext, cvc::g_source_gamma_id_number);
+}
+
+
+<SNKGAMMAID>{DIGIT}+ {
+  cvc::g_sink_gamma_id_list[cvc::g_sink_gamma_id_number] = atoi(yytext);
+  if( cvc::g_sink_gamma_id_number == 0 ) {
+    cvc::g_sink_gamma_id = cvc::g_sink_gamma_id_list[cvc::g_sink_gamma_id_number];
+  }
+  cvc::g_sink_gamma_id_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in sink gamma id list to %s, total number is now %d\n", yytext, cvc::g_sink_gamma_id_number);
 }
 
 
