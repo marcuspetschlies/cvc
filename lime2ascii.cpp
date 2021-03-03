@@ -77,13 +77,14 @@ int main(int argc, char **argv) {
   char limefile_type[100] = "DiracFermion";
   int limefile_pos = 0;
   int tsize = 0, lsize = 0;
+  int components = 0;
   // double ratime, retime;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:c:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -103,6 +104,9 @@ int main(int argc, char **argv) {
       break;
     case 'L':
       lsize = atoi ( optarg );
+      break;
+    case 'c':
+      components = atoi ( optarg );
       break;
     case 'h':
     case '?':
@@ -270,7 +274,50 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 
     fini_2level_dtable ( &propagator_field );
-  }
+
+   } else if ( strncmp ( limefile_type, "Contraction", 11 ) == 0 ) {
+
+    /***************************************************************************
+     * write as generic contraction field
+     ***************************************************************************/
+    int const nc = components;
+    if ( nc == 0 ) {
+      fprintf ( stderr, "[lime2ascii] Error, number of components is zero %s %d\n", __FILE__, __LINE__ );
+      EXIT(2);
+    } else {
+      fprintf ( stdout, "# [lime2ascii] using type = %s with nc = %d double complex %s %d\n", limefile_type, nc, __FILE__, __LINE__ );
+    }
+
+    double ** field = init_2level_dtable ( VOLUME, 2 * nc );
+
+    exitstatus = read_lime_contraction( field[0], limefile_name, nc, 0 );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    sprintf ( filename,"%s.ascii", limefile_name );
+    FILE * ofs = fopen ( filename, "w" );
+
+    for ( int x0 = 0; x0 < T; x0++ ) {
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      unsigned int const ix = g_ipt[x0][x1][x2][x3];
+      fprintf ( ofs, "# [lime2ascii] x %3d %3d %3d %3d\n", x0, x1, x2, x3 );
+
+
+      for ( int i = 0; i < nc; i++ ) {
+        fprintf ( ofs, "s %3d  %25.16e + %25.16e I\n", i, field[ix][2*i], field[ix][2*i+1] );
+      }
+
+    }}}}
+
+    fclose ( ofs );
+
+    fini_2level_dtable ( &field );
+   }
+
 
   free_geometry();
 
