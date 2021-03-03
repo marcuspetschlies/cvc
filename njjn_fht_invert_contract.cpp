@@ -213,8 +213,10 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
-  int read_loop_field = 0;
-  int write_loop_field = 0;
+  int read_loop_field    = 0;
+  int write_loop_field   = 0;
+  int read_scalar_field  = 0;
+  int write_scalar_field = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -225,7 +227,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "rwch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "sSrwch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -239,6 +241,12 @@ int main(int argc, char **argv) {
       break;
     case 'w':
       write_loop_field = 1;
+      break;
+    case 's':
+      read_scalar_field = 1;
+      break;
+    case 'S':
+      write_scalar_field = 1;
       break;
     case 'h':
     case '?':
@@ -485,7 +493,7 @@ int main(int argc, char **argv) {
     EXIT(132);
   }
 
-  if ( ! read_loop_field ) {
+  if ( ! read_scalar_field ) {
 
     /***************************************************************************
      * draw a stochastic binary source (real, +/1 one per site )
@@ -495,7 +503,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * write loop field to lime file
      ***************************************************************************/
-    if ( write_loop_field ) {
+    if ( write_scalar_field ) {
       sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
       
       char field_type[2000];
