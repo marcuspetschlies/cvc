@@ -67,9 +67,10 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#define _PART_I   0  /* loops */
 #define _PART_IIb 0  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -142,7 +143,7 @@ int main(int argc, char **argv) {
   const char outfile_prefix[] = "njjn_fht";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
-
+/*
   const int sequential_gamma_sets = 4;
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
   int const sequential_gamma_id[4][4] = {
@@ -152,6 +153,13 @@ int main(int argc, char **argv) {
     { 5, -1, -1, -1 } };
 
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
+*/
+  const int sequential_gamma_sets = 1;
+  int const sequential_gamma_num[1] = { 1};
+  int const sequential_gamma_id[1][4] = { { 5, -1, -1, -1 } };
+
+  char const sequential_gamma_tag[1][3] = {  "pp" };
+
 
   char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
@@ -549,6 +557,7 @@ int main(int argc, char **argv) {
     EXIT(12);
   }
 
+#if _PART_I
 
   if ( ! read_loop_field ) {
 
@@ -589,7 +598,7 @@ int main(int argc, char **argv) {
             int const isc = 3 * ispin + icol;
 
             memset ( spinor_work[0], 0, sizeof_spinor_field );
-             memset ( spinor_work[1], 0, sizeof_spinor_field );
+            memset ( spinor_work[1], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
             if ( timeslice / T == g_proc_coords[0] ) {
@@ -759,6 +768,8 @@ int main(int argc, char **argv) {
     }
 
   }  /* end of if on read stoch. source  */
+
+#endif  /* of if Part I */
 
   /***************************************************************************
    *
@@ -1518,8 +1529,8 @@ int main(int argc, char **argv) {
 
                 if ( g_write_sequential_source ) {
                   for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
 
                     if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
                       fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1548,8 +1559,8 @@ int main(int argc, char **argv) {
 
                 if ( g_write_sequential_propagator ) {
                   for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
 
                     if ( ( exitstatus = write_propagator( sequential_propagator[iflavor][i], filename, 0, g_propagator_precision) ) != 0 ) {
                       fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
