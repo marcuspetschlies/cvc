@@ -8,7 +8,6 @@
 #include <omp.h>
 #endif
 
-
 #include "uwerr.h"
 
 namespace cvc {
@@ -223,7 +222,6 @@ int apply_uwerr_real ( double * const data, unsigned int const nmeas, unsigned i
 
 int apply_uwerr_func ( double * const data, unsigned int const nmeas, unsigned int const ndata, unsigned int const nset, int const narg, int * const arg_first, int * const arg_stride, char * obs_name, dquant func, dquant dfunc );
 
-
 /***************************************************************************
  * set number of openmp threads
  ***************************************************************************/
@@ -240,7 +238,6 @@ inline void set_omp_number_threads (void) {
   g_num_threads = 1;
 #endif
 }  /* end of set_omp_number_threads */
-
 
 }  /* end of namespace cvc */
 #endif
