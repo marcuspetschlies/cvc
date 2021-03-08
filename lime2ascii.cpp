@@ -78,13 +78,14 @@ int main(int argc, char **argv) {
   int limefile_pos = 0;
   int tsize = 0, lsize = 0;
   int components = 0;
+  int limefile_position=-1;
   // double ratime, retime;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:c:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:c:r:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -107,6 +108,9 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       components = atoi ( optarg );
+      break;
+    case 'r':
+      limefile_position = atoi ( optarg );
       break;
     case 'h':
     case '?':
@@ -290,13 +294,15 @@ int main(int argc, char **argv) {
 
     double ** field = init_2level_dtable ( VOLUME, 2 * nc );
 
-    exitstatus = read_lime_contraction( field[0], limefile_name, nc, 0 );
+    if ( limefile_position == -1 ) limefile_position = 0;
+
+    exitstatus = read_lime_contraction( field[0], limefile_name, nc, limefile_position );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
-    sprintf ( filename,"%s.ascii", limefile_name );
+    sprintf ( filename,"%s.pos%d.ascii", limefile_name, limefile_position );
     FILE * ofs = fopen ( filename, "w" );
 
     for ( int x0 = 0; x0 < T; x0++ ) {
