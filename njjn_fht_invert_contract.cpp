@@ -1502,7 +1502,12 @@ int main(int argc, char **argv) {
 
                 gettimeofday ( &ta, (struct timezone *)NULL );
 
-                double ** const sequential_source_accum = sequential_propagator[0];
+                /***************************************************************************
+                 * auxilliary field sequential_source_accum to accumulate the seq source;
+                 * abuse memory of sequential_propagator[iflavor] which has not yet been
+                 * filled, but will be written after seq source construction
+                 ***************************************************************************/
+                double ** const sequential_source_accum = sequential_propagator[iflavor];
                 memset ( sequential_source[0], 0, 12 * sizeof_spinor_field );
 
                 for ( int icoh = 0; icoh < g_coherent_source_number; icoh++)
