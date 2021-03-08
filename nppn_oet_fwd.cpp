@@ -109,14 +109,14 @@ int main(int argc, char **argv) {
  * Gamma components for the piN and Delta:
  *                                                                 */
   /* vertex i2, gamma_5 only */
-  const int gamma_i2_number             = 2;
-  int gamma_i2_list[gamma_i2_number]    = {  5,  4 };
-  double gamma_i2_sign[gamma_i2_number] = { +1, +1 };
+  const int gamma_i2_number             = 1;
+  int gamma_i2_list[gamma_i2_number]    = {  5 };
+  double gamma_i2_sign[gamma_i2_number] = { +1 };
 
   /* vertex f2, gamma_5 and id,  vector indices and pseudo-vector */
-  const int gamma_f2_number                        = 2;
-  int gamma_f2_list[gamma_f2_number]               = {  5,  4 };
-  double gamma_f2_sign[gamma_f2_number]            = { +1, +1 };
+  const int gamma_f2_number                        = 1;
+  int gamma_f2_list[gamma_f2_number]               = {  5 };
+  double gamma_f2_sign[gamma_f2_number]            = { +1 };
 
   /* vertex f1 for nucleon-type, C g5, C, C g0 g5, C g0 */
   const int gamma_f1_nucleon_number                                = 1;
@@ -689,9 +689,10 @@ int main(int argc, char **argv) {
         /*****************************************************************
          * contractions for the charged pion - pion correlator
          *****************************************************************/
-        sprintf(aff_tag, "/m-m/%c%c/t%.2dx%.2dy%.2dz%.2d/gi%.2d/gf%.2d", 
+        sprintf(aff_tag, "/m-m/%c%c/gf%.2d/gi%.2d/t%dx%dy%dz%d", 
             flavor_tag[1-iflavor], flavor_tag[iflavor2],
-            gsx[0], gsx[1], gsx[2], gsx[3], gamma_i2_number[igi2], gamma_f2_number[igf2] );
+            gamma_f2_number[igf2], gamma_i2_number[igi2],
+            gsx[0], gsx[1], gsx[2], gsx[3] );
 
         contract_twopoint_xdep (v3[0], gamma_i2_list[igi2], gamma_f2_list[igf2], propagator_list[iflavor], propagator_list[iflavor2], 3, 1, 1., 64);
 
@@ -726,12 +727,27 @@ int main(int argc, char **argv) {
      * for B, Z
      *****************************************************************/
 
-    for ( int idt = 1; idt <= g_source_operator_separation; idt++ ) {
+    double *****vx = init_5level_dtable ( T, T_global, 2, 2, 8 );
+    
 
-      int const gts = ( gsx[0] - idt + T_global ) % T_global;
+    for ( int tt = 0; tt < T_global; tt++ ) {
 
       for ( int iflavor_p = 0; iflavor_p <= 1; iflavor_p ++ ) {
       for ( int iflavor_f = 0; iflavor_f <= 1; iflavor_f ++ ) {
+
+        for ( int is = 0; is < 4; is++ ) {
+          for ( int it = 0; it < T; it++ ) {
+            double 
+
+                  z = _F(zdotc)( &DIM, q[k], &ONE, v[i], &ONE );
+
+          }
+        }
+
+
+
+
+
 
 
 
