@@ -1112,7 +1112,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
   /* hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id ); */
   hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
   if ( dataset_id < 0 ) {
-    fprintf(stderr, "[write_h5_contraction] Error from H5Dcreate, data set probably exists %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[write_h5_contraction] Error from H5Dcreate, data set probably exists for file %s key %s %s %d\n", filename, tag, __FILE__, __LINE__);
     /* return(6); f*/
   } else {
 
@@ -1143,7 +1143,8 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
       fprintf(stderr, "[write_h5_contraction] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
       return(8);
     }
-  }
+
+  }  /* end of if dataset id < 0 , else branch */
 
   /***************************************************************************
    * close the data space
