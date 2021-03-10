@@ -71,51 +71,68 @@ inline unsigned int coords_to_index ( const int * coords, const unsigned int * d
  ***************************************************************************/
 inline int momentum_filter ( int * const pf, int * const pc, int * const pi1, int * const pi2, int const pp_max ) {
 
-  /* check mometnum conservation  */
-  if ( pf == NULL || pc == NULL ) return ( 1 == 0 );
+  int qf[3], qc[3], qi1[3], qi2[3];
 
-  if ( pi2 == NULL && pc == NULL ) {
-
-    int const is_conserved = ( pi1[0] + pf[0] == 0 ) && ( pi1[1] + pf[1] == 0 ) && ( pi1[2] + pf[2] == 0 );
-
-    int const is_lessequal = \
-            ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2] <= pp_max ) \
-        &&  ( pf[0]  * pf[0]  + pf[1]  * pf[1]  + pf[2]  * pf[2]  <= pp_max );
-
-    return ( is_conserved && is_lessequal );
-
-  } else if ( pc != NULL ) {
-
-    if ( pi2 == NULL ) {
-
-      int const is_conserved = ( pi1[0] + pf[0] + pc[0] == 0 ) && \
-                               ( pi1[1] + pf[1] + pc[1] == 0 ) && \
-                               ( pi1[2] + pf[2] + pc[2] == 0 );
-
-      int const is_lessequal = \
-                               ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2]  <= pp_max ) \
-                            && ( pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2]  <= pp_max ) \
-                            && ( pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2]  <= pp_max );
-
-      return ( is_conserved && is_lessequal );
-
-    } else {
-
-      int const is_conserved = ( pi1[0] + pi2[0] + pf[0] + pc[0] == 0 ) &&
-                               ( pi1[1] + pi2[1] + pf[1] + pc[1] == 0 ) &&
-                               ( pi1[2] + pi2[2] + pf[2] + pc[2] == 0 );
-
-      int const is_lessequal = \
-                               ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2]  <= pp_max ) \
-                            && ( pi2[0] * pi2[0] + pi2[1] * pi2[1] + pi2[2] * pi2[2]  <= pp_max ) \
-                            && ( pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2]  <= pp_max ) \
-                            && ( pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2]  <= pp_max );
-
-      return ( is_conserved && is_lessequal );
-    }
+  if ( pf == NULL ) {
+    qf[0] = 0;
+    qf[1] = 0;
+    qf[2] = 0;
   } else {
-    return ( 1 == 0 );
+    qf[0] = pf[0];
+    qf[1] = pf[1];
+    qf[2] = pf[2];
   }
+
+
+  if ( pc == NULL ) {
+    qc[0] = 0;
+    qc[1] = 0;
+    qc[2] = 0;
+  } else {
+    qc[0] = pc[0];
+    qc[1] = pc[1];
+    qc[2] = pc[2];
+  }
+
+
+  if ( pi1 == NULL ) {
+    qi1[0] = 0;
+    qi1[1] = 0;
+    qi1[2] = 0;
+  } else {
+    qi1[0] = pi1[0];
+    qi1[1] = pi1[1];
+    qi1[2] = pi1[2];
+  }
+
+  if ( pi2 == NULL ) {
+    qi2[0] = 0;
+    qi2[1] = 0;
+    qi2[2] = 0;
+  } else {
+    qi2[0] = pi2[0];
+    qi2[1] = pi2[1];
+    qi2[2] = pi2[2];
+  }
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [momentum_filter] mom pi1 (%d %d %d) pi2 (%d %d %d) pc (%d %d %d)   pf (%d %d %d) \n",
+                           qi1[0], qi1[1], qi1[2],
+                           qi2[0], qi2[1], qi2[2],
+                           qc[0],  qc[1],  qc[2],
+                           qf[0],  qf[1],  qf[2] );
+
+
+  int const is_conserved = ( qi1[0] + qi2[0] + qf[0] + qc[0] == 0 ) &&
+                           ( qi1[1] + qi2[1] + qf[1] + qc[1] == 0 ) &&
+                           ( qi1[2] + qi2[2] + qf[2] + qc[2] == 0 );
+
+  int const is_lessequal = pp_max < 0 ? 1 : \
+                               ( qi1[0] * qi1[0] + qi1[1] * qi1[1] + qi1[2] * qi1[2]  <= pp_max ) \
+                            && ( qi2[0] * qi2[0] + qi2[1] * qi2[1] + qi2[2] * qi2[2]  <= pp_max ) \
+                            && ( qc[0]  * qc[0]  + qc[1]  * qc[1]  + qc[2]  * qc[2]   <= pp_max ) \
+                            && ( qf[0]  * qf[0]  + qf[1]  * qf[1]  + qf[2]  * qf[2]   <= pp_max );
+
+  return ( is_conserved && is_lessequal );
 
 } /* end of mometnum_filter */
 
