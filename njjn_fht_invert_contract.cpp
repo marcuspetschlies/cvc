@@ -67,9 +67,10 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#define _PART_Ia  0  /* loop calculation */
 #define _PART_IIb 0  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -543,7 +544,10 @@ int main(int argc, char **argv) {
    ***************************************************************************
    ***************************************************************************/
 
-  double _Complex *** loop = init_3level_ztable ( VOLUME, 12, 12 );
+  double _Complex *** loop = NULL;
+
+#if _PART_Ia
+  loop = init_3level_ztable ( VOLUME, 12, 12 );
   if ( loop  == NULL ) {
     fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(12);
@@ -759,6 +763,7 @@ int main(int argc, char **argv) {
     }
 
   }  /* end of if on read stoch. source  */
+#endif  /* of if _PART_Ia */
 
   /***************************************************************************
    *
@@ -1858,8 +1863,8 @@ int main(int argc, char **argv) {
   ***************************************************************************/
   fini_2level_ztable ( &ephase );
 
-  fini_3level_ztable ( &loop );
-  fini_3level_dtable ( &scalar_field );
+  if ( loop         != NULL ) fini_3level_ztable ( &loop );
+  if ( scalar_field != NULL ) fini_3level_dtable ( &scalar_field );
 
 
   fini_rng_state ( &g_rng_state);
