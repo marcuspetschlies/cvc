@@ -3246,6 +3246,7 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
             B[i][k] = z;
           }
         }
+
       } else if ( strcmp( ac, "annihilation" ) == 0 ) {
 
         /****************************************************
@@ -3255,8 +3256,8 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
 
           for (int k = 0; k < matrix_dim; k++ ) {
 
-            int const ip_k    = k / spinor_dim;
-            int const ip_l    = ( momentum_mapping == NULL ) ? ip_k : momentum_mapping [ ip_k ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
+            int const ip_l    = k / spinor_dim;
+            int const ip_k    = ( momentum_mapping == NULL ) ? ip_l : momentum_mapping [ ip_l ][ irot % p.rtarget->n ][ irot / p.rtarget->n ];
             int const alpha_k = ( k % spinor_dim ) / p.rspin[1].dim;
             int const beta_k  = ( k % spinor_dim ) % p.rspin[1].dim;
 
@@ -3273,7 +3274,8 @@ int check_subduction_matrix_multiplett_rotation ( double _Complex *** const v , 
               z += v[imu][ i ][ ll ] * conj( r0[ alpha_k ][ alpha_l ] * r1[ beta_k ][ beta_l ] );
             }
 
-            A[i][k] = z * parity;
+            /* A[i][k] = z * parity; */
+            A[i][ ip_k * spinor_dim + alpha_k * p.rspin[1].dim + beta_k ] = z * parity;
           }
         }
   
