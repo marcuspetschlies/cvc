@@ -464,8 +464,7 @@ int main(int argc, char **argv) {
       /****************************************************
        * loop on creation / annihilation operator
        ****************************************************/
-      /* for ( int iac = 0; iac <= 1; iac++ )  */
-      for ( int iac = 0; iac <= 0; iac++ ) 
+      for ( int iac = 0; iac <= 1; iac++ )
       {
 
         /****************************************************
