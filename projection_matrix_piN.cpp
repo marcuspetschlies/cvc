@@ -333,8 +333,8 @@ int main(int argc, char **argv) {
      * loop on irreps
      *   within little group
      ****************************************************/
-    // for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ )
-    for ( int i_irrep = 5; i_irrep <= 5; i_irrep++ )
+    for ( int i_irrep = 0; i_irrep < lg[ilg].nirrep; i_irrep++ )
+    /* for ( int i_irrep = 5; i_irrep <= 5; i_irrep++ ) */
     {
 
       /****************************************************
@@ -566,7 +566,7 @@ int main(int argc, char **argv) {
 
            if ( g_verbose > 2 ) fprintf ( stdout, "# [projection_matrix_piN] processing %s/row%d %s %d\n", tag_prefix, imu, __FILE__, __LINE__ );
            
-#if 0            
+
             int const new_rank = gs_onb_mat ( projection_matrix_s[imu], projection_matrix_u[imu], projection_matrix_v[imu], matrix_dim, matrix_dim );
 
             if ( rank == -1 ) rank = new_rank;
@@ -684,6 +684,7 @@ int main(int argc, char **argv) {
             }  /* end of loop on rank = loop on operators */
 
             fclose ( ofs2 );
+#if 0
 #endif
 
           }  /* end of loop on target irrep rows */
@@ -691,13 +692,15 @@ int main(int argc, char **argv) {
           /****************************************************
            * check irrep multiplett rotation
            ****************************************************/
-#if 0
+
           if ( rank == 0 ) {
             fprintf( stdout, "# [projection_matrix_piN] rank is zero, no test %s %d\n", __FILE__, __LINE__ );
             continue;
           }
-#endif
+#if 0
           exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v, matrix_dim, p, operator_side[iac], momentum_number, rotated_momentum_id );
+#endif
+          exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_u, rank, p, operator_side[iac], momentum_number, rotated_momentum_id );
           if ( exitstatus != 0 ) {
             fprintf( stderr, "[projection_matrix_piN] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n",
                exitstatus,  __FILE__, __LINE__ );
