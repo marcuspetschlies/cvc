@@ -673,6 +673,28 @@ int main(int argc, char **argv) {
               fclose ( ofs2 );
   
               /****************************************************
+               * test irrep multiplet rotation property
+               * use a p_target projector
+               ****************************************************/
+#if 0 
+              if ( rank > 0 ) {
+
+                exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v, rank, p, operator_side[iac], 1, NULL );
+                if ( exitstatus != 0 ) {
+                  fprintf( stderr, "[projection_matrix_basis_vectors] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(12);
+                } */
+
+                exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_u, rank, p, operator_side[iac], 1, NULL );
+
+                if ( exitstatus != 0 ) {
+                  fprintf( stderr, "[projection_matrix_basis_vectors] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(12);
+                }
+  
+              }  /* end of if rank > 0 */
+#endif 
+              /****************************************************
                * deallocate matrices
                ****************************************************/
               fini_3level_ztable ( &projection_matrix_v );
@@ -680,30 +702,8 @@ int main(int argc, char **argv) {
               fini_3level_ztable ( &projection_matrix_u );
   
               fini_3level_dtable ( &cg );
-  
+
             }  /* end of loop on target J2 values */
-  
-            /****************************************************
-             * test irrep multiplet rotation property
-             * use a p_target projector
-             ****************************************************/
-#if 0
-            if ( rank > 0 ) {
-  
-              /* exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v , matrix_dim, p , operator_side[iac] );
-              if ( exitstatus != 0 ) {
-                fprintf( stderr, "[projection_matrix_basis_vectors] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(12);
-              } */
-  
-              exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_u , rank, p , operator_side[iac] );
-              if ( exitstatus != 0 ) {
-                fprintf( stderr, "[projection_matrix_basis_vectors] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(12);
-              }
-  
-            }
-#endif
   
           }  /* end of loop on irrep matrix ref. rows */
   
