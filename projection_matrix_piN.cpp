@@ -228,8 +228,12 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
-  /****************************************************/
-  /****************************************************/
+  /****************************************************
+   * output filename for information on subduction
+   ****************************************************/
+
+  char subduction_output_filename[200];
+  sprintf( subduction_output_filename, "subduction.%s-%s.h5", interpolator_name[0], interpolator_name[1] );
 
   /****************************************************
    * loop on little groups
@@ -277,39 +281,6 @@ int main(int argc, char **argv) {
          Ptot[0], Ptot[1], Ptot[2],
          Pref[0], Pref[1], Pref[2],
          refframerot+1, lg[ilg].name, __FILE__, __LINE__);
-    }
-
-    /****************************************************
-     * determine list and number of sink momenta 
-     * (for N operator)
-     * the list seq2_source_momentum is given and 
-     * we list all from sink_momentum with 
-     * sink_momentum + seq_source_momentum = d 
-     * in momentum_list
-     ***************************************************/
-    int momentum_number = 0;
-
-    int * sink_momentum_id = get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, Ptot, g_sink_momentum_list, g_sink_momentum_number );
-    if ( sink_momentum_id == NULL ) {
-      fprintf ( stderr, "[projection_matrix_piN] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__);
-      EXIT(2);
-    }
-
-    for ( int i = 0; i < g_seq2_source_momentum_number; i++ ) {
-      if ( sink_momentum_id[i] != -1 ) momentum_number++;
-    }
-    int ** momentum_list = init_2level_itable ( momentum_number, 3 );
-    for ( int k = 0, i = 0; i < g_seq2_source_momentum_number; i++ ) {
-      if ( sink_momentum_id[i] != -1 ) {
-          memcpy ( momentum_list[k], g_sink_momentum_list[ sink_momentum_id[i] ], 3*sizeof( int ) );
-          k++;
-      }
-    }
-    if ( g_verbose > 2 ) {
-      fprintf( stdout, "# [projection_matrix_piN] momentum_number = %d\n", momentum_number );
-      for ( int i = 0; i < momentum_number; i++ ) {
-        fprintf( stdout, "  %2d    %3d %3d %3d\n", i, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
-      }
     }
 
     /****************************************************
@@ -403,69 +374,117 @@ int main(int argc, char **argv) {
       }
 
       /****************************************************
-       * build the momentum id lists for
-       * proper rotation and rotation-inversions
-       ****************************************************/
-
-      int *** rotated_momentum_id = init_3level_itable ( momentum_number, p.rtarget->n, 2 );
-      if ( rotated_momentum_id== NULL ) {
-        fprintf ( stderr, "# [projection_matrix_piN] Error from init_Xlevel_itable %s %d\n", __FILE__, __LINE__);
-        EXIT(2);
-      }
-
-      /****************************************************
-       * loop on proper- / inversion- rotations
-       ****************************************************/
-      for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
-
-        /****************************************************
-         * loop on particle momenta
-         ****************************************************/
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
-
-          /****************************************************
-           * set the particle momentum vectors
-           ****************************************************/
-          int p1[3] = { momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] };
-
-          /****************************************************
-           * determine the proper-rotated and inversion-rotated
-           * particle momentum vectors
-           ****************************************************/
-          int rp1[3], irp1[3];
-
-          rot_point ( rp1, p1, p.rp->R[ir] );
-          rot_point ( irp1, p1, p.rp->IR[ir] );
-
-          /****************************************************
-           * find them in the list momenta to calculate
-           * the correct matrix index
-           ****************************************************/
-
-          int const imom_r  =  get_momentum_id ( rp1 , momentum_list, momentum_number );
-          int const imom_ir =  get_momentum_id ( irp1 , momentum_list, momentum_number );
-
-          if ( imom_r == -1 || imom_ir == -1 ) {
-            fprintf ( stderr, "[projection_matrix_piN] Error from get_momentum_id mom idx %d %d %s %d\n", imom_r, imom_ir, __FILE__, __LINE__ );
-            EXIT(12);
-          } else if ( g_verbose > 2 ) {
-
-            fprintf( stdout, "# [projection_matrix_piN]  mom %d (%3d,%3d,%3d) rotated %d  (%3d,%3d,%3d) and %d (%3d,%3d,%3d) %s %d\n",
-                   imom,    momentum_list[imom   ][0], momentum_list[imom   ][1], momentum_list[imom   ][2],
-                   imom_r,  momentum_list[imom_r ][0], momentum_list[imom_r ][1], momentum_list[imom_r ][2],
-                   imom_ir, momentum_list[imom_ir][0], momentum_list[imom_ir][1], momentum_list[imom_ir][2] , __FILE__, __LINE__ );
-
-            rotated_momentum_id[imom][ir][0] = imom_r;
-            rotated_momentum_id[imom][ir][1] = imom_ir;
-          }
-        }
-      }
-
-      /****************************************************
        * loop on creation / annihilation operator
        ****************************************************/
       for ( int iac = 0; iac <= 1; iac++ )
       {
+
+        /****************************************************
+         * determine list and number of sink momenta 
+         * (for N operator)
+         * the list seq2_source_momentum is given and 
+         * we list all from sink_momentum with 
+         * sink_momentum + seq_source_momentum = d 
+         * in momentum_list
+         ***************************************************/
+        int momentum_number = 0;
+
+        int * sink_momentum_id = get_conserved_momentum_id ( g_seq2_source_momentum_list, g_seq2_source_momentum_number, Ptot, g_sink_momentum_list, g_sink_momentum_number );
+        if ( sink_momentum_id == NULL ) {
+          fprintf ( stderr, "[projection_matrix_piN] Error from get_conserved_momentum_id %s %d\n", __FILE__, __LINE__);
+          EXIT(2);
+        }
+
+        for ( int i = 0; i < g_seq2_source_momentum_number; i++ ) {
+          if ( sink_momentum_id[i] != -1 ) momentum_number++;
+        }
+        int ** momentum_list = init_2level_itable ( momentum_number, 3 );
+        for ( int k = 0, i = 0; i < g_seq2_source_momentum_number; i++ ) {
+          if ( sink_momentum_id[i] != -1 ) {
+              memcpy ( momentum_list[k], g_sink_momentum_list[ sink_momentum_id[i] ], 3*sizeof( int ) );
+              k++;
+          }
+        }
+        if ( g_verbose > 2 ) {
+          fprintf( stdout, "# [projection_matrix_piN] momentum_number = %d\n", momentum_number );
+          for ( int i = 0; i < momentum_number; i++ ) {
+            fprintf( stdout, "  %2d    %3d %3d %3d\n", i, momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
+         } 
+        }
+
+        int const mom_ncdim = 2;
+        int const mom_cdim[2] = { momentum_number, 3 };
+        char mom_tag[400];
+        sprintf ( mom_tag, "pi1" );
+
+        sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/pi1",
+            operator_side[iac],
+            lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep] );
+
+        exitstatus = write_h5_contraction ( momentum_list[0], NULL,  subduction_output_filename, mom_tag, "int", mom_ncdim, mom_cdim );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(2);
+        }
+
+        /****************************************************
+         * build the momentum id lists for
+         * proper rotation and rotation-inversions
+         ****************************************************/
+  
+        int *** rotated_momentum_id = init_3level_itable ( momentum_number, p.rtarget->n, 2 );
+        if ( rotated_momentum_id== NULL ) {
+          fprintf ( stderr, "# [projection_matrix_piN] Error from init_Xlevel_itable %s %d\n", __FILE__, __LINE__);
+          EXIT(2);
+        }
+  
+        /****************************************************
+         * loop on proper- / inversion- rotations
+         ****************************************************/
+        for ( int ir = 0; ir < p.rtarget->n ; ir++ ) {
+  
+          /****************************************************
+           * loop on particle momenta
+           ****************************************************/
+          for ( int imom = 0; imom < momentum_number; imom++ ) {
+  
+            /****************************************************
+             * set the particle momentum vectors
+             ****************************************************/
+            int p1[3] = { momentum_list[imom][0], momentum_list[imom][1], momentum_list[imom][2] };
+  
+            /****************************************************
+             * determine the proper-rotated and inversion-rotated
+             * particle momentum vectors
+             ****************************************************/
+            int rp1[3], irp1[3];
+  
+            rot_point ( rp1, p1, p.rp->R[ir] );
+            rot_point ( irp1, p1, p.rp->IR[ir] );
+  
+            /****************************************************
+             * find them in the list momenta to calculate
+             * the correct matrix index
+             ****************************************************/
+  
+            int const imom_r  =  get_momentum_id ( rp1 , momentum_list, momentum_number );
+            int const imom_ir =  get_momentum_id ( irp1 , momentum_list, momentum_number );
+  
+            if ( imom_r == -1 || imom_ir == -1 ) {
+              fprintf ( stderr, "[projection_matrix_piN] Error from get_momentum_id mom idx %d %d %s %d\n", imom_r, imom_ir, __FILE__, __LINE__ );
+              EXIT(12);
+            } else if ( g_verbose > 2 ) {
+  
+              fprintf( stdout, "# [projection_matrix_piN]  mom %d (%3d,%3d,%3d) rotated %d  (%3d,%3d,%3d) and %d (%3d,%3d,%3d) %s %d\n",
+                     imom,    momentum_list[imom   ][0], momentum_list[imom   ][1], momentum_list[imom   ][2],
+                     imom_r,  momentum_list[imom_r ][0], momentum_list[imom_r ][1], momentum_list[imom_r ][2],
+                     imom_ir, momentum_list[imom_ir][0], momentum_list[imom_ir][1], momentum_list[imom_ir][2] , __FILE__, __LINE__ );
+  
+              rotated_momentum_id[imom][ir][0] = imom_r;
+              rotated_momentum_id[imom][ir][1] = imom_ir;
+            }
+          }
+        }
 
         /****************************************************
          * loop on irrep matrix ref. row
@@ -589,11 +608,9 @@ int main(int argc, char **argv) {
             int const dim[2] = { matrix_dim, matrix_dim };
             char tag[500];
             
-            sprintf( filename, "subduction.%s-%s.h5", interpolator_name[0], interpolator_name[1] );
-
             sprintf( tag, "%s/v", tag_prefix );
 
-            exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, subduction_output_filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -601,7 +618,7 @@ int main(int argc, char **argv) {
 
             sprintf( tag, "%s/s", tag_prefix );
             
-            exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, subduction_output_filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -609,7 +626,7 @@ int main(int argc, char **argv) {
 
             sprintf( tag, "%s/u", tag_prefix );
             
-            exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, subduction_output_filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_piN] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -714,12 +731,16 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on irrep matrix ref. rows */
 
+        fini_2level_itable ( &momentum_list );
+        if ( sink_momentum_id != NULL ) free( sink_momentum_id );
+
+        fini_3level_itable ( &rotated_momentum_id );
+
       }  /* end of source / sink side */
 
       /****************************************************/
       /****************************************************/
 
-      fini_3level_itable ( &rotated_momentum_id );
 
       fini_little_group_projector ( &p );
   
@@ -729,9 +750,6 @@ int main(int argc, char **argv) {
       fini_rot_mat_table ( &r_irrep );
 
     }  /* end of loop on irreps */
-
-    fini_2level_itable ( &momentum_list );
-    if ( sink_momentum_id != NULL ) free( sink_momentum_id );
 
   }  /* end of loop on little groups */
 
