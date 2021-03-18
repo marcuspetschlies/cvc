@@ -283,6 +283,7 @@ int main(int argc, char **argv) {
          refframerot+1, lg[ilg].name, __FILE__, __LINE__);
     }
 
+#if 0
     /****************************************************
      * complete the interpolator momentum list
      * by using momentum conservation and 
@@ -299,6 +300,7 @@ int main(int argc, char **argv) {
     interpolator_momentum_list[1][0] = -momentum_list[0][0] + Ptot[0];
     interpolator_momentum_list[1][1] = -momentum_list[0][0] + Ptot[1];
     interpolator_momentum_list[1][2] = -momentum_list[0][0] + Ptot[2];
+#endif
 
     /****************************************************
      * loop on irreps
@@ -376,7 +378,7 @@ int main(int argc, char **argv) {
       /****************************************************
        * loop on creation / annihilation operator
        ****************************************************/
-      for ( int iac = 0; iac <= 1; iac++ )
+      for ( int iac = 0; iac < 1; iac++ )
       {
 
         /****************************************************
@@ -415,9 +417,8 @@ int main(int argc, char **argv) {
         int const mom_ncdim = 2;
         int const mom_cdim[2] = { momentum_number, 3 };
         char mom_tag[400];
-        sprintf ( mom_tag, "pi1" );
 
-        sprintf( tag_prefix, "/%s/%s/PX%d_PY%d_PZ%d/%s/pi1",
+        sprintf( mom_tag, "/%s/%s/PX%d_PY%d_PZ%d/%s/mom",
             operator_side[iac],
             lg[ilg].name, Ptot[0], Ptot[1], Ptot[2], lg[ilg].lirrep[i_irrep] );
 
