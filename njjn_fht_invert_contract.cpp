@@ -67,9 +67,10 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#define _PART_I   0  /* loops */
 #define _PART_IIb 0  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -153,8 +154,6 @@ int main(int argc, char **argv) {
 
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
 
-
-
   char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
     "Cgzg5",
@@ -215,8 +214,10 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
-  int read_loop_field = 0;
-  int write_loop_field = 0;
+  int read_loop_field    = 0;
+  int write_loop_field   = 0;
+  int read_scalar_field  = 0;
+  int write_scalar_field = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -227,7 +228,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "rwch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "sSrwch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -241,6 +242,12 @@ int main(int argc, char **argv) {
       break;
     case 'w':
       write_loop_field = 1;
+      break;
+    case 's':
+      read_scalar_field = 1;
+      break;
+    case 'S':
+      write_scalar_field = 1;
       break;
     case 'h':
     case '?':
@@ -474,6 +481,60 @@ int main(int argc, char **argv) {
   /***************************************************************************
    ***************************************************************************
    **
+   ** Part I
+   **
+   ** prepare stochastic sources for W-type sequential sources and propagators
+   **
+   ***************************************************************************
+   ***************************************************************************/
+
+  double *** scalar_field = init_3level_dtable ( g_coherent_source_number, g_nsample_oet, 2*VOLUME );
+  if( scalar_field == NULL ) {
+    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(132);
+  }
+
+  if ( ! read_scalar_field ) {
+
+    /***************************************************************************
+     * draw a stochastic binary source (real, +/1 one per site )
+     ***************************************************************************/
+    ranbinary ( scalar_field[0][0], 2 * g_coherent_source_number * g_nsample_oet * VOLUME );
+
+    /***************************************************************************
+     * write loop field to lime file
+     ***************************************************************************/
+    if ( write_scalar_field ) {
+      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
+      
+      char field_type[2000];
+
+      sprintf( field_type, "<source_type>%d</source_type><noise_type>binary real</noise_type><coherent_sources>%d</coherent_sources>", g_source_type , g_coherent_source_number );
+
+      for ( int i = 0; i < g_coherent_source_number * g_nsample_oet; i++ ) {
+        exitstatus = write_lime_contraction( scalar_field[0][i], filename, 64, 1, field_type, Nconf, ( i > 0 ) );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(12);
+        }
+      }
+    }  /* end of if write_loop_field */
+
+  } else {
+    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
+      
+    for ( int i = 0; i < g_coherent_source_number * g_nsample_oet; i++ ) {
+      exitstatus = read_lime_contraction ( scalar_field[0][i], filename, 1, i );
+      if ( exitstatus != 0  ) {
+        fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(12);
+      }
+    }
+  }  /* end of if read scalar field */
+
+  /***************************************************************************
+   ***************************************************************************
+   **
    ** Part Ia
    **
    ** prepare stochastic sources and propagators
@@ -489,6 +550,7 @@ int main(int argc, char **argv) {
     EXIT(12);
   }
 
+#if _PART_I
 
   if ( ! read_loop_field ) {
 
@@ -500,25 +562,13 @@ int main(int argc, char **argv) {
      * loop on samples
      * invert and contract loops
      ***************************************************************************/
-    for ( int isample = 0; isample < g_nsample; isample++ ) {
+    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      double * stochastic_source = init_1level_dtable ( _GSI( VOLUME ) );
-      if ( stochastic_source == NULL ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
- 
       double ** spinor_work = init_2level_dtable ( 3, _GSI( VOLUME+RAND ) );
       if ( spinor_work == NULL ) {
         fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      exitstatus = prepare_volume_source ( stochastic_source, VOLUME );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
       }
 
@@ -540,21 +590,23 @@ int main(int argc, char **argv) {
 
             int const isc = 3 * ispin + icol;
 
-              memset ( spinor_work[0], 0, sizeof_spinor_field );
-              memset ( spinor_work[1], 0, sizeof_spinor_field );
+            memset ( spinor_work[0], 0, sizeof_spinor_field );
+            memset ( spinor_work[1], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
             if ( timeslice / T == g_proc_coords[0] ) {
               if ( g_verbose > 2 ) fprintf( stdout, "# [njjn_fht_invert_contract] proc %d has global timeslice %d %s %d\n",
                   g_cart_id, timeslice, __FILE__, __LINE__ );
             
-              size_t const offset = _GSI( ( timeslice % T ) * VOL3 );
+              size_t const loffset = ( timeslice % T ) * VOL3;
+              size_t const offset  = _GSI( loffset );
           
 #pragma omp parallel for
               for ( unsigned int ix = 0; ix < VOL3; ix++  ) {
                 size_t const iy = offset + _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-                spinor_work[0][ iy    ] = stochastic_source[ iy     ];
-                spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
+                size_t const iz = 2 * ( loffset + ix );
+                spinor_work[0][ iy     ] = scalar_field[0][isample][ iz     ];
+                spinor_work[0][ iy + 1 ] = scalar_field[0][isample][ iz + 1 ];
               }
             }
 
@@ -573,8 +625,8 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
             for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
               size_t const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-              spinor_work[0][ iy    ] = stochastic_source[ iy     ];
-              spinor_work[0][ iy + 1] = stochastic_source[ iy + 1 ];
+              spinor_work[0][ iy    ] = scalar_field[0][isample][ 2 * ix     ];
+              spinor_work[0][ iy + 1] = scalar_field[0][isample][ 2 * ix + 1 ];
             }
 #endif
             /* tm-rotate stochastic propagator at source, in-place */
@@ -631,10 +683,14 @@ int main(int argc, char **argv) {
                     int const ksc = 3 * kspin + kcol;
  
                     loop[ix+loffset][ksc][isc] +=
-                        /* complex conjugate of source vector element */
-                        ( stochastic_source[ iy + 2*isc  ] - I * stochastic_source[ iy + 2*isc+1] )
-                        /* times prop vector element */
-                      * ( spinor_work[1][    iy + 2*ksc  ] + I * spinor_work[1][    iy + 2*ksc+1] );
+                        /* 
+                         * complex conjugate of source vector element 
+                         */
+                        ( scalar_field[0][isample][ 2 * ( ix + loffset ) ] - I * scalar_field[0][isample][ 2 * ( ix + loffset ) + 1] )
+                        /* 
+                         * times prop vector element
+                         */
+                      * ( spinor_work[1][ iy + 2 * ksc  ] + I * spinor_work[1][ iy + 2 * ksc + 1 ] );
                   }
                 }
               }  /* end of loop on volume */
@@ -650,7 +706,6 @@ int main(int argc, char **argv) {
       }  /* end of loop on timeslices */
 #endif
       /* free fields */
-      fini_1level_dtable ( &stochastic_source );
       fini_2level_dtable ( &spinor_work );
 
       gettimeofday ( &tb, (struct timezone *)NULL );
@@ -661,8 +716,8 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * normalize
      ***************************************************************************/
-    if ( g_nsample > 1 ) {
-      double const norm = 1. / (double)g_nsample;
+    if ( g_nsample_oet > 1 ) {
+      double const norm = 1. / (double)g_nsample_oet;
 #pragma omp parallel for
       for ( unsigned int ix = 0; ix < 144 * VOLUME; ix++  ) {
         /* loop[0][0][ix] /= (double)g_nsample; */
@@ -707,60 +762,7 @@ int main(int argc, char **argv) {
 
   }  /* end of if on read stoch. source  */
 
-
-  /***************************************************************************
-   ***************************************************************************
-   **
-   ** Part Ib
-   **
-   ** prepare stochastic sources for W-type sequential sources and propagators
-   **
-   ***************************************************************************
-   ***************************************************************************/
-
-  double *** scalar_field = init_3level_dtable ( g_coherent_source_number, g_nsample_oet, 2*VOLUME );
-  if( scalar_field == NULL ) {
-    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(132);
-  }
-
-  if ( ! read_loop_field ) {
-
-    /***************************************************************************
-     * draw a stochastic binary source (real, +/1 one per site )
-     ***************************************************************************/
-    ranbinary ( scalar_field[0][0], 2 * g_coherent_source_number * g_nsample_oet * VOLUME );
-
-    /***************************************************************************
-     * write loop field to lime file
-     ***************************************************************************/
-    if ( write_loop_field ) {
-      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
-      
-      char field_type[2000];
-
-      sprintf( field_type, "<source_type>%d</source_type><noise_type>binary real</noise_type><coherent_sources>%d</coherent_sources>", g_source_type , g_coherent_source_number );
-
-      for ( int i = 0; i < g_coherent_source_number * g_nsample_oet; i++ ) {
-        exitstatus = write_lime_contraction( scalar_field[0][i], filename, 64, 1, field_type, Nconf, ( i > 0 ) );
-        if ( exitstatus != 0  ) {
-          fprintf ( stderr, "[njjn_fht_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(12);
-        }
-      }
-    }  /* end of if write_loop_field */
-
-  } else {
-    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
-      
-    for ( int i = 0; i < g_coherent_source_number * g_nsample_oet; i++ ) {
-      exitstatus = read_lime_contraction ( scalar_field[0][i], filename, 1, i );
-      if ( exitstatus != 0  ) {
-        fprintf ( stderr, "[njjn_fht_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(12);
-      }
-    }
-  }  /* end of if read scalar field */
+#endif  /* of if Part I */
 
   /***************************************************************************
    *
@@ -1504,7 +1506,12 @@ int main(int argc, char **argv) {
 
                 gettimeofday ( &ta, (struct timezone *)NULL );
 
-                double ** const sequential_source_accum = sequential_propagator[0];
+                /***************************************************************************
+                 * auxilliary field sequential_source_accum to accumulate the seq source;
+                 * abuse memory of sequential_propagator[iflavor] which has not yet been
+                 * filled, but will be written after seq source construction
+                 ***************************************************************************/
+                double ** const sequential_source_accum = sequential_propagator[iflavor];
                 memset ( sequential_source[0], 0, 12 * sizeof_spinor_field );
 
                 for ( int icoh = 0; icoh < g_coherent_source_number; icoh++)
@@ -1520,8 +1527,8 @@ int main(int argc, char **argv) {
 
                 if ( g_write_sequential_source ) {
                   for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
 
                     if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
                       fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1550,8 +1557,8 @@ int main(int argc, char **argv) {
 
                 if ( g_write_sequential_propagator ) {
                   for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
 
                     if ( ( exitstatus = write_propagator( sequential_propagator[iflavor][i], filename, 0, g_propagator_precision) ) != 0 ) {
                       fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);

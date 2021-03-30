@@ -1,0 +1,77 @@
+# *******************************************************
+# * input parameters for cvc-code
+# *******************************************************
+
+T =  16
+LX = 8
+LY = 8
+LZ = 8
+mu = 0.0
+kappa = 0.16
+Nconf = 0
+csw = 0.125
+format = 0
+BCangleT = 1.
+BCangleX = 0
+BCangleY = 0
+BCangleZ = 0
+
+# filename_prefix = 
+# filename_prefix2 = 
+# filename_prefix3 =
+gaugefilename_prefix = conf
+
+outfile_prefix =./
+
+NrTProcs = 4
+NrXProcs = 1
+NrYProcs = 1
+NrZProcs = 1
+
+num_threads = 4
+
+write_propagator            = no
+read_propagator             = no
+
+write_source                = no
+read_source                 = no
+
+write_sequential_source     = no
+write_sequential_propagator = no
+
+source_momentum = 0,0,0
+
+sink_momentum = 0,0,0
+
+# sequential_source_gamma_id = 4
+
+seq_source_momentum = 0,0,0
+
+# source_gamma_id =
+
+propagator_position = 0
+propagator_precision = 64
+propagator_bc_type = Phase
+
+###################################################
+# smearing parameters
+###################################################
+#N_ape        = 1
+#alpha_ape    = 0.5
+#N_Jacobi     = 1
+#kappa_Jacobi = 0.2
+
+
+fermion_type = TwistedMass
+# fermion_type = Wilson
+
+noise_type = Z2
+samples = 1
+samples_oet = 2
+
+verbosity_level = 5
+
+source_coords = 1,2,3,4
+seed = 728
+
+coherent_source_number=1

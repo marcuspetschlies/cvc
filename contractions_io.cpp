@@ -320,6 +320,11 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader, cons
   int t, x, y, z;
   int words_bigendian = big_endian();
 
+  n_uint64_t const LLsize[4] = { ( LX * g_nproc_x ) * ( LY * g_nproc_y ) * ( LZ * g_nproc_z ),
+                                                   ( LY * g_nproc_y ) * ( LZ * g_nproc_z ), 
+                                                                        ( LZ * g_nproc_z ),
+                                                                                            1 };
+
   DML_checksum_init(ans);
   rank = (DML_SiteRank) 0;
  
@@ -333,13 +338,20 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader, cons
  
   if(prec == 32) bytes = 2 * (n_uint64_t)N * sizeof(float);
   else           bytes = 2 * (n_uint64_t)N * sizeof(double);
-#ifdef HAVE_MPI
-  limeReaderSeek(limereader,(n_uint64_t) (Tstart*(LX*g_nproc_x)*(LY*g_nproc_y)*(LZ*g_nproc_z) + LXstart*(LY*g_nproc_y)*(LZ*g_nproc_z) + LYstart*(LZ*g_nproc_z) + LZstart)*bytes, SEEK_SET);
-#endif
+
   for(t = 0; t < T; t++){
   for(x = 0; x < LX; x++){
   for(y = 0; y < LY; y++){
   for(z = 0; z < LZ; z++){
+
+#ifdef HAVE_MPI
+    limeReaderSeek(limereader,(n_uint64_t) (
+			    ( Tstart  + t ) * LLsize[0] 
+	                  + ( LXstart + x ) * LLsize[1] 
+		          + ( LYstart + y ) * LLsize[2] 
+			  + ( LZstart + z ) * LLsize[3] ) * bytes, SEEK_SET);
+#endif
+
     ix = g_ipt[t][x][y][z];
     rank = (DML_SiteRank) (((t+Tstart)*(LX*g_nproc_x) + LXstart + x)*(LY*g_nproc_y) + LYstart + y)*(LZ*g_nproc_z) + LZstart + z;
     if(prec == 32) {
