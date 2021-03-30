@@ -527,7 +527,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
   } else {
     memcpy( shift, gshift, 3*sizeof(int) );
   }
-  if(g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [momentum_projection2] using shift vector (%d, %d, %d)\n", shift[0], shift[1], shift[2]);
+  if(g_cart_id == 0 && g_verbose > 4 ) fprintf(stdout, "# [momentum_projection2] using shift vector (%d, %d, %d)\n", shift[0], shift[1], shift[2]);
 
   init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
 
@@ -594,7 +594,7 @@ int momentum_projection2 (double*V, double *W, unsigned int nv, int momentum_num
 #endif
 
   retime = _GET_TIME;
-  if( g_cart_id == 0 ) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
+  if( g_cart_id == 0 && g_verbose > 2) fprintf(stdout, "# [momentum_projection2] time for momentum_projection2 = %e seconds\n", retime-ratime);
   return(0);
 }  /* end of momentum_projection2 */
 
