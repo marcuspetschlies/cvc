@@ -1146,9 +1146,12 @@ int main(int argc, char **argv) {
 
         /**********************************************************
          * normalize
+         *
+         * add factor of 2 to normalization to account for combination of
+         * u,+p , d,-p , u,-p , d,+p
          **********************************************************/
         /* O44 simple orbit average */
-        double const norm44 = 1. / g_sink_momentum_number;
+        double const norm44 = 2. / g_sink_momentum_number;
         for ( int it = 0; it < 2 * T_global; it++ ) {
           threep_op[0][iconf][isrc][0][it] *= norm44;
         }
@@ -1163,14 +1166,14 @@ int main(int argc, char **argv) {
 
         int const mom_is_zero = g_sink_momentum_list[0][0] == 0 && g_sink_momentum_list[0][1] == 0 && g_sink_momentum_list[0][2] == 0;
 
-        double const normik = mom_is_zero ? 0. : 1. / mom_squared / (double)g_sink_momentum_number;
+        double const normik = mom_is_zero ? 0. : 2. / mom_squared / (double)g_sink_momentum_number;
 
         for ( int it = 0; it < 2 * T_global; it++ ) {
           threep_op[1][iconf][isrc][0][it] *= normik;
         }
 
         /* O4k divide by (p^2) */
-        double const norm4k = mom_is_zero ? 0. : 1. / mom_squared / (double)g_sink_momentum_number;
+        double const norm4k = mom_is_zero ? 0. : 2. / mom_squared / (double)g_sink_momentum_number;
 
         for ( int it = 0; it < 2 * T_global; it++ ) {
           threep_op[2][iconf][isrc][0][it] *= norm4k;
