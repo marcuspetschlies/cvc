@@ -54,9 +54,9 @@ void usage() {
 }
 
 #define _TWOP_AFF_SINGLE 0
-#define _TWOP_AFF_MULT   0
+#define _TWOP_AFF_MULT   1
 #define _TWOP_H5_SINGLE  0
-#define _TWOP_AFF_OET    1
+#define _TWOP_AFF_OET    0
 
 int main(int argc, char **argv) {
   
