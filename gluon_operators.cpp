@@ -33,7 +33,7 @@
 #define _F(s) s
 #endif
 
-#define _SYM_ACTION
+#undef _SYM_ACTION
 
 /********************************************************************/
 /********************************************************************/
@@ -1902,6 +1902,74 @@ int gluonic_operators_qtop_from_fst_projected ( double * op, double *** const G,
  * G_{3,2} = - G_{2,3}
  *
  * diagonal elements are zero
+ *
+ * all non-zero tensor components of
+ * G_mu,nu G_alpha,beta
+ * taking into account symmetry 
+ * in total 21
+ *
+ * the stored sequence is
+ *
+ * (0,1) x (0,1)   0
+ * (0,1) x (0,2)   1
+ * (0,1) x (0,3)   2
+ * (0,1) x (1,2)   3
+ * (0,1) x (1,3)   4
+ * (0,1) x (2,3)   5
+ *
+ * (0,2) x (0,2)   6
+ * (0,2) x (0,3)   7
+ * (0,2) x (1,2)   8
+ * (0,2) x (1,3)   9
+ * (0,2) x (2,3)  10
+ *
+ * (0,3) x (0,3)  11
+ * (0,3) x (1,2)  12
+ * (0,3) x (1,3)  13
+ * (0,3) x (2,3)  14
+ *
+ * (1,2) x (1,2)  15
+ * (1,2) x (1,3)  16
+ * (1,2) x (2,3)  17
+ *
+ * (1,3) x (1,3)  18
+ * (1,3) x (2,3)  19
+ *
+ * (2,3) x (2,3)  20
+ *
+ * Construction of Gluon EMt elements
+ *
+ * T_00 = G_0,mu G_0,mu
+ *      = G_01 G_01 + G_02 G_02 + G_03 G_03 =  0 +  6 + 11 
+ *
+ * T_01 = G_0,mu G_1,mu
+ *      = G_02 G_12 + G_03 G_13 = + 8 + 13
+ *
+ * T_02 = G_0,mu G_2,mu
+ *      = G_01 G_21 + G_03 G_23 = - 3 + 14
+ *
+ * T_03 = G_0,mu G_3,mu
+ *      = G_01 G_31 + G_02 G_32 = - 4 - 10
+ *
+ * T_11 = G_1,mu G_1,mu
+ *      = G_10 G_10 + G_12 G_12 + G_13 G_13 =  0 + 15 + 18
+ *
+ * T_12 = G_1,mu G_2,mu
+ *      = G_10 G_20 + G_13 G_23 = + 1 + 19
+ *
+ * T_13 = G_1,mu G_3,mu
+ *      = G_10 G_30 + G_12 G_32 = + 2 - 17
+ *
+ * T_22 = G_2,mu G_2,mu
+ *      = G_20 G_20 + G_21 G_21 + G_23 G_23 =  6 + 15 + 20
+ *
+ * T_23 = G_2,mu G_3,mu
+ *      = G_20 G_30 + G_21 G_31 = + 7 + 16
+ *
+ * T_33 = G_3,mu G_3,mu
+ *      = G_30 G_30 + G_31 G_31 + G_32 G_32 = 11 + 18 + 20
+ *
+ *
  ****************************************************************************/
 int gluonic_operators_gg_from_fst_projected ( double ** op, double *** const G, int const traceless ) {
 
