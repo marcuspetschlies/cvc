@@ -68,9 +68,9 @@ extern "C"
 #define _OP_ID_DN 1
 
 #define _PART_I   0  /* loops */
-#define _PART_IIb 0  /* N1, N2 */
-#define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  1  /* W type sequential diagrams */
+#define _PART_IIb 1  /* N1, N2 */
+#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
+#define _PART_IV  0  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -386,28 +386,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[njjn_fht_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
   }
-
-  /***********************************************
-   * if we want to use Jacobi smearing, we need 
-   * smeared gauge field
-   ***********************************************/
-  if( N_Jacobi > 0 ) {
-
-#ifndef _SMEAR_QUDA 
-
-    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
-
-    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
-#endif
-
-    if ( N_ape > 0 ) {
-      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[njjn_fht_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
-        EXIT(47);
-      }
-    }  /* end of if N_aoe > 0 */
-  }  /* end of if N_Jacobi > 0 */
 
   /***************************************************************************
    * initialize the clover term, 
@@ -765,7 +743,54 @@ int main(int argc, char **argv) {
 
   }  /* end of if on read stoch. source  */
 
+#else
+
+#ifdef _SMEAR_QUDA
+    /***************************************************************************
+     * dummy solve, just to have original gauge field up on device,
+     * for subsequent APE smearing
+     ***************************************************************************/
+
+  double ** spinor_work = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
+  if ( spinor_work == NULL ) {
+    fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(12);
+  }
+  memset(spinor_work[1], 0, sizeof_spinor_field);
+  memset(spinor_work[0], 0, sizeof_spinor_field);
+  if ( g_cart_id == 0 ) spinor_work[0][0] = 1.;
+  exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], _OP_ID_UP);
+  if(exitstatus < 0) {
+    fprintf(stderr, "[njjn_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(12);
+  }
+
+#endif  /* of if _SMEAR_QUDA */
+
 #endif  /* of if Part I */
+
+  /***********************************************
+   * if we want to use Jacobi smearing, we need 
+   * smeared gauge field
+   ***********************************************/
+  if( N_Jacobi > 0 ) {
+
+#ifndef _SMEAR_QUDA 
+
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+#endif
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[njjn_fht_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
+
 
   /***************************************************************************
    *
