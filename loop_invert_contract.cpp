@@ -77,9 +77,9 @@ void usage() {
   EXIT(0);
 }
 
-#define _USE_TIME_DILUTION 1
+#define _USE_TIME_DILUTION 0
 
-#define _FIRST_DERIV_CONTRACTION 1
+#define _FIRST_DERIV_CONTRACTION 0
 #define _SECOND_DERIV_CONTRACTION 0
 
 int main(int argc, char **argv) {
@@ -414,7 +414,7 @@ int main(int argc, char **argv) {
     }
 
     int const dims[2] = { g_sink_momentum_number, 3 };
-    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", 3*g_sink_momentum_number , "int", 2, dims );
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/Momenta_list_xyz", "int", 2, dims );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[loop_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
       EXIT( 54 );
