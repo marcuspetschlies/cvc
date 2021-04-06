@@ -35,10 +35,19 @@ namespace cvc {
  *
  ************************************************************/
 int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, int const APE_smearing_niter) {
-  const unsigned int gf_items = 72*VOLUME;
-  const size_t gf_bytes = gf_items * sizeof(double);
 
   if ( APE_smearing_niter <= 0 ) return(0);
+
+#if ( defined HAVE_TMLQCD_LIBWRAPPER ) && ( defined _SMEAR_QUDA )
+  /***********************************************************
+   * call  library function wrapper
+   ***********************************************************/
+  _performAPEnStep ( APE_smearing_niter, APE_smearing_alpha );
+
+#else
+
+  const unsigned int gf_items = 72*VOLUME;
+  const size_t gf_bytes = gf_items * sizeof(double);
 
   int iter;
   double *smeared_gauge_field_old = NULL;
@@ -242,9 +251,12 @@ int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, i
   }  /* end of loop on number of smearing steps */
 
   free(smeared_gauge_field_old);
+
 #ifdef HAVE_MPI
   xchange_gauge_field(smeared_gauge_field);
 #endif
+
+#endif  /* of if ( defined HAVE_TMLQCD_LIBWRAPPER ) && ( defined _SMEAR_QUDA ) */
   return(0);
 }  /* end of APE_Smearing */
 
@@ -259,11 +271,16 @@ int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, i
  *
  *****************************************************/
 int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, double const kappa) {
+
+  if ( N <= 0 ) return(0);
+
+#if ( defined HAVE_TMLQCD_LIBWRAPPER ) && ( defined _SMEAR_QUDA )
+    _performWuppertalnStep ( psi, psi, N, kappa );
+#else
+
   const unsigned int sf_items = _GSI(VOLUME);
   const size_t sf_bytes = sf_items * sizeof(double);
   const double norm = 1.0 / (1.0 + 6.0*kappa);
-
-  if ( N <= 0 ) return(0);
 
   int i1;
   double *psi_old = (double*)malloc( _GSI(VOLUME+RAND)*sizeof(double));
@@ -358,6 +375,9 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
   }  /* end of loop on smearing steps */
 
   free(psi_old);
+
+#endif  /* of ( defined HAVE_TMLQCD_LIBWRAPPER ) && ( defined _SMEAR_QUDA ) */
+
   return(0);
 }  /* end of Jacobi_Smearing */
 

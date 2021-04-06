@@ -393,9 +393,12 @@ int main(int argc, char **argv) {
    ***********************************************/
   if( N_Jacobi > 0 ) {
 
+#ifndef _SMEAR_QUDA 
+
     alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
 
     memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+#endif
 
     if ( N_ape > 0 ) {
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
