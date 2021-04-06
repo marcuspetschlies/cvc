@@ -40,28 +40,28 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
-#define _LOOP_ANALYSIS 1
-#define _LOOP_STATS    1
+#define _LOOP_ANALYSIS
+#define _LOOP_STATS
 
-#define  _XG_PION     1
-#define  _XG_NUCLEON  0
-#define  _XG_CHARGED  0
+#define _XG_PION
+#undef  _XG_NUCLEON
+#undef  _XG_CHARGED
 
-#define  _TWOP_AFF        0
-#define  _TWOP_ASCII      0
-#define  _TWOP_CYD_MULT   1
-#define  _TWOP_CYD_SINGLE 0
+#undef _TWOP_AFF
+#undef  _TWOP_ASCII
+#undef  _TWOP_CYD_MULT
+#define  _TWOP_CYD_SINGLE
 
-#define _TWOP_STATS  1
+#define _TWOP_STATS
 
-#define _RAT_METHOD       1
-#define _FHT_METHOD_ALLT  0
-#define _FHT_METHOD_ACCUM 0
+#define _RAT_METHOD
+#undef _FHT_METHOD_ALLT
+#undef _FHT_METHOD_ACCUM
 
-#define _RAT_SUB_METHOD   1
+#define _RAT_SUB_METHOD
 
-#define _SUBTRACT_TIME_AVERAGED  1
-#define _SUBTRACT_PER_TIMESLICE  0
+#undef _SUBTRACT_TIME_AVERAGED
+#define _SUBTRACT_PER_TIMESLICE
 
 #define MAX_SMEARING_LEVELS 40
 
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     "gygz"
   };
 
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
   char const gamma_id_to_Cg_ascii[16][10] = {
     "Cgy",
     "Cgzg5",
@@ -427,9 +427,9 @@ int main(int argc, char **argv) {
      **********************************************************
      **********************************************************/
 
-#if _XG_PION
+#ifdef _XG_PION
 
-#if _TWOP_AFF
+#ifdef _TWOP_AFF
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     /***********************************************************
@@ -556,10 +556,7 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "xg_analyse", "read-twop-tensor-aff", g_cart_id == 0 );
 #endif  /* of if _TWOP_AFF */
 
-  /***********************************************************/
-  /***********************************************************/
-
-#if _TWOP_ASCII
+#ifdef _TWOP_ASCII
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
@@ -639,10 +636,7 @@ int main(int argc, char **argv) {
 
 #endif  /* of if _TWOP_ASCII */
 
-  /***********************************************************/
-  /***********************************************************/
-
-#if _TWOP_CYD_MULT
+#ifdef _TWOP_CYD_MULT
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
@@ -709,10 +703,7 @@ int main(int argc, char **argv) {
 
 #endif  /* of if _TWOP_CYD_MULT */
 
-  /***********************************************************/
-  /***********************************************************/
-
-#if _TWOP_CYD_SINGLE
+#ifdef _TWOP_CYD_SINGLE
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
@@ -801,7 +792,7 @@ int main(int argc, char **argv) {
     }  /* end of if write data > 0 */
 #endif  /* end of _XG_PION */
 
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
 #if 0
     sprintf ( filename, "stream_%c/%s", conf_src_list[0][0][0], filename_prefix3 );
     FILE *fs = fopen( filename , "r" );
@@ -853,7 +844,7 @@ int main(int argc, char **argv) {
     fclose ( fs );
 #endif  /* end of _XG_NUCLEON */
 
-#if _XG_CHARGED
+#ifdef _XG_CHARGED
     for ( int iconf = 0; iconf < num_conf; iconf++ ) {
       for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
@@ -920,7 +911,7 @@ int main(int argc, char **argv) {
      **********************************************************/
 
     char obs_name_prefix[200];
-#if _XG_NUCLEON
+#if defined _XG_NUCLEON
     sprintf ( obs_name_prefix, "NN.orbit.gf_%s.gi_%s.px%d_py%d_pz%d",
             gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2] );
@@ -938,7 +929,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if write data */
 
-#if _TWOP_STATS
+#ifdef _TWOP_STATS
     /**********************************************************
      * 
      * STATISTICAL ANALYSIS
@@ -1021,7 +1012,7 @@ int main(int argc, char **argv) {
       int const Thp1 = T_global / 2 + 1;
       for ( int itau = 1; itau < Thp1/2; itau++ ) {
 
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
         int narg = 2;
         int arg_first[2] = { 0, itau };
         int arg_stride[2] = {1, 1};
@@ -1046,7 +1037,7 @@ int main(int argc, char **argv) {
       fini_2level_dtable ( &data );
     }  /* end of loop on reim */
 
-#endif  /* of if _TWOP_STATS */
+#endif  /* of ifdef _TWOP_STATS */
 
   }}  /* end of source and sink gamma id */
 
@@ -1055,7 +1046,7 @@ int main(int argc, char **argv) {
    **********************************************************/
   
   double **** loop = NULL;
-#if _LOOP_ANALYSIS
+#ifdef _LOOP_ANALYSIS
   /**********************************************************
    *
    * loop fields
@@ -1146,7 +1137,7 @@ int main(int argc, char **argv) {
     char smearing_tag[50];
     sprintf ( smearing_tag, "stout_%d_%6.4f", stout_level_iter[istout], stout_level_rho[istout] );
 
-#if _LOOP_STATS
+#ifdef _LOOP_STATS
     /**********************************************************
      * STATISTICAL ANALYSE plaquettes
      **********************************************************/
@@ -1238,7 +1229,7 @@ int main(int argc, char **argv) {
       fclose ( loop_sub_fs );
     }  /* end of if write data */
   
-#if _LOOP_STATS
+#ifdef _LOOP_STATS
     /**********************************************************
      *
      * STATISTICAL ANALYSIS OF LOOP VEC
@@ -1261,7 +1252,7 @@ int main(int argc, char **argv) {
   
 #endif  /* of _LOOP_STATS */
 
-#if _RAT_METHOD
+#ifdef _RAT_METHOD
     /**********************************************************
      *
      * STATISTICAL ANALYSIS for products and ratios
@@ -1362,7 +1353,7 @@ int main(int argc, char **argv) {
                 /**********************************************************
                  * O44, real parts only
                  **********************************************************/
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
                 /**********************************************************
                  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                  * !!! CAREFUL with combination of nn type 0 and 1 !!!
@@ -1382,7 +1373,7 @@ int main(int argc, char **argv) {
                       ) / ( fabs( fbwd_weight[0] ) + fabs( fbwd_weight[1] ) )
                   ) / ( fabs( twop_weight[0] ) + fabs( twop_weight[1] ) );
 
-#else  /* of if _XG_NUCLEON */
+#else  /* of ifdef _XG_NUCLEON */
 
 #if 0
                 threep_44[iconf][isrc][it][0] += ( 
@@ -1406,7 +1397,7 @@ int main(int argc, char **argv) {
                       )
                   );
 
-#endif  /* end of else of if _XG_NUCLEON */
+#endif  /* end of else of ifdef _XG_NUCLEON */
 
               }  /* end of loop on it */
     
@@ -1427,7 +1418,7 @@ int main(int argc, char **argv) {
          * name tag for observable
          **********************************************************/
         char obsname_tag[400];
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
         sprintf ( obsname_tag, "gf_%s.gi_%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d",
             gamma_id_to_Cg_ascii[ g_sink_gamma_id_list[igf] ], gamma_id_to_Cg_ascii[ g_source_gamma_id_list[igi] ],
             insertion_operator_name[insertion_operator_type], smearing_tag,
@@ -1583,7 +1574,7 @@ int main(int argc, char **argv) {
               /* tsink counted from 0, relative to source time */
               int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
               int const idx = ( ( i * block_size + k ) * T_global + tsink ) * 2 + ireim;
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
               data[i][nT] += twop_orbit[igf][igi][0][0][0][idx];
 #else
               /* tsink2 counted from absolute source time */
@@ -1666,7 +1657,7 @@ int main(int argc, char **argv) {
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
               /* COUNT FROM SOURCE 0 */
               int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
               data[iconf][nT] += twop_orbit[igf][igi][iconf][isrc][tsink][ireim];
 #else
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
@@ -1697,7 +1688,7 @@ int main(int argc, char **argv) {
               /* tsink counted from 0, relative to source time */
               int const tsink = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
               int const idx   = ( ( i * block_size + k ) * T_global + tsink ) * 2 + ireim;
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
               data[i][nT] += twop_orbit[igf][igi][0][0][0][idx];
 #else
               /* tsink2 counted from absolute source time */
@@ -1716,13 +1707,13 @@ int main(int argc, char **argv) {
             }
             data[i][nT] /= (double)block_size;
 
-#if _SUBTRACT_TIME_AVERAGED
+#if ( defined _SUBTRACT_TIME_AVERAGED )
             for ( int it = 0; it < T_global; it++ ) {
               int const idx = ( ( i * block_size ) / num_src_per_conf ) * T_global + it;
               data[i][nT + 1] += loop_sub[0][idx];
             }
             data[i][nT + 1] /= (double)T_global;
-#elif _SUBTRACT_PER_TIMESLICE
+#elif ( defined _SUBTRACT_PER_TIMESLICE )
             int const jc = ( i * block_size ) / num_src_per_conf;  /* config number */
             for ( int k = 0; k < block_size; k++ ){
               int const js = ( i * block_size + k ) % num_src_per_conf;  /* source coords number */
@@ -1805,7 +1796,7 @@ int main(int argc, char **argv) {
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
               /* COUNT FROM SOURCE 0 */
               int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
               data[iconf][nT] += twop_orbit[igf][igi][iconf][isrc][tsink][ireim];
 #else
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
@@ -1844,7 +1835,7 @@ int main(int argc, char **argv) {
               /* COUNT FROM SOURCE 0 */
               int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
               int const idx    = ( ( i * block_size + k ) * T_global + tsink ) * 2 + ireim;
-#if _XG_NUCLEON
+#ifdef _XG_NUCLEON
               data[i][nT] += twop_orbit[igf][igi][0][0][0][idx];
 #else
               int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
@@ -1883,11 +1874,11 @@ int main(int argc, char **argv) {
       }  /* end of loop on dt */
 
 
-#endif  /* end of if _RAT_METHOD */
+#endif  /* end of ifdef _RAT_METHOD */
   
     }}  /* end of loop on gi, gf */
 
-#endif  /* end of if _LOOP_ANALYSIS */
+#endif  /* end of ifdef _LOOP_ANALYSIS */
 
     fini_2level_dtable ( &loop_sub );
 
