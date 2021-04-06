@@ -54,9 +54,9 @@ void usage() {
 
 #define MAX_SMEARING_LEVELS 40
 
-#define _GLUONIC_OPERATORS_PLAQ 1
+#define _GLUONIC_OPERATORS_PLAQ 0
 #define _GLUONIC_OPERATORS_CLOV 1
-#define _GLUONIC_OPERATORS_RECT 1
+#define _GLUONIC_OPERATORS_RECT 0
 
 #define _QTOP 0
 
@@ -303,7 +303,7 @@ int main(int argc, char **argv) {
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -336,7 +336,7 @@ int main(int argc, char **argv) {
     }
 
     /***********************************************************
-     * plaquette clover field strength tensors
+     * (1) plaquette clover field strength tensors
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -349,8 +349,16 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "G_plaq", io_proc==2 );
 
+    /***********************************************************/
+    /***********************************************************/
+
     /***********************************************************
-     * measurement INCLUDING fst trace
+     * (2) measurement for operator insertion
+     ***********************************************************/
+
+    /***********************************************************
+     * (2.1) measurement INCLUDING trace of
+     * field strength tensor
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -364,12 +372,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/clover", stout_tag );
+      sprintf ( data_tag, "%s/clover/O44", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -380,7 +388,8 @@ int main(int argc, char **argv) {
     }  /* end of if io_proc == 2  */
 
     /***********************************************************
-     * measurement EXCLUDING fst trace
+     * (2.2) measurement EXCLUDING trace of
+     * field strength tensor
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -394,12 +403,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected-tl", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/clover-tl", stout_tag );
+      sprintf ( data_tag, "%s/clover-traceless/O44", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double" , 1, &dims);
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, "double" , 1, &dims);
 #else
       exitstatus = 1;
 #endif
@@ -413,9 +422,13 @@ int main(int argc, char **argv) {
     /***********************************************************/
 
     /***********************************************************
+     * (3) gluon field strength tensor components
+     ***********************************************************/
+
+    /***********************************************************
      * measurement of all non-zero tensor components
      * 
-     * WITHOUT TRACE fo G FST
+     * WITHOUT TRACE of G FST
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -425,7 +438,7 @@ int main(int argc, char **argv) {
       EXIT(8);
     }
 
-    exitstatus = gluonic_operators_gg_from_fst_projected ( p_tc, Gp, 1 );
+    exitstatus = gluonic_operators_gg_from_fst_projected ( p_tc, Gp, 0 );
     if ( exitstatus != 0 ) {
       fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from gluonic_operators_gg_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
@@ -435,12 +448,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_gg_from_fst_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/clover-tc", stout_tag );
+      sprintf ( data_tag, "%s/clover/GG", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( p_tc[0], affw, NULL, data_tag, 21 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 21 * T_global;
-      exitstatus = write_h5_contraction ( p_tc[0], NULL, output_filename, data_tag, 21 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( p_tc[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -454,9 +467,14 @@ int main(int argc, char **argv) {
 
     /***********************************************************/
     /***********************************************************/
+
 #if _QTOP
     /***********************************************************
-     * measurement for qtop, EXCLUDING fst trace
+     * (4) topological charge
+     ***********************************************************/
+
+    /***********************************************************
+     * (4.1) measurement for qtop, EXCLUDING fst trace
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -467,15 +485,15 @@ int main(int argc, char **argv) {
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected-tl", io_proc==2 );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected-traceless", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/qtop-clover-tl", stout_tag );
+      sprintf ( data_tag, "%s/qtop-clover-traceless", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = T_global;
-      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double" , 1, &dims);
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, "double" , 1, &dims);
 #else
       exitstatus = 1;
 #endif
@@ -486,7 +504,7 @@ int main(int argc, char **argv) {
     }  /* end of if io_proc == 2  */
 
     /***********************************************************
-     * measurement for qtop, INCLUDING fst trace
+     * (4.2) measurement for qtop, INCLUDING fst trace
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -500,12 +518,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/qtop-clover", stout_tag );
+      sprintf ( data_tag, "%s/clover/qtop", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = T_global;
-      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double" , 1, &dims);
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, "double" , 1, &dims);
 #else
       exitstatus = 1;
 #endif
@@ -521,7 +539,7 @@ int main(int argc, char **argv) {
     /***********************************************************/
 
     /***********************************************************
-     * plaquette clover field strength tensors
+     * (5) plaquette clover field strength tensors
      *
      * HERMITEAN PROJECTION
      ***********************************************************/
@@ -540,7 +558,7 @@ int main(int argc, char **argv) {
     /***********************************************************/
 
     /***********************************************************
-     * measurement from symmetric action
+     * (6) measurement from symmetric action
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -551,15 +569,15 @@ int main(int argc, char **argv) {
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected", io_proc==2 );
+    show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/clover-tr", stout_tag );
+      sprintf ( data_tag, "%s/clover/symmetric-action", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -573,6 +591,8 @@ int main(int argc, char **argv) {
     /***********************************************************/
 
     fini_3level_dtable ( &Gp );
+#if 0
+#endif
 
 #endif  /* of _GLUONIC_OPERATORS_CLOV */
 
@@ -626,12 +646,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/rectangle", stout_tag );
+      sprintf ( data_tag, "%s/rectangle/O44", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -661,12 +681,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_eo_from_fst_projected-tl", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/rectangle-tl", stout_tag );
+      sprintf ( data_tag, "%s/rectangle-traceless/O44", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -702,12 +722,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_gg_from_fst_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/rectangle-tc", stout_tag );
+      sprintf ( data_tag, "%s/rectangle/GG", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( r_tc[0], affw, NULL, data_tag, 21 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 21 * T_global;
-      exitstatus = write_h5_contraction ( r_tc[0], NULL, output_filename, data_tag, 21 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( r_tc[0], NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -739,12 +759,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_qtop_from_fst_projected-tl", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/qtop-rectangle-tl", stout_tag );
+      sprintf ( data_tag, "%s/rectangle-traceless/qtop", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( &(pl[0][0]), affw, NULL, data_tag, T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = T_global;
-      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( &(pl[0][0]), NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -836,12 +856,12 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "cpff_xg_contract_lowmem", "gluonic_operators_projected", io_proc==2 );
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/rectangle-tr", stout_tag );
+      sprintf ( data_tag, "%s/rectangle/symmetric-action", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( pl[0], affw, NULL, data_tag, 2 * T_global, "double" );
 #elif ( defined HAVE_HDF5 )
       int const dims = 2 * T_global;
-      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag, 2 * T_global , "double", 1, &dims );
+      exitstatus = write_h5_contraction ( pl[0], NULL, output_filename, data_tag,  "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
