@@ -67,7 +67,7 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_I   0  /* loops */
+#define _PART_I   1  /* loops */
 #define _PART_IIb 1  /* N1, N2 */
 #define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
 #define _PART_IV  0  /* W type sequential diagrams */
@@ -743,7 +743,7 @@ int main(int argc, char **argv) {
 
   }  /* end of if on read stoch. source  */
 
-#else
+#endif  /* of if Part I */
 
 #ifdef _SMEAR_QUDA
     /***************************************************************************
@@ -767,7 +767,6 @@ int main(int argc, char **argv) {
 
 #endif  /* of if _SMEAR_QUDA */
 
-#endif  /* of if Part I */
 
   /***********************************************
    * if we want to use Jacobi smearing, we need 
