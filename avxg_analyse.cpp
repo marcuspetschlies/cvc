@@ -45,14 +45,17 @@
 #endif
 
 #define _TWOP_SCATT  0
-#define _TWOP_CYD_H5 0
-#define _TWOP_CYD    1
+#define _TWOP_CYD_H5 1
+#define _TWOP_CYD    0
 #define _TWOP_AFF    0
 #define _TWOP_H5     0
 
 #define _TWOP_STATS  1
 
 #define _LOOP_ANALYSIS 1
+
+#define _LOOP_CY       0
+#define _LOOP_CVC      1
 
 #define _RAT_METHOD       1
 #define _RAT_SUB_METHOD   1
@@ -362,6 +365,7 @@ int main(int argc, char **argv) {
   /**********************************************************
    * gamma matrices
    **********************************************************/
+#if 0
   init_gamma_matrix ();
  
   gamma_matrix_type gamma_mu[4];
@@ -377,6 +381,7 @@ int main(int argc, char **argv) {
     gamma_matrix_printf ( &(gamma_mu[2]), "gamma_z", stdout );
     gamma_matrix_printf ( &(gamma_mu[3]), "gamma_t", stdout );
   }
+#endif
 
   /**********************************************************
    **********************************************************
@@ -1173,9 +1178,10 @@ int main(int argc, char **argv) {
 
   /**********************************************************
    *
-   * read stochastic hp loop data
+   * read operaator insertion
    *
    **********************************************************/
+#if _LOOP_CY
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
@@ -1232,6 +1238,155 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on configs */
   }  /* end of loop on insertion momenta */
+
+#endif  /* of if _LOOP_CY */
+
+#if _LOOP_CVC
+/**************************************
+  # x x
+  b [,1] <-  a[ 1, ] + a[16, ] + a[19, ]
+
+  # x y
+  b [,2] <-  a[ 2, ] + a[20, ]
+
+  # x z
+  b [,3] <-  a[ 3, ] - a[18, ]
+
+  # x t
+  b [,4] <-  a[ 9, ] + a[14, ]
+
+  # y y
+  b [,5] <-  a[ 7, ] + a[16, ] + a[21, ]
+
+  # y z
+  b [,6] <-  a[ 8, ] + a[17, ]
+
+  # y t
+  b [,7] <- -a[ 4, ] + a[15, ]
+
+  # z z
+  b [,8] <- a[12, ] +a[19, ] +  a[21, ]
+
+  # z t
+  b [,9] <- - a[ 5, ] - a[11, ]
+
+  # t t
+  b [,10] <- a[ 1, ] + a[ 7, ] + a[12, ]
+
+  b <- b / 2
+
+ **************************************/
+
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    struct AffReader_s *affr = NULL;
+    struct AffNode_s *affn = NULL;
+    struct AffNode_s *affdir = NULL;
+
+    sprintf ( filename, "stream_%c/%s/%d/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+        filename_prefix3, conf_src_list[iconf][0][1] );
+
+    if ( g_verbose > 2 ) fprintf( stdout, "# [avxg_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
+    
+    affr = aff_reader (filename);
+    if( const char * aff_status_str = aff_reader_errstr(affr) ) {
+      fprintf(stderr, "[avxg_analyse] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+      EXIT( 4 );
+    }
+
+    if( (affn = aff_reader_root( affr )) == NULL ) {
+      fprintf(stderr, "[avxg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+      EXIT( 2 );
+    }
+
+    double ** buffer = init_2level_dtable ( T_global, 21 ); 
+    if ( buffer == NULL ) {
+      fprintf( stderr, "[avxg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    char key[400];
+    sprintf ( key, "/StoutN%d/StoutRho%6.4f/clover/GG/", stout_level_iter, stout_level_rho );
+
+    affdir = aff_reader_chpath ( affr, affn, key );
+    if ( affdir == NULL ) {
+      fprintf(stderr, "[avxg_analyse] Error from affdir for dir %s %s %d\n", key, __FILE__, __LINE__);
+      EXIT( 2 );
+    }
+
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [avxg_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
+
+    uint32_t items = 21 * T_global;
+
+    exitstatus = aff_node_get_double ( affr, affdir, buffer[0], items );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[avxg_analyse] Error from aff_node_get_complex for key \"%s\", status was %d errmsg %s %s %d\n", key, exitstatus,
+      aff_reader_errstr ( affr ), __FILE__, __LINE__);
+      EXIT( 105 );
+    }
+
+    aff_reader_close ( affr );
+
+    /* exitstatus = read_aff_contraction ( buffer[0], NULL, filename, key, T_global*21);
+    if ( exitstatus != 0 ) {
+      fprintf( stderr, "[avxg_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(1);
+    } */
+
+    for ( int it = 0; it < T_global; it++ ) {
+      int const imom = 0;
+      double * const a = buffer[it];
+      // x x
+      
+      loop[imom][iconf][0][0][it][0] = a[0] + a[15] + a[18];
+
+      // x y
+      loop[imom][iconf][0][1][it][0] = a[1] + a[19];
+      loop[imom][iconf][1][0][it][0] = loop[imom][iconf][0][1][it][0];
+
+      // x z
+      loop[imom][iconf][0][2][it][0] = a[2] - a[17];
+      loop[imom][iconf][2][0][it][0] = loop[imom][iconf][0][2][it][0];
+
+      // x t
+      loop[imom][iconf][0][3][it][0] = a[8] + a[13];
+      loop[imom][iconf][3][0][it][0] = loop[imom][iconf][0][3][it][0];
+
+      // y y
+      loop[imom][iconf][1][1][it][0] = a[6] + a[15] + a[20];
+
+      // y z
+      loop[imom][iconf][1][2][it][0] = a[7] + a[16];
+      loop[imom][iconf][2][1][it][0] = loop[imom][iconf][1][2][it][0];
+
+      // y t
+      loop[imom][iconf][1][3][it][0] = -a[3] + a[14];
+      loop[imom][iconf][3][1][it][0] = loop[imom][iconf][1][3][it][0];
+
+      // z z
+      loop[imom][iconf][2][2][it][0] = a[11] +a[18] +  a[20];
+
+      // z t
+      loop[imom][iconf][2][3][it][0] = - a[4] - a[10];
+      loop[imom][iconf][3][2][it][0] = loop[imom][iconf][2][3][it][0];
+
+      // t t
+      loop[imom][iconf][3][3][it][0] = a[0] + a[6] + a[11];
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+        // b <- b / 2
+        loop[imom][iconf][imu][inu][it][0] *= 0.5 * loop_norm;
+        loop[imom][iconf][imu][inu][it][1]  = 0.0;
+      }}
+
+    }  /* end of loop timeslices */
+
+    fini_2level_dtable (  &buffer );
+
+  }  /* end of loop on configs */
+
+#endif  /* of if _LOOP_CVC */
 
   /**********************************************************
    *
