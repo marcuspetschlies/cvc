@@ -165,7 +165,8 @@ int main(int argc, char **argv) {
   int use_conn = 1; */
   int twop_fold_propagator = 0;
   int loop_num_evecs = -1;
-  int loop_nstoch = 0;
+  int loop_nstoch = -1;
+  int loop_nstoch_max = -1;
   int loop_block_size = 1;
   int loop_use_es = 0;
   int write_data = 0;
@@ -185,7 +186,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:t:b:m:l:O:T:B:M:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:t:b:m:l:O:T:B:M:x:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -218,6 +219,11 @@ int main(int argc, char **argv) {
     case 'n':
       loop_nstoch = atoi ( optarg );
       fprintf ( stdout, "# [avxn_analyse] loop_nstoch set to %d\n", loop_nstoch );
+      if ( loop_nstoch_max == -1 ) loop_nstoch_max = loop_nstoch;
+      break;
+    case 'x':
+      loop_nstoch_max = atoi ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] loop_nstoch_max set to %d\n", loop_nstoch_max );
       break;
     case 'u':
       loop_use_es = atoi ( optarg );
@@ -1211,22 +1217,22 @@ int main(int argc, char **argv) {
           sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
               loop_type,
               loop_num_evecs,
-              loop_nstoch,
+              loop_nstoch_max,
               idir,
               g_insertion_momentum_list[imom][0],
               g_insertion_momentum_list[imom][1],
               g_insertion_momentum_list[imom][2] );
+          
 
           /* sprintf ( filename, "%s/loop.%.4d_r%c.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2,
               conf_src_list[iconf][0][1], conf_src_list[iconf][0][0],
               loop_type,
               loop_num_evecs,
-              loop_nstoch,
+              loop_nstoch_max,
               idir,
               g_insertion_momentum_list[imom][0],
               g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] );
-              */
+              g_insertion_momentum_list[imom][2] ); */
   
           if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s\n", filename );
 
@@ -1301,13 +1307,14 @@ int main(int argc, char **argv) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
           
-           sprintf ( filename, "stream_%c/%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+          sprintf ( filename, "stream_%c/%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
               loop_type,
               loop_num_evecs,
               idir,
               g_insertion_momentum_list[imom][0],
               g_insertion_momentum_list[imom][1],
               g_insertion_momentum_list[imom][2] );
+
 	  
           /* sprintf ( filename, "%s/loop.%.4d_r%c.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2,
               conf_src_list[iconf][0][1], conf_src_list[iconf][0][0],
@@ -1316,8 +1323,8 @@ int main(int argc, char **argv) {
               idir,
               g_insertion_momentum_list[imom][0],
               g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] );
-  */
+              g_insertion_momentum_list[imom][2] ); */
+
           if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
           FILE * dfs = fopen ( filename, "r" );
           if( dfs == NULL ) {
