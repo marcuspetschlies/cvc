@@ -56,7 +56,7 @@ void usage() {
 
 #define _GLUONIC_OPERATORS_PLAQ 0
 #define _GLUONIC_OPERATORS_CLOV 1
-#define _GLUONIC_OPERATORS_RECT 0
+#define _GLUONIC_OPERATORS_RECT 1
 
 #define _QTOP 0
 
