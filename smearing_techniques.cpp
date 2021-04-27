@@ -36,7 +36,6 @@ namespace cvc {
  ************************************************************/
 int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, int const APE_smearing_niter) {
 
-  if ( APE_smearing_niter <= 0 ) return(0);
 
 #if ( defined HAVE_TMLQCD_LIBWRAPPER ) && ( defined _SMEAR_QUDA )
   /***********************************************************
@@ -45,6 +44,8 @@ int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, i
   _performAPEnStep ( APE_smearing_niter, APE_smearing_alpha );
 
 #else
+
+  if ( APE_smearing_niter <= 0 ) return(0);
 
   const unsigned int gf_items = 72*VOLUME;
   const size_t gf_bytes = gf_items * sizeof(double);
