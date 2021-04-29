@@ -77,24 +77,21 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "twop";
 
-  const char fbwd_str[2][4] =  { "fwd", "bwd" };
+  char const flavor_tag[2] = { 'u', 'd' };
 
-  int const current_momentum_sqr_max = 3;
+  /* const char fbwd_str[2][4] =  { "fwd", "bwd" }; */
 
   int c;
   int filename_set = 0;
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
-  char filename[100];
+  char filename[500];
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
-  double *gauge_field_with_phase = NULL, *gauge_field_smeared = NULL;
+  double *gauge_field_with_phase = NULL;
   char output_filename[400];
   int * rng_state = NULL;
 
-  char const flavor_tag[2] = { 'u', 'd' };
-
-  char data_tag[400];
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -174,7 +171,7 @@ int main(int argc, char **argv) {
 
   unsigned int VOL3 = LX * LY * LZ;
   size_t const sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
-  size_t const sizeof_spinor_field_timeslice = _GSI(VOLUME) * sizeof(double);
+  size_t const sizeof_spinor_field_timeslice = _GSI(VOL3)   * sizeof(double);
 
   /***************************************************************************
    * some additional xchange operations
@@ -298,108 +295,211 @@ int main(int argc, char **argv) {
     fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
   } */
 
+  /***************************************************************************
+   * output filename
+   ***************************************************************************/
 #if ( defined HAVE_HDF5 )
-    sprintf ( output_filename, "%s.%.4d.noise%d.h5", outfile_prefix, Nconf, g_noise_type );
+  sprintf ( output_filename, "%s.%.4d.noise%d.h5", outfile_prefix, Nconf, g_noise_type );
 #endif
-    if(io_proc == 2 && g_verbose > 1 ) { 
-      fprintf(stdout, "# [twop_invert_contract_stochastic] writing data to file %s\n", output_filename);
-    }
+  if(io_proc == 2 && g_verbose > 1 ) { 
+    fprintf(stdout, "# [twop_invert_contract_stochastic] writing data to file %s\n", output_filename);
+  }
 
   /***************************************************************************
-   * generate all stochastic sources
+   * write momentum list to file
    ***************************************************************************/
-  for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+  if ( io_proc == 2 ) {
 
-    exitstatus = prepare_volume_source ( stochastic_source_list[isample], VOLUME );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[twop_invert_contract_stochastic] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(64);
+    int cdims[2] = { g_sink_momentum_number, 3 };
+    exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, output_filename, "/pf", "int", 2, cdims );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+
+    cdims[0] = g_source_momentum_number;
+    exitstatus = write_h5_contraction ( g_source_momentum_list[0], NULL, output_filename, "/pi", "int", 2, cdims );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
+    }
+
+    cdims[0] = g_seq_source_momentum_number;
+    exitstatus = write_h5_contraction ( g_seq_source_momentum_list[0], NULL, output_filename, "/pc", "int", 2, cdims );
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );;
+      EXIT( 54 );
     }
   }
 
-  double *** xid_xi = init_3level_dtable ( ( g_nsample * ( g_nsample - 1 ) ) / 2, g_source_momentum_number, 2 * T );
-  if ( xid_xi == NULL ) {
-    fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(64);
-  }
+  /***************************************************************************
+   * generate or read all stochastic sources
+   ***************************************************************************/
+  for ( int isample = 0; isample < g_nsample; isample++ ) {
 
-  int r12 = 0;
-  for ( int r1 = 0; r1 < g_nsample; r1++ ) {
-    for ( int r2 = r1+1; r2 < g_nsample; r2++ ) {
+    if ( g_read_source ) {
+      sprintf ( filename, "%s.c%d.s%d", filename_prefix, Nconf, isample);
+      if ( ( exitstatus = read_lime_spinor( stochastic_source_list[isample], filename, 0) ) != 0 ) {
+        fprintf(stderr, "[twop_invert_contract_stochastic] Error from read_lime_spinor, status was %d\n", exitstatus);
+        EXIT(2);
+      }
 
-      double ** xx = init_2level_dtable ( T, 2*VOL3 );
-      if ( xx == NULL ) {
-        fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    } else {
+
+      exitstatus = prepare_volume_source ( stochastic_source_list[isample], VOLUME );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[twop_invert_contract_stochastic] Error from prepare_volume_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(64);
       }
 
+      if ( g_write_source ) {
+        sprintf ( filename, "%s.c%d.s%d", filename_prefix, Nconf, isample);
+        
+        if ( ( exitstatus = write_propagator ( stochastic_source_list[isample], filename, 0, 64 ) ) != 0 ) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from read_lime_spinor, status was %d\n", exitstatus);
+          EXIT(2);
+        }
+      } 
+
+    }
+
+  }  /* end of loop on stochastic samples */
+
+  /***************************************************************************
+   * reduce for all local gamma insertions
+   ***************************************************************************/
+  for ( int gid = 0; gid < g_source_gamma_id_number; gid++ ) {
+
+    double *** xid_xi = init_3level_dtable ( ( g_nsample * ( g_nsample - 1 ) ) / 2, g_source_momentum_number, 2 * T );
+    if ( xid_xi == NULL ) {
+      fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(64);
+    }
+
+    /***************************************************************************
+     * ... for all non-equal combinations of stochastic samples
+     ***************************************************************************/
+    int r12 = 0;
+    for ( int r1 = 0; r1 < g_nsample; r1++ ) {
+      for ( int r2 = r1+1; r2 < g_nsample; r2++ ) {
+
+        double ** xx = init_2level_dtable ( T, 2*VOL3 );
+        if ( xx == NULL ) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(64);
+        }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+        double _sp[24];
+#pragma omp for
+        for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+          unsigned int const iix = _GSI ( ix );
+
+          _fv_eq_gamma_ti_fv ( _sp, g_source_gamma_id_list[gid], stochastic_source_list[r1] + iix );
+          _fv_ti_eq_g5 ( _sp );
+
+
+          _d2_pl_eq_fv_dag_ti_fv ( xx[0] + 2*ix, stochastic_source_list[r2] + iix, _sp );
+        }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+        /***************************************************************************
+         * momentum projection
+         ***************************************************************************/
+        exitstatus = momentum_projection ( xx[0], xid_xi[r12][0], T, g_source_momentum_number, g_source_momentum_list );
+        if(exitstatus != 0) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(3);
+        }
+
+        fini_2level_dtable ( &xx );
+ 
+        r12++;
+      }
+    }
+
+    /***************************************************************************
+     * write to file
+     ***************************************************************************/
+    if(io_proc>0) {
+
+      double *** xx = init_3level_dtable ( T, g_source_momentum_number, g_nsample * ( g_nsample - 1 ) );
+      if ( xx == NULL ) {
+        fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(3);
+      }
+
 #pragma omp parallel for
-      for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
-
-        unsigned int const iix = _GSI ( ix );
-
-        _d2_pl_eq_fv_dag_ti_fv ( xx[0] + 2*ix, stochastic_source_list[r2] + iix, stochastic_source_list[r1] + iix );
+      for ( int it = 0; it < T; it++ ) {
+        for ( int ip = 0; ip < g_source_momentum_number; ip++ ) {
+          for ( int ir = 0; ir < (g_nsample * ( g_nsample - 1 ))/2; ir++ ) {
+            xx[it][ip][2*ir  ] = xid_xi[ir][ip][2*it  ];
+            xx[it][ip][2*ir+1] = xid_xi[ir][ip][2*it+1];
+          }
+        }
       }
-
-      exitstatus = momentum_projection ( xx[0], xid_xi[r12][0], T, g_source_momentum_number, g_source_momentum_list );
-      if(exitstatus != 0) {
-        fprintf(stderr, "[twop_invert_contract_stochastic] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(3);
-      }
-
-      fini_2level_dtable ( &xx );
-
-      r12++;
-    }
-  }
-
-  if(io_proc>0) {
-
-    size_t items = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_source_momentum_number * 2 * T_global;
 
 #ifdef HAVE_MPI
-    double * buffer = ( io_proc == 2 ) ?  init_1level_dtable ( items ) : NULL;
+      size_t items = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_source_momentum_number * 2 * T_global;
 
-    int mitems = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_source_momentum_number * 2 * T;
+      double * buffer = ( io_proc == 2 ) ?  init_1level_dtable ( items ) : NULL;
 
-    exitstatus = MPI_Gather ( xid_xi[0][0], mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_tr_comm);
-    if(exitstatus != MPI_SUCCESS) {
-      fprintf(stderr, "[twop_invert_contract_stochastic] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(3);
-    }
+      int mitems = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_source_momentum_number * 2 * T;
+
+      exitstatus = MPI_Gather ( xx[0][0], mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_tr_comm);
+      if(exitstatus != MPI_SUCCESS) {
+        fprintf(stderr, "[twop_invert_contract_stochastic] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(3);
+      }
 #else
-    double * buffer = xid_xi[0][0];
+      double * buffer = xx[0][0];
 #endif
 
-    char tag[400];
-    sprintf ( tag, "/xi+-xi" );
+      char tag[400];
+      sprintf ( tag, "/xi+-xi/gi%d", g_source_gamma_id_list[gid] );
 
-    int const ncdim = 3;
-    int const cdim[3] = { ( g_nsample * ( g_nsample - 1 ) ) / 2, g_source_momentum_number , 2 * T_global };
+      int const ncdim = 3;
+      int const cdim[3] = { T_global, g_source_momentum_number, ( g_nsample * ( g_nsample - 1 ) ) };
 
-    if ( io_proc == 2 ) {
+      if ( io_proc == 2 ) {
   
-      exitstatus = write_h5_contraction ( buffer, NULL, output_filename, tag, "double", ncdim, cdim );
-      if(exitstatus != 0 ) {
-        fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(3);
-      }
+        exitstatus = write_h5_contraction ( buffer, NULL, output_filename, tag, "double", ncdim, cdim );
+        if(exitstatus != 0 ) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(3);
+        }
 
-    }
+      }  /* end of if io_proc = 2 */
 
 #ifdef HAVE_MPI
-    if ( io_proc == 2 ) fini_1level_dtable ( &buffer );
+      if ( io_proc == 2 ) fini_1level_dtable ( &buffer );
 #endif
 
-  }
+      fini_3level_dtable ( &xx );
+    }  /* end of if io_proc > 0 */
 
-  fini_3level_dtable ( &xid_xi );
+    fini_3level_dtable ( &xid_xi );
+    
+  }  /* end of loop on gid  */
 
 
   /***************************************************************************
-   * stochastic propagators
+   ***************************************************************************
+   **
+   ** stochastic propagators
+   **
+   ***************************************************************************
    ***************************************************************************/
 
+  /***************************************************************************
+   * loop on global timeslices
+   ***************************************************************************/
   for ( int gts = 0; gts < T_global; gts++ ) {
 
     int lts = -1, proc_id = -1;
@@ -410,11 +510,10 @@ int main(int argc, char **argv) {
       EXIT(3);
     }
 
-   int r12 = 0;
-  
-   for ( int r1 = 0; r1 < g_nsample; r1++ ) {
+    for ( int r1 = 0; r1 < g_nsample; r1++ ) {
 
       memset ( spinor_work[1], 0, sizeof_spinor_field );
+      memset ( spinor_work[0], 0, sizeof_spinor_field );
 
       if ( proc_id == g_cart_id ) {
 
@@ -435,22 +534,148 @@ int main(int argc, char **argv) {
       }
 
       memcpy( stochastic_propagator_list[r1], spinor_work[1], sizeof_spinor_field );
-   }
-       
-
-   /***************************************************************************
-    *
-    ***************************************************************************/
- 
-    double *** psid_psi = init_3level_dtable ( ( g_nsample * ( g_nsample - 1 ) ) / 2, g_sink_momentum_number, 2 * T );
-    if ( psid_psi == NULL ) {
-      fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-      EXIT(64);
     }
+       
+    /***************************************************************************
+     * reductions for all local gamma insertions at sink
+     ***************************************************************************/
+    for ( int gid = 0; gid < g_sink_gamma_id_number; gid++ ) {
 
-    int r12 = 0;
-    for ( int r1 = 0; r1 < g_nsample; r1++ ) {
-      for ( int r2 = r1+1; r2 < g_nsample; r2++ ) {
+      double *** psid_psi = init_3level_dtable ( ( g_nsample * ( g_nsample - 1 ) ) / 2, g_sink_momentum_number, 2 * T );
+      if ( psid_psi == NULL ) {
+        fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(64);
+      }
+
+      int r12 = 0;
+    
+     /***************************************************************************
+      * ... for all non-equal pairs of stochastic samples
+      ***************************************************************************/
+      for ( int r1 = 0; r1 < g_nsample; r1++ ) {
+        for ( int r2 = r1+1; r2 < g_nsample; r2++ ) {
+
+          double ** xx = init_2level_dtable ( T, 2*VOL3 );
+          if ( xx == NULL ) {
+            fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(64);
+          }
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+          double _sp[24];
+
+#pragma omp for
+          for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+            unsigned int const iix = _GSI ( ix );
+
+            _fv_eq_gamma_ti_fv ( _sp, g_sink_gamma_id_list[gid], stochastic_propagator_list[r2] + iix );
+            _fv_ti_eq_g5 ( _sp );
+
+            _d2_pl_eq_fv_dag_ti_fv ( xx[0] + 2*ix, stochastic_propagator_list[r1] + iix, _sp );
+          }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+          exitstatus = momentum_projection ( xx[0], psid_psi[r12][0], T, g_sink_momentum_number, g_sink_momentum_list );
+          if(exitstatus != 0) {
+            fprintf(stderr, "[twop_invert_contract_stochastic] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(3);
+          }
+
+          fini_2level_dtable ( &xx );
+
+          r12++;
+        }  /* end of loop on r2 */
+      }  /* end of loop on r1 */
+
+      /***************************************************************************
+       * write to file
+       ***************************************************************************/
+      if(io_proc>0) {
+
+        double *** xx = init_3level_dtable ( T, g_sink_momentum_number, g_nsample * ( g_nsample - 1 ) );
+        if ( xx == NULL ) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+          EXIT(3);
+        }
+
+#pragma omp parallel for
+        for ( int it = 0; it < T; it++ ) {
+          for ( int ip = 0; ip < g_sink_momentum_number; ip++ ) {
+            for ( int ir = 0; ir < (g_nsample * ( g_nsample - 1 ))/2; ir++ ) {
+              xx[it][ip][2*ir  ] = psid_psi[ir][ip][2*it  ];
+              xx[it][ip][2*ir+1] = psid_psi[ir][ip][2*it+1];
+            }
+          }
+        }
+
+
+
+#ifdef HAVE_MPI
+        size_t items = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_sink_momentum_number * 2 * T_global;
+
+        double * buffer = ( io_proc == 2 ) ?  init_1level_dtable ( items ) : NULL;
+  
+        int mitems = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_sink_momentum_number * 2 * T;
+
+        exitstatus = MPI_Gather ( xx[0][0], mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_tr_comm);
+        if(exitstatus != MPI_SUCCESS) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(3);
+        }
+#else
+        double * buffer = xx[0][0];
+#endif
+
+        char tag[400];
+        sprintf ( tag, "/psi+-psi/%c-%c/gf%d/t%d", flavor_tag[_OP_ID_UP], flavor_tag[_OP_ID_UP], g_sink_gamma_id_list[gid], gts );
+
+        int const ncdim = 3;
+        int const cdim[3] = { T_global, g_sink_momentum_number,  ( g_nsample * ( g_nsample - 1 ) ) };
+
+        if ( io_proc == 2 ) {
+  
+          exitstatus = write_h5_contraction ( buffer, NULL, output_filename, tag, "double", ncdim, cdim );
+          if(exitstatus != 0 ) {
+            fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(3);
+          }
+
+        }
+
+#ifdef HAVE_MPI
+        if ( io_proc == 2 ) fini_1level_dtable ( &buffer );
+#endif
+
+        fini_3level_dtable ( &xx );
+      }
+
+      fini_3level_dtable ( &psid_psi );
+
+    }  /* end of loop on gid  */
+
+    /***************************************************************************/
+    /***************************************************************************/
+
+    /***************************************************************************
+     * reductions for local loops
+     ***************************************************************************/
+    for ( int gid = 0; gid < g_sequential_source_gamma_id_number; gid++ ) {
+
+      double *** psi = init_3level_dtable ( g_nsample, g_seq_source_momentum_number, 2 * T );
+      if ( psi == NULL ) {
+        fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(64);
+      }
+
+     /***************************************************************************
+      * ... for all non-equal pairs of stochastic samples
+      ***************************************************************************/
+      for ( int r1 = 0; r1 < g_nsample; r1++ ) {
 
         double ** xx = init_2level_dtable ( T, 2*VOL3 );
         if ( xx == NULL ) {
@@ -458,15 +683,25 @@ int main(int argc, char **argv) {
           EXIT(64);
         }
 
-#pragma omp parallel for
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+        double _sp[24];
+
+#pragma omp for
         for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
 
           unsigned int const iix = _GSI ( ix );
 
-          _d2_pl_eq_fv_dag_ti_fv ( xx[0] + 2*ix, stochastic_source_list[r2] + iix, stochastic_source_list[r1] + iix );
-        }
+          _fv_eq_gamma_ti_fv ( _sp, g_sequential_source_gamma_id_list[gid], stochastic_propagator_list[r1] + iix );
 
-        exitstatus = momentum_projection ( xx[0], psid_psi[r12][0], T, g_sink_momentum_number, g_sink_momentum_list );
+          _d2_pl_eq_fv_dag_ti_fv ( xx[0] + 2*ix, stochastic_source_list[r1] + iix, _sp );
+        }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+        exitstatus = momentum_projection ( xx[0], psi[r1][0], T, g_seq_source_momentum_number, g_seq_source_momentum_list );
         if(exitstatus != 0) {
           fprintf(stderr, "[twop_invert_contract_stochastic] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(3);
@@ -474,51 +709,74 @@ int main(int argc, char **argv) {
 
         fini_2level_dtable ( &xx );
 
-        r12++;
-      }
-    }
+      }  /* end of loop on r1 */
 
-    if(io_proc>0) {
+      /***************************************************************************
+       * write to file
+       ***************************************************************************/
+      if(io_proc>0) {
 
-      size_t items = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_sink_momentum_number * 2 * T_global;
-
-#ifdef HAVE_MPI
-     double * buffer = ( io_proc == 2 ) ?  init_1level_dtable ( items ) : NULL;
- 
-      int mitems = ( g_nsample * ( g_nsample - 1 ) ) / 2 * g_sink_momentum_number * 2 * T;
-
-      exitstatus = MPI_Gather ( xid_xi[0][0], mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_tr_comm);
-      if(exitstatus != MPI_SUCCESS) {
-        fprintf(stderr, "[twop_invert_contract_stochastic] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-        EXIT(3);
-      }
-#else
-      double * buffer = xid_xi[0][0];
-#endif
-
-      char tag[400];
-      sprintf ( tag, "/psi+-psi/%c-%c/t%d", flavor_tag[_OP_ID_UP], flavor_tag[_OP_ID_UP], gts );
-
-      int const ncdim = 3;
-      int const cdim[3] = { ( g_nsample * ( g_nsample - 1 ) ) / 2, g_sink_momentum_number , 2 * T_global };
-
-      if ( io_proc == 2 ) {
-  
-        exitstatus = write_h5_contraction ( buffer, NULL, output_filename, tag, "double", ncdim, cdim );
-        if(exitstatus != 0 ) {
-          fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        double *** xx = init_3level_dtable ( T, g_seq_source_momentum_number, 2 * g_nsample );
+        if ( xx == NULL ) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(3);
         }
 
-      }
+#pragma omp parallel for
+        for ( int it = 0; it < T; it++ ) {
+          for ( int ip = 0; ip < g_seq_source_momentum_number; ip++ ) {
+            for ( int ir = 0; ir < g_nsample; ir++ ) {
+              xx[it][ip][2*ir  ] = psi[ir][ip][2*it  ];
+              xx[it][ip][2*ir+1] = psi[ir][ip][2*it+1];
+            }
+          }
+        }
+
+
 
 #ifdef HAVE_MPI
-      if ( io_proc == 2 ) fini_1level_dtable ( &buffer );
+        size_t items = g_nsample * g_seq_source_momentum_number * 2 * T_global;
+
+        double * buffer = ( io_proc == 2 ) ?  init_1level_dtable ( items ) : NULL;
+  
+        int mitems = g_nsample * g_seq_source_momentum_number * 2 * T;
+
+        exitstatus = MPI_Gather ( xx[0][0], mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_tr_comm);
+        if(exitstatus != MPI_SUCCESS) {
+          fprintf(stderr, "[twop_invert_contract_stochastic] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(3);
+        }
+#else
+        double * buffer = xx[0][0];
 #endif
 
-    }
+        char tag[400];
+        sprintf ( tag, "/xi+-psi/%c/gc%d/t%d", flavor_tag[_OP_ID_UP], g_sequential_source_gamma_id_list[gid], gts );
 
-    fini_3level_dtable ( &psid_psi );
+        int const ncdim = 3;
+        int const cdim[3] = { T_global, g_seq_source_momentum_number, 2*g_nsample };
+
+        if ( io_proc == 2 ) {
+  
+          exitstatus = write_h5_contraction ( buffer, NULL, output_filename, tag, "double", ncdim, cdim );
+          if(exitstatus != 0 ) {
+            fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(3);
+          }
+
+        }
+
+#ifdef HAVE_MPI
+        if ( io_proc == 2 ) fini_1level_dtable ( &buffer );
+#endif
+
+        fini_3level_dtable ( &xx );
+      }
+
+      fini_3level_dtable ( &psi );
+
+    }  /* end of loop on gid  */
+
 
   }  /* end of loop on global timeslices */
 
