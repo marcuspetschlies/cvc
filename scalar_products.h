@@ -12,5 +12,7 @@ void eo_spinor_dag_gamma_spinor(complex * const gsp, double * const xi, int cons
 
 void eo_gsp_momentum_projection (complex * const gsp_p, complex * const gsp_x, complex * const phase, int const eo);
 
+void spinor_scalar_product_d2 ( double * const w, double * const xi, double * const phi, unsigned int const V);
+
 }
 #endif

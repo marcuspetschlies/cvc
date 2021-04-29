@@ -34,9 +34,9 @@ namespace cvc {
 /*********************************************/
 
 /*********************************************
- * complex-valued 4-dim scalar product of two
- * spinor fields
- *********************************************/
+* complex-valued 4-dim scalar product of two
+* spinor fields
+*********************************************/
 void spinor_scalar_product_co ( complex * const w, double * const xi, double * const phi, unsigned int const V) {
 
   complex paccum;
@@ -297,5 +297,68 @@ void eo_gsp_momentum_projection (complex * const gsp_p, complex * const gsp_x, c
   memcpy(gsp_p, p, 2*T*sizeof(double));
 #endif
 }  /* end of eo_gsp_momentum_projection */
+
+
+/*************************************************************
+ * double-2-valued 4-dim scalar product of two
+ * spinor fields
+ *************************************************************/
+void spinor_scalar_product_d2 ( double * const w, double * const xi, double * const phi, unsigned int const V) {
+
+  double paccum[2] = { 0., 0. };
+  
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+
+  omp_init_lock(&writelock);
+#pragma omp parallel default(shared)
+{
+#endif
+  double p2[2] = { 0., 0. };
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for( unsigned int ix = 0; ix < V; ix ++ ) {
+
+    unsigned int const iix = _GSI( ix );
+
+    double * const _xi  =  xi + iix;
+    double * const _phi = phi + iix;
+
+    _d2_pl_eq_fv_dag_ti_fv ( p2, _xi, _phi );
+  }
+#ifdef HAVE_OPENMP
+  omp_set_lock(&writelock);
+#endif
+
+  paccum[0] += p2[0];
+  paccum[1] += p2[1];
+
+#ifdef HAVE_OPENMP
+  omp_unset_lock(&writelock);
+}  /* end of parallel region */
+  omp_destroy_lock(&writelock);
+#endif
+
+#ifdef HAVE_MPI
+  double pall[2] = { 0., 0. };
+
+  if ( MPI_Allreduce ( paccum, pall, 2, MPI_DOUBLE, MPI_SUM, g_cart_grid) != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[spinor_scalar_product_d2] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+    w[0] = sqrt( -1. );
+    w[1] = sqrt( -1. );
+  } else {
+    w[0] = pall[0];
+    w[1] = pall[1];
+  }
+#else
+  w[0] = paccum[0];
+  w[1] = paccum[1];
+#endif
+}  /* end of spinor_scalar_product_d2 */
+
+/*************************************************************/
+/*************************************************************/
 
 }  /* end of namespace cvc */
