@@ -45,8 +45,10 @@ int write_aff_contraction ( void * const contr, void * const awriter, void * con
 #if HAVE_HDF5
 int read_from_h5_file ( void * const buffer, void * file, char*tag,  const char * data_type, int const io_proc );
 
+int read_from_h5_file_varsize ( void ** const buffer, void * file, char*tag,  const char * data_type, size_t * const ncdim, size_t ** const cdim,  int const io_proc );
+
 /* int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type ); */
-int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type, int const ncdim, const int * const cdim );
+int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, const char * data_type, int const ncdim, const int * const cdim );
 
 int write_h5_attribute ( const char * filename, const char * attr_name, const char * info );
 

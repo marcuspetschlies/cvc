@@ -43,10 +43,10 @@
 #include "gamma.h"
 #include "contract_loop_inline.h"
 
-#define _TWOP_PERCONF 0
-#define _TWOP_COMPACT 1
+#define _TWOP_PERCONF 1
+#define _TWOP_COMPACT 0
 
-/* #define _USE_SUBTRACTED 1 */
+#define _USE_SUBTRACTED 0
 
 using namespace cvc;
 
@@ -654,7 +654,7 @@ int main(int argc, char **argv) {
   /****************************************
    * show all data
    ****************************************/
-  if ( g_verbose > 5 ) {
+  if ( g_verbose > 6 ) {
     gettimeofday ( &ta, (struct timezone *)NULL );
 
     for ( int iconf = 0; iconf < num_conf; iconf++ )
@@ -689,7 +689,7 @@ int main(int argc, char **argv) {
      * combine source locations 
      ****************************************/
   
-    double **** twop_src_avg = init_4level_dtable ( num_conf, g_sink_momentum_number, 4, 2 * T_global );
+    double ***** twop_src_avg = init_5level_dtable ( num_conf, g_sink_momentum_number, 5, 4, 2 * T_global );
     if ( twop_src_avg == NULL ) {
       fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(16);
@@ -713,7 +713,7 @@ int main(int argc, char **argv) {
   
           for ( int tau = 0; tau < T_global; tau++ ) {
 
-            double _Complex ztmp = 0.;
+            double _Complex ztmp = 0., z0 = 0., z1 = 0., z2 = 0., z3 = 0.;
 
             for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
             
@@ -724,6 +724,12 @@ int main(int argc, char **argv) {
                 + g_sink_momentum_list[imom][1] * conf_src_list[iconf][isrc][4] / (double)LY_global
                 + g_sink_momentum_list[imom][2] * conf_src_list[iconf][isrc][5] / (double)LZ_global ) );
 
+              z0 += ( twop[iconf][isrc][imom][0][0][mu][2*it] + I * twop[iconf][isrc][imom][0][0][mu][2*it+1] ) * ephase;
+              z1 += ( twop[iconf][isrc][imom][0][1][mu][2*it] + I * twop[iconf][isrc][imom][0][1][mu][2*it+1] ) * ephase;
+              z2 += ( twop[iconf][isrc][imom][1][0][mu][2*it] + I * twop[iconf][isrc][imom][1][0][mu][2*it+1] ) * ephase;
+              z3 += ( twop[iconf][isrc][imom][1][1][mu][2*it] + I * twop[iconf][isrc][imom][1][1][mu][2*it+1] ) * ephase;
+
+
               ztmp += 0.25 * (
                   +                     ( twop[iconf][isrc][imom][0][0][mu][2*it] + I * twop[iconf][isrc][imom][0][0][mu][2*it+1] ) * ephase
                   +           sC_sign * ( twop[iconf][isrc][imom][0][1][mu][2*it] + I * twop[iconf][isrc][imom][0][1][mu][2*it+1] ) * ephase
@@ -732,57 +738,132 @@ int main(int argc, char **argv) {
                   +           sC_sign * ( twop[iconf][isrc][imom][1][1][mu][2*it] + I * twop[iconf][isrc][imom][1][1][mu][2*it+1] ) * ephase
                   )
                 );
-            }
+            }  /* end of loop on sources */
               
-            twop_src_avg[iconf][imom][mu][2*tau  ] = creal( ztmp ) * norm;
-            twop_src_avg[iconf][imom][mu][2*tau+1] = cimag( ztmp ) * norm;
-          }
-        }
-      }
+            ztmp = 0.25 * (
+                  +                     z0
+                  +           sC_sign * z1
+                + s50_sign * (
+                  +                     z2
+                  +           sC_sign * z3
+                  )
+                );
+
+            twop_src_avg[iconf][imom][4][mu][2*tau  ] = creal( ztmp ) * norm;
+            twop_src_avg[iconf][imom][4][mu][2*tau+1] = cimag( ztmp ) * norm;
+
+            twop_src_avg[iconf][imom][0][mu][2*tau  ] = creal( z0 ) * norm;
+            twop_src_avg[iconf][imom][0][mu][2*tau+1] = cimag( z0 ) * norm;
+
+            twop_src_avg[iconf][imom][1][mu][2*tau  ] = creal( z1 ) * norm;
+            twop_src_avg[iconf][imom][1][mu][2*tau+1] = cimag( z1 ) * norm;
+
+            twop_src_avg[iconf][imom][2][mu][2*tau  ] = creal( z2 ) * norm;
+            twop_src_avg[iconf][imom][2][mu][2*tau+1] = cimag( z2 ) * norm;
+
+            twop_src_avg[iconf][imom][3][mu][2*tau  ] = creal( z3 ) * norm;
+            twop_src_avg[iconf][imom][3][mu][2*tau+1] = cimag( z3 ) * norm;
+
+          }  /* end of loop on timeslices */
+        }  /* end of loop on vector index mu  */
+      }  /* end of loop on momenta */
     }  /* end of loop on conf */
   
+    /****************************************
+     * show source-averaged data
+     ****************************************/
+    if ( g_verbose > 4 ) {
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      for ( int iconf = 0; iconf < num_conf; iconf++ )
+      {
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ )
+          {
+            for ( int mu = 0; mu < 4; mu++ )
+            {
+              for ( int it = 0; it < T; it++ )
+              {
+                fprintf ( stdout, "%c  %6d p %3d %3d %3d m %d twop %3d"\
+                    "   %16.7e %16.7e    %16.7e %16.7e    %16.7e %16.7e    %16.7e %16.7e  %16.7e %16.7e  \n",
+                    conf_src_list[iconf][0][0], conf_src_list[iconf][0][1],
+                    g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], mu, it, 
+                    twop_src_avg[iconf][imom][0][mu][2*it], twop_src_avg[iconf][imom][0][mu][2*it+1],
+                    twop_src_avg[iconf][imom][1][mu][2*it], twop_src_avg[iconf][imom][1][mu][2*it+1],
+                    twop_src_avg[iconf][imom][2][mu][2*it], twop_src_avg[iconf][imom][2][mu][2*it+1],
+                    twop_src_avg[iconf][imom][3][mu][2*it], twop_src_avg[iconf][imom][3][mu][2*it+1],
+                    twop_src_avg[iconf][imom][4][mu][2*it], twop_src_avg[iconf][imom][4][mu][2*it+1] );
+              }
+            }
+          }
+      }
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "p2gg_analyse_vdisc", "show-src-avg-data", g_cart_id == 0 );
+    }
+
     /****************************************
      * STATISTICAL ANALYSIS of real and
      * imaginary part of anti-symmetricly
      * orbit-averaged HVP spatial tensor
      * components
      ****************************************/
-    for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+    for ( int i = 0; i <= 4; i++ ) {
 
-      for ( int mu = 0; mu < 4; mu++ ) {
+     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+ 
+       for ( int mu = 0; mu < 4; mu++ ) {
+ 
+         for ( int ireim = 0; ireim < 2; ireim++ ) {
+ 
+           double ** data = init_2level_dtable ( num_conf, T_global );
+           if ( data == NULL ) {
+             fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+             EXIT(16);
+           }
+   
+           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+             for ( int it = 0; it < T_global; it++ ) {
+               data[iconf][it] = twop_src_avg[iconf][imom][i][mu][2*it+ireim];
+             }
+           }
+          
+           char obs_name[100];
+           int const iflavor = i < 4 ? i % 2 : -1;
+           int const ordering = i < 4 ? i / 2 : -1;
 
-        for ( int ireim = 0; ireim < 2; ireim++ ) {
+           if ( i < 4 ) {
+             if ( ordering == 0 ) {
+               sprintf ( obs_name, "%s.%s.gf%d_gi%d.latsymavg.px%dpx%dpz%d.%s", correlator_prefix[operator_type], flavor_tag[iflavor],
+                   gamma_a_list[mu], gamma_p_list[0],
+                   g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], reim_str[ireim] );
+             } else {
+               sprintf ( obs_name, "%s.%s.gf%d_gi%d.latsymavg.px%dpx%dpz%d.%s", correlator_prefix[operator_type], flavor_tag[iflavor],
+                   gamma_p_list[0], gamma_a_list[mu], 
+                   g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], reim_str[ireim] );
+             }
 
-          double ** data = init_2level_dtable ( num_conf, T_global );
-          if ( data == NULL ) {
-            fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-            EXIT(16);
-          }
+           } else {
+
+             sprintf ( obs_name, "%s.g%d_g%d.latsymavg.px%dpx%dpz%d.%s", correlator_prefix[operator_type],
+                 gamma_a_list[mu], gamma_p_list[0],
+                 g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], reim_str[ireim] );
+           }
+   
+           /* apply UWerr analysis */
+           exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+           if ( exitstatus != 0 ) {
+             fprintf ( stderr, "[p2gg_analyse_vdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+             EXIT(1);
+           }
+           fini_2level_dtable ( &data );
+   
+         }  /* end of loop on re / im */
+       }  /* end of loop on mu */
+     }  /* end of loop on sink momenta */
   
-          for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              data[iconf][it] = twop_src_avg[iconf][imom][mu][2*it+ireim];
-            }
-          }
-         
-          char obs_name[100];
-          sprintf ( obs_name, "%s.%s.gf%d_gi%d.latsymavg.px%dpx%dpz%d.%s", correlator_prefix[operator_type], flavor_tag[0],
-              gamma_a_list[mu], gamma_p_list[0],
-              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], reim_str[ireim] );
-  
-          /* apply UWerr analysis */
-          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[p2gg_analyse_vdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(1);
-          }
-          fini_2level_dtable ( &data );
-  
-        }  /* end of loop on re / im */
-      }  /* end of loop on mu */
-    }  /* end of loop on sink momenta */
-  
-    fini_4level_dtable ( &twop_src_avg );
+    }
+
+    fini_5level_dtable ( &twop_src_avg );
+
   
   }  /* end of if twop_stats  */
 
@@ -1153,6 +1234,12 @@ int main(int argc, char **argv) {
         EXIT(16);
       }
 
+      double ******** pgg_disc_flavor = init_8level_dtable ( 2, 2, num_conf, num_src_per_conf, g_sink_momentum_number, 4, 4, 2 * T_global );
+      if ( pgg_disc_flavor == NULL ) {
+        fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(16);
+      }
+
       double ***** pgg_twop_1 = init_5level_dtable ( num_conf, g_sink_momentum_number, 4, 4, 2 );
       if ( pgg_twop_1 == NULL ) {
         fprintf(stderr, "[p2gg_analyse_vdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
@@ -1191,10 +1278,7 @@ int main(int argc, char **argv) {
           /* ABSOLUTE sink time */
           int const tsnk = ( tsrc + sequential_source_timeslice + T_global ) % T_global;
 
-          /* ABSOLUTE insertion time */
-          int const tins = ( tsrc + sequential_source_timeslice + T_global ) % T_global;
-
-          if ( g_verbose > 3 ) fprintf ( stdout, "# [p2gg_analyse_vdisc] tsrc %3d dt %3d tsnk %3d tins %3d\n", tsrc, sequential_source_timeslice, tsnk, tins );
+          if ( g_verbose > 3 ) fprintf ( stdout, "# [p2gg_analyse_vdisc] tsrc %3d dt %3d tsnk %3d\n", tsrc, sequential_source_timeslice, tsnk);
 
           for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
@@ -1235,22 +1319,29 @@ int main(int argc, char **argv) {
               if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse_vdisc] P A%d V%d sC_sign %d st_sign %d s50_sign %d\n", s2, s1, sC_sign, st_sign, s50_sign );
 
               /***********************************************************
-               * (1) A_f P_i x V_c
+               * (1) A_f (t_sink) V_c (t_insertion) P_i (t_source) = v1v0p
                ***********************************************************/
               for ( int tau = 0; tau < T_global; tau++ ) {
 
-                /* insertion time for V_c */
+                /* insertion time for loop V_c */
                 int const it = ( tsnk + tau + T_global ) % T_global;
 
                 double _Complex const z_twop_1 = twop[iconf][isrc][imom][0][0][s2][2*tsnk] + I * twop[iconf][isrc][imom][0][0][s2][2*tsnk+1];
+                
                 double _Complex const z_twop_2 = twop[iconf][isrc][imom][0][1][s2][2*tsnk] + I * twop[iconf][isrc][imom][0][1][s2][2*tsnk+1];
 
                 double _Complex const z_loop   = loop_pgg[iconf][imom][s1][2*it] + I * loop_pgg[iconf][imom][s1][2*it+1];
 
-                double _Complex const z_threep = ( z_twop_1 + sC_sign * z_twop_2 ) * z_loop * ephase;
+                double _Complex const z_threep_0 =           z_twop_1 * z_loop * ephase;
+                double _Complex const z_threep_1 = sC_sign * z_twop_2 * z_loop * ephase;
 
-                pgg_disc[0][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep );
-                pgg_disc[0][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep );
+                pgg_disc_flavor[0][0][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep_0 );
+                pgg_disc_flavor[0][0][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep_0 );
+                pgg_disc_flavor[0][1][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep_1 );
+                pgg_disc_flavor[0][1][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep_1 );
+
+                pgg_disc[0][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep_0 + z_threep_1 );
+                pgg_disc[0][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep_0 + z_threep_1 );
 
                 if( tau == 0 ) {
                   double _Complex ztmp = ( z_twop_1 + sC_sign * z_twop_2 ) * ephase;
@@ -1263,11 +1354,10 @@ int main(int argc, char **argv) {
                  pgg_loop_1[iconf][imom][s1][2*tau + 1] += loop_pgg[iconf][imom][s1][2*it+1];
                 }
 
-
               }  /* end of loop on tau */
 
               /***********************************************************
-               * (2) A_c P_i x V_f
+               * (2) V_f A_c P_i  = v0v1p
                ***********************************************************/
               for ( int tau = 0; tau < T_global; tau++ ) {
 
@@ -1279,18 +1369,24 @@ int main(int argc, char **argv) {
 
                 double _Complex const z_loop = loop_pgg[iconf][imom][s1][2*tsnk] + I * loop_pgg[iconf][imom][s1][2*tsnk+1];
 
-                double _Complex const z_threep = ( z_twop_1 + sC_sign * z_twop_2 ) * z_loop * ephase;
+                double _Complex const z_threep_0 =           z_twop_1 * z_loop * ephase;
+                double _Complex const z_threep_1 = sC_sign * z_twop_2 * z_loop * ephase;
 
-                pgg_disc[1][iconf][isrc][imom][s1][s2][2*it  ] = creal( z_threep );
-                pgg_disc[1][iconf][isrc][imom][s1][s2][2*it+1] = cimag( z_threep );
+                pgg_disc_flavor[1][0][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep_0 );
+                pgg_disc_flavor[1][0][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep_0 );
+                pgg_disc_flavor[1][1][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep_1 );
+                pgg_disc_flavor[1][1][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep_1 );
+
+                pgg_disc[1][iconf][isrc][imom][s1][s2][2*tau  ] = creal( z_threep_0 + z_threep_1 );
+                pgg_disc[1][iconf][isrc][imom][s1][s2][2*tau+1] = cimag( z_threep_0 + z_threep_1 );
 
                 double _Complex ztmp = ( z_twop_1 + sC_sign * z_twop_2 ) * ephase;
                 pgg_twop_2[iconf][imom][s1][s2][2*tau+0] += creal( ztmp );
                 pgg_twop_2[iconf][imom][s1][s2][2*tau+1] += cimag( ztmp );
 
                 if ( s2 == 0 && tau == 0 ) {
-                 pgg_loop_2[iconf][imom][s1][0] += loop_pgg[iconf][imom][s1][2*tsnk+0];
-                 pgg_loop_2[iconf][imom][s1][1] += loop_pgg[iconf][imom][s1][2*tsnk+1];
+                  pgg_loop_2[iconf][imom][s1][0] += loop_pgg[iconf][imom][s1][2*tsnk+0];
+                  pgg_loop_2[iconf][imom][s1][1] += loop_pgg[iconf][imom][s1][2*tsnk+1];
                 }
               }  /* end of loop on tau */
 
@@ -1330,6 +1426,88 @@ int main(int argc, char **argv) {
       for ( int k = 0; k <=1 ; k++ ) {
 
         /****************************************
+         * write correlator data to file
+         * per flavor * combination
+         ****************************************/
+#if 0
+        for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+          for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+            for ( int s1 = 0; s1 < 4; s1++ ) {
+            for ( int s2 = 0; s2 < 4; s2++ ) {
+
+              char obs_name[100];
+              sprintf ( obs_name, "pgg_vdisc.%s.%s.%s.%s.nev%d.nstoch%d.es%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.mu%d_nu%d.corr",
+                  obs_name_tag[k], flavor_tag[iflavor],
+                  correlator_prefix[operator_type],
+                  loop_type_tag[loop_type], loop_nev, loop_nstoch, loop_use_es,
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], gamma_p_list[0], sequential_source_timeslice,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], s1, s2  );
+
+              FILE * fs = fopen( obs_name, "w" );
+
+              for ( int iconf=0; iconf < num_conf; iconf++ ) {
+                for ( int it = 0; it < T_global; it++ ) {
+
+                  int const itt = ( T_global - it ) % T_global;
+
+                  double dtmp[2] = {0., 0.};
+
+                  for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                    dtmp[0] += pgg_disc_flavor[k][iflavor][iconf][isrc][imom][s1][s2][2*itt  ];
+                    dtmp[1] += pgg_disc_flavor[k][iflavor][iconf][isrc][imom][s1][s2][2*itt+1];
+                  }
+                  dtmp[0] /= (double)num_src_per_conf;
+                  dtmp[1] /= (double)num_src_per_conf;
+                  fprintf ( fs, "%6d %d %25.16e %25.16e\n", conf_src_list[iconf][0][1], it, dtmp[0], dtmp[1] );
+                }
+              }
+              fclose ( fs );
+            }}
+          }
+        }
+#endif
+        /****************************************
+         * write correlator data to file
+         * combined flavors
+         ****************************************/
+#if 0
+        for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+            for ( int s1 = 0; s1 < 4; s1++ ) {
+            for ( int s2 = 0; s2 < 4; s2++ ) {
+
+              char obs_name[100];
+              sprintf ( obs_name, "pgg_vdisc.%s.%s.%s.nev%d.nstoch%d.es%d.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.mu%d_nu%d.corr",
+                  obs_name_tag[k],
+                  correlator_prefix[operator_type],
+                  loop_type_tag[loop_type], loop_nev, loop_nstoch, loop_use_es,
+                  seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], gamma_p_list[0], sequential_source_timeslice,
+                  g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2], s1, s2  );
+
+              FILE * fs = fopen( obs_name, "w" );
+
+              for ( int iconf=0; iconf < num_conf; iconf++ ) {
+                for ( int it = 0; it < T_global; it++ ) {
+                  int const itt = ( T_global - it ) % T_global;
+#if 0
+                  double dtmp[2] = {0., 0.};
+                  for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                    dtmp[0] += pgg_disc[k][iconf][isrc][imom][s1][s2][2*itt  ];
+                    dtmp[1] += pgg_disc[k][iconf][isrc][imom][s1][s2][2*itt+1];
+                  }
+                  dtmp[0] /= (double)num_src_per_conf;
+                  dtmp[1] /= (double)num_src_per_conf;
+                  fprintf ( fs, "%6d %d %25.16e %25.16e\n", conf_src_list[iconf][0][1], it, dtmp[0], dtmp[1] );
+#endif
+                  fprintf ( fs, "%6d %d %25.16e %25.16e\n", conf_src_list[iconf][0][1], it, pgg[k][iconf][imom][s1][s2][2*itt] , pgg[k][iconf][imom][s1][s2][2*itt+1] );
+
+                }
+              }
+              fclose ( fs );
+            }}
+        }
+#endif
+
+        /****************************************
          * statistical analysis for orbit average
          *
          * ASSUMES MOMENTUM LIST IS AN ORBIT AND
@@ -1350,9 +1528,9 @@ int main(int argc, char **argv) {
           fini_2level_itable ( &momentum_list );
 
           char obs_name[100];
-          sprintf ( obs_name, "pgg_vdisc.%s.%s.%s.%s.nev%d.nstoch%d.es%d.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", 
+          sprintf ( obs_name, "pgg_vdisc.%s.%s.%s.nev%d.nstoch%d.es%d.orbit.QX%d_QY%d_QZ%d.g%d.t%d.PX%d_PY%d_PZ%d.%s", 
               obs_name_tag[k],
-              correlator_prefix[operator_type], flavor_tag[0],
+              correlator_prefix[operator_type],
               loop_type_tag[loop_type], loop_nev, loop_nstoch, loop_use_es,
               seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], gamma_p_list[0], sequential_source_timeslice,
               g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
@@ -1373,8 +1551,11 @@ int main(int argc, char **argv) {
             }
 
             for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-              for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) {
-                int const it = ( tau < 0 ) ? tau + T_global : tau;
+              for ( int tau = 0; tau < T_global; tau++ )
+              //for ( int tau = -T_global/2+1; tau <= T_global/2; tau++ ) 
+              {
+              //  int const it = ( tau < 0 ) ? tau + T_global : tau;
+              int const it = ( T_global - tau ) % T_global;
 
                 fprintf ( ofs, "%5d%25.16e   %c %8d\n", tau, data[iconf][it], conf_src_list[iconf][0][0], conf_src_list[iconf][0][1] );
               }
@@ -1385,6 +1566,9 @@ int main(int argc, char **argv) {
 
           fini_2level_dtable ( &data );
         }  /* end of loop on real / imag */
+
+
+
 #if _USE_SUBTRACTED
 
         /****************************************
@@ -1416,14 +1600,13 @@ STOPPED HERE
                   data[iconf][16*tau+4*s1+s2] = pgg[k][iconf][imom][s1][s2][2*tau+ireim];
 
 
+                }
               }
-            }
 
-          } 
-
+            } 
+          }
         } else {  /* k == 1 */
         }
-
 
 #endif   /* of if _USE_SUBTRACTED  */
 
@@ -1433,6 +1616,7 @@ STOPPED HERE
        * free p2gg table
        **********************************************************/
       fini_7level_dtable ( &pgg_disc );
+      fini_8level_dtable ( &pgg_disc_flavor );
       fini_6level_dtable ( &pgg );
  
       fini_5level_dtable ( &pgg_twop_1 );

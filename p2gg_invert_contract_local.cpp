@@ -1085,12 +1085,14 @@ int main(int argc, char **argv) {
              ***************************************************************************
              ***************************************************************************/
 
+            int sequential_source_gamma_id = -1;
+
 #if _NEUTRAL_LVC_LVC_TENSOR || _NEUTRAL_CVC_LVC_TENSOR
 
             /***************************************************************************
              * set sequential source gamma id
              ***************************************************************************/
-            int sequential_source_gamma_id = gamma_s;
+            sequential_source_gamma_id = gamma_s;
 
             if( g_verbose > 2 && g_cart_id == 0) fprintf(stdout, "# [p2gg_invert_contract_local] using sequential source gamma id = %d\n", sequential_source_gamma_id);
 
