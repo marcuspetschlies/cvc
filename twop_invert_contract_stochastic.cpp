@@ -589,11 +589,18 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
+          struct timeval mta, mte;
+          gettimeofday ( &mta, (struct timezone *)NULL );
+
           exitstatus = momentum_projection ( xx[0], psid_psi[r12][0], T, g_sink_momentum_number, g_sink_momentum_list );
           if(exitstatus != 0) {
             fprintf(stderr, "[twop_invert_contract_stochastic] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(3);
           }
+
+          gettimeofday ( &mte, (struct timezone *)NULL );
+          show_time ( &mta, &mte, "twop_invert_contract_stochastic", "phid-phi-momentum-projection", g_cart_id == 0 );
 
           fini_2level_dtable ( &xx );
 
@@ -647,12 +654,19 @@ int main(int argc, char **argv) {
         int const cdim[3] = { T_global, g_sink_momentum_number,  ( g_nsample * ( g_nsample - 1 ) ) };
 
         if ( io_proc == 2 ) {
+
+          struct timeval wta, wte;
+
+          gettimeofday ( &wta, (struct timezone *)NULL );
   
           exitstatus = write_h5_contraction ( buffer, NULL, output_filename, tag, "double", ncdim, cdim );
           if(exitstatus != 0 ) {
             fprintf(stderr, "[twop_invert_contract_stochastic] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(3);
           }
+
+          gettimeofday ( &wte, (struct timezone *)NULL );
+          show_time ( &wta, &wte, "twop_invert_contract_stochastic", "phid-phi-write", g_cart_id == 0 );
 
         }
 
