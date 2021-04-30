@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
 
             _fv_eq_gamma_ti_fv ( _sp, g_sequential_source_gamma_id_list[gid], stochastic_propagator_list[r1] + iix );
 
-            _d2_pl_eq_fv_dag_ti_fv ( xx[0] + 2*ix, stochastic_source_list[r1] + iix, _sp );
+            _d2_pl_eq_fv_dag_ti_fv ( xx + 2*ix, stochastic_source_list[r1] + iix, _sp );
           }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
@@ -796,7 +796,7 @@ int main(int argc, char **argv) {
         fini_2level_dtable ( &xx );
       }
 
-      fini_2level_dtable ( &psi );
+      fini_3level_dtable ( &psi );
 
       gettimeofday ( &te, (struct timezone *)NULL );
       show_time ( &ta, &te, "twop_invert_contract_stochastic", "loop-reduce-write", g_cart_id == 0 );
