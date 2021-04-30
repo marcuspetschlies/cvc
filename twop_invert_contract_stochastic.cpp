@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -91,6 +92,7 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   char output_filename[400];
   int * rng_state = NULL;
+  struct timeval start_time, end_time, ta, te;
 
 
 #ifdef HAVE_MPI
@@ -114,7 +116,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   /* set the default values */
   if(filename_set==0) sprintf ( filename, "%s.input", outfile_prefix );
@@ -370,6 +372,8 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   for ( int gid = 0; gid < g_source_gamma_id_number; gid++ ) {
 
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
     double *** xid_xi = init_3level_dtable ( ( g_nsample * ( g_nsample - 1 ) ) / 2, g_source_momentum_number, 2 * T );
     if ( xid_xi == NULL ) {
       fprintf(stderr, "[twop_invert_contract_stochastic] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
@@ -486,6 +490,9 @@ int main(int argc, char **argv) {
 
     fini_3level_dtable ( &xid_xi );
     
+    gettimeofday ( &te, (struct timezone *)NULL );
+    show_time ( &ta, &te , "twop_invert_contract_stochastic", "xid-xi-reduce-write", g_cart_id == 0 );
+
   }  /* end of loop on gid  */
 
 
@@ -540,6 +547,8 @@ int main(int argc, char **argv) {
      * reductions for all local gamma insertions at sink
      ***************************************************************************/
     for ( int gid = 0; gid < g_sink_gamma_id_number; gid++ ) {
+  
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       double *** psid_psi = init_3level_dtable ( ( g_nsample * ( g_nsample - 1 ) ) / 2, g_sink_momentum_number, 2 * T );
       if ( psid_psi == NULL ) {
@@ -655,6 +664,9 @@ int main(int argc, char **argv) {
       }
 
       fini_3level_dtable ( &psid_psi );
+  
+      gettimeofday ( &te, (struct timezone *)NULL );
+      show_time ( &ta, &te , "twop_invert_contract_stochastic", "phid-phi-reduce-write", g_cart_id == 0 );
 
     }  /* end of loop on gid  */
 
@@ -665,6 +677,8 @@ int main(int argc, char **argv) {
      * reductions for local loops
      ***************************************************************************/
     for ( int gid = 0; gid < g_sequential_source_gamma_id_number; gid++ ) {
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       double *** psi = init_3level_dtable ( g_nsample, g_seq_source_momentum_number, 2 * T );
       if ( psi == NULL ) {
@@ -775,6 +789,9 @@ int main(int argc, char **argv) {
 
       fini_3level_dtable ( &psi );
 
+      gettimeofday ( &te, (struct timezone *)NULL );
+      show_time ( &ta, &te, "twop_invert_contract_stochastic", "loop-reduce-write", g_cart_id == 0 );
+
     }  /* end of loop on gid  */
 
 
@@ -820,11 +837,8 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
-  if(g_cart_id==0) {
-    g_the_time = time(NULL);
-    fprintf(stdout, "# [twop_invert_contract_stochastic] %s# [twop_invert_contract_stochastic] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [twop_invert_contract_stochastic] %s# [twop_invert_contract_stochastic] end of run\n", ctime(&g_the_time));
-  }
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "twop_invert_contract_stochastic", "runtime", g_cart_id == 0 );
 
   return(0);
 
