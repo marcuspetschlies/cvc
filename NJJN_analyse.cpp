@@ -113,12 +113,12 @@ void make_key_string ( char * key, twopoint_function_type *tp, const char * type
   /* /N-qbGqqbGq-N/fd-wuu-wdd/T6_X7_Y17_Z5/QX0_QY0_QZ0/sample0/Gc_g5/Gf_Cg5/Gi_Cg5/t1/px00py00pz00 */
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
 
-    sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gi_%s/Gf_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+    sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
         tp->pf2[0], tp->pf2[1], tp->pf2[2],
         isample,
         gamma_id_to_ascii[tp->gf2],
-        gamma_id_to_Cg_ascii[tp->gi1[0]],
         gamma_id_to_Cg_ascii[tp->gf1[0]],
+        gamma_id_to_Cg_ascii[tp->gi1[0]],
         diagram_name,
         tp->pf1[0], tp->pf1[1], tp->pf1[2] );
 
@@ -136,11 +136,11 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
 
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
 
-    sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gi_%s.Gf_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
+    sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
         tp->pf2[0], tp->pf2[1], tp->pf2[2],
         gamma_id_to_ascii[tp->gf2],
-        gamma_id_to_Cg_ascii[tp->gi1[0]],
         gamma_id_to_Cg_ascii[tp->gf1[0]],
+        gamma_id_to_Cg_ascii[tp->gi1[0]],
         tp->pf1[0], tp->pf1[1], tp->pf1[2] );
   }
 
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:e:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:E:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
       num_src_per_conf = atoi ( optarg );
       fprintf ( stdout, "# [NJJN_analyse] number of sources per config = %d\n", num_src_per_conf );
       break;
-    case 'e':
+    case 'E':
       strcpy ( ensemble_name, optarg );
       fprintf ( stdout, "# [NJJN_analyse] ensemble name set to = %s\n", ensemble_name );
       break;
@@ -394,7 +394,8 @@ int main(int argc, char **argv) {
 
       char data_filename[500];
             
-      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], Nconf, filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      // sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], Nconf, filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [NJJN_analyse] data_filename   = %s\n", data_filename );
       }
@@ -403,7 +404,7 @@ int main(int argc, char **argv) {
       struct AffNode_s *affn = NULL, *affdir = NULL, * affpath = NULL;
       char key[400];
 
-      affr = aff_reader ( filename );
+      affr = aff_reader ( data_filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
         fprintf(stderr, "[NJJN_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -420,19 +421,6 @@ int main(int argc, char **argv) {
        ***************************************************************************/
       for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
 
-        twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
-
-        twopoint_function_allocate ( tp );
-
-        if ( g_verbose > 2 ) {
-          twopoint_function_print ( tp, "tp", stdout );
-        }
-
-        twopoint_function_type tp_aux;
-        twopoint_function_copy ( &tp_aux, tp, 0 );
-
-        memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
-
         /***************************************************************************
          * loop on sink momenta
          ***************************************************************************/
@@ -443,6 +431,20 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[ipf][1],
             g_sink_momentum_list[ipf][2] 
           };
+
+          twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
+
+          twopoint_function_allocate ( tp );
+
+          if ( g_verbose > 2 ) {
+            twopoint_function_print ( tp, "tp", stdout );
+          }
+
+          twopoint_function_type tp_aux;
+          twopoint_function_copy ( &tp_aux, tp, 0 );
+
+          memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
+
 
           tp->pf1[0] =  pf[0];
           tp->pf1[1] =  pf[1];
@@ -589,11 +591,18 @@ int main(int argc, char **argv) {
             EXIT(105);
           }
   
+          /***************************************************************************
+           * free memory
+           ***************************************************************************/
+          twopoint_function_fini ( tp );
+
           fini_3level_ztable ( &zbuffer );
 
         }  /* end of loop on sink momenta */
 
       }  /* end of loop on 2pt functions */
+
+      aff_reader_close ( affr );
 
     }  /* end of loop on source locations */
 
@@ -682,7 +691,7 @@ int main(int argc, char **argv) {
               data[iconf][it] = 0.;
 
               for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-                data[iconf][it] += *(((double*)( corr[i_2pt][iparity][iconf][isrc]+it )) + ireim );
+                data[iconf][it] += *(((double*)( corr[i_2pt][ipf][iparity][iconf][isrc]+it )) + ireim );
               }
 
               data[iconf][it] /= (double)num_src_per_conf;
@@ -705,12 +714,6 @@ int main(int argc, char **argv) {
       }  /* end of loop on parity */
 
     }
-
-    /***************************************************************************
-     * free the correlator field
-     ***************************************************************************/
-
-    twopoint_function_fini ( tp );
 
   }  /* end of loop on 2-point functions */
 
