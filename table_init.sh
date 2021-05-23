@@ -12,8 +12,8 @@
 #TYPE="char"
 #TAG="c"
 
-TYPE="su3"
-TAG="su3"
+TYPE="unsigned int"
+TAG="u"
 
 
 TTAG=$( echo $TAG | tr '[:lower:]' '[:upper:]')
