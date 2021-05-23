@@ -361,8 +361,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * loop on source timeslices
    ***************************************************************************/
-  // for( int isource_location = 0; isource_location < T_global; isource_location++ )
-  for( int isource_location = 0; isource_location < 2; isource_location++ )
+  for( int isource_location = 0; isource_location < T_global; isource_location++ )
   {
 
     /***************************************************************************
