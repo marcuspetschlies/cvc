@@ -466,7 +466,7 @@ int main(int argc, char **argv) {
         }
         if ( g_write_source ) {
           for ( int i = 0; i < spin_color_dilution; i++ ) {
-            sprintf(filename, "%s.%c.%.4d.t%d.%d.%.5d", filename_prefix, flavor_tag[1-iflavor], Nconf, gts, i, isample);
+            sprintf(filename, "%s.%c.%.4d.t%d.%d.%.5d", filename_prefix, flavor_tag[iflavor], Nconf, gts, i, isample);
             if ( ( exitstatus = write_propagator( stochastic_source_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[p2gg_vdisc_2pt] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -500,7 +500,7 @@ int main(int argc, char **argv) {
   
         if ( g_write_propagator ) {
           for ( int i = 0; i < spin_color_dilution; i++ ) {
-            sprintf(filename, "%s.%c.%.4d.t%d.%d.%.5d.inverted", filename_prefix, flavor_tag[1-iflavor], Nconf, gts, i, isample);
+            sprintf(filename, "%s.%c.%.4d.t%d.%d.%.5d.inverted", filename_prefix, flavor_tag[iflavor], Nconf, gts, i, isample);
             if ( ( exitstatus = write_propagator( stochastic_propagator_zero_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
               fprintf(stderr, "[p2gg_vdisc_2pt] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -549,7 +549,7 @@ int main(int argc, char **argv) {
 
             if ( g_write_source ) {
               for ( int i = 0; i < spin_color_dilution; i++ ) {
-                sprintf(filename, "%s.%.4d.t%d.px%dpy%dpz%d.%d.%.5d", filename_prefix, Nconf, gts, 
+                sprintf(filename, "%s.%c.%.4d.t%d.px%dpy%dpz%d.%d.%.5d", filename_prefix, flavor_tag[iflavor], Nconf, gts, 
                     source_momentum[0], source_momentum[1], source_momentum[2], i, isample);
                 if ( ( exitstatus = write_propagator( stochastic_source_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
                   fprintf(stderr, "[p2gg_vdisc_2pt] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -573,7 +573,7 @@ int main(int argc, char **argv) {
               }
   
               if ( check_propagator_residual ) {
-                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[1-iflavor], mzzinv[1-iflavor], 1 );
+                check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
               }
   
               memcpy( stochastic_propagator_mom_list[i], spinor_work[1], sizeof_spinor_field);
@@ -584,7 +584,7 @@ int main(int argc, char **argv) {
            
           if ( g_write_propagator ) {
             for ( int i = 0; i < spin_color_dilution; i++ ) {
-              sprintf(filename, "%s.%c.%.4d.t%d.px%dpy%dpz%d.%d.%.5d.inverted", filename_prefix, flavor_tag[1-iflavor], Nconf, gts,
+              sprintf(filename, "%s.%c.%.4d.t%d.px%dpy%dpz%d.%d.%.5d.inverted", filename_prefix, flavor_tag[iflavor], Nconf, gts,
                   source_momentum[0], source_momentum[1], source_momentum[2], i, isample);
               if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
                 fprintf(stderr, "[p2gg_vdisc_2pt] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
