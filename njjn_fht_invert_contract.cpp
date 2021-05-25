@@ -484,9 +484,9 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * init rng state
    ***************************************************************************/
-  exitstatus = init_rng_state ( g_seed, &g_rng_state);
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_rng_stat_file %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
 
@@ -1881,9 +1881,6 @@ int main(int argc, char **argv) {
 
   if ( loop         != NULL ) fini_3level_ztable ( &loop );
   if ( scalar_field != NULL ) fini_3level_dtable ( &scalar_field );
-
-
-  fini_rng_state ( &g_rng_state);
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
