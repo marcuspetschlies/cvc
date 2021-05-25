@@ -79,13 +79,12 @@ int main(int argc, char **argv) {
   int components = 0;
   int limefile_position = 0;
   // double ratime, retime;
-  int limefile_position =0;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:c:r:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:l:t:p:T:L:c:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -108,9 +107,6 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       components = atoi ( optarg );
-      break;
-    case 'r':
-      limefile_position = atoi ( optarg );
       break;
     case 'h':
     case '?':
