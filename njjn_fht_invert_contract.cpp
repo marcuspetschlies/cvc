@@ -609,7 +609,7 @@ int main(int argc, char **argv) {
             int const isc = 3 * ispin + icol;
 
             memset ( spinor_work[0], 0, sizeof_spinor_field );
-             memset ( spinor_work[1], 0, sizeof_spinor_field );
+            memset ( spinor_work[1], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
             if ( timeslice / T == g_proc_coords[0] ) {
