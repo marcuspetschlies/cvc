@@ -58,6 +58,7 @@ extern "C"
 #include "clover.h"
 #include "ranlxd.h"
 #include "smearing_techniques.h"
+#include "dummy_solver.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -93,7 +94,7 @@ int main(int argc, char **argv) {
   int check_propagator_residual = 0;
   size_t sizeof_spinor_field;
   char filename[400];
-  double **mzz[FLAVOR_MAX_NUMBER], **mzzinv[FLAVOR_MAX_NUMBER];
+  double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   char output_filename[400];
   int * rng_state = NULL;
@@ -487,6 +488,10 @@ int main(int argc, char **argv) {
         if ( iflavor % 2 == 1 ) {
           /* free clover matrix terms */
           fini_clover ( &mzz, &mzzinv );
+          mzz[0] = NULL;
+          mzz[1] = NULL;
+          mzzinv[0] = NULL;
+          mzzinv[1] = NULL;
         }
       }
 
