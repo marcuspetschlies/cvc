@@ -81,11 +81,24 @@ void usage() {
 
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "cpff";
-
   const char fbwd_str[2][4] =  { "fwd", "bwd" };
   
   const char flavor_tag[2] =  { 'u', 'd' };
+
+  int const gamma_source_sink_number = 2;
+  int const gamma_source_sink_list[10][2] {
+      {0,0},
+      {1,1},
+      {2,2},
+      {3,3},
+      {4,4}, 
+      {5,5},
+      {6,6},
+      {7,7},
+      {8,8},
+      {9,9}
+  };
+
 
   int c;
   int filename_set = 0;
@@ -143,7 +156,7 @@ int main(int argc, char **argv) {
   g_the_time = time(NULL);
 
   /* set the default values */
-  if(filename_set==0) sprintf ( filename, "%s.input", outfile_prefix );
+  if(filename_set==0) sprintf ( filename, "%s.input", g_outfile_prefix );
   /* fprintf(stdout, "# [cpff_invert_contract_2pt] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
@@ -303,12 +316,6 @@ int main(int argc, char **argv) {
   int const spin_color_dilution = spin_dilution * color_dilution;
   nelem = _GSI( VOLUME );
 
-  double *** stochastic_propagator_mom_list = init_3level_dtable ( 2, spin_color_dilution, nelem );
-  if ( stochastic_propagator_mom_list == NULL ) {
-    fprintf(stderr, "[cpff_invert_contract_2pt] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(48);
-  }
-
   double *** stochastic_propagator_zero_list = init_3level_dtable ( flavor_number, spin_color_dilution, nelem );
   if ( stochastic_propagator_zero_list == NULL ) {
     fprintf(stderr, "[cpff_invert_contract_2pt] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
@@ -336,33 +343,10 @@ int main(int argc, char **argv) {
     }
   }
 
-#if ( defined HAVE_LHPC_AFF ) && !(defined HAVE_HDF5 )
-  /***************************************************************************
-   * output filename
-   ***************************************************************************/
-  sprintf ( output_filename, "%s.%.4d.aff", outfile_prefix, Nconf );
-  /***************************************************************************
-   * writer for aff output file
-   ***************************************************************************/
-  if(io_proc == 2) {
-    affw = aff_writer ( output_filename);
-    const char * aff_status_str = aff_writer_errstr ( affw );
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[cpff_invert_contract_2pt] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(15);
-    }
-  }  /* end of if io_proc == 2 */
-#elif ( defined HAVE_HDF5 )
-  sprintf ( output_filename, "%s.%.4d.h5", outfile_prefix, Nconf );
-#endif
-  if(io_proc == 2 && g_verbose > 1 ) { 
-    fprintf(stdout, "# [cpff_invert_contract_2pt] writing data to file %s\n", output_filename);
-  }
-
   /***************************************************************************
    * loop on source timeslices
    ***************************************************************************/
-  for( int isource_location = 0; isource_location < T_global; isource_location++ )
+  for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ )
   {
 
     /***************************************************************************
@@ -371,7 +355,10 @@ int main(int argc, char **argv) {
 
     int source_timeslice = -1;
     int source_proc_id   = -1;
-    int gts              = isource_location;
+    int gts              = g_source_coords_list[isource_location][0];
+
+
+       isource_location;
 
     exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
     if( exitstatus != 0 ) {
@@ -383,6 +370,29 @@ int main(int argc, char **argv) {
      * loop on stochastic oet samples
      ***************************************************************************/
     for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+
+#if ( defined HAVE_LHPC_AFF ) && !(defined HAVE_HDF5 )
+      /***************************************************************************
+       * output filename
+       ***************************************************************************/
+      sprintf ( output_filename, "%s.%.4d.t%d.s%d.aff", g_outfile_prefix, Nconf , gts, isample );
+      /***************************************************************************
+       * writer for aff output file
+       ***************************************************************************/
+      if(io_proc == 2) {
+        affw = aff_writer ( output_filename);
+        const char * aff_status_str = aff_writer_errstr ( affw );
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[cpff_invert_contract_2pt] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+          EXIT(15);
+        }
+      }  /* end of if io_proc == 2 */
+#elif ( defined HAVE_HDF5 )
+      sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, isample );
+#endif
+      if(io_proc == 2 && g_verbose > 1 ) { 
+        fprintf(stdout, "# [cpff_invert_contract_2pt] writing data to file %s\n", output_filename);
+      }
 
       /***************************************************************************
        * synchronize rng states to state at zero
@@ -498,7 +508,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * loop on all flavor type
        ***************************************************************************/
-      for ( int iflavor1 = 0; iflavor1 < 2; iflavor1++ ) 
+      for ( int iflavor1 = 0; iflavor1 < flavor_number; iflavor1++ ) 
       {
         char flavor_str1[20];
         if ( iflavor1 < 2 ) {
@@ -511,8 +521,11 @@ int main(int argc, char **argv) {
           }
         }
 
-        for ( int iflavor2 = 0; iflavor2 < 2; iflavor2++ )
+        for ( int iflavor2 = 0; iflavor2 < flavor_number; iflavor2++ )
         {
+
+          if ( iflavor1 >= 2 && iflavor2 >= 2 && iflavor1/2 != iflavor2/2 ) continue;
+
           char flavor_str2[20];
           if ( iflavor2 < 2 ) {
             sprintf ( flavor_str2, "%c", flavor_tag[iflavor2] );
@@ -524,8 +537,8 @@ int main(int argc, char **argv) {
             }
           }
           
-          for ( int isrc_gamma = 0; isrc_gamma < g_source_gamma_id_number; isrc_gamma++ ) {
-          for ( int isnk_gamma = 0; isnk_gamma < g_sink_gamma_id_number; isnk_gamma++ ) {
+          for ( int ig = 0; ig < gamma_source_sink_number; ig++ ) {
+
           
             /* allocate contraction fields in position and momentum space */
             double * contr_x = init_1level_dtable ( 2 * VOLUME );
@@ -534,38 +547,78 @@ int main(int argc, char **argv) {
               EXIT(3);
             }
   
-            double ** contr_p = init_2level_dtable ( g_sink_momentum_number , 2 * T );
+            double * contr_p = init_1level_dtable ( 2 * T );
             if ( contr_p == NULL ) {
-              fprintf(stderr, "[cpff_invert_contract_2pt] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+              fprintf(stderr, "[cpff_invert_contract_2pt] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
               EXIT(3);
             }
   
             /* contractions in x-space */
-            contract_twopoint_xdep ( contr_x, g_source_gamma_id_list[isrc_gamma], g_sink_gamma_id_list[isnk_gamma], 
+            contract_twopoint_xdep ( contr_x, gamma_source_sink_list[ig][0], gamma_source_sink_list[ig][1], 
                 stochastic_propagator_zero_list[iflavor1], 
-                stochastic_propagator_mom_list[iflavor2],
+                stochastic_propagator_zero_list[iflavor2],
                 spin_dilution, color_dilution, 1, 1., 64 );
   
             /* momentum projection at sink */
             int sink_momentum[3] = {0,0,0};
             int source_momentum[3] = {0,0,0};
-            exitstatus = momentum_projection ( contr_x, contr_p[0], T, 1, &sink_momentum );
+            exitstatus = momentum_projection ( contr_x, contr_p, T, 1, &sink_momentum );
             if(exitstatus != 0) {
               fprintf(stderr, "[cpff_invert_contract_2pt] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(3);
             }
-  
-            sprintf ( data_tag, "/%s+-g-%s-g/t%d/s%d/gf%d/pfx%dpfy%dpfz%d/gi%d/pix%dpiy%dpiz%d", flavor_str1, flavor_str2,
-                gts, isample,
-                g_sink_gamma_id_list[isnk_gamma], 
+ 
+            double * buffer = init_1level_dtable ( 2 * T_global );
+            if ( buffer == NULL ) {
+              fprintf(stderr, "[cpff_invert_contract_2pt] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(3);
+            }
+
+#ifdef HAVE_MPI
+            /***************************************************************************
+             * io_proc's 1 and 2 gather the data to g_tr_id = 0 into zbuffer
+             ***************************************************************************/
+            memcpy ( buffer, contr_p, 2 * T * sizeof(double) );
+            int mitems = 2 * T;
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+            int exitstatus = MPI_Gather ( contr_p, mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_tr_comm);
+            if(exitstatus != MPI_SUCCESS) {
+              fprintf(stderr, "[contract_write_to_h5_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              return(4);
+            }
+#  else
+            int exitstatus = MPI_Gather ( contr_p, mitems, MPI_DOUBLE, buffer, mitems, MPI_DOUBLE, 0, g_cart_grid);
+            if(exitstatus != MPI_SUCCESS) {
+              fprintf(stderr, "[contract_write_to_h5_file] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              return(5);
+            }
+#  endif
+        
+#else
+            /***************************************************************************
+             * just copy data into zbuffer
+             * T = T_global
+             ***************************************************************************/
+            memcpy ( buffer, contr_p, 2 * T * sizeof(double) );
+#endif
+
+            sprintf ( data_tag, "/%s+-g-%s-g/t%d/gf%d/pfx%dpfy%dpfz%d/gi%d/pix%dpiy%dpiz%d", flavor_str1, flavor_str2,
+                gts,
+                gamma_source_sink_list[ig][1],
                 sink_momentum[0], sink_momentum[1], sink_momentum[2],
-                g_source_gamma_id_list[isrc_gamma],
+                gamma_source_sink_list[ig][0],
                 source_momentum[0], source_momentum[1], source_momentum[2] );
+
+            if ( g_verbose > 4 && io_proc==2 ) fprintf ( stdout, "# [] data_tag = %s %s %d\n", data_tag, __FILE__, __LINE__ );
   
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-            exitstatus = contract_write_to_aff_file ( contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
+
+            exitstatus = write_aff_contraction ( buffer, NULL, output_filename, data_tag, T_global, "complex");
+
 #elif ( defined HAVE_HDF5 )          
-            exitstatus = contract_write_to_h5_file ( contr_p, output_filename, data_tag, &sink_momentum, 1, io_proc );
+
+            exitstatus = write_h5_contraction ( buffer, NULL, output_filename, data_tag,  "double", 1, &T_global );
+
 #endif
             if(exitstatus != 0) {
               fprintf(stderr, "[cpff_invert_contract_2pt] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -574,10 +627,10 @@ int main(int argc, char **argv) {
    
             /* deallocate the contraction fields */       
             fini_1level_dtable ( &contr_x );
-            fini_2level_dtable ( &contr_p );
+            fini_1level_dtable ( &contr_p );
+            fini_1level_dtable ( &buffer );
   
-          }  /* end of loop on gamma at sink */
-          }  /* end of loop on gammas at source */
+          }  /* end of loop on gammas at source and sink */
    
         }  /* end of loop on flavor2 */
   
@@ -585,20 +638,19 @@ int main(int argc, char **argv) {
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
 
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      if(io_proc == 2) {
+        const char * aff_status_str = (char*)aff_writer_close (affw);
+        if( aff_status_str != NULL ) {
+          fprintf(stderr, "[cpff_invert_contract_2pt] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+          EXIT(32);
+        }
+      }  /* end of if io_proc == 2 */
+#endif  /* of ifdef HAVE_LHPC_AFF */
+
     }  /* end of loop on oet samples */
 
   }  /* end of loop on source timeslices */
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  if(io_proc == 2) {
-    const char * aff_status_str = (char*)aff_writer_close (affw);
-    if( aff_status_str != NULL ) {
-      fprintf(stderr, "[cpff_invert_contract_2pt] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-      EXIT(32);
-    }
-  }  /* end of if io_proc == 2 */
-#endif  /* of ifdef HAVE_LHPC_AFF */
-
 
   /***************************************************************************
    * decallocate spinor fields
