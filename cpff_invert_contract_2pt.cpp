@@ -610,19 +610,21 @@ int main(int argc, char **argv) {
                 source_momentum[0], source_momentum[1], source_momentum[2] );
 
             if ( g_verbose > 4 && io_proc==2 ) fprintf ( stdout, "# [] data_tag = %s %s %d\n", data_tag, __FILE__, __LINE__ );
-  
+
+            if ( io_proc == 2 ) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
 
-            exitstatus = write_aff_contraction ( buffer, NULL, output_filename, data_tag, T_global, "complex");
+              exitstatus = write_aff_contraction ( buffer, NULL, output_filename, data_tag, T_global, "complex");
 
 #elif ( defined HAVE_HDF5 )          
 
-            exitstatus = write_h5_contraction ( buffer, NULL, output_filename, data_tag,  "double", 1, &T_global );
+              exitstatus = write_h5_contraction ( buffer, NULL, output_filename, data_tag,  "double", 1, &T_global );
 
 #endif
-            if(exitstatus != 0) {
-              fprintf(stderr, "[cpff_invert_contract_2pt] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
+              if(exitstatus != 0) {
+                fprintf(stderr, "[cpff_invert_contract_2pt] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(3);
+              }
             }
    
             /* deallocate the contraction fields */       
