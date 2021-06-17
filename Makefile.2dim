@@ -1,0 +1,80 @@
+# ##########
+work=${HOME}/software
+srcdir=$(work)/cvc
+limedir=$(work)/lime-1.3.2/build.debian
+
+lemondir=$(work)/lemon/build.debian
+tmLQCD=${HOME}/build_tmLQCD_main_2dim
+tmLQCD_src=$(work)/tmLQCD_main
+
+fftwdir=$(work)/fftw-2.1.5/build.debian
+arpackdir=$(work)/qlua/build/arpack
+lapackdir=$(work)/qlua/build/lapack
+lhpcdir=$(work)/qlua/build/aff
+
+# mpidir=$(work)/mpich/install
+
+F77=mpif77.mpich
+CXX=mpic++.mpich
+CXXFLAGS= -Wall -g -O3 -DF_ -DHAVE_MPI -DHAVE_TMLQCD_LIBWRAPPER -DPARALLELTX -DHAVE_LIBLEMON -DTM_USE_MPI -DHAVE_LHPC_AFF
+
+CCDEP = g++
+DEPFLAGS = -MM
+
+INCLUDE = -I$(lemondir)/include -I$(limedir)/include/ -I$(srcdir) -I$(fftwdir)/include -I. -I$(tmLQCD_src)/include -I$(lhpcdir)/include
+
+LIBS = -L$(lhpcdir)/lib -L$(arpackdir)/lib -L$(lemondir)/lib -L$(limedir)/lib/ -L$(fftwdir)/lib -lfftw_mpi -lfftw -L$(tmLQCD)/lib/ -lwrapper -lhmc -lmonomial -loperator -lsolver -linit -lmeas -llinalg -lhmc -lxchange -lrational -lio -llemon -llime -lparpack -larpack $(lapackdir)/lib/liblapack.a  $(lapackdir)/lib/librefblas.a  -llapack -lblas -lgfortran -lm -llhpc-aff
+
+LDFLAGS = -fopenmp -L$(lhpcdir)/lib -L$(arpackdir)/lib -L$(lemondir)/lib -L$(limedir)/lib/ -L$(fftwdir)/lib -lfftw_mpi -lfftw -L/usr/lib/ -L$(tmLQCD)/lib -lwrapper -lhmc -lmonomial -loperator -lsolver -linit -lmeas -llinalg -lhmc -lxchange -lrational -lio -llemon -llime -lparpack -larpack  $(lapackdir)/lib/liblapack.a  $(lapackdir)/lib/librefblas.a  -llapack -lblas -lgfortran -lm -llhpc-aff
+
+
+LINK = $(CXX) -o $@ ${LDFLAGS}
+COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
+
+MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
+	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default laplace \
+	  Q_clover_phi gsp prepare_source matrix_init project make_x_orbits smearing_techniques \
+	  contract_baryon prepare_propagator scalar_products
+
+HEADERS = getopt cvc_complex cvc_geometry cvc_linalg iblas icontract cvc_utils default_input_values dml global io io_utils \
+	  mpi_init propagator_io read_input_parser get_index gauge_io contractions_io \
+	  ranlxd ranlxs Q_phi set_default laplace_linalg laplace Q_clover_phi \
+	  gsp prepare_source matrix_init project make_x_orbits smearing_techniques \
+	  contract_baryon prepare_propagator scalar_products
+
+PROGRAM = piN2piN
+
+all: dep $(PROGRAM) 
+
+
+# ##########
+
+read_input_parser_cvc.cpp: ${srcdir}/read_input_parser_cvc.l
+	${LEX} -P cvc_ -i -t $< > ${srcdir}/read_input_parser_cvc.cpp
+
+$(addsuffix .d,$(MODULES)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+$(addsuffix .d,$(PROGRAM)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+dep: $(addsuffix .d,$(MODULES) ${PROGRAM})
+
+$(addsuffix .o,${MODULES}): %.o: ${srcdir}/%.cpp $(addprefix ${srcdir}/, $(addsuffix .h, ${HEADERS})) %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+$(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+${PROGRAM}: %: %.o $(addsuffix .o,${MODULES})
+	${LINK}  $(addsuffix .o,${MODULES}) $@.o $(LIBS)
+
+# ##########
+
+
+clean:
+	rm -f *~ *.o *.d $(PROGRAM)
+
+.PHONY: clean
+
+# ##########

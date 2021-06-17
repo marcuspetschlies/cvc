@@ -2,6 +2,8 @@
  * read_input_parser.l
  * - parsing cvc.input to program
  * - use flex -P <prefix_> ...
+["-"|""0-9"."","" ","-"]*
+
  ***********************************************************************/
 
 SPC [[:blank:]]+
@@ -12,20 +14,70 @@ ZT [0-9(10)(11)]
 IDXEX ("-"{DIGIT}+)
 SIGN ("+"|"-")
 FLT {SIGN}?{DIGIT}*+"."{DIGIT}*(e("-"|"+")?{DIGIT}+)?
-FILENAME [a-zA-Z0-9_".""-""/"][a-zA-z0-9"."_"-""/"]+
+FILENAME [a-zA-Z0-9_".""\-""/"][a-zA-Z0-9"."_"\-""/"]+
+CORRCONFIG [0-9","";""\-""("")"][0-9","";""\-""("")"]+
 NAME [a-zA-Z0-9_]+
 TYPE [0-9A-Z]+
+FLTLIST [0-9"."","" "]*
 SDIGIT {SIGN}?[[:digit:]]
-STRING [a-zA-z0-9"."_"-""/"","]+
+MLIST [("\-"""0-9)""","" "]*
+STRING [a-zA-Z0-9"."_"\-""/"","+]+
+EQL {SPC}*={SPC}*
 
 %{
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "types.h"
 #include "global.h"
 #include "read_input_parser.h"
 #include "default_input_values.h"
+#include "set_default.h"
 #include "cvc_utils.h"
+#include "twopoint_function_utils.h"
+
+// some general parsing helpers
+
+static inline void rmQuotes(char *str){
+  char* strsave=str;
+
+  while(*str== ' ' || *str == '\t') str++;
+
+  if(*str=='\"') *(strsave++)=*( ++str );
+  else fprintf(stderr,"Error in removing quotes from string:\n %s  \n" ,  str);
+  ++str;
+
+  while( !( *str=='\0' || *str == '\"' || *str == '\n') ) *(strsave++)=*(str++);
+  *strsave='\0';
+}
+
+static inline void fltlist_tokenize(const char * const str, char * const paramname, const int paramname_length){
+  char error_message[200];
+  char * token = (char*)NULL;
+  // the first token is the parameter name, we will return it, 
+  // but first check if tokenization was successful
+  token = strtok(str, "\n\t =,\\");
+  if( (void*)token == NULL ){
+    snprintf(error_message, 200, "Unable to parse '%s' in fltlist_tokenize!\n", paramname);
+    yy_fatal_error(error_message);
+  } else {
+    // return what we parsed
+    snprintf(paramname, paramname_length, "%s", token);
+  }
+}
+
+static inline double fltlist_next_token(int * const list_end){
+  double retval;
+  char * token = strtok(NULL," =,\t");
+  if( (void*)token == NULL ){
+    *list_end = 1;
+    return(0.0);
+  } else {
+    *list_end = 0;
+    sscanf(token,"%lf",&retval);
+    return(retval);
+  }
+}
 
 namespace cvc {
 
@@ -42,11 +94,17 @@ namespace cvc {
   float c;
   int reread = 0;
   char name[100];
+  char fname[100];
   char * type;
   double ft_rmax[4];
 
   int cvc_verbose = 1;
   int myverbose = 0;
+  int myprocid = 0;
+
+  twopoint_function_type twopoint_function_generic, *twopoint_function_ptr=NULL;
+  int twopoint_function_generic_set = 0;
+  char twopoint_function_set_type[10];
 }
 %}
 
@@ -67,6 +125,7 @@ namespace cvc {
 %x M5
 %x M0
 %x EPSBAR
+%x CSW
 %x SOURCEID
 %x SOURCEID2
 %x GAUGEID
@@ -81,6 +140,8 @@ namespace cvc {
 %x PREFIX
 %x PREFIX2
 %x PREFIX3
+%x SEQPREFIX
+%x SEQPREFIX2
 %x GAUGEPREFIX
 %x OUTPREFIX
 %x PATHPREFIX
@@ -129,6 +190,7 @@ namespace cvc {
 %x SEQSRCLOCATIONY
 %x SEQSRCLOCATIONZ
 %x SEQSRCGAMMAID
+%x SRCGAMMAID
 %x MMSNOMASSES
 %x NOLIGHTMASSES
 %x NOSTRANGEMASSES
@@ -159,18 +221,28 @@ namespace cvc {
 %x WRITEPROP
 %x READPROP
 %x READSEQPROP
+%x WRITESEQSRC
+%x WRITESEQPROP
 %x NSAMPLE
+%x NSAMPLEOET
 %x ASOVERA
 %x NUMTHREADS
+%x SRCMOM
 %x SRCMOMX
 %x SRCMOMY
 %x SRCMOMZ
+%x SNKMOM
 %x SNKMOMX
 %x SNKMOMY
 %x SNKMOMZ
+%x SEQSRCMOM
 %x SEQSRCMOMX
 %x SEQSRCMOMY
 %x SEQSRCMOMZ
+%x SEQ2SRCMOM
+%x SEQ2SRCMOMX
+%x SEQ2SRCMOMY
+%x SEQ2SRCMOMZ
 %x CPUPREC
 %x GPUPREC
 %x GPUPRECSLOPPY
@@ -179,6 +251,19 @@ namespace cvc {
 %x CHKINVERSION
 %x COMMENT
 %x ERROR
+%x FERMION_TYPE
+%x SOURCECOORDS
+%x SRCSNKTIMESEP
+%x COHERENTSOURCENUMBER
+%x VERBOSITYLEVEL
+%x TOTALMOMENTUM
+%x INITTWOPOINTFUNCTION
+%x TWOPOINTFUNCTION
+%x GAMMA_F1_NUCLEON
+%x GAMMA_F1_DELTA
+%x GAMMA_F2
+%x GAMMA_CURRENT
+
 
 %%
 ^T{SPC}*={SPC}*                            BEGIN(TT);
@@ -194,6 +279,7 @@ namespace cvc {
 ^m5{SPC}*={SPC}*                           BEGIN(M5);
 ^m0{SPC}*={SPC}*                           BEGIN(M0);
 ^epsbar{SPC}*={SPC}*                       BEGIN(EPSBAR);
+^csw{SPC}*={SPC}*                          BEGIN(CSW);
 ^Nconf{SPC}*={SPC}*                        BEGIN(NNCONF);
 ^kappa{SPC}*={SPC}*                        BEGIN(KAPPA);
 ^sourceid{SPC}*={SPC}*                     BEGIN(SOURCEID);
@@ -210,12 +296,15 @@ namespace cvc {
 ^filename_prefix{SPC}*={SPC}*              BEGIN(PREFIX);
 ^filename_prefix2{SPC}*={SPC}*             BEGIN(PREFIX2);
 ^filename_prefix3{SPC}*={SPC}*             BEGIN(PREFIX3);
+^sequential_filename_prefix{SPC}*={SPC}*   BEGIN(SEQPREFIX);
+^sequential_filename_prefix2{SPC}*={SPC}*  BEGIN(SEQPREFIX2);
 ^gaugefilename_prefix{SPC}*={SPC}*         BEGIN(GAUGEPREFIX);
 ^outfile_prefix{SPC}*={SPC}*               BEGIN(OUTPREFIX);
 ^path_prefix{SPC}*={SPC}*                  BEGIN(PATHPREFIX);
 ^resume{SPC}*={SPC}*                       BEGIN(RESUME);
 ^subtract{SPC}*={SPC}*                     BEGIN(SUBTRACT);
 ^source_location{SPC}*={SPC}*              BEGIN(SOURCELOC);
+^source_coords{SPC}*={SPC}*                BEGIN(SOURCECOORDS);
 ^seed{SPC}*={SPC}*                         BEGIN(SSEED);
 ^noise_type{SPC}*={SPC}*                   BEGIN(NOISETYPE);
 ^source_type{SPC}*={SPC}*                  BEGIN(SRCTYPE);
@@ -261,6 +350,9 @@ namespace cvc {
 ^sequential_source_location_z{SPC}*={SPC}* BEGIN(SEQSRCLOCATIONZ);
 
 ^sequential_source_gamma_id{SPC}*={SPC}*   BEGIN(SEQSRCGAMMAID);
+^source_gamma_id{SPC}*={SPC}*              BEGIN(SRCGAMMAID);
+
+
 ^no_extra_masses{SPC}*={SPC}*              BEGIN(MMSNOMASSES);
 ^no_light_masses{SPC}*={SPC}*              BEGIN(NOLIGHTMASSES);
 ^no_strange_masses{SPC}*={SPC}*            BEGIN(NOSTRANGEMASSES);
@@ -290,26 +382,53 @@ namespace cvc {
 
 ^write_propagator{SPC}*={SPC}*             BEGIN(WRITEPROP);
 ^read_propagator{SPC}*={SPC}*              BEGIN(READPROP);
+
 ^read_sequential_propagator{SPC}*={SPC}*   BEGIN(READSEQPROP);
+^write_sequential_source{SPC}*={SPC}*      BEGIN(WRITESEQSRC);
+^write_sequential_propagator{SPC}*={SPC}*  BEGIN(WRITESEQPROP);
 
 ^samples{SPC}*={SPC}*                      BEGIN(NSAMPLE);
+^samples_oet{SPC}*={SPC}*                  BEGIN(NSAMPLEOET);
+
 ^as_over_a{SPC}*={SPC}*                    BEGIN(ASOVERA);
 ^num_threads{SPC}*={SPC}*                  BEGIN(NUMTHREADS);
+^source_momentum{SPC}*={SPC}*              BEGIN(SRCMOM);
 ^source_momentum_x{SPC}*={SPC}*            BEGIN(SRCMOMX);
 ^source_momentum_y{SPC}*={SPC}*            BEGIN(SRCMOMY);
 ^source_momentum_z{SPC}*={SPC}*            BEGIN(SRCMOMZ);
+^sink_momentum{SPC}*={SPC}*                BEGIN(SNKMOM);
 ^sink_momentum_x{SPC}*={SPC}*              BEGIN(SNKMOMX);
 ^sink_momentum_y{SPC}*={SPC}*              BEGIN(SNKMOMY);
 ^sink_momentum_z{SPC}*={SPC}*              BEGIN(SNKMOMZ);
 ^seq_source_momentum_x{SPC}*={SPC}*        BEGIN(SEQSRCMOMX);
 ^seq_source_momentum_y{SPC}*={SPC}*        BEGIN(SEQSRCMOMY);
 ^seq_source_momentum_z{SPC}*={SPC}*        BEGIN(SEQSRCMOMZ);
+^seq_source_momentum{SPC}*={SPC}*          BEGIN(SEQSRCMOM);
+^seq2_source_momentum_x{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMX);
+^seq2_source_momentum_y{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMY);
+^seq2_source_momentum_z{SPC}*={SPC}*       BEGIN(SEQ2SRCMOMZ);
+^seq2_source_momentum{SPC}*={SPC}*         BEGIN(SEQ2SRCMOM);
+^total_momentum{SPC}*={SPC}*               BEGIN(TOTALMOMENTUM);
 ^cpu_precision{SPC}*={SPC}*                BEGIN(CPUPREC);
 ^gpu_precision{SPC}*={SPC}*                BEGIN(GPUPREC);
 ^gpu_precision_sloppy{SPC}*={SPC}*         BEGIN(GPUPRECSLOPPY);
 ^inverter_type{SPC}*={SPC}*                BEGIN(INVERTERTYPE);
 ^mms_id{SPC}*={SPC}*                       BEGIN(MMSID);
 ^check_inversion{SPC}*={SPC}*              BEGIN(CHKINVERSION);
+
+^fermion_type{SPC}*={SPC}*                 BEGIN(FERMION_TYPE);
+^src_snk_time_separation{SPC}*={SPC}*      BEGIN(SRCSNKTIMESEP);
+
+^coherent_source_number{SPC}*={SPC}*       BEGIN(COHERENTSOURCENUMBER);
+
+^verbosity_level{SPC}*={SPC}*              BEGIN(VERBOSITYLEVEL);
+
+^gamma_f1_nucleon{SPC}*={SPC}*             BEGIN(GAMMA_F1_NUCLEON);
+^gamma_f1_delta{SPC}*={SPC}*               BEGIN(GAMMA_F1_DELTA);
+^gamma_f2{SPC}*={SPC}*                     BEGIN(GAMMA_F2);
+^gamma_current{SPC}*={SPC}*                BEGIN(GAMMA_CURRENT);
+
+^BeginTwopointFunction                     BEGIN(INITTWOPOINTFUNCTION);
 
 
   /* start namespace inclusion here */
@@ -370,6 +489,12 @@ namespace cvc {
   cvc::g_epsbar=atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] mu=%s \n", yytext);
 }
+
+<CSW>{FLT}  {
+  cvc::g_csw = atof(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] csw = %s \n", yytext);
+}
+
 <NNSAVE>{SDIGIT}+ {
   cvc::Nsave=atoi(yytext); 
   if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::Nsave= %s \n",yytext);
@@ -430,6 +555,17 @@ namespace cvc {
   strcpy(cvc::filename_prefix3,yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] prop. 3 filename prefix set to %s\n",yytext);
 }
+
+<SEQPREFIX>{FILENAME} {
+  strcpy(cvc::g_sequential_filename_prefix,yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] sequential prop. filename prefix set to %s\n",yytext);
+}
+
+<SEQPREFIX2>{FILENAME} {
+  strcpy(cvc::g_sequential_filename_prefix2,yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] sequential prop. filename prefix 2 set to %s\n",yytext);
+}
+
 <GAUGEPREFIX>{FILENAME} {
   strcpy(cvc::gaugefilename_prefix,yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] gauge filename prefix set to %s\n",yytext);
@@ -467,6 +603,8 @@ namespace cvc {
     cvc::g_noise_type = 1;
   } else if(strcmp(yytext, "Z2")==0 ) {
     cvc::g_noise_type = 2;
+  } else if(strcmp(yytext, "Z3")==0 ) {
+    cvc::g_noise_type = 3;
   }
   if(cvc::myverbose!=0) printf("# [read_input_parser] noise type set to %s\n",yytext);
 }  
@@ -626,8 +764,12 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] set source timeslice to %s\n", yytext);
 }
 <SEQSRCTIMESLICE>{SDIGIT}+ {
-  cvc::g_sequential_source_timeslice = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source timeslice to %s\n", yytext);
+  if( cvc::g_sequential_source_timeslice_number == 0) {
+    cvc::g_sequential_source_timeslice = atoi(yytext);
+  }
+  cvc::g_sequential_source_timeslice_list[ cvc::g_sequential_source_timeslice_number ] = atoi(yytext);
+  cvc::g_sequential_source_timeslice_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential source timeslice  %s; total number is now %d\n", yytext, cvc::g_sequential_source_timeslice_number);
 }
 
 <SEQSRCLOCATIONX>{SDIGIT}+ {
@@ -644,9 +786,23 @@ namespace cvc {
 }
 
 <SEQSRCGAMMAID>{DIGIT}+ {
-  cvc::g_sequential_source_gamma_id = atoi(yytext);
-  if(cvc::myverbose!=0) printf("# [read_input_parser] set sequential source gamma id to %s\n", yytext);
+  cvc::g_sequential_source_gamma_id_list[cvc::g_sequential_source_gamma_id_number] = atoi(yytext);
+  if( cvc::g_sequential_source_gamma_id_number == 0 ) {
+    cvc::g_sequential_source_gamma_id = cvc::g_sequential_source_gamma_id_list[cvc::g_sequential_source_gamma_id_number];
+  }
+  cvc::g_sequential_source_gamma_id_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in sequential source gamma id list to %s, total number is now %d\n", yytext, cvc::g_sequential_source_gamma_id_number);
 }
+
+<SRCGAMMAID>{DIGIT}+ {
+  cvc::g_source_gamma_id_list[cvc::g_source_gamma_id_number] = atoi(yytext);
+  if( cvc::g_source_gamma_id_number == 0 ) {
+    cvc::g_source_gamma_id = cvc::g_source_gamma_id_list[cvc::g_source_gamma_id_number];
+  }
+  cvc::g_source_gamma_id_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set new entry in source gamma id list to %s, total number is now %d\n", yytext, cvc::g_source_gamma_id_number);
+}
+
 
 <MMSNOMASSES>{DIGIT}+ {
   cvc::g_no_extra_masses = atoi(yytext);
@@ -808,6 +964,24 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] set read sequential propagator to %d\n", cvc::g_read_sequential_propagator);  
 }
 
+<WRITESEQSRC>{NAME} {
+  if(strcmp(yytext,"yes")==0) {
+    cvc::g_write_sequential_source = 1;
+  } else if(strcmp(yytext,"no")==0) {
+    cvc::g_write_sequential_source = 0;
+  }
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set write sequential source  to %d\n", cvc::g_write_sequential_source);
+}
+
+<WRITESEQPROP>{NAME} {
+  if(strcmp(yytext,"yes")==0) {
+    cvc::g_write_sequential_propagator = 1;
+  } else if(strcmp(yytext,"no")==0) {
+    cvc::g_write_sequential_propagator = 0;
+  }
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set write sequential propagator  to %d\n", cvc::g_write_sequential_propagator);
+}
+
 <PROPGAMMA>{NAME} {
   if(strcmp(yytext,"DeGrandRossi")==0) {
     cvc::g_propagator_gamma_basis = 1;
@@ -820,10 +994,17 @@ namespace cvc {
   cvc::g_propagator_precision = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set propagator precision to %d\n", cvc::g_propagator_precision);
 }
+
 <NSAMPLE>{DIGIT}+ {
   cvc::g_nsample = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] set number of samples to %d\n", cvc::g_nsample);
 }
+
+<NSAMPLEOET>{DIGIT}+ {
+  cvc::g_nsample_oet = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] set number of oet samples to %d\n", cvc::g_nsample_oet);
+}
+
 <ASOVERA>{FLT} {
   cvc::g_as_over_a = atof(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] as / a set to  %s\n",yytext);
@@ -832,6 +1013,7 @@ namespace cvc {
   cvc::g_num_threads = atoi(yytext);
   if(cvc::myverbose!=0) printf("# [read_input_parser] number of threads =%d\n", cvc::g_num_threads);
 }
+
 <SRCMOMX>{SDIGIT}+ {
   cvc::g_source_momentum[0] = atoi(yytext);
   cvc::g_source_momentum_set = 1;
@@ -847,6 +1029,14 @@ namespace cvc {
   cvc::g_source_momentum_set = 1;
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of source momentum set to %d\n", cvc::g_source_momentum[2]);
 }
+
+<SRCMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_source_momentum_list[cvc::g_source_momentum_number],
+      cvc::g_source_momentum_list[cvc::g_source_momentum_number]+1, cvc::g_source_momentum_list[cvc::g_source_momentum_number]+2);
+  cvc::g_source_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added source momentum %s to list; total number is now %d\n", yytext, cvc::g_source_momentum_number);
+}
+
 <SNKMOMX>{SDIGIT}+ {
   cvc::g_sink_momentum[0] = atoi(yytext);
   cvc::g_sink_momentum_set = 1;
@@ -862,6 +1052,13 @@ namespace cvc {
   cvc::g_sink_momentum_set = 1;
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of sink momentum set to %d\n", cvc::g_sink_momentum[2]);
 }
+<SNKMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_sink_momentum_list[cvc::g_sink_momentum_number],
+      cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+1, cvc::g_sink_momentum_list[cvc::g_sink_momentum_number]+2);
+  cvc::g_sink_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sink momentum %s to list; total number is now %d\n", yytext, cvc::g_sink_momentum_number);
+}
+
 <SEQSRCMOMX>{SDIGIT}+ {
   cvc::g_seq_source_momentum[0] = atoi(yytext);
   cvc::g_seq_source_momentum_set = 1;
@@ -877,6 +1074,45 @@ namespace cvc {
   cvc::g_seq_source_momentum_set = 1;
   if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of sequential source momentum set to %d\n", cvc::g_seq_source_momentum[2]);
 }
+
+<SEQSRCMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number],
+      cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+1, cvc::g_seq_source_momentum_list[cvc::g_seq_source_momentum_number]+2);
+  cvc::g_seq_source_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential source momentum %s to list; total number is now %d\n", yytext, cvc::g_seq_source_momentum_number);
+}
+
+<SEQ2SRCMOMX>{SDIGIT}+ {
+  cvc::g_seq2_source_momentum[0] = atoi(yytext);
+  cvc::g_seq2_source_momentum_set = 1;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] x-comp. of sequential^2 source momentum set to %d\n", cvc::g_seq2_source_momentum[0]);
+}
+<SEQ2SRCMOMY>{SDIGIT}+ {
+  cvc::g_seq2_source_momentum[1] = atoi(yytext);
+  cvc::g_seq2_source_momentum_set = 1;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] y-comp. of sequential^2 source momentum set to %d\n", cvc::g_seq2_source_momentum[1]);
+}
+<SEQ2SRCMOMZ>{SDIGIT}+ {
+  cvc::g_seq2_source_momentum[2] = atoi(yytext);
+  cvc::g_seq2_source_momentum_set = 1;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] z-comp. of sequential^2 source momentum set to %d\n", cvc::g_seq2_source_momentum[2]);
+}
+
+<SEQ2SRCMOM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number],
+      cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+1, cvc::g_seq2_source_momentum_list[cvc::g_seq2_source_momentum_number]+2);
+  cvc::g_seq2_source_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added sequential^2 source momentum %s to list; total number is now %d\n", yytext, cvc::g_seq2_source_momentum_number);
+}
+
+
+<TOTALMOMENTUM>{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+  sscanf(yytext, "%d,%d,%d", cvc::g_total_momentum_list[cvc::g_total_momentum_number],
+      cvc::g_total_momentum_list[cvc::g_total_momentum_number]+1, cvc::g_total_momentum_list[cvc::g_total_momentum_number]+2);
+  cvc::g_total_momentum_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] added total momentum %s to list; total number is now %d\n", yytext, cvc::g_total_momentum_number);
+}
+
 <CPUPREC>{NAME} {
   if(strcmp(yytext, "half")==0 ) {
     cvc::g_cpu_prec = 0;
@@ -924,6 +1160,541 @@ namespace cvc {
   if(cvc::myverbose!=0) printf("# [read_input_parser] check inversion %d\n",cvc::g_check_inversion);
 }
 
+<SOURCECOORDS>{CORRCONFIG} {
+
+  if ( cvc::g_source_location_number == MAX_SOURCE_LOCATION_NUMBER ) {
+    fprintf(stderr, "[read_input_parser] Error, too many source locations\n");
+    exit(1);
+  } else {
+    if(cvc::myverbose) fprintf(stdout, "# [read_input_parser] extracting source coords %d\n", cvc::g_source_location_number);
+  }
+
+  sscanf(yytext, "%d,%d,%d,%d",
+    cvc::g_source_coords_list[cvc::g_source_location_number],
+    cvc::g_source_coords_list[cvc::g_source_location_number]+1,
+    cvc::g_source_coords_list[cvc::g_source_location_number]+2,
+    cvc::g_source_coords_list[cvc::g_source_location_number]+3);
+
+  cvc::g_source_location_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
+}
+
+<INITTWOPOINTFUNCTION>Generic{SPC}* {
+  if(cvc::myverbose) printf("# [read_input_parser] Initialization generic twopoint_function line %d\n", cvc::line_of_file);
+  cvc::twopoint_function_ptr = &(cvc::twopoint_function_generic);
+  cvc::twopoint_function_init ( cvc::twopoint_function_ptr );
+  strcpy(cvc::twopoint_function_set_type, "generic");
+  BEGIN(TWOPOINTFUNCTION);
+}
+
+<INITTWOPOINTFUNCTION>Init{SPC}* {
+  if(cvc::g_twopoint_function_number==MAX_TWOPOINT_FUNCTION_NUM) {
+    fprintf(stderr, "[read_input_parser] Error, too many twopoint_functions\n");
+    exit(1);
+  }
+  if ( cvc::g_twopoint_function_list == NULL ) {
+    cvc::g_twopoint_function_list = (cvc::twopoint_function_type*)malloc ( MAX_TWOPOINT_FUNCTION_NUM * sizeof ( cvc::twopoint_function_type ) );
+    if ( cvc::g_twopoint_function_list == NULL ) {
+      fprintf ( stderr, "[read_input_parser] Error from malloc %s %d\n", __FILE__, __LINE__ );
+      exit(1);
+    } else {
+      fprintf ( stdout, "# [read_input_parser] g_twopoint_function_list initialized line %d\n",  cvc::line_of_file );
+    }
+  }
+
+  if(cvc::myverbose) printf("# [read_input_parser] Initialization twopoint_function line %d\n", cvc::line_of_file);
+  cvc::twopoint_function_ptr = &(cvc::g_twopoint_function_list[cvc::g_twopoint_function_number]);
+  cvc::twopoint_function_init ( cvc::twopoint_function_ptr );
+  strcpy(cvc::twopoint_function_set_type, "list");
+  if(cvc::twopoint_function_generic_set==1) {
+    cvc::twopoint_function_copy ( cvc::twopoint_function_ptr, &(cvc::twopoint_function_generic), 1 );
+    if(cvc::myverbose) printf("# [read_input_parser] line %d copy from generic \n", cvc::line_of_file);
+  }
+  BEGIN(TWOPOINTFUNCTION);
+}
+
+<TWOPOINTFUNCTION>{
+  {SPC}*pi1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d,%d,%d", cvc::name,
+        cvc::twopoint_function_ptr->pi1,
+        cvc::twopoint_function_ptr->pi1+1,
+        cvc::twopoint_function_ptr->pi1+2 );
+  }
+  {SPC}*pi2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
+        cvc::twopoint_function_ptr->pi2,
+        cvc::twopoint_function_ptr->pi2+1,
+        cvc::twopoint_function_ptr->pi2+2 );
+  }
+  {SPC}*pf1{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
+        cvc::twopoint_function_ptr->pf1,
+        cvc::twopoint_function_ptr->pf1+1,
+        cvc::twopoint_function_ptr->pf1+2 );
+  }
+  {SPC}*pf2{EQL}{SDIGIT}+,{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d,%d", cvc::name,
+        cvc::twopoint_function_ptr->pf2,
+        cvc::twopoint_function_ptr->pf2+1,
+        cvc::twopoint_function_ptr->pf2+2 );
+  }
+
+  {SPC}*gi1{EQL}{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
+        cvc::twopoint_function_ptr->gi1,
+        cvc::twopoint_function_ptr->gi1+1);
+  }
+
+  {SPC}*gf1{EQL}{SDIGIT}+,{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d,%d", cvc::name,
+        cvc::twopoint_function_ptr->gf1,
+        cvc::twopoint_function_ptr->gf1+1);
+  }
+
+  {SPC}*source_coords{EQL}{DIGIT}+,{DIGIT}+,{DIGIT}+,{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d,%d,%d,%d", cvc::name,
+        &(cvc::twopoint_function_ptr->source_coords[0]),
+        &(cvc::twopoint_function_ptr->source_coords[1]),
+        &(cvc::twopoint_function_ptr->source_coords[2]),
+        &(cvc::twopoint_function_ptr->source_coords[3]) );
+  }
+
+  {SPC}*gi2{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->gi2) );
+  }
+
+  {SPC}*sourcespin{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->contniuum_spin_particle_source) );
+  }
+
+  {SPC}*sinkspin{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->contniuum_spin_particle_sink) );
+  }
+
+  {SPC}*particlenamesource{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name,
+        &(cvc::twopoint_function_ptr->particlename_source ));
+  }
+
+  {SPC}*particlenamesink{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name,
+        &(cvc::twopoint_function_ptr->particlename_sink ));
+  }
+
+
+  {SPC}*sourcepionnucleontotalmomentum{EQL}{MLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_p = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->total_momentum_nucleon_source[number_of_p] = n_vec;
+      printf("# [read_input_parser] %s, In combination %d total momentm of the nucleon at source set to %d,  line %d\n", paramname, number_of_p, cvc::twopoint_function_ptr->total_momentum_nucleon_source[number_of_p] , cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+
+      cvc::twopoint_function_ptr->total_momentum_pion_source[number_of_p] = n_vec;
+      printf("# [read_input_parser] %s, In combination %d total momentm of the pion at source set to %d,  line %d\n", paramname, number_of_p, cvc::twopoint_function_ptr->total_momentum_pion_source[number_of_p] , cvc::line_of_file);
+
+      number_of_p++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->ncombination_total_momentum_source = number_of_p;
+  }
+
+  {SPC}*sinkpionnucleontotalmomentum{EQL}{MLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_p = 0;
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of momenta can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
+        yy_fatal_error(error_message);
+      }
+      cvc::twopoint_function_ptr->total_momentum_nucleon_sink[number_of_p] = n_vec;
+      printf("# [read_input_parser] %s, In combination %d total momentm of the nucleon at sink set to %d, line %d\n", paramname, number_of_p, cvc::twopoint_function_ptr->total_momentum_nucleon_sink[number_of_p] ,  cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+  
+      cvc::twopoint_function_ptr->total_momentum_pion_sink[number_of_p] = n_vec;
+      printf("# [read_input_parser] %s, In combination %d total momentm of the pion at sink set to %d, line %d\n", paramname, number_of_p, cvc::twopoint_function_ptr->total_momentum_pion_sink[number_of_p] ,  cvc::line_of_file);
+
+      number_of_p++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->ncombination_total_momentum_sink = number_of_p;
+  }
+
+
+
+  {SPC}*listofmomentumf1{EQL}{MLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_p = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->pf1list[number_of_p][0] = n_vec;
+      printf("# [read_input_parser] %s, momf1 id %d 0 set to %d line %d\n", paramname,
+                number_of_p,  cvc::twopoint_function_ptr->pf1list[number_of_p][0], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->pf1list[number_of_p][1] = n_vec;
+      printf("# [read_input_parser] %s, momf1 id %d 1 set to %d line %d\n", paramname,
+                number_of_p,  cvc::twopoint_function_ptr->pf1list[number_of_p][1], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->pf1list[number_of_p][2] = n_vec;
+      printf("# [read_input_parser] %s, momf1 id %d 2 set to %d line %d\n", paramname,
+                number_of_p,  cvc::twopoint_function_ptr->pf1list[number_of_p][2], cvc::line_of_file);
+      number_of_p++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->nlistmomentumf1 = number_of_p;
+  }
+
+  {SPC}*listofmomentumf2{EQL}{MLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0; 
+    int number_of_p = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_p > (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA -1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_MOMENTA-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->pf2list[number_of_p][0] = n_vec;
+      printf("# [read_input_parser] %s, momf2 id %d 0 set to %d line %d\n", paramname,
+                number_of_p,  cvc::twopoint_function_ptr->pf2list[number_of_p][0], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->pf2list[number_of_p][1] = n_vec;
+      printf("# [read_input_parser] %s, momf2 id %d 1 set to %d line %d\n", paramname,
+                number_of_p,  cvc::twopoint_function_ptr->pf2list[number_of_p][1], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->pf2list[number_of_p][2] = n_vec;
+      printf("# [read_input_parser] %s, momf2 id %d 2 set to %d line %d\n", paramname,
+                number_of_p,  cvc::twopoint_function_ptr->pf2list[number_of_p][2], cvc::line_of_file);
+      number_of_p++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->nlistmomentumf2 = number_of_p;
+  }
+
+  {SPC}*listofgammasi1{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][0] = n_vec;
+      printf("# [read_input_parser] %s, gamma id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][0], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][1] = n_vec;
+      printf("# [read_input_parser] %s, gamma id %d 1 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_i1[number_of_gammas][1], cvc::line_of_file);
+
+
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_i1 = number_of_gammas;
+  }
+
+  {SPC}*listofgammasf1{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+      
+      cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][0] = n_vec;
+      printf("# [read_input_parser] %s, gamma id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][0], cvc::line_of_file);
+      n_vec = fltlist_next_token(&list_end);
+      cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][1] = n_vec;
+      printf("# [read_input_parser] %s, gamma id %d 1 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_f1[number_of_gammas][1], cvc::line_of_file);
+
+
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_f1 = number_of_gammas;
+  }
+
+  {SPC}*listofgammasi2{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->list_of_gammas_i2[number_of_gammas] = n_vec;
+      printf("# [read_input_parser] %s, gamma i2 id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_i2[number_of_gammas], cvc::line_of_file);
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_i2 = number_of_gammas;
+  }
+
+
+  {SPC}*listofgammasf2{EQL}{FLTLIST} {
+    char paramname[100];
+    char error_message[200];
+    int list_end = 0;
+    int number_of_gammas = 0;
+
+    fltlist_tokenize(yytext, paramname, 100);
+    int n_vec = (int)fltlist_next_token(&list_end);
+    while( list_end != 1 ){
+      if( number_of_gammas >= (_TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1) ){
+        snprintf(error_message, 200, "Exceeded maximum number of gammas can be treated (%d-1) parsing %s!\n", _TWOPOINT_FUNCTION_MAX_NUMBER_OF_GAMMAS-1, paramname);
+        yy_fatal_error(error_message);
+      }
+
+      cvc::twopoint_function_ptr->list_of_gammas_f2[number_of_gammas] = n_vec;
+      printf("# [read_input_parser] %s, gamma f2 id %d 0 set to %d line %d\n", paramname,
+                number_of_gammas,  cvc::twopoint_function_ptr->list_of_gammas_f2[number_of_gammas], cvc::line_of_file);
+      number_of_gammas++;
+      n_vec = fltlist_next_token(&list_end);
+    }
+    cvc::twopoint_function_ptr->number_of_gammas_f2 = number_of_gammas;
+  }
+
+  {SPC}*gf2{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->gf2) );
+  }
+
+  {SPC}*n{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->n) );
+  }
+
+  {SPC}*numberofsourcegammas{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d", cvc::name,
+        &(cvc::twopoint_function_ptr->number_of_gammas_source));
+  }
+
+  {SPC}*numberofsinkgammas{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] =  %d", cvc::name,
+        &(cvc::twopoint_function_ptr->number_of_gammas_sink));
+  }
+
+  {SPC}*tag{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
+    strcpy( cvc::twopoint_function_ptr->name , cvc::fname );
+  }
+
+  {SPC}*type{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::fname );
+    strcpy(cvc::twopoint_function_ptr->type, cvc::fname );
+  }
+
+  {SPC}*spin_project{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->spin_project) );
+  }
+
+  {SPC}*T{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->T) );
+  }
+
+  {SPC}*d{EQL}{DIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->d) );
+  }
+
+  {SPC}*parity_project{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9_] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->parity_project) );
+  }
+
+  {SPC}*diagrams{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->diagrams );
+  }
+
+  {SPC}*reorder{EQL}{SDIGIT}+ {
+    sscanf(yytext, " %[a-zA-Z0-9] = %d", cvc::name,
+        &(cvc::twopoint_function_ptr->reorder) );
+  }
+
+  {SPC}*norm{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->norm );
+  }
+
+  {SPC}*fbwd{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->fbwd );
+  }
+
+  {SPC}*group{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->group );
+  }
+
+  {SPC}*irrep{EQL}{STRING} {
+    sscanf(yytext, " %[a-zA-Z0-9] = %s", cvc::name, cvc::twopoint_function_ptr->irrep );
+  }
+
+  {SPC}*sf1{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[4];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf,%lf,%lf", cvc::name, dtmp, dtmp+1, dtmp+2, dtmp+3 );
+    
+    cvc::twopoint_function_ptr->sf1[0] = dtmp[0] + dtmp[1] * I;
+    cvc::twopoint_function_ptr->sf1[1] = dtmp[2] + dtmp[3] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] sf1 set to %16.7e I %16.7e and %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->sf1[0] ), cimag ( cvc::twopoint_function_ptr->sf1[0] ),
+        creal ( cvc::twopoint_function_ptr->sf1[1] ), cimag ( cvc::twopoint_function_ptr->sf1[1] ) );
+  }
+
+  {SPC}*si1{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[4];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf,%lf,%lf", cvc::name, dtmp, dtmp+1, dtmp+2, dtmp+3 );
+    
+    cvc::twopoint_function_ptr->si1[0] = dtmp[0] + dtmp[1] * I;
+    cvc::twopoint_function_ptr->si1[1] = dtmp[2] + dtmp[3] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] si1 set to %16.7e I %16.7e and %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->si1[0] ), cimag ( cvc::twopoint_function_ptr->si1[0] ),
+        creal ( cvc::twopoint_function_ptr->si1[1] ), cimag ( cvc::twopoint_function_ptr->si1[1] ) );
+  }
+
+  {SPC}*si2{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[2];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf", cvc::name, dtmp, dtmp+1 );
+    
+    cvc::twopoint_function_ptr->si2 = dtmp[0] + dtmp[1] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] si2 set to %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->si2 ), cimag ( cvc::twopoint_function_ptr->si2 ) );
+  }
+
+  {SPC}*sf2{EQL}{FLT},{FLT},{FLT},{FLT} {
+    double dtmp[2];
+    sscanf(yytext, " %[a-zA-Z0-9] = %lf,%lf", cvc::name, dtmp, dtmp+1 );
+    
+    cvc::twopoint_function_ptr->sf2 = dtmp[0] + dtmp[1] * I;
+    if ( cvc::myverbose ) printf ( "# [read_input_parser] sf2 set to %16.7e I %16.7e\n",
+        creal ( cvc::twopoint_function_ptr->sf2 ), cimag ( cvc::twopoint_function_ptr->sf2 ) );
+  }
+
+  EndTwopointFunction{SPC}* {
+    if(strcmp(cvc::twopoint_function_set_type, "list")==0 ) {
+      if( cvc::myverbose ) printf("# [read_input_parser] 2-point function no. %d parsed in line %d\n\n", cvc::g_twopoint_function_number, cvc::line_of_file);
+      cvc::g_twopoint_function_number++;
+    } else if (strcmp(cvc::twopoint_function_set_type,"generic")==0) {
+      cvc::twopoint_function_generic_set = 1;
+      if( cvc::myverbose ) printf("# [read_input_parser] generic 2-point function parsed in line %d\n\n", cvc::line_of_file);
+    }
+    BEGIN(0);
+  }
+}
+
+<GAMMA_F1_NUCLEON>{STRING} {
+  if(cvc::g_gamma_f1_nucleon_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many f1 nucleon gamma structures\n");
+    exit(1);
+  }
+  strcpy(cvc::g_gamma_f1_nucleon_list[cvc::g_gamma_f1_nucleon_number], yytext);
+  cvc::g_gamma_f1_nucleon_number++;
+}
+
+<GAMMA_F1_DELTA>{STRING} {
+  if(cvc::g_gamma_f1_delta_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many f1 delta gamma structures\n");
+    exit(1);
+  }
+  strcpy(cvc::g_gamma_f1_delta_list[cvc::g_gamma_f1_delta_number], yytext );
+  cvc::g_gamma_f1_delta_number++;
+}
+<GAMMA_F2>{STRING} {
+  if(cvc::g_gamma_f2_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many f2 gamma structures\n");
+    exit(1);
+  }
+  strcpy(cvc::g_gamma_f2_list[cvc::g_gamma_f2_number], yytext );
+  cvc::g_gamma_f2_number++;
+}
+<GAMMA_CURRENT>{STRING} {
+  if(cvc::g_gamma_current_number==MAX_GAMMA_NUMBER) {
+    fprintf(stderr, "Error, too many current gamma structures\n");
+    exit(1);
+  }
+  strcpy( cvc::g_gamma_current_list[cvc::g_gamma_current_number], yytext );
+  cvc::g_gamma_current_number++;
+}
+
+
+<FERMION_TYPE>{FILENAME} {
+  if(strcmp(yytext, "TwistedMass")==0) {
+    cvc::g_fermion_type = _TM_FERMION;
+  } else if (strcmp(yytext, "Wilson")==0 ) {
+    cvc::g_fermion_type = _WILSON_FERMION;
+  } else if (strcmp(yytext, "DomainWall")==0 ) {
+    cvc::g_fermion_type = _DW_WILSON_FERMION;
+  }
+  if(cvc::myverbose!=0) printf("# [read_input_parser] fermion type set to %d\n", cvc::g_fermion_type);
+}
+
+<SRCSNKTIMESEP>{DIGIT}+ {
+  cvc::g_src_snk_time_separation = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] cvc::g_src_snk_time_separation = %s\n", yytext);
+}
+
+<COHERENTSOURCENUMBER>{DIGIT}+                  {
+  cvc::g_coherent_source_number = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] coherent source number set to =%d\n", cvc::g_coherent_source_number);
+}
+
+<VERBOSITYLEVEL>{DIGIT}+                  {
+  cvc::g_verbose = atoi(yytext);
+  if(cvc::myverbose!=0) printf("# [read_input_parser] global verbosity level set to =%d\n", cvc::g_verbose);
+}
+
+
 <*>^#   {
    cvc::comment_caller = YY_START;   
    BEGIN(COMMENT);
@@ -936,6 +1707,11 @@ namespace cvc {
   BEGIN(cvc::comment_caller);
 }
 
+<INITTWOPOINTFUNCTION,TWOPOINTFUNCTION>{SPC}*\n   {
+  cvc::line_of_file++;
+}
+
+
 <*>\n                       {
   cvc::line_of_file++;
   BEGIN(0);
@@ -945,7 +1721,7 @@ namespace cvc {
   BEGIN(ERROR);
 }
 <ERROR>[^\t\n]*             {
-  printf("# [read_input_parser] Parsing error in line %d\nAborting...!\n", cvc::line_of_file);
+  printf("# [read_input_parser] Parsing error in line %s %d\nAborting...!\n", yytext, cvc::line_of_file);
   exit(1);
 }
 
@@ -978,13 +1754,17 @@ namespace cvc {
 
 int read_input_parser(char * conf_file){
 
+#ifdef HAVE_MPI
+  MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
+#endif
+
   /********************************************
    * Setting default values!
    ********************************************/
   reread = 0;
   set_default_input_values();
 
-  if( (g_proc_id == 0) && (cvc_verbose>0) ) {
+  if( (myprocid == 0) && (cvc_verbose>0) ) {
     myverbose = 1;
   }
   if ((yyin = fopen(conf_file, "rt")) == NULL){
@@ -1014,7 +1794,11 @@ int read_input_parser(char * conf_file){
 
 int reread_input_parser(char * conf_file){
 
-  if(cvc_verbose && g_proc_id == 0) {
+#ifdef HAVE_MPI
+  MPI_Comm_rank( MPI_COMM_WORLD, &myprocid);
+#endif
+
+  if(  (cvc_verbose>0) && myprocid == 0) {
     myverbose = 1;
   }
   reread = 1;

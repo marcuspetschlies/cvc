@@ -1,0 +1,14 @@
+read_input_parser_cvc.cpp
+**/*.backup
+**/tmp.cpp
+**/tmp.h
+**/*.patch
+**/*.rej
+**/*.orig
+gitversion.cpp
+build/
+build_*/
+test/
+build.*
+build-*
+quda_*

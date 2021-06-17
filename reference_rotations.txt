@@ -1,0 +1,547 @@
+# [reference_rotations] ##################################################################################
+
+# [reference_rotations] momentum class 0 pref   0   0   1
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 0 p   0   0   1
+
+# [reference_rotations] rot  1     E a =    0.0000000e+00 pi    0.0000000e+00 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 0, 1]]
+    ( 1   0   0  )
+    ( 0   1   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 14  C4z- a =    0.0000000e+00 pi    0.0000000e+00 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 0, 2]]
+    ( 0   1   0  )
+    (-1   0   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 15  C4z+ a =    0.0000000e+00 pi    0.0000000e+00 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 0, 3]]
+    ( 0  -1   0  )
+    ( 1   0   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 24   C2z a =    0.0000000e+00 pi    0.0000000e+00 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 0, 4]]
+    (-1   0   0  )
+    ( 0  -1   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 0 p   0   0  -1
+
+# [reference_rotations] rot 18  C2a' a =    0.0000000e+00 pi    1.0000000e+00 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 1, 1]]
+    ( 0   1   0  )
+    ( 1   0   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] rot 19  C2b' a =    0.0000000e+00 pi    1.0000000e+00 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 1, 2]]
+    ( 0  -1   0  )
+    (-1   0   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] rot 22   C2x a =    0.0000000e+00 pi    1.0000000e+00 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 1, 3]]
+    ( 1   0   0  )
+    ( 0  -1   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] rot 23   C2y a =    0.0000000e+00 pi    1.0000000e+00 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 1, 4]]
+    (-1   0   0  )
+    ( 0   1   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 0 p   0   1   0
+
+# [reference_rotations] rot  2  C31- a =    5.0000000e-01 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 2, 1]]
+    ( 0   1   0  )
+    ( 0   0   1  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot  5  C33- a =    5.0000000e-01 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 2, 2]]
+    ( 0  -1   0  )
+    ( 0   0   1  )
+    (-1   0   0  )
+
+# [reference_rotations] rot 10  C4x- a =    5.0000000e-01 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 2, 3]]
+    ( 1   0   0  )
+    ( 0   0   1  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 16  C2d' a =    5.0000000e-01 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 2, 4]]
+    (-1   0   0  )
+    ( 0   0   1  )
+    ( 0   1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 0 p   0  -1   0
+
+# [reference_rotations] rot  6  C32- a =   -5.0000000e-01 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 3, 1]]
+    ( 0   1   0  )
+    ( 0   0  -1  )
+    (-1   0   0  )
+
+# [reference_rotations] rot  9  C34- a =   -5.0000000e-01 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 3, 2]]
+    ( 0  -1   0  )
+    ( 0   0  -1  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot 11  C4x+ a =   -5.0000000e-01 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 3, 3]]
+    ( 1   0   0  )
+    ( 0   0  -1  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot 17  C2f' a =   -5.0000000e-01 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 3, 4]]
+    (-1   0   0  )
+    ( 0   0  -1  )
+    ( 0  -1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 0 p   1   0   0
+
+# [reference_rotations] rot  3  C31+ a =    0.0000000e+00 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 4, 1]]
+    ( 0   0   1  )
+    ( 1   0   0  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot  8  C34+ a =    0.0000000e+00 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 4, 2]]
+    ( 0   0   1  )
+    (-1   0   0  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 13  C4y+ a =    0.0000000e+00 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 4, 3]]
+    ( 0   0   1  )
+    ( 0   1   0  )
+    (-1   0   0  )
+
+# [reference_rotations] rot 20  C2c' a =    0.0000000e+00 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 4, 4]]
+    ( 0   0   1  )
+    ( 0  -1   0  )
+    ( 1   0   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 0 p  -1   0   0
+
+# [reference_rotations] rot  4  C33+ a =    1.0000000e+00 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 5, 1]]
+    ( 0   0  -1  )
+    (-1   0   0  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot  7  C32+ a =    1.0000000e+00 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 5, 2]]
+    ( 0   0  -1  )
+    ( 1   0   0  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 12  C4y- a =    1.0000000e+00 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 5, 3]]
+    ( 0   0  -1  )
+    ( 0   1   0  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot 21  C2e' a =    1.0000000e+00 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[0, 5, 4]]
+    ( 0   0  -1  )
+    ( 0  -1   0  )
+    (-1   0   0  )
+
+# [reference_rotations] ##################################################################################
+
+# [reference_rotations] momentum class 1 pref   1   1   0
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   1   1   0
+
+# [reference_rotations] rot  1     E a =    0.0000000e+00 pi    0.0000000e+00 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 0, 1]]
+    ( 1   0   0  )
+    ( 0   1   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 18  C2a' a =    0.0000000e+00 pi    1.0000000e+00 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 0, 2]]
+    ( 0   1   0  )
+    ( 1   0   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   1  -1   0
+
+# [reference_rotations] rot 14  C4z- a =    0.0000000e+00 pi    0.0000000e+00 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 1, 1]]
+    ( 0   1   0  )
+    (-1   0   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 22   C2x a =    0.0000000e+00 pi    1.0000000e+00 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 1, 2]]
+    ( 1   0   0  )
+    ( 0  -1   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p  -1   1   0
+
+# [reference_rotations] rot 15  C4z+ a =    0.0000000e+00 pi    0.0000000e+00 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 2, 1]]
+    ( 0  -1   0  )
+    ( 1   0   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 23   C2y a =    0.0000000e+00 pi    1.0000000e+00 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 2, 2]]
+    (-1   0   0  )
+    ( 0   1   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p  -1  -1   0
+
+# [reference_rotations] rot 19  C2b' a =    0.0000000e+00 pi    1.0000000e+00 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 3, 1]]
+    ( 0  -1   0  )
+    (-1   0   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] rot 24   C2z a =    0.0000000e+00 pi    0.0000000e+00 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 3, 2]]
+    (-1   0   0  )
+    ( 0  -1   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   1   0   1
+
+# [reference_rotations] rot  2  C31- a =    5.0000000e-01 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 4, 1]]
+    ( 0   1   0  )
+    ( 0   0   1  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot 11  C4x+ a =   -5.0000000e-01 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 4, 2]]
+    ( 1   0   0  )
+    ( 0   0  -1  )
+    ( 0   1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   1   0  -1
+
+# [reference_rotations] rot  6  C32- a =   -5.0000000e-01 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 5, 1]]
+    ( 0   1   0  )
+    ( 0   0  -1  )
+    (-1   0   0  )
+
+# [reference_rotations] rot 10  C4x- a =    5.0000000e-01 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 5, 2]]
+    ( 1   0   0  )
+    ( 0   0   1  )
+    ( 0  -1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p  -1   0   1
+
+# [reference_rotations] rot  9  C34- a =   -5.0000000e-01 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 6, 1]]
+    ( 0  -1   0  )
+    ( 0   0  -1  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot 16  C2d' a =    5.0000000e-01 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 6, 2]]
+    (-1   0   0  )
+    ( 0   0   1  )
+    ( 0   1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p  -1   0  -1
+
+# [reference_rotations] rot  5  C33- a =    5.0000000e-01 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 7, 1]]
+    ( 0  -1   0  )
+    ( 0   0   1  )
+    (-1   0   0  )
+
+# [reference_rotations] rot 17  C2f' a =   -5.0000000e-01 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 7, 2]]
+    (-1   0   0  )
+    ( 0   0  -1  )
+    ( 0  -1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   0   1   1
+
+# [reference_rotations] rot  3  C31+ a =    0.0000000e+00 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 8, 1]]
+    ( 0   0   1  )
+    ( 1   0   0  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot 12  C4y- a =    1.0000000e+00 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 8, 2]]
+    ( 0   0  -1  )
+    ( 0   1   0  )
+    ( 1   0   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   0   1  -1
+
+# [reference_rotations] rot  7  C32+ a =    1.0000000e+00 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 9, 1]]
+    ( 0   0  -1  )
+    ( 1   0   0  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 13  C4y+ a =    0.0000000e+00 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1, 9, 2]]
+    ( 0   0   1  )
+    ( 0   1   0  )
+    (-1   0   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   0  -1   1
+
+# [reference_rotations] rot  4  C33+ a =    1.0000000e+00 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1,10, 1]]
+    ( 0   0  -1  )
+    (-1   0   0  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot 20  C2c' a =    0.0000000e+00 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1,10, 2]]
+    ( 0   0   1  )
+    ( 0  -1   0  )
+    ( 1   0   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 1 p   0  -1  -1
+
+# [reference_rotations] rot  8  C34+ a =    0.0000000e+00 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[1,11, 1]]
+    ( 0   0   1  )
+    (-1   0   0  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 21  C2e' a =    1.0000000e+00 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[1,11, 2]]
+    ( 0   0  -1  )
+    ( 0  -1   0  )
+    (-1   0   0  )
+
+# [reference_rotations] ##################################################################################
+
+# [reference_rotations] momentum class 2 pref   1   1   1
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p   1   1   1
+
+# [reference_rotations] rot  1     E a =    0.0000000e+00 pi    0.0000000e+00 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 0, 1]]
+    ( 1   0   0  )
+    ( 0   1   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot  2  C31- a =    5.0000000e-01 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 0, 2]]
+    ( 0   1   0  )
+    ( 0   0   1  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot  3  C31+ a =    0.0000000e+00 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 0, 3]]
+    ( 0   0   1  )
+    ( 1   0   0  )
+    ( 0   1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p   1   1  -1
+
+# [reference_rotations] rot 10  C4x- a =    5.0000000e-01 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 1, 1]]
+    ( 1   0   0  )
+    ( 0   0   1  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 13  C4y+ a =    0.0000000e+00 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 1, 2]]
+    ( 0   0   1  )
+    ( 0   1   0  )
+    (-1   0   0  )
+
+# [reference_rotations] rot 18  C2a' a =    0.0000000e+00 pi    1.0000000e+00 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 1, 3]]
+    ( 0   1   0  )
+    ( 1   0   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p   1  -1   1
+
+# [reference_rotations] rot 11  C4x+ a =   -5.0000000e-01 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 2, 1]]
+    ( 1   0   0  )
+    ( 0   0  -1  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot 14  C4z- a =    0.0000000e+00 pi    0.0000000e+00 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 2, 2]]
+    ( 0   1   0  )
+    (-1   0   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 20  C2c' a =    0.0000000e+00 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 2, 3]]
+    ( 0   0   1  )
+    ( 0  -1   0  )
+    ( 1   0   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p   1  -1  -1
+
+# [reference_rotations] rot  6  C32- a =   -5.0000000e-01 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 3, 1]]
+    ( 0   1   0  )
+    ( 0   0  -1  )
+    (-1   0   0  )
+
+# [reference_rotations] rot  8  C34+ a =    0.0000000e+00 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 3, 2]]
+    ( 0   0   1  )
+    (-1   0   0  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 22   C2x a =    0.0000000e+00 pi    1.0000000e+00 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 3, 3]]
+    ( 1   0   0  )
+    ( 0  -1   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p  -1   1   1
+
+# [reference_rotations] rot 12  C4y- a =    1.0000000e+00 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 4, 1]]
+    ( 0   0  -1  )
+    ( 0   1   0  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot 15  C4z+ a =    0.0000000e+00 pi    0.0000000e+00 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 4, 2]]
+    ( 0  -1   0  )
+    ( 1   0   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] rot 16  C2d' a =    5.0000000e-01 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 4, 3]]
+    (-1   0   0  )
+    ( 0   0   1  )
+    ( 0   1   0  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p  -1   1  -1
+
+# [reference_rotations] rot  5  C33- a =    5.0000000e-01 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 5, 1]]
+    ( 0  -1   0  )
+    ( 0   0   1  )
+    (-1   0   0  )
+
+# [reference_rotations] rot  7  C32+ a =    1.0000000e+00 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 5, 2]]
+    ( 0   0  -1  )
+    ( 1   0   0  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 23   C2y a =    0.0000000e+00 pi    1.0000000e+00 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 5, 3]]
+    (-1   0   0  )
+    ( 0   1   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p  -1  -1   1
+
+# [reference_rotations] rot  4  C33+ a =    1.0000000e+00 pi    5.0000000e-01 pi    5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 6, 1]]
+    ( 0   0  -1  )
+    (-1   0   0  )
+    ( 0   1   0  )
+
+# [reference_rotations] rot  9  C34- a =   -5.0000000e-01 pi    5.0000000e-01 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 6, 2]]
+    ( 0  -1   0  )
+    ( 0   0  -1  )
+    ( 1   0   0  )
+
+# [reference_rotations] rot 24   C2z a =    0.0000000e+00 pi    0.0000000e+00 pi    1.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 6, 3]]
+    (-1   0   0  )
+    ( 0  -1   0  )
+    ( 0   0   1  )
+
+# [reference_rotations] ==================================================================================
+
+# [reference_rotations] momentum class 2 p  -1  -1  -1
+
+# [reference_rotations] rot 17  C2f' a =   -5.0000000e-01 pi    5.0000000e-01 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 7, 1]]
+    (-1   0   0  )
+    ( 0   0  -1  )
+    ( 0  -1   0  )
+
+# [reference_rotations] rot 19  C2b' a =    0.0000000e+00 pi    1.0000000e+00 pi   -5.0000000e-01 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 7, 2]]
+    ( 0  -1   0  )
+    (-1   0   0  )
+    ( 0   0  -1  )
+
+# [reference_rotations] rot 21  C2e' a =    1.0000000e+00 pi    5.0000000e-01 pi    0.0000000e+00 pi
+# [rot_printf_rint_matrix] matrix Rref[[2, 7, 3]]
+    ( 0   0  -1  )
+    ( 0  -1   0  )
+    (-1   0   0  )
+
+# [reference_rotations] Fri Apr  6 11:39:18 2018
+# [reference_rotations] end of run

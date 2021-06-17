@@ -1,5 +1,4 @@
 /* cvc_complex.h */
-
 #ifndef _CVC_COMPLEX_H
 #define _CVC_COMPLEX_H
 
@@ -11,11 +10,27 @@
 #undef complex
 #endif
 
-namespace cvc {
+namespace cvc 
+{
 
 typedef struct {
   double re, im;
 } complex;
+
+/* c1 = 0*/
+#define _co_eq_zero(c1) {\
+  (c1)->re = 0.;\
+  (c1)->im = 0.;}
+
+/* c1 = 1*/
+#define _co_eq_one(c1) {\
+  (c1)->re = 1.;\
+  (c1)->im = 0.;}
+
+/* c1 = i*/
+#define _co_eq_i(c1) {\
+  (c1)->re = 0.;\
+  (c1)->im = 1.;}
 
 /* c1 = c2 * c3 */
 #define _co_eq_co_ti_co(c1,c2,c3) {\
@@ -47,6 +62,16 @@ typedef struct {
   (c1)->re += (c2)->re; \
   (c1)->im += (c2)->im;}
 
+/* c1 += c2 *r */
+#define _co_pl_eq_co_ti_re(c1,c2,r) {\
+  (c1)->re += (c2)->re * (r); \
+  (c1)->im += (c2)->im * (r);}
+
+/* c1 += c2^* * r */
+#define _co_pl_eq_co_conj_ti_re(c1,c2,r) {\
+  (c1)->re += (c2)->re * (r); \
+  (c1)->im -= (c2)->im * (r);}
+   
 /* c1 -= c2 */
 #define _co_mi_eq_co(c1,c2) {\
   (c1)->re -= (c2)->re; \
@@ -71,6 +96,11 @@ typedef struct {
 #define _co_eq_co(c1,c2) {\
   (c1)->re = (c2)->re; \
   (c1)->im = (c2)->im;}
+
+/* c1 = c2^* */
+#define _co_eq_co_conj(c1,c2) {\
+  (c1)->re =  (c2)->re; \
+  (c1)->im = -(c2)->im;}
 
 /* c = r+0i */
 #define _co_eq_re(c,r) {\

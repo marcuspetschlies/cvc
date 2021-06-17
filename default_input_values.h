@@ -27,6 +27,11 @@ namespace cvc {
 #define _default_BCangleZ (0.)
 #define _default_filename_prefix "prop."
 #define _default_filename_prefix2 "prop."
+#define _default_filename_prefix3 "prop."
+
+#define _default_sequential_filename_prefix "seq_prop."
+#define _default_sequential_filename_prefix2 "seq_prop."
+
 #define _default_gaugefilename_prefix "conf."
 #define _default_outfile_prefix "out."
 #define _default_path_prefix "./"
@@ -78,6 +83,7 @@ namespace cvc {
 
 #define _default_source_timeslice 0
 #define _default_sequential_source_timeslice -1
+#define _default_sequential_source_timeslice_number 0
 
 #define _default_sequential_source_location_x 0
 #define _default_sequential_source_location_y 0
@@ -135,21 +141,32 @@ namespace cvc {
 #define _default_write_propagator 0
 #define _default_read_propagator 1
 #define _default_read_sequential_propagator 0
+#define _default_write_sequential_source 0
+#define _default_write_sequential_propagator 0
 
 #define _default_nsample 1
+#define _default_nsample_oet 1
 #define _default_num_threads 1
 #define _default_source_momentum_x 0
 #define _default_source_momentum_y 0
 #define _default_source_momentum_z 0
 #define _default_source_momentum_set 0
+
+#define _default_source_momentum_number 0
+
 #define _default_sink_momentum_x 0
 #define _default_sink_momentum_y 0
 #define _default_sink_momentum_z 0
 #define _default_sink_momentum_set 0
+#define _default_sink_momentum_number 0
+
 #define _default_seq_source_momentum_x 0
 #define _default_seq_source_momentum_y 0
 #define _default_seq_source_momentum_z 0
 #define _default_seq_source_momentum_set 0
+
+#define _default_seq_source_momentum_number 0
+
 #define _default_rng_state NULL
 #define _default_verbose  0
 #define _default_m0 0.
@@ -164,11 +181,27 @@ namespace cvc {
 #define _default_mms_id -1
 #define _default_check_inversion 0
 
-#define _default_laph_time_proj_type "NA"
-#define _default_laph_spin_proj_type "NA"
-#define _default_laph_evec_proj_type "NA"
 
 #define _default_src_snk_time_separation 0
-#define _default_seq_source_gamma_id 4
+
+#define _default_seq_source_gamma_id -1
+#define _default_seq_source_gamma_id_number 0
+
+#define _default_source_gamma_id -1
+#define _default_source_gamma_id_number 0
+
+#define _default_csw 0
+
+#define _default_fermion_type -1
+#define _default_source_location_number 0
+#define _default_coherent_source_number 1
+
+#define _default_total_momentum_number 0
+
+#define _default_twopoint_function_number 0
+#define _default_twopoint_function_list NULL
+
+#define _default_zero 0
+
 }
 #endif
