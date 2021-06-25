@@ -67,7 +67,7 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_Ia  0  /* loop calculation */
+#define _PART_Ia  1  /* loop calculation */
 #define _PART_IIb 1  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
 #define _PART_IV  1  /* W type sequential diagrams */
@@ -1209,7 +1209,7 @@ int main(int argc, char **argv) {
                 for ( int i = 0; i < 12; i++ ) {
                   sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d",
                       flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i, isample );
+                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i, g_nsample_oet );
 
                   if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
                     fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1240,7 +1240,7 @@ int main(int argc, char **argv) {
                 for ( int i = 0; i < 12; i++ ) {
                   sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d.inverted",
                       flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i, isample );
+                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i, g_nsample_oet );
 
                   if ( ( exitstatus = write_propagator( sequential_propagator[i], filename, 0, g_propagator_precision) ) != 0 ) {
                     fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
