@@ -837,7 +837,7 @@ int main(int argc, char **argv) {
                         pf[0], pf[1], pf[2],
                         gamma_bin_to_name[gamma_p_list[0]], g_src_snk_time_separation,
                         pi2[0], pi2[1], pi2[2], gamma_bin_to_name[gamma_p_list[0]],
-                        gamma_bin_to_name[gamma_v_list[0]], gamma_bin_to_name[gamma_p_list[0]],
+                        gamma_bin_to_name[gamma_v_list[iv]], gamma_bin_to_name[gamma_p_list[0]],
                         pc[0], pc[1], pc[2] );
 
               if ( g_verbose > 2 ) {
