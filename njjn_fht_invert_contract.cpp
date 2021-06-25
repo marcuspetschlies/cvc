@@ -67,9 +67,10 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_IIb 0  /* N1, N2 */
+#define _PART_Ia  1  /* loop calculation */
+#define _PART_IIb 1  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -399,10 +400,22 @@ int main(int argc, char **argv) {
     if ( N_ape > 0 ) {
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
-        fprintf(stderr, "[njjn_fht_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        fprintf(stderr, "[njjn_fht_invert_contract] Error from APE_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(47);
       }
+    } else {
+#ifdef HAVE_MPI
+      xchange_gauge_field( gauge_field_smeared );
+#endif
     }  /* end of if N_aoe > 0 */
+
+    if ( io_proc == 2 ) fprintf ( stdout, "# [njjn_fht_invert_contract] plaquetteria for gauge_field_smeared\n" );
+    exitstatus = plaquetteria  ( gauge_field_smeared );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(47);
+    }
+
   }  /* end of if N_Jacobi > 0 */
 
   /***************************************************************************
@@ -471,9 +484,9 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * init rng state
    ***************************************************************************/
-  exitstatus = init_rng_state ( g_seed, &g_rng_state);
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
   if ( exitstatus != 0 ) {
-    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_rng_state %s %d\n", __FILE__, __LINE__ );;
+    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_rng_stat_file %s %d\n", __FILE__, __LINE__ );;
     EXIT( 50 );
   }
 
@@ -487,13 +500,17 @@ int main(int argc, char **argv) {
    ***************************************************************************
    ***************************************************************************/
 
-  double *** scalar_field = init_3level_dtable ( g_coherent_source_number, g_nsample_oet, 2*VOLUME );
-  if( scalar_field == NULL ) {
-    fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-    EXIT(132);
+  double *** scalar_field = NULL;
+
+  if ( g_coherent_source_number * g_nsample_oet > 0 ) {
+    scalar_field = init_3level_dtable ( g_coherent_source_number, g_nsample_oet, 2*VOLUME );
+    if( scalar_field == NULL ) {
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(132);
+    }
   }
 
-  if ( ! read_scalar_field ) {
+  if ( ! read_scalar_field  && ( g_coherent_source_number * g_nsample_oet > 0 ) ) {
 
     /***************************************************************************
      * draw a stochastic binary source (real, +/1 one per site )
@@ -543,7 +560,10 @@ int main(int argc, char **argv) {
    ***************************************************************************
    ***************************************************************************/
 
-  double _Complex *** loop = init_3level_ztable ( VOLUME, 12, 12 );
+  double _Complex *** loop = NULL;
+
+#if _PART_Ia
+  loop = init_3level_ztable ( VOLUME, 12, 12 );
   if ( loop  == NULL ) {
     fprintf ( stderr, "[njjn_fht_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(12);
@@ -589,7 +609,7 @@ int main(int argc, char **argv) {
             int const isc = 3 * ispin + icol;
 
             memset ( spinor_work[0], 0, sizeof_spinor_field );
-             memset ( spinor_work[1], 0, sizeof_spinor_field );
+            memset ( spinor_work[1], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
             if ( timeslice / T == g_proc_coords[0] ) {
@@ -759,6 +779,7 @@ int main(int argc, char **argv) {
     }
 
   }  /* end of if on read stoch. source  */
+#endif  /* of if _PART_Ia */
 
   /***************************************************************************
    *
@@ -1186,8 +1207,9 @@ int main(int argc, char **argv) {
 
               if ( g_write_sequential_source ) {
                 for ( int i = 0; i < 12; i++ ) {
-                  sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i );
+                  sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d",
+                      flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i, g_nsample_oet );
 
                   if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
                     fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1216,8 +1238,9 @@ int main(int argc, char **argv) {
 
               if ( g_write_sequential_propagator ) {
                 for ( int i = 0; i < 12; i++ ) {
-                  sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i );
+                  sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d.inverted",
+                      flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                      momentum[0], momentum[1], momentum[2], sequential_gamma_tag[igamma], seq_source_type, i, g_nsample_oet );
 
                   if ( ( exitstatus = write_propagator( sequential_propagator[i], filename, 0, g_propagator_precision) ) != 0 ) {
                     fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1523,8 +1546,9 @@ int main(int argc, char **argv) {
 
                 if ( g_write_sequential_source ) {
                   for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d",
+                        flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                        momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
 
                     if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
                       fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1553,8 +1577,9 @@ int main(int argc, char **argv) {
 
                 if ( g_write_sequential_propagator ) {
                   for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.inverted", flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                    momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i );
+                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d.inverted",
+                        flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
+                        momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
 
                     if ( ( exitstatus = write_propagator( sequential_propagator[iflavor][i], filename, 0, g_propagator_precision) ) != 0 ) {
                       fprintf(stderr, "[njjn_fht_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1858,11 +1883,8 @@ int main(int argc, char **argv) {
   ***************************************************************************/
   fini_2level_ztable ( &ephase );
 
-  fini_3level_ztable ( &loop );
-  fini_3level_dtable ( &scalar_field );
-
-
-  fini_rng_state ( &g_rng_state);
+  if ( loop         != NULL ) fini_3level_ztable ( &loop );
+  if ( scalar_field != NULL ) fini_3level_dtable ( &scalar_field );
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);

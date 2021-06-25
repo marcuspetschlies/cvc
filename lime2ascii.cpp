@@ -75,9 +75,9 @@ int main(int argc, char **argv) {
   char limefile_name[100] = "NA";
   char limefile_suffix[100] = "inverted";
   char limefile_type[100] = "DiracFermion";
-  int limefile_pos = 0;
   int tsize = 0, lsize = 0;
   int components = 0;
+  int limefile_position = 0;
   // double ratime, retime;
 
 #ifdef HAVE_MPI
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
       strcpy ( limefile_type, optarg );
       break;
     case 'p':
-      limefile_pos = atoi ( optarg );
+      limefile_position = atoi ( optarg );
       break;
     case 'T':
       tsize = atoi ( optarg );
@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
      ***************************************************************************/
 
     double * spinor_field = init_1level_dtable ( _GSI(VOLUME) );
-    exitstatus = read_lime_spinor ( spinor_field, limefile_name, limefile_pos);
+    exitstatus = read_lime_spinor ( spinor_field, limefile_name, limefile_position);
 
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
     double ** propagator_field = init_2level_dtable ( 12, _GSI(VOLUME) );
     for ( int i = 0; i < 12; i++ ) {
       sprintf ( filename, "%s.%d.%s", limefile_name, i, limefile_suffix );
-      exitstatus = read_lime_spinor ( propagator_field[i], filename, limefile_pos);
+      exitstatus = read_lime_spinor ( propagator_field[i], filename, limefile_position);
 
       if ( exitstatus != 0 ) {
         fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -290,13 +290,15 @@ int main(int argc, char **argv) {
 
     double ** field = init_2level_dtable ( VOLUME, 2 * nc );
 
-    exitstatus = read_lime_contraction( field[0], limefile_name, nc, 0 );
+    if ( limefile_position == -1 ) limefile_position = 0;
+
+    exitstatus = read_lime_contraction( field[0], limefile_name, nc, limefile_position );
     if ( exitstatus != 0 ) {
       fprintf(stderr, "[lime2ascii] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(2);
     }
 
-    sprintf ( filename,"%s.ascii", limefile_name );
+    sprintf ( filename,"%s.pos%d.ascii", limefile_name, limefile_position );
     FILE * ofs = fopen ( filename, "w" );
 
     for ( int x0 = 0; x0 < T; x0++ ) {
