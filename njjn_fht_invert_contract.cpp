@@ -625,10 +625,16 @@ int main(int argc, char **argv) {
 
             /* call to (external/dummy) inverter / solver */
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[njjn_fht_invert_contract] Error from tmLQCD_invert, status was %d\n", exitstatus);
+#  if ( defined GPU_DIRECT_SOLVER )
+            if(exitstatus < 0)
+#  else
+            if(exitstatus != 0)
+#  endif
+            {
+              fprintf(stderr, "[njjn_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(12);
             }
+
 
             if ( check_propagator_residual ) {
               check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
@@ -765,11 +771,15 @@ int main(int argc, char **argv) {
   memset(spinor_work[0], 0, sizeof_spinor_field);
   if ( g_cart_id == 0 ) spinor_work[0][0] = 1.;
   exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], _OP_ID_UP);
-  if(exitstatus < 0) {
+#  if ( defined GPU_DIRECT_SOLVER )
+  if(exitstatus < 0)
+#  else
+  if(exitstatus != 0)
+#  endif
+  {
     fprintf(stderr, "[njjn_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(12);
   }
-
 #endif  /* of if _SMEAR_QUDA */
 
 
