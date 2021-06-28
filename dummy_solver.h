@@ -8,7 +8,11 @@ namespace cvc {
 int dummy_solver ( double * const, double * const, const int );
 }  /* end of namespace cvc */
 #else
-#  define _TMLQCD_INVERT tmLQCD_invert
+#  if ( defined GPU_DIRECT_SOLVER )
+#    define _TMLQCD_INVERT invert_quda_direct
+#  else
+#    define _TMLQCD_INVERT tmLQCD_invert
+#  endif
 #endif
 
 #endif

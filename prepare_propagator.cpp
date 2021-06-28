@@ -864,7 +864,11 @@ int point_source_propagator (double ** const prop, int const gsx[4], int const o
 #ifdef HAVE_TMLQCD_LIBWRAPPER
     /* exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id, 0); */
     exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], op_id );
+#  if ( defined GPU_DIRECT_SOLVER )
+    if(exitstatus < 0) {
+#  else
     if(exitstatus != 0) {
+#  endif
       fprintf(stderr, "[point_source_propagator] Error from tmLQCD_invert, status was %d\n", exitstatus);
       return(12);
     }
