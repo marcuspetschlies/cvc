@@ -435,4 +435,44 @@ int dratio_1_2_mi_3(void *param , void *v_in, double *v_out) {
 /********************************************************/
 /********************************************************/
 
+/********************************************************
+ *
+ ********************************************************/
+int sqrt_ab_over_cd ( void * param , void * v_in, double * v_out) {
+  int * const trange = (int*)v_in;
+  int const i1  = trange[0];
+  int const i2  = trange[1];
+  int const i3  = trange[2];
+  int const i4  = trange[3];
+
+  *v_out = sqrt ( ((double*)param)[i1] * ((double*)param)[i2] / ( ((double*)param)[i3] * ((double*)param)[i4] ) );
+  return(0);
+}  /* end of sqrt_ab_over_cd */
+
+/********************************************************
+ *
+ ********************************************************/
+int dsqrt_ab_over_cd (void *param , void *v_in, double *v_out) {
+  int * const trange = (int*)v_in;
+  int const i1 = trange[0];
+  int const i2 = trange[1];
+  int const i3 = trange[2];
+  int const i4 = trange[3];
+
+  double const dtmp = sqrt ( ((double*)param)[i1] * ((double*)param)[i2] / ( ((double*)param)[i3] * ((double*)param)[i4] ) );
+
+  v_out[i1] =  0.5 * dtmp / ((double*)param)[i1];
+
+  v_out[i2] =  0.5 * dtmp / ((double*)param)[i2];
+
+  v_out[i3] = -0.5 * dtmp / ((double*)param)[i3];
+
+  v_out[i4] = -0.5 * dtmp / ((double*)param)[i4];
+
+  return(0);
+}  /* end of dsqrt_ab_over_cd */
+
+/********************************************************/
+/********************************************************/
+
 }  /* end of namespace cvc */

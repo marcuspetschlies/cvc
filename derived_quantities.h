@@ -44,6 +44,9 @@ int dcumulant_4  ( void * param , void * v_in, double * v_out);
 int ratio_1_2_mi_3 ( void * param , void * v_in, double * v_out);
 int dratio_1_2_mi_3 ( void * param , void * v_in, double * v_out);
 
+int sqrt_ab_over_cd ( void * param , void * v_in, double * v_out);
+int dsqrt_ab_over_cd ( void * param , void * v_in, double * v_out);
+
 
 }
 
