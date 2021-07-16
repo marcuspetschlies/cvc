@@ -349,7 +349,9 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "hvp_analyse", "read-aff-key", g_cart_id == 0 );
 
-        } else if ( operator_type == 1 || operator_type == 4) {
+        /**********************************************************/
+        } else if ( operator_type == 1 ) {
+        /**********************************************************/
 
           gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -370,6 +372,52 @@ int main(int argc, char **argv) {
 
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "hvp_analyse", "read-ll-tensor-aff", g_cart_id == 0 );
+
+        /**********************************************************/
+        } else if ( operator_type == 4 ) {
+        /**********************************************************/
+
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
+          double * buffer2 = init_1level_dtable ( 2 * T);
+
+          for( int mu = 0; mu < 4; mu++) {
+          for( int nu = 0; nu < 4; nu++) {
+
+            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix[operator_type], "d-gf-u-gi",
+                gsx[0], gsx[1], gsx[2], gsx[3], g_sink_gamma_id_list[mu], g_source_gamma_id_list[nu], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [hvp_analyse] key = %s\n", key );
+            affdir = aff_reader_chpath (affr, affn, key );
+            uint32_t uitems = T;
+            exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)(buffer[mu][nu]), uitems );
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[hvp_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(105);
+            }
+
+            sprintf ( key , "/%s/%s/t%.2dx%.2dy%.2dz%.2d/gf%.2d/gi%.2d/px%dpy%dpz%d", correlator_prefix[operator_type], "u-gf-d-gi",
+                gsx[0], gsx[1], gsx[2], gsx[3], g_sink_gamma_id_list[mu], g_source_gamma_id_list[nu], -sink_momentum[0], -sink_momentum[1], -sink_momentum[2] );
+
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [hvp_analyse] key2 = %s\n", key );
+            affdir = aff_reader_chpath (affr, affn, key );
+
+            exitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)buffer2, uitems );
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[hvp_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(105);
+            }
+
+#pragma omp parallel for
+            for ( int it = 0; it < 2*T; it++ ) buffer[mu][nu][it] = 0.5 * ( buffer[mu][nu][it] + buffer2[it] );
+
+          }}
+
+          fini_1level_dtable ( &buffer2 );
+
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hvp_analyse", "read-ll-tensor-aff", g_cart_id == 0 );
+
         }  /* end of if operator_type */
 
         /**********************************************************
@@ -649,14 +697,9 @@ int main(int argc, char **argv) {
    * dep. on 4-momentum
    **********************************************************/
   double **** hvp_scalar = init_4level_dtable ( num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
-<<<<<<< HEAD
-  double ***** hvp_irrep           = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
-  double ***** hvp_irrep_projected = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
-=======
 
   double ***** hvp_pirrep           = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
   double ***** hvp_pirrep_projected = init_5level_dtable ( 5, num_conf, num_src_per_conf, g_sink_momentum_number, 2*T_global );
->>>>>>> c5c9b150a6e94d9fce7907641ab7c314b166b9bc
 
 #pragma omp parallel for
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
