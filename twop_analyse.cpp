@@ -756,6 +756,28 @@ int main(int argc, char **argv) {
 
 #endif  /* of TWOP_AFF_OET */
 
+#if TWOP_H5_OET
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.h5",
+        conf_src_list[iconf][0][0], 
+        filename_prefix,
+        conf_src_list[iconf][0][1], 
+        filename_prefix2,
+        conf_src_list[iconf][0][1] );
+    if ( g_verbose > 1 ) fprintf( stdout, "# [twop_analyse] filename %s %s %d\n", filename, __FILE__, __LINE__ );
+
+    for ( int isrc = 0; isrc < T_global; isrc++ ) {
+
+      char key[500];
+      sprintf( key, "%s/t%d/s0/gf%d/gi%dpix%dpiy%dpiz%d/px%dpy%dpz%d", twop_flavor_tag[1], isrc, 
+      
+
+
+    }
+  }
+
+#endif  /* of TWOP_H5_OET */
 
 
   /****************************************
