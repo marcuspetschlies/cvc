@@ -337,8 +337,9 @@ int main(int argc, char **argv) {
         } else {
           /* sprintf ( filename, "stream_%c/%s/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0],
              flavor_tag[0], filename_prefix, conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
-          sprintf ( filename, "%s/loop.%.4d.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d",
-              filename_prefix, conf_src_list[iconf][0][1], oet_type_tag[oet_type], loop_type_tag[loop_type], loop_nev, loop_nsample, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          sprintf ( filename, "%s/loop.%.4d_r%c.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d",
+              filename_prefix, conf_src_list[iconf][0][1], conf_src_list[iconf][0][0],
+              oet_type_tag[oet_type], loop_type_tag[loop_type], loop_nev, loop_nsample, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
         }
 
         if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
@@ -353,8 +354,10 @@ int main(int argc, char **argv) {
           for ( int t = 0; t < T_global; t++ ) {
             for ( int mu = 0; mu < 4; mu++ ) {
             for ( int nu = 0; nu < 4; nu++ ) {
-              if ( fscanf ( ofs, "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3,
-                    loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 ) != 6 ) {
+              if ( fscanf ( ofs, 
+                    /* "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3, */
+                    "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2,
+                    loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 ) != 5 ) {
                 fprintf ( stderr, "[twop_analyse_wdisc] Error from fscanf %s %d\n", __FILE__, __LINE__ );
                 EXIT(126);
               }
@@ -443,8 +446,9 @@ int main(int argc, char **argv) {
         } else {
           /* sprintf ( filename, "stream_%c/%s/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0],
              flavor_tag[1], filename_prefix, conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, sink_momentum[0], sink_momentum[1], sink_momentum[2] ); */
-          sprintf ( filename, "%s/loop.%.4d.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d",
-             filename_prefix, conf_src_list[iconf][0][1], oet_type_tag[oet_type], loop_type_tag[loop_type], loop_nev, loop_nsample, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          sprintf ( filename, "%s/loop.%.4d_r%c.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d",
+             filename_prefix, conf_src_list[iconf][0][1], conf_src_list[iconf][0][0],
+             oet_type_tag[oet_type], loop_type_tag[loop_type], loop_nev, loop_nsample, sink_momentum[0], sink_momentum[1], sink_momentum[2] );
         }
 
         if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] reading loop data from file %s %s %d\n", filename, __FILE__, __LINE__ );
@@ -459,8 +463,10 @@ int main(int argc, char **argv) {
           for ( int t = 0; t < T_global; t++ ) {
             for ( int mu = 0; mu < 4; mu++ ) {
             for ( int nu = 0; nu < 4; nu++ ) {
-              if ( fscanf ( ofs, "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3,
-                    loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 ) != 6 ) {
+              if ( fscanf ( ofs, 
+                    /* "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3, */
+                    "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2,
+                    loops_matrix[iconf][isample][t][mu]+2*nu, loops_matrix[iconf][isample][t][mu]+2*nu+1 ) != 5 ) {
                 fprintf ( stderr, "[twop_analyse_wdisc] Error from fscanf %s %d\n", __FILE__, __LINE__ );
                 EXIT(126);
               }
@@ -500,8 +506,8 @@ int main(int argc, char **argv) {
         project_loop ( loops_proj_source[isink_momentum][ipsign][isource_gamma][0][0], gf.m, loops_matrix[0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
 
         if ( write_data == 1 ) {
-          sprintf ( filename, "loop.%s.%s.gi%d.px%d_py%d_pz%d",
-              flavor_tag[0], loop_type_tag[loop_type], g_source_gamma_id_list[isource_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+          sprintf ( filename, "loop.%s.%s.%s.gi%d.px%d_py%d_pz%d",
+              flavor_tag[0], oet_type_tag[oet_type], loop_type_tag[loop_type], g_source_gamma_id_list[isource_gamma], sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
           FILE * fs = fopen ( filename, "w" );
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
