@@ -77,7 +77,7 @@ void usage() {
   EXIT(0);
 }
 
-#define _USE_TIME_DILUTION 0
+#define _USE_TIME_DILUTION 1
 
 #define _FIRST_DERIV_CONTRACTION 0
 #define _SECOND_DERIV_CONTRACTION 0
@@ -494,7 +494,9 @@ int main(int argc, char **argv) {
       memset ( spinor_work[0], 0, sizeof_spinor_field );
 
       if ( timeslice / T == g_proc_coords[0] ) {
-        if ( g_cart_id > 2 ) fprintf( stdout, "# [loop_invert_contract] proc %d has global timeslice %d %s %d\n", timeslice, __FILE__, __LINE__ );
+        // if ( g_cart_id > 2 ) {
+          fprintf( stdout, "# [loop_invert_contract] proc %d has global timeslice %d %s %d\n", g_cart_id, timeslice, __FILE__, __LINE__ );
+        // }
         /* copy own timeslice of stochastic source */
         memcpy ( spinor_work[0] + offset, stochastic_source + offset, sizeof_spinor_field_timeslice );
       }
