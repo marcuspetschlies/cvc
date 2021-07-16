@@ -49,11 +49,11 @@
 
 #define _TWOP_STATS 1
 
-#define _TWOP_AFF 1
-#define _TWOP_H5  0
+#define _TWOP_AFF 0
+#define _TWOP_H5  1
 
-#define _THREEP_AFF 1
-#define _THREEP_H5  0
+#define _THREEP_AFF 0
+#define _THREEP_H5  1
 
 using namespace cvc;
 
@@ -392,7 +392,7 @@ int main(int argc, char **argv) {
           fflush(stdout);
         }
 
-        exitstatus = read_from_h5_file ( (void*)buffer[0], data_filename, key,  io_proc );
+        exitstatus = read_from_h5_file ( (void*)buffer[0], data_filename, key,  "double",  io_proc );
         if ( exitstatus != 0 ) {
           fprintf( stderr, "[avxn_conn_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
@@ -751,7 +751,7 @@ int main(int argc, char **argv) {
   
               if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_conn_analyse] key = %s\n", key );
   
-              exitstatus = read_from_h5_file ( (void*)buffer[0], data_filename, key, io_proc );
+              exitstatus = read_from_h5_file ( (void*)buffer[0], data_filename, key, "double", io_proc );
               if ( exitstatus != 0 ) {
                 fprintf( stderr, "[]avxn_conn_analyse Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(1);
