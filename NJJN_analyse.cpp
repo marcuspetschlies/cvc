@@ -107,21 +107,58 @@ typedef struct {
  ***************************************************************************/
 void make_key_string ( char * key, twopoint_function_type *tp, const char * type, const char * diagram_name , const int * sx, int const isample ) {
 
+  const char gamma_id_to_group[16][3] = {
+    "vv", "vv", "vv", "vv", 
+    "ss", "pp", 
+    "aa", "aa", "aa", "aa", 
+    "tt", "tt", "tt", "tt", "tt", "tt" 
+  };
+
   const int * gsx = ( sx == NULL ) ? tp->source_coords : sx;
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
 
   /* /N-qbGqqbGq-N/fd-wuu-wdd/T6_X7_Y17_Z5/QX0_QY0_QZ0/sample0/Gc_g5/Gf_Cg5/Gi_Cg5/t1/px00py00pz00 */
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
+  
+    if (    strcmp ( tp->name, "fu-bddd-fu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-bddd" ) == 0 
+         || strcmp ( tp->name, "bddd-fu-fd" ) == 0 
+         || strcmp ( tp->name, "fu-ddud-fu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-ddud" ) == 0 
+         || strcmp ( tp->name, "ddud-fu-fd" ) == 0 
+         || strcmp ( tp->name, "fu-dddd-fu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-dddd" ) == 0 
+         || strcmp ( tp->name, "dddd-fu-fd" ) == 0 
+         || strcmp ( tp->name, "fd-buuu-fd" ) == 0 
+         || strcmp ( tp->name, "fu-fd-buuu" ) == 0 
+         || strcmp ( tp->name, "buuu-fd-fu" ) == 0 
+         || strcmp ( tp->name, "fd-dudu-fd" ) == 0 
+         || strcmp ( tp->name, "fu-fd-dudu" ) == 0 
+         || strcmp ( tp->name, "dudu-fd-fu" ) == 0 
+         || strcmp ( tp->name, "fd-duuu-fd" ) == 0 
+         || strcmp ( tp->name, "fu-fd-duuu" ) == 0 
+         || strcmp ( tp->name, "duuu-fd-fu" ) == 0 
+        ) {
 
-    sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
-        tp->pf2[0], tp->pf2[1], tp->pf2[2],
-        isample,
-        gamma_id_to_ascii[tp->gf2],
-        gamma_id_to_Cg_ascii[tp->gf1[0]],
-        gamma_id_to_Cg_ascii[tp->gi1[0]],
-        diagram_name,
-        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+          tp->pf2[0], tp->pf2[1], tp->pf2[2],
+          isample,
+          gamma_id_to_group[tp->gf2],
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          diagram_name,
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
 
+    } else {
+      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+          tp->pf2[0], tp->pf2[1], tp->pf2[2],
+          isample,
+          gamma_id_to_ascii[tp->gf2],
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          diagram_name,
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+    }
   }
 
 }  /* end of make_key_string */
@@ -470,7 +507,9 @@ int main(int argc, char **argv) {
             double _Complex *** zbuffer = init_3level_ztable ( tp->T, tp->d, tp->d );
 
 
-            for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+            /* for ( int isample = 0; isample < g_nsample_oet; isample++ ) */
+            for ( int isample = g_sourceid; isample <=g_sourceid2; isample += g_sourceid_step )
+            {
 
               /* make_key_string ( key, tp, tp->type, diagram_name, gsx ); */
               make_key_string ( key, &tp_aux, tp_aux.type, diagram_name, gsx, isample );
@@ -671,11 +710,6 @@ int main(int argc, char **argv) {
         for ( int ireim = 0; ireim < 1; ireim++ )  /* real part only for now */
         {
 
-          if ( num_conf < 6 ) {
-            fprintf ( stderr, "[NJJN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
-            continue;
-          }
-
           double ** data = init_2level_dtable ( num_conf, tp->T );
           if ( data == NULL ) {
             fprintf ( stderr, "[NJJN_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
@@ -702,12 +736,31 @@ int main(int argc, char **argv) {
         
           sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, -2*iparity+1, reim_str[ireim] );
 
-          exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
-          if ( exitstatus != 0  ) {
-            fprintf ( stderr, "[NJJN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(16);
+          if ( num_conf < 6 ) {
+            fprintf ( stderr, "[NJJN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+          } else {
+            exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
+            if ( exitstatus != 0  ) {
+              fprintf ( stderr, "[NJJN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(16);
+            }
           }
-  
+
+          /***************************************************************************
+           * write data
+           ***************************************************************************/
+          char data_filename[600];
+          sprintf ( data_filename, "%s.corr", obs_name);
+          FILE * dfs = fopen( data_filename, "w" );
+
+          for( int iconf = 0; iconf < num_conf; iconf++ ) {
+            for ( int it = 0; it < tp->T; it++ ) {
+              fprintf( dfs, "%4d %25.16e    %c %6d\n", it, data[iconf][it], conf_src_list.stream[iconf], conf_src_list.conf [iconf] );
+            }
+          }
+
+          fclose ( dfs );
+          
           fini_2level_dtable ( &data );
  
         }  /* end of loop on reim */
