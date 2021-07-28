@@ -565,4 +565,199 @@ int source_profile ( double *s, int source_coords[4], char*prefix ) {
   return(0);
 }  /* end of source_profile */
 
+
+/******************************************
+ *
+ ******************************************/
+inline void _ADD_STAPLES_TO_COMPONENT( double * const buff_out, double * const buff_in, unsigned int const x,  int const to, int const via) 
+{
+  double tmp[18], tmp2[18];
+
+  double * const _buff_in_up_via_to        = buff_in + _GGI( g_iup[x][via], to );
+  double * const _buff_in_up_to_via        = buff_in + _GGI( g_iup[x][to], via );
+
+  double * const _buff_in_via              = buff_in + _GGI( x, via);
+
+  double * const _buff_in_dn_via_to        = buff_in + _GGI( g_idn[x][via], to);
+  double * const _buff_in_dn_via_up_to_via = buff_in + _GGI( g_iup[g_idn[x][via]][to], via );
+  double * const _buff_in_dn_via_via       = buff_in + _GGI( g_idn[x][via], via);
+
+    _cm_eq_cm_ti_cm_dag ( tmp, _buff_in_up_via_to, _buff_in_up_to_via );
+    _cm_eq_cm_ti_cm ( tmp2, _buff_in_via, tmp);
+    _cm_pl_eq_cm ( buff_out, tmp2 );
+    _cm_eq_cm_ti_cm ( tmp, _buff_in_dn_via_to, _buff_in_dn_via_up_to_via );
+    _cm_eq_cm_dag_ti_cm ( tmp2, _buff_in_dn_via_via, tmp );
+    _cm_pl_eq_cm ( buff_out, tmp2 );
+}  /* end of _ADD_STAPLES_TO_COMPONENT */
+
+/******************************************
+ *
+ ******************************************/
+void generic_staples ( double * const buff_out, const unsigned int x, const int mu, double * const buff_in )
+{
+
+  _cm_eq_zero ( buff_out );
+
+  switch (mu)
+  {
+    case 0:
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 0, 1);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 0, 2);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 0, 3);
+      break;
+
+    case 1:
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 1, 0);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 1, 2);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 1, 3);
+      break;
+
+    case 2:
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 2, 0);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 2, 1);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 2, 3);
+      break;
+
+    case 3:
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 3, 0);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 3, 1);
+      _ADD_STAPLES_TO_COMPONENT(buff_out, buff_in, x, 3, 2);
+      break;
+  }
+
+}  /* end of generic_staples */
+
+
+/******************************************
+ *
+ ******************************************/
+inline void exposu3( double * const vr, double * const p ) {
+  
+  double v[18], v2[18];
+
+#if 0
+  /* it writes 'p=vec(h_{j,mu})' in matrix form 'v' */
+  _make_su3(v,*p);
+#endif
+  _cm_eq_cm ( v, p );
+
+  /* v2 = v^2 */
+  _cm_eq_cm_ti_cm ( v2, v, v);
+
+  /* 1/2 real part of trace of v2 */
+  double const a = 0.5 * ( v2[0] + v2[8] + v2[16] );
+
+  /* 1/3 imaginary part of tr v*v2 */
+  double const b = 0.33333333333333333 * (
+        v[ 0] * v2[ 1] + v[ 1] * v2[ 0]
+      + v[ 2] * v2[ 7] + v[ 3] * v2[ 6]
+      + v[ 4] * v2[13] + v[ 5] * v2[12]
+      + v[ 6] * v2[ 3] + v[ 7] * v2[ 2]
+      + v[ 8] * v2[ 9] + v[ 9] * v2[ 8]
+      + v[10] * v2[15] + v[11] * v2[14]
+      + v[12] * v2[ 5] + v[13] * v2[ 4]
+      + v[14] * v2[11] + v[15] * v2[10]
+      + v[16] * v2[17] + v[17] * v2[16] );
+
+  double _Complex a0  = 0.16059043836821615e-9;   /* 1 / 13 ! */
+  double _Complex a1  = 0.11470745597729725e-10;  /* 1 / 14 ! */
+  double _Complex a2  = 0.76471637318198165e-12;  /* 1 / 15 ! */
+  double fac = 0.20876756987868099e-8;            /* 1 / 12 ! */
+  double r   = 12.0;
+  _Complex double a1p;
+
+  for ( int i = 3; i <= 15; ++i)
+  {
+    a1p = a0 + a * a2;
+    a0 = fac + b * I * a2;
+    a2 = a1;
+    a1 = a1p;
+    fac *= r;
+    r -= 1.0;
+  }
+
+  /* vr = a0 + a1*v + a2*v2 */
+  _cm_eq_zero( vr );
+
+  /* vr = a0 * diag ( 1,1,1 ) */
+  vr[ 0] = creal( a0 );
+  vr[ 1] = cimag( a0 );
+  vr[ 8] = creal( a0 );
+  vr[ 9] = cimag( a0 );
+  vr[16] = creal( a0 );
+  vr[17] = cimag( a0 );
+
+  double _Complex z;
+  for ( int i = 0; i < 9; i++ ) {
+    z = ( v[2*i] + v[2*i+1] * I ) * a1 + ( v2[2*i] + v2[2*i+1] * I ) * a2;
+    vr[2*i]   += creal( z );
+    vr[2*i+1] += cimag( z );
+  }
+
+}  /* end of exposu3 */
+
+/******************************************
+ *
+ ******************************************/
+int stout_smear_inplace ( double * const m_field, const int stout_n, const double stout_rho, double * const buffer )
+{
+
+  /* start of the the stout smearing **/
+  for ( int iter = 0; iter < stout_n; ++iter)
+  {
+#ifdef HAVE_MPI
+    xchange_gauge_field ( m_field );
+#endif
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+      double tmp[18];
+      double * _buffer = NULL;
+      double * _m_field = NULL;
+      unsigned int iix;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int x = 0; x < VOLUME; ++x) {
+      for ( int mu = 0; mu < 4; ++mu)
+      {
+        iix      = _GGI( x, mu);
+        _buffer  = buffer + iix;
+        _m_field = m_field + iix;
+
+        generic_staples( tmp, x, mu, m_field );
+        _cm_ti_eq_re( tmp, stout_rho );
+        _cm_eq_cm_ti_cm_dag ( _buffer, tmp, _m_field );
+        _cm_eq_antiherm_trless_cm ( tmp, _buffer );
+        exposu3 ( _buffer, tmp );
+      }
+    }
+
+#ifdef HAVE_OPENMP
+#pragma omp barrier
+#pragma omp for
+#endif
+    for ( unsigned int x = 0; x < VOLUME; ++x) {
+      for(int mu = 0 ; mu < 4; ++mu)
+      {
+        iix      = _GGI( x, mu);
+        _buffer  = buffer + iix;
+        _m_field = m_field + iix;
+
+        _cm_eq_cm_ti_cm( tmp, _buffer, _m_field );
+        _cm_eq_cm ( _m_field, tmp );
+      }
+    }
+
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
+
+  }  /* end of loop on iterations */
+
+  return(0);
+}  /* end of stout_smear_inplace */
+
 }  /* end of namespace cvc */

@@ -27,6 +27,10 @@ int rms_radius ( double ** const r2, double ** const w2, double * const s, int c
 
 int source_profile ( double *s, int source_coords[4], char*prefix );
 
+void generic_staples ( double * const buff_out, const unsigned int x, const int mu, double * const buff_in );
+
+int stout_smear_inplace ( double * const m_field, const int stout_n, const double stout_rho, double * const buffer );
+
 
 }
 #endif
