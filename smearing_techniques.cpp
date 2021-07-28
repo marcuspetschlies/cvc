@@ -569,7 +569,7 @@ int source_profile ( double *s, int source_coords[4], char*prefix ) {
 /******************************************
  *
  ******************************************/
-inline void _ADD_STAPLES_TO_COMPONENT( double * const buff_out, double * const buff_in, unsigned int const x,  int const to, int const via) 
+void _ADD_STAPLES_TO_COMPONENT( double * const buff_out, double * const buff_in, unsigned int const x,  int const to, int const via) 
 {
   double tmp[18], tmp2[18];
 
@@ -631,7 +631,7 @@ void generic_staples ( double * const buff_out, const unsigned int x, const int 
 /******************************************
  *
  ******************************************/
-inline void exposu3( double * const vr, double * const p ) {
+void exposu3( double * const vr, double * const p ) {
   
   double v[18], v2[18];
 
