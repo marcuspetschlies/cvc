@@ -69,8 +69,8 @@ extern "C"
 
 #define _PART_Ia  1  /* loop calculation */
 #define _PART_IIb 1  /* N1, N2 */
-#define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  1  /* W type sequential diagrams */
+#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
+#define _PART_IV  0  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
