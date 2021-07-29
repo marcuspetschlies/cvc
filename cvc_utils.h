@@ -144,6 +144,9 @@ void spinor_field_mi_eq_spinor_field_ti_re(double*r, double*s, double c, unsigne
 void spinor_field_ti_eq_re (double *r, double c, unsigned int N);
 void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N);
 
+void spinor_field_pl_eq_spinor_field_ti_re ( double * const r, double * const s, double const a, unsigned int const N );
+
+
 void spinor_field_eq_spinor_field_ti_real_field (double*r, double*s, double *c, unsigned int N);
 void spinor_field_eq_spinor_field_ti_complex_field (double*r, double*s, double *c, unsigned int N);
 
