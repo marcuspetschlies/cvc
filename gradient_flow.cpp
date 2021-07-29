@@ -113,22 +113,38 @@ void apply_ZX ( double * const g, double * const z, double const dt ) {
 }  /* end of parallel region */
 #endif
 
+}  /* end of apply_ZX */
+
 /******************************************************************
  * apply Laplace to spinor field
+ *
+ * in-place s == r_in is okay, we copy r_in to independent r ahead
+ * of application
  ******************************************************************/
-int apply_laplace ( double * const s, double * const r_in, double * const g ) {
+void apply_laplace ( double * const s, double * const r_in, double * const g ) {
 
-  const unsigned int N = VOLUME;
+  unsigned int const N = VOLUME;
+  static double * r = NULL;
 
-  double * r = (double*) malloc ( _GSI( (VOLUME+RAND) ) * sizeof(double) );
+  if ( s == NULL ) {
+    if ( r != NULL ) free ( r );
+    fprintf ( stdout, "# [apply_laplace] clean up done %s %d\n", __FILE__, __LINE__ );
+    return;
+  }
+
   if ( r == NULL ) {
-    fprintf ( stderr, "[spinor_field_eq_cov_displ_spinor_field] Error from malloc %s %d\n", __FILE__, __LINE__ );
-    return ( 1 );
+    r = (double*) malloc ( _GSI( (VOLUME+RAND) ) * sizeof(double) );
+    if ( r == NULL ) {
+      fprintf ( stderr, "[apply_laplace] Error from malloc %s %d\n", __FILE__, __LINE__ );
+      return;
+    }
   }
   memcpy ( r, r_in, _GSI(VOLUME)*sizeof(double) );
 
 #ifdef HAVE_MPI
   xchange_field( r );
+
+  xchange_gauge_field( g );
 #endif
 
 #ifdef HAVE_OPENMP
@@ -137,16 +153,17 @@ int apply_laplace ( double * const s, double * const r_in, double * const g ) {
   for ( unsigned int ix = 0; ix < N; ix++ ) {
 
     double * const s_ = s + _GSI(ix);
+    double * const r_ = r + _GSI(ix);
     double spinor1[24];
 
-    _fv_eq_fv_ti_re ( s_, r + _GSI(ix) , -8. );
+    _fv_eq_fv_ti_re ( s_, r_, -8. );
 
 
     for ( int mu = 0; mu < 4; mu++ ) {
         /* ================================================
            =============== direction mu fwd ===============
            ================================================ */
-        double * const U_fwd = gauge_field+_GGI(ix,mu);
+        double * const U_fwd = g + _GGI(ix,mu);
 
         /* ix_fwd */
         unsigned int const ix_fwd = g_iup[ix][mu];
@@ -162,7 +179,7 @@ int apply_laplace ( double * const s, double * const r_in, double * const g ) {
         /* ================================================
            =============== direction mu bwd ===============
            ================================================ */
-        double * const U_bwd = gauge_field+_GGI( g_idn[ix][mu], mu);
+        double * const U_bwd = g + _GGI( g_idn[ix][mu], mu);
 
         /* ix_bwd */
         unsigned int const ix_bwd = g_idn[ix][mu];
@@ -179,29 +196,81 @@ int apply_laplace ( double * const s, double * const r_in, double * const g ) {
 
   }  /* end of loop on ix over VOLUME */
 
-  free ( r );
-  return ( 0 );
-}  /* end of spinor_field_eq_cov_displ_spinor_field */
+  return;
+}  /* end of apply_laplace */
 
 
 /******************************************************************
  * using 4-dimensional isotropic stout smearing as kernel
  ******************************************************************/
-void flow_fwd_gauge_spinor_field ( double * const g, double * const phi, unsigned int const niter, double const dt ) {
+void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigned int const niter, double const dt, int const flow_gauge, int const flow_spinor ) {
 
-  size_t sizeof_gauge_field = 72 * VOLUME * sizeof ( double ) ;
+  size_t const sizeof_gauge_field  = 72 * VOLUME * sizeof ( double );
+  size_t const sizeof_spinor_field = _GSI(VOLUME) * sizeof ( double );
 
-  double * w = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
-  double * z = init_1level_dtable ( 72 * VOLUME );
+  static double * w = NULL, * z = NULL;
+  static double ** phi = NULL;
 
-  memcpy ( w, g, sizeof_gauge_field );
+  /******************************************************************
+   * trigger clean-up with no flow
+   ******************************************************************/
+  if ( ! ( flow_gauge  || flow_spinor ) ) {
+    apply_laplace ( NULL, NULL, NULL );
+
+    fini_1level_dtable ( &w );
+    fini_1level_dtable ( &z );
+
+    fini_2level_dtable ( &phi );
+        
+    fprintf ( stdout, "# [flow_fwd_gauge_spinor_field] clean up done %s %d\n", __FILE__, __LINE__ );
+    return;
+  }
+
+  /******************************************************************
+   * allocate gauge fields
+   ******************************************************************/
+  if ( w == NULL ) { 
+    w = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
+    if ( w == NULL ) {
+      fprintf ( stderr, "[flow_fwd_gauge_spinor_field] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+      return;
+    }
+  }
+
+  if ( z == NULL ) { 
+    z = init_1level_dtable ( 72 * VOLUME );
+    if ( z == NULL ) {
+      fprintf ( stderr, "[flow_fwd_gauge_spinor_field] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+      return;
+    }
+  }
+
+  /******************************************************************
+   * allocate phi fields
+   ******************************************************************/
+  if ( phi == NULL ) { 
+    phi = init_2level_dtable ( 4,  _GSI(VOLUME+RAND) );
+    if ( phi == NULL ) {
+      fprintf ( stderr, "[flow_fwd_gauge_spinor_field] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+      return;
+    }
+  }
 
   /******************************************************************
    * STEP 0
    *
    * W0 = g
+   *
+   * phi3 = chi
    ******************************************************************/
+  memcpy ( w, g, sizeof_gauge_field );
+#ifdef HAVE_MPI
   xchange_gauge_field ( w );
+#endif
+
+  if ( flow_spinor ) {
+    memcpy ( phi[3], chi, sizeof_spinor_field );
+  }
 
   /* loop on time steps */
   for ( unsigned int iter = 0; iter < niter; iter++ ) {
@@ -213,9 +282,32 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const phi, unsigne
      *
      ******************************************************************/
 
-    ZX ( z, w, 1./4., 0. );
+    if ( flow_spinor ) {
 
-    apply_ZX ( w, z, dt );
+      /* update initial field phi0 from phi3,
+       * phi3 set either from previous iteration or by initialization STEP 0 above */
+      memcpy ( phi[0], phi[3], sizeof_spinor_field );
+
+      /* phi1 = phi0 */
+      memcpy ( phi[1], phi[0], sizeof_spinor_field );
+
+      /* phi2 = phi0 */
+      memcpy ( phi[2], phi[0], sizeof_spinor_field );
+
+      /* phi0 <- Delta0 phi0 */
+      apply_laplace ( phi[0], phi[0], w );
+
+      /* phi1 <- phi1 + dt/4 phi0 = phi1 + dt/4 Delta0 phi0 */
+      spinor_field_pl_eq_spinor_field_ti_re ( phi[1], phi[0],  dt/4., VOLUME );
+    }
+
+    if ( flow_gauge ) {
+      /* calculate Z0 = Z( W0 ) */
+      ZX ( z, w, 1./4., 0. );
+
+      /* W1 = exp(dt Z0) W0 */
+      apply_ZX ( w, z, dt );
+    }
 
     /******************************************************************
      * STEP 2
@@ -224,9 +316,29 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const phi, unsigne
      *
      ******************************************************************/
 
-    ZX ( z, w, 8./9., -17./9. );
+    if ( flow_spinor ) {
 
-    apply_ZX ( w, z, dt );
+      /* phi3 = phi1 */
+      memcpy ( phi[3], phi[1], sizeof_spinor_field );
+
+      /* phi1 <- Delta1 phi1 */
+      apply_laplace ( phi[1], phi[1], w );
+
+      /* phi2 <- phi2 + dt 8/9 phi1 = phi0 + dt 8/9 Delta1 phi1 */
+      spinor_field_pl_eq_spinor_field_ti_re ( phi[2], phi[1],  dt*8./9., VOLUME );
+
+      /* phi2 <- phi2 -dt 2/9 phi0 = phi0 + dt 8/9 Delta1 phi1 - 2/9 Delta0 phi0 */
+      spinor_field_pl_eq_spinor_field_ti_re ( phi[2], phi[0],  -dt*2./9., VOLUME );
+    }
+
+    if ( flow_gauge ) {
+      /* calculate Z1 = Z( W1 )
+       * and z <- 8/9 Z1 -17/9 z = 8/9 Z1 - 17/36 Z0 */
+      ZX ( z, w, 8./9., -17./9. );
+
+      /* W2 = exp( dt z ) W1 */
+      apply_ZX ( w, z, dt );
+    }
 
     /******************************************************************
      * STEP 3
@@ -235,19 +347,34 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const phi, unsigne
      *
      ******************************************************************/
 
-    ZX ( z, w, 3./4., -1. );
+    if ( flow_spinor ) {
 
-    apply_ZX ( w, z, dt );
+      /* phi2 <- Delta2 phi2 */
+      apply_laplace ( phi[2], phi[2], w );
+
+      /* phi3 <- phi3 + dt 3/4 phi2 = phi1 + dt 3/4 Delta2 phi2 */
+      spinor_field_pl_eq_spinor_field_ti_re ( phi[3], phi[2], dt*3./4., VOLUME );
+    }
+
+    if ( flow_gauge ) {
+   
+      /* calculate Z2 = Z( W2 )
+       * and z <- 3/4 Z2 - z = 3/4 Z2 - 8/9 Z1 + 17/36 Z1 */
+      ZX ( z, w, 3./4., -1. );
+
+      apply_ZX ( w, z, dt );
+    }
 
   }  /* end of loop on iterations */
 
-
-  fini_1level_dtable ( &w );
-  fini_1level_dtable ( &z );
+  if ( flow_gauge ) {
+    memcpy ( g, w, sizeof_gauge_field );
+  }
+  if ( flow_spinor ) {
+    memcpy ( chi, phi[3], sizeof_spinor_field );
+  }
 
 }  /* end of flow_fwd_gauge_field */
-
-
 
 }  /* end of namespace cvc */
 
