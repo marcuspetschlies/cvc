@@ -63,6 +63,7 @@ extern "C"
 #include "gamma.h"
 #include "clover.h"
 #include "gradient_flow.h"
+#include "gluon_operators.h"
 
 using namespace cvc;
 
@@ -241,12 +242,12 @@ int main(int argc, char **argv) {
   /***********************************************************
    * multiply the phase to the gauge field
    ***********************************************************/
-  /* double *gauge_field_with_phase = NULL;
+  double *gauge_field_with_phase = NULL;
   exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
   if(exitstatus != 0) {
     fprintf(stderr, "[test_gradient_flow] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
-  } */
+  }
 
   /***************************************************************************
    * initialize the clover term, 
@@ -255,12 +256,12 @@ int main(int argc, char **argv) {
    *   mzz = space-time diagonal part of the Dirac matrix
    *   l   = light quark mass
    ***************************************************************************/
-  /* double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
+  double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
   exitstatus = init_clover ( &lmzz, &lmzzinv, gauge_field_with_phase );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[test_gradient_flow] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
-  } */
+  }
 
   /***************************************************************************
    * set io process
@@ -295,14 +296,18 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   double ** spinor_field = init_2level_dtable ( 2, _GSI( VOLUME ) );
+  double ** spinor_work  = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
   
   double * gauge_field_smeared = init_1level_dtable ( 72 * VOLUME );
 
-  unsigned int const gf_niter = 100;
+  unsigned int const gf_niter = 500;
   double const gf_dt = 0.01;
 
   memcpy ( gauge_field_smeared, g_gauge_field, sizeof_gauge_field );
 
+  /***************************************************************************
+   * GF application iteration
+   ***************************************************************************/
   for ( unsigned int i = 0; i < gf_niter; i++ ) {
 
     gettimeofday ( &ta, (struct timezone *)NULL );
@@ -312,18 +317,26 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "test_gradient_flow", "flow_fwd_gauge_spinor_field", g_cart_id == 0 );
 
-    exitstatus = plaquetteria  ( gauge_field_smeared );
+    /* exitstatus = plaquetteria  ( gauge_field_smeared );
     if ( exitstatus != 0 ) {
       fprintf( stderr, "[test_gradient_flow] Error from plaquetteria, stats %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(51);
-    }
+    } */
+    double plaq = 0.;
+    plaquette2 ( &plaq , gauge_field_smeared );
 
-    exitstatus = G_plaq ( Gp, g_gauge_field, 1);
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_plaq, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+
+    double *** Gp = init_3level_dtable ( VOLUME, 6, 9 );
+    if ( Gp == NULL ) {
+      fprintf ( stderr, "[test_gradient_flow] Error from  init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(8);
     }
 
+    exitstatus = G_plaq ( Gp, gauge_field_smeared, 1);
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[test_gradient_flow] Error from G_plaq, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
 
     double ** p_tc = init_2level_dtable ( T_global, 21 );
     if ( p_tc == NULL ) {
@@ -337,9 +350,87 @@ int main(int argc, char **argv) {
       EXIT(51);
     }
 
-  }
+    double ggE = 0.;
+    for ( int it = 0; it < T_global; it++ ) {
+      ggE += ( p_tc[it][0] + p_tc[it][6] + p_tc[it][11] + p_tc[it][15] + p_tc[it][18] + p_tc[it][20] ) * 0.25;
+    }
+
+    if ( io_proc == 2 ) {
+      fprintf( stdout, "%4d %6.4f %25.16e %25.16e\n", i+1, (double)(i+1)*gf_dt, 1.-plaq, ggE );
+    }
+
+    int source_timeslice = -1;
+    int source_proc_id   = -1;
+    int gts              = ( g_source_coords_list[0][0] +  T_global ) %  T_global;
+
+    exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[test_gradient_flow] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    exitstatus = init_timeslice_source_oet ( &(spinor_work[0]), gts, NULL, 1, 1, 0 );
+
+    memset ( spinor_work[1], 0, sizeof_spinor_field );
+
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], 0 );
+    if(exitstatus < 0) {
+      fprintf(stderr, "[test_gradient_flow] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(44);
+    }
+
+    if ( check_propagator_residual ) {
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[0], mzzinv[0], 1 );
+    }
+
+    /* allocate contraction fields in position and momentum space */
+    double * contr_x = init_1level_dtable ( 2 * VOLUME );
+    if ( contr_x == NULL ) {
+      fprintf(stderr, "[test_gradient_flow] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    double * contr_p = init_1level_dtable ( 2 * T );
+    if ( contr_p == NULL ) {
+      fprintf(stderr, "[test_gradient_flow] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    /* contractions in x-space */
+    contract_twopoint_xdep ( contr_x, 5, 5, spinor_work[1], spinor_work[1], 1, 1, 1, 1., 64 );
+
+    int mom[3] = {0, 0, 0 };
+    /* momentum projection at sink */
+    exitstatus = momentum_projection ( contr_x, contr_p, T, 1, &mom );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[test_gradient_flow] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    char data_tag[100];
+    sprintf ( data_tag, "/%c-gf-%c-gi/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", 'u', 'd', gts, 0, 5, 5, 0, 0, 0 );
+
+#if ( defined HAVE_LHPC_AFF ) 
+    exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &mom, 1, io_proc );
+#endif
+    if(exitstatus != 0) {
+      fprintf(stderr, "[test_gradient_flow] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+
+    STOPPED HERE
+
+    /* deallocate the contraction fields */
+    fini_1level_dtable ( &contr_x );
+    fini_2level_dtable ( &contr_p );
+
+    fini_2level_dtable ( &p_tc );
+    fini_3level_dtable ( &Gp );
+
+  }  /* end of loop on gf_niter */
 
   fini_2level_dtable ( &spinor_field );
+  fini_2level_dtable ( &spinor_work );
   fini_1level_dtable ( &gauge_field_smeared );
 
   flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
@@ -355,7 +446,7 @@ int main(int argc, char **argv) {
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   if ( g_gauge_field != NULL ) free(g_gauge_field);
 #endif
-  /* if ( gauge_field_with_phase != NULL ) free ( gauge_field_with_phase ); */
+  if ( gauge_field_with_phase != NULL ) free ( gauge_field_with_phase );
 
   /* free clover matrix terms */
   fini_clover ( );
