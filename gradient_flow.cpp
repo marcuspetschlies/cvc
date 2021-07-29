@@ -116,7 +116,7 @@ void apply_ZX ( double * const g, double * const z, double const dt ) {
 /******************************************************************
  * apply Laplace to spinor field
  ******************************************************************/
-int spinor_field_eq_cov_displ_spinor_field ( double * const s, double * const r_in, int const mu, int const fbwd, double * const gauge_field ) {
+int apply_laplace ( double * const s, double * const r_in, double * const g ) {
 
   const unsigned int N = VOLUME;
 
@@ -131,57 +131,53 @@ int spinor_field_eq_cov_displ_spinor_field ( double * const s, double * const r_
   xchange_field( r );
 #endif
 
-  if ( fbwd == 0 ) {
-    /**************************************************************
-     * FORWARD
-     **************************************************************/
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for ( unsigned int ix = 0; ix < N; ix++ ) {
+  for ( unsigned int ix = 0; ix < N; ix++ ) {
 
-      double * const s_ = s + _GSI(ix);
+    double * const s_ = s + _GSI(ix);
+    double spinor1[24];
 
-      /* ============================================ */
-      /* =============== direction mu =============== */
-      double * const U_fwd = gauge_field+_GGI(ix,mu);
+    _fv_eq_fv_ti_re ( s_, r + _GSI(ix) , -8. );
 
-      /* ix_fwd */
-      unsigned int const ix_fwd = g_iup[ix][mu];
 
-      double * const r_fwd_ = r + _GSI(ix_fwd);
+    for ( int mu = 0; mu < 4; mu++ ) {
+        /* ================================================
+           =============== direction mu fwd ===============
+           ================================================ */
+        double * const U_fwd = gauge_field+_GGI(ix,mu);
 
-      /* s_ = U_fwd r_fwd_ */
-      _fv_eq_cm_ti_fv( s_, U_fwd, r_fwd_ );
+        /* ix_fwd */
+        unsigned int const ix_fwd = g_iup[ix][mu];
+
+        double * const r_fwd_ = r + _GSI(ix_fwd);
+
+        /* spinor1 = U_fwd r_fwd_ */
+        _fv_eq_cm_ti_fv( spinor1, U_fwd, r_fwd_ );
+
+        /* s_ <- s_ + spinor1 = s_ + U_fwd r_fwd */
+        _fv_pl_eq_fv ( s_, spinor1 );
+
+        /* ================================================
+           =============== direction mu bwd ===============
+           ================================================ */
+        double * const U_bwd = gauge_field+_GGI( g_idn[ix][mu], mu);
+
+        /* ix_bwd */
+        unsigned int const ix_bwd = g_idn[ix][mu];
+
+        double * const r_bwd_ = r + _GSI(ix_bwd);
+
+        /* spinor1 = U_bwd^+ r_bwd_ */
+        _fv_eq_cm_dag_ti_fv( spinor1, U_bwd, r_bwd_ );
+
+        /* s_ <- s + spinor1 */
+        _fv_pl_eq_fv ( s_, spinor1 );
+      
+    }  /* end of loop on mu */
 
   }  /* end of loop on ix over VOLUME */
-
-} else if ( fbwd == 1 ) {
-    /**************************************************************
-     * BACKWARD
-     **************************************************************/
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-    for ( unsigned int ix = 0; ix < N; ix++ ) {
-
-      double * const s_ = s + _GSI(ix);
-
-      /* ============================================ */
-      /* =============== direction mu =============== */
-      double * const U_bwd = gauge_field+_GGI( g_idn[ix][mu], mu);
-
-      /* ix_bwd */
-      unsigned int const ix_bwd = g_idn[ix][mu];
-
-      double * const r_bwd_ = r + _GSI(ix_bwd);
-
-      /* s_ = U_bwd^+ r_bwd_ */
-      _fv_eq_cm_dag_ti_fv( s_, U_bwd, r_bwd_ );
-
-  }  /* end of loop on ix over VOLUME */
-
- }  /* end of if fbwd = 0 or 1 */
 
   free ( r );
   return ( 0 );
