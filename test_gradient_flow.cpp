@@ -312,8 +312,31 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "test_gradient_flow", "flow_fwd_gauge_spinor_field", g_cart_id == 0 );
 
-
     exitstatus = plaquetteria  ( gauge_field_smeared );
+    if ( exitstatus != 0 ) {
+      fprintf( stderr, "[test_gradient_flow] Error from plaquetteria, stats %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(51);
+    }
+
+    exitstatus = G_plaq ( Gp, g_gauge_field, 1);
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[cpff_xg_contract_lowmem] Error from G_plaq, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+
+    double ** p_tc = init_2level_dtable ( T_global, 21 );
+    if ( p_tc == NULL ) {
+      fprintf ( stderr, "[test_gradient_flow] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(8);
+    }
+
+    exitstatus = gluonic_operators_gg_from_fst_projected ( p_tc, Gp, 1 );
+    if ( exitstatus != 0 ) {
+      fprintf( stderr, "[test_gradient_flow] Error from gluonic_operators_gg_from_fst_projected, stats %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(51);
+    }
+
   }
 
   fini_2level_dtable ( &spinor_field );
