@@ -301,6 +301,13 @@ namespace cvc {
 
 /********************/
 
+/* r += Re( tr(A) ) */
+
+#define _re_pl_eq_tr_cm(r,A) { *r += (A)[ 0] + (A)[ 8] + (A)[16]; }
+
+/********************/
+
+
 /* Prints A. */
 
 /* #define _cm_fprintf(A,file) {\
