@@ -120,6 +120,8 @@ void apply_ZX ( double * const g, double * const z, double const dt ) {
  *
  * in-place s == r_in is okay, we copy r_in to independent r ahead
  * of application
+ *
+ * NOTE: input field g MUST HAVE BOUNDARY allocated
  ******************************************************************/
 void apply_laplace ( double * const s, double * const r_in, double * const g ) {
 
@@ -156,6 +158,7 @@ void apply_laplace ( double * const s, double * const r_in, double * const g ) {
     double * const r_ = r + _GSI(ix);
     double spinor1[24];
 
+    /* s = - 2 D r , D = 4 */
     _fv_eq_fv_ti_re ( s_, r_, -8. );
 
 
