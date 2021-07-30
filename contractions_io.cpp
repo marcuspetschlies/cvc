@@ -1202,12 +1202,12 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 /***********************************************************
  * write AFF contraction
  ***********************************************************/
-int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc) {
+int write_aff_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, unsigned int const nc, const char * data_type) {
 
   struct AffWriter_s *affw = NULL;
   struct AffNode_s *affn = NULL, *affdir = NULL;
   uint32_t items = nc;
-  int exitstatus;
+  int exitstatus = 0;
 
   if ( awriter != NULL ) {
     affw = (struct AffWriter_s *) awriter;
@@ -1240,7 +1240,12 @@ int write_aff_contraction ( void * const contr, void * const awriter, void * con
 
   /* fprintf ( stdout, "# [write_aff_contraction] items = %u path = %s\n", items , tag); */
 
-  exitstatus = aff_node_put_complex ( affw, affdir, (double _Complex*) contr, items );      
+  if ( strcmp( data_type , "complex" ) == 0 ) {
+    exitstatus = aff_node_put_complex ( affw, affdir, (double _Complex*) contr, items );
+  } else if ( strcmp( data_type , "double" ) == 0 ) {
+    exitstatus = aff_node_put_double ( affw, affdir, (double*) contr, items );
+  }
+
   if( exitstatus != 0 ) {
     fprintf(stderr, "[write_aff_contraction] Error from aff_node_put_complex for key \"%s\", status was %d errmsg %s %s %d\n", tag, exitstatus,
        aff_writer_errstr ( affw ), __FILE__, __LINE__);
@@ -1258,6 +1263,9 @@ int write_aff_contraction ( void * const contr, void * const awriter, void * con
   return ( 0 );
 
 }  /* end of write_aff_contraction */
+
 #endif
+
+
 
 }  /* end of namespace cvc */
