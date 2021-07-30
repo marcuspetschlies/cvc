@@ -275,7 +275,7 @@ int main(int argc, char **argv) {
 
     fini_2level_dtable ( &propagator_field );
 
-   } else if ( strncmp ( limefile_type, "Contraction", 11 ) == 0 ) {
+  } else if ( strncmp ( limefile_type, "Contraction", 11 ) == 0 ) {
 
     /***************************************************************************
      * write as generic contraction field
@@ -318,7 +318,57 @@ int main(int argc, char **argv) {
     fclose ( ofs );
 
     fini_2level_dtable ( &field );
-   }
+
+  } else if ( strncmp ( limefile_type, "SZIN", 4 ) == 0 ) {
+
+    /***************************************************************************
+     * write as generic contraction field
+     ***************************************************************************/
+    int const nc = 144;
+    if ( nc == 0 ) {
+      fprintf ( stderr, "[lime2ascii] Error, number of components is zero %s %d\n", __FILE__, __LINE__ );
+      EXIT(2);
+    } else {
+      fprintf ( stdout, "# [lime2ascii] using type = %s with nc = %d double complex %s %d\n", limefile_type, nc, __FILE__, __LINE__ );
+    }
+
+    double * field = init_1level_dtable ( VOLUME * 2 * nc );
+
+    if ( limefile_position == -1 ) limefile_position = 0;
+
+    exitstatus = read_lime_propagator ( field, limefile_name, limefile_position);
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[lime2ascii] Error from read_lime_propagator for file \"%s\", status was %d %s %d\n", limefile_name, exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+    sprintf ( filename,"%s.ascii", limefile_name);
+    FILE * ofs = fopen ( filename, "w" );
+
+    for ( int x0 = 0; x0 < T; x0++ ) {
+    for ( int x1 = 0; x1 < LX; x1++ ) {
+    for ( int x2 = 0; x2 < LY; x2++ ) {
+    for ( int x3 = 0; x3 < LZ; x3++ ) {
+      unsigned int const ix = g_ipt[x0][x1][x2][x3];
+      fprintf ( ofs, "# [lime2ascii] x %3d %3d %3d %3d\n", x0, x1, x2, x3 );
+
+
+      for ( int isc = 0; isc < 12; isc++ ) {
+        for ( int ir = 0; ir < 12; ir++ ) {
+
+          int const is = 3 * ( 3 * ( 4 * (ir/3) + (isc/3) ) + (ir%3) ) + (isc%3);
+
+          fprintf ( ofs, "  %3d  %3d   %25.16e   %25.16e\n", isc, ir, field[2*(nc*ix + is)], field[2*(nc*ix + is) + 1] );
+        }
+        fprintf ( ofs, "\n" );
+      }
+
+    }}}}
+
+    fclose ( ofs );
+
+    fini_1level_dtable ( &field );
+  }
 
 
   free_geometry();
