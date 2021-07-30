@@ -37,6 +37,7 @@
 #include "cvc_complex.h"
 #include "iblas.h"
 #include "ilinalg.h"
+#include "cvc_timer.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -2553,35 +2554,43 @@ int cvc_loop_eo_check_wi_momentum_space_lma ( double **wi, double ***loop_lma, i
 /***********************************************************/
 /***********************************************************/
 
+#ifdef _CONTRACT_CVC_TENSOR_INCLUDES
 /***********************************************************
  * contractions for eo-precon lm cvc - cvc tensor
  ***********************************************************/
 // #include "contract_cvc_tensor_eo_lm_factors.cpp"
+#endif
 
 /***********************************************************/
 /***********************************************************/
 
+#ifdef _CONTRACT_CVC_TENSOR_INCLUDES
 /***********************************************************
  * contractions for Mee part of eo-precon lm cvc - cvc tensor
  ***********************************************************/
 #include "contract_cvc_tensor_eo_lm_mee.cpp"
+#endif
 
 /***********************************************************/
 /***********************************************************/
 
+#ifdef _CONTRACT_CVC_TENSOR_INCLUDES
 /***********************************************************
  * contractions for Mee part of eo-precon lm cvc - cvc tensor
  ***********************************************************/
 #include "contract_cvc_tensor_eo_lm_ct.cpp"
+#endif
 
 /***********************************************************/
 /***********************************************************/
 
+#ifdef _CONTRACT_CVC_TENSOR_INCLUDES
 /***********************************************************
  * contractions for Mee part of eo-precon lm mee contribution
  * to cvc - cvc tensor
  ***********************************************************/
 #include "contract_cvc_tensor_eo_lm_mee_ct.cpp"
+#endif
 
 /***********************************************************/
 /***********************************************************/
