@@ -83,7 +83,8 @@ void contract_twopoint(double *contr, const int idsource, const int idsink, doub
 void contract_twopoint_snk_momentum(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int*snk_mom);
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 
-void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec);
+void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void * const chi, void * const phi, int const n_s, int const n_c, unsigned int const stride, double const factor, size_t const prec);
+
 void contract_twopoint_xdep_timeslice(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec);
 
 int decompress_gauge(double*gauge_aux, float*gauge_field_flt);
@@ -162,8 +163,8 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 int check_cvc_wi_position_space (double *conn);
 
 int assign_fermion_propagator_from_spinor_field (fermion_propagator_type *s, double**prop_list, unsigned int N);
-int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N);
-int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
+int assign_spinor_field_from_fermion_propagator (double**prop_list, fermion_propagator_type *s, unsigned int N);
+int assign_spinor_field_from_fermion_propagator_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N);
 
 void spinor_field_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
 void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsigned int N);
@@ -172,6 +173,8 @@ void spinor_field_pl_eq_spinor_field_ti_co (double*r, double*s, complex w, unsig
 void xchange_eo_propagator ( fermion_propagator_type *fp, int eo, int dir);
 
 int get_point_source_info (int const gcoords[4], int lcoords[4], int*proc_id);
+
+int get_timeslice_source_info (int gts, int *lts, int*proc_id);
 
 void complex_field_ti_eq_re (double *r, double c, unsigned int N);
 
@@ -189,7 +192,11 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
 
 void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
 
+void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
+
 void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N );
+
+void co_field_mi_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N );
 
 void co_field_eq_co_field_pl_co_field  ( double*r, double*s, double*t, unsigned int N );
 

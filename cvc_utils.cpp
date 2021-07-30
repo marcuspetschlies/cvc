@@ -3799,53 +3799,51 @@ void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, co
  *   prec - precision type, 64 for double precision, single precision else
  *
  ******************************************************************************/
-void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void*chi, void*phi, int n_c, int stride, double factor, size_t prec) {
+void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void * const chi, void * const phi, int const n_s, int const n_c, unsigned int const stride, double const factor, size_t const prec) {
+
+
+  int isimag = 0;
+  int    * psource = (int   *)calloc ( n_s , sizeof(int)    );
+  double * ssource = (double*)calloc ( n_s , sizeof(double) );
+
+  for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+    ssource[mu] = 1.;
+  }
+
+  if ( idsource >= 0 && idsource < 16 && n_s > 1 ) {
+    /* permutation and sign from the source gamma matrix; the minus sign
+     * in the lower two lines is the action of gamma_5 */
+
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      psource[mu] = gamma_permutation[idsource][6*mu] / 6;
+      ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
+    }
+
+    isimag = gamma_permutation[idsource][ 0] % 2;
+  }
+
+  if ( g_cart_id == 0 && g_verbose > 3 ) {
+    fprintf(stdout, "# [contract_twopoint_xdep] __________________________________\n");
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      fprintf(stdout, "# [contract_twopoint_xdep] isource=%d, idsink=%d, p[%d] = %d, s[%d] = %e\n", idsource, idsink, mu, psource[mu], mu, ssource[mu] );
+    }
+  }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(chi,phi,stride,n_c,factor,prec,contr)
+#pragma omp parallel shared(contr,psource,ssource,isimag)
 {
 #endif
-  const int psource[4] = { gamma_permutation[idsource][ 0] / 6,
-                           gamma_permutation[idsource][ 6] / 6,
-                           gamma_permutation[idsource][12] / 6,
-                           gamma_permutation[idsource][18] / 6 };
-  const int isimag = gamma_permutation[idsource][ 0] % 2;
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  double ssource[4];
-
-  ssource[0] = (double)( gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]] );
-  ssource[1] = (double)( gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]] );
-  ssource[2] = (double)( gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]] );
-  ssource[3] = (double)( gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] );
-
-/*
- * if( g_cart_id == 0 ) {
-    fprintf(stdout, "__________________________________\n");
-    fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d, s[0] = %e\n", idsource, idsink, psource[0], ssource[0]);
-    fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d, s[1] = %e\n", idsource, idsink, psource[1], ssource[1]);
-    fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d, s[2] = %e\n", idsource, idsink, psource[2], ssource[2]);
-    fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d, s[3] = %e\n", idsource, idsink, psource[3], ssource[3]);
-    fprintf(stdout, "isource=%d, idsink=%d, factor = %e\n", idsource, idsink, factor);
-
-    fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-        ssource[0], ssource[1], ssource[2], ssource[3]);
-  }
-*/
-
-  int mu, c, j;
-  unsigned int ix, iix;
   double  spinor1[24], spinor2[24];
   complex w;
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-  for(ix=0; ix<VOLUME; ix++) {
-    iix = ix * stride;
+  for ( unsigned int ix=0; ix<VOLUME; ix++) {
+    unsigned int const iix = ix * stride;
 
-    for(mu=0; mu<4; mu++) {
-      for(c=0; c<n_c; c++) {
+    for ( int mu=0; mu<n_s; mu++) {
+      for ( int c=0; c<n_c; c++) {
 
         if(prec==64) {
           _fv_eq_gamma_ti_fv(spinor1, idsink, (double*)(((double**)phi)[mu*n_c+c])+_GSI(ix));
@@ -3888,6 +3886,8 @@ void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, vo
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+  free ( psource );
+  free ( ssource );
 }  /* end of contract_twopoint_xdep */
 
 
@@ -6209,10 +6209,10 @@ int assign_fermion_propagator_from_spinor_field (fermion_propagator_type *s, dou
 /***************************************************
  * fermion propagator points to spinor fields
  ***************************************************/
-int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_propagator_type *s, unsigned int N) {
+int assign_spinor_field_from_fermion_propagator (double**prop_list, fermion_propagator_type *s, unsigned int N) {
 
   if(s[0][0] == prop_list[0]) {
-    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagator] Error, input fields have same address\n");
     return(1);
   }
 #ifdef HAVE_OPENMP
@@ -6233,16 +6233,16 @@ int assign_spinor_field_from_fermion_propagaptor (double**prop_list, fermion_pro
 }
 #endif
   return(0);
-}  /* end of assign_spinor_field_from_fermion_propagaptor */
+}  /* end of assign_spinor_field_from_fermion_propagator */
 
 /***************************************************
  * component of fermion propagator points
  * to spinor fields
  ***************************************************/
-int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
+int assign_spinor_field_from_fermion_propagator_component (double*spinor_field, fermion_propagator_type *s, int icomp, unsigned int N) {
 
   if(s[0][0] == spinor_field) {
-    fprintf(stderr, "[assign_spinor_field_from_fermion_propagaptor] Error, input fields have same address\n");
+    fprintf(stderr, "[assign_spinor_field_from_fermion_propagator] Error, input fields have same address\n");
     return(1);
   }
 #ifdef HAVE_OPENMP
@@ -6263,7 +6263,7 @@ int assign_spinor_field_from_fermion_propagaptor_component (double*spinor_field,
 }
 #endif
   return(0);
-}  /* end of assign_spinor_field_from_fermion_propagaptor_component */
+}  /* end of assign_spinor_field_from_fermion_propagator_component */
 
 /***********************************************************
  * r = s * c
@@ -6552,6 +6552,28 @@ int get_point_source_info (int const gcoords[4], int lcoords[4], int*proc_id) {
   return(0);
 }  /* end of get_point_source_info */
 
+/**************************************************************************/
+/**************************************************************************/
+
+/**************************************************************************
+ * determine the source process id and local source coordinates from
+ * global source coordinates
+ *
+ * IN  gts     = global timeslice
+ * OUT lts     = local timeslice
+ * OUT proc_id = own grid proc number if have source, -1 else
+ **************************************************************************/
+int get_timeslice_source_info (int gts, int *lts, int*proc_id) {
+
+  *proc_id = ( gts / T  == g_proc_coords[0] ) ? g_cart_id : -1;
+
+  *lts = ( *proc_id == g_cart_id ) ? gts % T : -1;
+
+  return(0);
+}  /* end of get_timeslice_source_info */
+
+/**************************************************************************/
+/**************************************************************************/
 
 /* r *= c */
 void complex_field_ti_eq_re (double *r, double c, unsigned int N) {
@@ -6821,6 +6843,38 @@ void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
 
 }  /* co_field_eq_fv_dag_ti_fv */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * c += r^+ s point-wise
+ ***********************************************************/
+void co_field_pl_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  double *r_ = NULL, *s_ = NULL;
+  complex *c_ = NULL;
+  unsigned int offset;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++ ) {
+    offset = _GSI( ix );
+    r_ = r + offset;
+    s_ = s + offset;
+    c_ = (complex*)c + ix;
+    _co_pl_eq_fv_dag_ti_fv( c_, r_, s_);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+
+}  /* co_field_pl_eq_fv_dag_ti_fv */
+
 
 /* c = r^+ gamma s point-wise */
 void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, unsigned int N ) {
@@ -6847,6 +6901,33 @@ void co_field_eq_fv_dag_ti_gamma_ti_fv (double*c, double*r, int gid, double*s, u
 }
 #endif
 }  /* co_field_eq_fv_dag_ti_gamma_ti_fv */
+
+/* c -= r^+ s point-wise */
+void co_field_mi_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  unsigned int ix;
+  double *r_ = NULL, *s_ = NULL;
+  complex *c_ = NULL;
+  unsigned int offset;
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for(ix=0; ix<N; ix++ ) {
+    offset = _GSI( ix );
+    r_ = r + offset;
+    s_ = s + offset;
+    c_ = (complex*)c + ix;
+    _co_mi_eq_fv_dag_ti_fv ( c_, r_, s_);
+  }
+#ifdef HAVE_OPENMP
+}
+#endif
+
+}  /* co_field_mi_eq_fv_dag_ti_fv */
 
 
 /* c = r + s point-wise */
