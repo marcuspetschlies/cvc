@@ -38,6 +38,8 @@ int write_checksum(char * filename, DML_Checksum *checksum);
 
 int read_lime_spinor(double * const s, char * filename, const int position);
 
+int read_lime_propagator(double * const s, char * filename, const int position);
+
 int read_cmi(double *v, const char * filename);
 int write_binary_spinor_data_timeslice(double * const s, LimeWriter * limewriter,
   const int prec, int timeslice, DML_Checksum * ans);
@@ -53,7 +55,15 @@ int prepare_propagator2(int *source_coords, int iread, int sign, void *work, int
 int rotate_propagator_ETMC_UKQCD (double *spinor, long unsigned int V);
 
 int read_lime_spinor_single(float * const s, char * filename, const int position);
+
 int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReader * limereader, const int prec, DML_Checksum *ans);
+
+#ifdef HAVE_LIBLEMON
+int read_binary_propagator_data(double * const s, LemonReader * reader, const int prec, DML_Checksum *checksum);
+#else
+int read_binary_propagator_data(double * const s, LimeReader * limereader, const int prec, DML_Checksum *ans);
+#endif
+
 int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename, const int position, DML_Checksum*checksum);
 
 int write_source_type(const int type, char * filename);
