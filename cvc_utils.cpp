@@ -6816,6 +6816,70 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * multiply the bc -1 to the gauge field in t-direction
+ ***********************************************************/
+int gauge_field_eq_gauge_field_ti_bcfactor (double ** const gauge_field_with_bc, double * const gauge_field, double _Complex const bcfactor ) {
+
+  int exitstatus;
+  struct timeval ta, tb;
+  complex const wbc = { creal(bcfactor), cimag(bcfactor) };
+
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  /* allocate gauge field if necessary */
+  if( *gauge_field_with_bc == NULL ) {
+    if( g_cart_id == 0 ) fprintf(stdout, "# [gauge_field_eq_gauge_field_ti_bcfactor] allocating new gauge field\n" );
+
+    alloc_gauge_field( gauge_field_with_bc, VOLUMEPLUSRAND);
+    if( *gauge_field_with_bc == NULL )  {
+      fprintf(stderr, "[gauge_field_eq_gauge_field_ti_bcfactore] Error from alloc_gauge_field %s %d\n", __FILE__, __LINE__);
+      return(1);
+    }
+  }
+
+  /* copy all gauge field */
+  memcpy (  (*gauge_field_with_bc), gauge_field, 72*VOLUME*sizeof(double) );
+
+  unsigned int const VOL3 = LX * LY * LZ;
+  int const have_temporal_boundary = ( ( T_global - 1 ) / T == g_proc_coords[0] );
+  if ( have_temporal_boundary ) {
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [gauge_field_eq_gauge_field_ti_bcfactor] proc %4d (%3d,%3d,%3d,%3d) has boundary timeslice\n",
+        g_cart_id, g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    for( unsigned int iy = 0; iy < VOL3; iy++ ) {
+      unsigned int const ix  = ( T - 1 ) * VOL3 + iy;
+      /* only in time direction */
+      unsigned int const iix = _GGI(ix,0);
+      _cm_eq_cm_ti_co ( (*gauge_field_with_bc) + iix, gauge_field + iix, &wbc );
+    }
+  }  /* end of if have_temporal_boundary */
+
+#ifdef HAVE_MPI
+  xchange_gauge_field( *gauge_field_with_bc );
+#endif
+
+  /* measure the plaquette */
+  exitstatus = plaquetteria( *gauge_field_with_bc );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[gauge_field_eq_gauge_field_ti_bcfactor] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    return(2);
+  }
+
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "gauge_field_eq_gauge_field_ti_bcfactor", "all", g_cart_id == 0 );
+
+  return(0);
+}  /* end of gauge_field_eq_gauge_field_ti_bcfactor */
+
+/***********************************************************/
+/***********************************************************/
+
 /* c = r^+ s point-wise */
 void co_field_eq_fv_dag_ti_fv (double*c, double*r, double*s, unsigned int N ) {
 #ifdef HAVE_OPENMP
