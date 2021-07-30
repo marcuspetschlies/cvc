@@ -744,15 +744,24 @@ int init_coherent_sequential_source(double *s, double **p, int tseq, int ncoh, i
   return(0);
 }  /* end of function init_sequential_source */
 
+/**********************************************************/
+/**********************************************************/
 
 /**********************************************************
  * timeslice sources for one-end trick with spin dilution 
+ *
+ * spin_dilution  = 1 or 4 ( no dilution, full dilution )
+ * color_dilution = 1 or 3 ( no dilution, full dilution )
  **********************************************************/
-int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
+int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const momentum, int const spin_dilution, int const color_dilution, int const init) {
+
   const unsigned int sf_items = _GSI(VOLUME);
   const size_t       sf_bytes = sf_items * sizeof(double);
   const int          have_source = ( tsrc / T == g_proc_coords[0] ) ? 1 : 0;
   const unsigned int VOL3 = LX*LY*LZ;
+  const int nspin = ( spin_dilution  == 0 ) ? 0 : 4 / spin_dilution;
+  const int ncol  = ( color_dilution == 0 ) ? 0 : 3 / color_dilution;
+  const int nsc   = nspin * ncol;
 
   static double *ran = NULL;
   double ratime, retime;
@@ -766,20 +775,23 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
     }
   
     if(have_source) {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
+      if ( g_verbose > 0 ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d = (%d, %d, %d, %d) allocates random field\n", g_cart_id,
           g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
-      ran = (double*)malloc(6*VOL3*sizeof(double));
+
+      ran = (double*)malloc( 2 * nsc * VOL3*sizeof(double));
       if(ran == NULL) {
-        fprintf(stderr, "[init_timeslice_source_oet] Error from malloc %s %d\n", __FILE__, __LINE__ );
+        fprintf(stderr, "[init_timeslice_source_oet] Error from malloc\n");
         return(1);
       }
     }
   } else if ( init == 0 ) {
     if( have_source ) {
       if( ran == NULL ) {
-        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n", g_cart_id);
+        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n",
+            g_cart_id);
         fflush(stdout);
-        fprintf(stderr, "[init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n", g_cart_id);
+        fprintf(stderr, "[init_timeslice_source_oet] proc%.4d Error, illegal call to function init_timeslice_source_oet with init = 0, random field is not initialized\n",
+            g_cart_id);
         return(2);
       }
     }
@@ -793,7 +805,7 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
     if ( ran != NULL ) { free(ran); ran = NULL; }
     if ( have_source ) {
         const int timeslice = tsrc % T;  /*local timeslice */
-        ran = (double*)malloc(6*VOL3*sizeof(double));
+        ran = ( double * )malloc ( 2 * nsc * VOL3 * sizeof(double));
         if(ran == NULL) {
           fprintf(stderr, "[init_timeslice_source_oet] Error from malloc %s %d\n", __FILE__, __LINE__);
           return(1);
@@ -802,104 +814,171 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
 #pragma omp parallel for
 #endif
       for( unsigned ix=0; ix<VOL3; ix++) {
-        unsigned int iix = _GSI(timeslice * VOL3 + ix);
-        memcpy( ran+(6*ix), s[0]+iix, 6*sizeof(double) );
+        unsigned int const iix = _GSI(timeslice * VOL3 + ix);
+  
+        for ( int ispin = 0; ispin < nspin; ispin++ ) {
+          for ( int icol = 0; icol < ncol; icol++ ) {
+            ran[2*( nsc * ix + ispin*ncol+icol)  ] = s[0][iix + 2*(3*ispin+icol)  ];
+            ran[2*( nsc * ix + ispin*ncol+icol)+1] = s[0][iix + 2*(3*ispin+icol)+1];
+          }
+        }
       }
-    }
+    }  /* end of if have_source */
+
     return(0);
+
+  } else if ( init == -2 ) {
+    /* free ran field an return  */
+    if ( g_verbose > 2 && g_cart_id == 0 ) fprintf ( stdout, "# [init_timeslice_source_oet] fini ran field\n");
+    if ( ran != NULL ) free ( ran );
+    ran = NULL;
+ 
+    return ( 0 );
+ 
   }  /* end of if init > 0 */
 
   /* initialize spinor fields to zero */
-  memset(s[0], 0, sf_bytes);
-  memset(s[1], 0, sf_bytes);
-  memset(s[2], 0, sf_bytes);
-  memset(s[3], 0, sf_bytes);
+  for ( int i = 0; i < spin_dilution * color_dilution; i++ ) {
+    memset(s[i], 0, sf_bytes);
+  }
 
-  if(have_source) {
-    if(init > 0) {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
+  if(init > 0) {
+    if ( g_verbose > 0 && have_source ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d drawing random vector\n", g_cart_id);
 
-      switch(g_noise_type) {
-        case 1:
-          rangauss(ran, 6*VOL3);
-          break;
-        case 2:
-          ranz2(ran, 6*VOL3);
-          break;
-      }
-    } else {
-      fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+    unsigned int const gVOL3 = LX_global * LY_global * LZ_global;
+    unsigned int const items = 2 * nsc * gVOL3;
+    double *ran_buffer = init_1level_dtable ( items );
+    if ( ran_buffer == NULL ) {
+      fprintf ( stderr, "[init_timeslice_source_oet] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+      return ( 1 );
     }
 
+    switch(g_noise_type) {
+      case 1:
+        rangauss( ran_buffer, items );
+        break;
+      case 2:
+        ranz2 ( ran_buffer, items );
+        break;
+      case 4:
+        ranbinary ( ran_buffer, items );
+        break;
+    }
+
+    /* for ( unsigned int ix = 0; ix < 2*nsc*gVOL3; ix++ ) {
+      fprintf ( stdout, " proc %4d x %6d ran_buffer %25.16e\n", g_cart_id, ix, ran_buffer[ix] );
+    } */
+
+    if ( have_source ) {
+
+      /**********************************************************
+       * source process copy your part from the global timeslice
+       * field
+       **********************************************************/
+      if ( g_verbose > 1 ) fprintf ( stdout, "# [init_timeslice_source_oet] proc %d = %3d %3d %3d %3d copy timeslice data\n", g_cart_id, 
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3] );
+      // memcpy ( ran, ran_buffer[tsrc], 6*VOL3 );
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+      for ( int x1 = 0; x1 < LX; x1++ ) {
+        int const y1 = x1 + g_proc_coords[1] * LX;
+      for ( int x2 = 0; x2 < LY; x2++ ) {
+        int const y2 = x2 + g_proc_coords[2] * LY;
+      for ( int x3 = 0; x3 < LZ; x3++ ) {
+        int const y3 = x3 + g_proc_coords[3] * LZ;
+
+        /* global 3-dim index */
+        unsigned int const iy = ( y1 * LY_global + y2 ) * LZ_global + y3;
+        /* local 3-dim index */
+        unsigned int const ix = ( x1 * LY        + x2 ) * LZ        + x3;
+
+        double * const b_ = ran_buffer + 2*nsc*iy;
+        double * const r_ = ran        + 2*nsc*ix;
+        memcpy ( r_, b_, 2*nsc*sizeof ( double ) );
+      }}}
+    }  /* end of if have_source */
+
+    fini_1level_dtable ( &ran_buffer );
+
+  } else {
+    fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+  }
+
+  if(have_source) {
     const int timeslice = tsrc % T;  /*local timeslice */
     double *buffer = NULL;
 
     if(momentum != NULL) {
+      /* multiply the momentum phase to ran, save into buffer */
       const double       TWO_MPI = 2. * M_PI;
       const double       p[3] = {
          TWO_MPI * (double)momentum[0]/(double)LX_global,
          TWO_MPI * (double)momentum[1]/(double)LY_global,
          TWO_MPI * (double)momentum[2]/(double)LZ_global };
       const double phase_offset = p[0] * g_proc_coords[1] * LX + p[1] * g_proc_coords[2] * LY + p[2] * g_proc_coords[3] * LZ;
-      buffer = (double*)malloc(6*VOL3*sizeof(double));
-      if( g_verbose > 4 ) {
-        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d p = %e %e %e\n", g_cart_id, p[0], p[1], p[2] );
-        fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d phase offset = %e\n", g_cart_id, phase_offset );
-      }
+      buffer = (double*)malloc(2*nsc*VOL3*sizeof(double));
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(buffer, p, ran)
+#pragma omp parallel
 {
 #endif
-      double phase, cphase, sphase, tmp[6];
 
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      for( int x1 = 0; x1 < LX; x1++ ) {
-      for( int x2 = 0; x2 < LY; x2++ ) {
-      for( int x3 = 0; x3 < LZ; x3++ ) {
-        phase = phase_offset + x1 * p[0] + x2 * p[1] + x3 * p[2];
-        cphase = cos( phase );
-        sphase = sin( phase );
-        unsigned int iix = 6 * g_ipt[0][x1][x2][x3];
-        double *ptr = buffer + iix;
-        memcpy(tmp, ran+iix, 6*sizeof(double));
-        ptr[0] = tmp[0] * cphase - tmp[1] * sphase;
-        ptr[1] = tmp[0] * sphase + tmp[1] * cphase;
-        ptr[2] = tmp[2] * cphase - tmp[3] * sphase;
-        ptr[3] = tmp[2] * sphase + tmp[3] * cphase;
-        ptr[4] = tmp[4] * cphase - tmp[5] * sphase;
-        ptr[5] = tmp[4] * sphase + tmp[5] * cphase;
+      for ( unsigned int x1=0; x1<LX; x1++) {
+      for ( unsigned int x2=0; x2<LY; x2++) {
+      for ( unsigned int x3=0; x3<LZ; x3++) {
+        double const phase = phase_offset + x1 * p[0] + x2 * p[1] + x3 * p[2];
+        double const cphase = cos( phase );
+        double const sphase = sin( phase );
+        unsigned int const iix = 2 * nsc * g_ipt[0][x1][x2][x3];
+        double * const ptr = buffer + iix;
+
+        double tmp[2];
+
+        for ( int k = 0; k < nsc; k++ ) {
+          double const tmp[2] = { ran[iix + 2*k], ran[iix + 2*k+1] };
+
+          ptr[2*k  ] = tmp[0] * cphase - tmp[1] * sphase;
+          ptr[2*k+1] = tmp[0] * sphase + tmp[1] * cphase;
+ 
+        }  /* end of loop on non-diluted spin-color components */  
+  
       }}}
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
     } else {
+      /* nothing to be done, just set buffer <- ran */
       buffer = ran;
     } /* end of if momentum != NULL */
 
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared (s, buffer)
-{
-#pragma omp for
+#pragma omp parallel for
 #endif
-    for( unsigned int ix = 0; ix < VOL3; ix++ ) {
+    for ( unsigned int ix=0; ix<VOL3; ix++) {
 
-      unsigned int iix = _GSI(timeslice * VOL3 + ix);
+      unsigned int const iix = _GSI(timeslice * VOL3 + ix);
 
       /* set ith spin-component in ith spinor field */
-      memcpy(s[0]+(iix + 6*0) , buffer+(6*ix), 6*sizeof(double) );
-      memcpy(s[1]+(iix + 6*1) , buffer+(6*ix), 6*sizeof(double) );
-      memcpy(s[2]+(iix + 6*2) , buffer+(6*ix), 6*sizeof(double) );
-      memcpy(s[3]+(iix + 6*3) , buffer+(6*ix), 6*sizeof(double) );
+      int isc = 0;
+      for ( int ispin = 0; ispin < spin_dilution; ispin++ ) {
+        for ( int icol = 0; icol < color_dilution; icol++ ) {
 
+          for ( int j = 0; j < nspin; j++ ) {
+            for ( int k = 0; k < ncol; k++ ) {
+              s[isc][ iix + 2 * ( 3 * (ispin*nspin+j)+(icol*ncol+k) )  ] = buffer[2 * ( nsc * ix + ncol * j + k )  ];
+              s[isc][ iix + 2 * ( 3 * (ispin*nspin+j)+(icol*ncol+k) )+1] = buffer[2 * ( nsc * ix + ncol * j + k )+1];
+     
+          }}  /* end of loop on non-diluted spin-color indices */
+          isc++;
+      }}  /* end of loop on diluted spin-color indices */
     }  /* of ix */
 
-#ifdef HAVE_OPENMP
-}  /* end of parallel region */
-#endif
-    if (momentum != NULL) free(buffer);
+    if ( momentum != NULL ) free(buffer);
+
   }  /* end of if have source */
 
   if(init == 2) free(ran);
@@ -910,7 +989,6 @@ int init_timeslice_source_oet(double **s, int tsrc, int*momentum, int init) {
     fprintf(stdout, "# [init_timeslice_source_oet] time for init_timeslice_source_oet = %e seconds\n", retime-ratime);
     fflush(stdout);
   }
-
 
   return(0);
 }  /* end of init_timeslice_source_oet */
