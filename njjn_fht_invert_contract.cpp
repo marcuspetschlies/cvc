@@ -853,12 +853,12 @@ int main(int argc, char **argv) {
      *
      * one data file per source position
      ***************************************************************************/
+    if(io_proc == 2) {
 #if defined HAVE_LHPC_AFF
     /***************************************************************************
      * writer for aff output file
      * only I/O process id 2 opens a writer
      ***************************************************************************/
-    if(io_proc == 2) {
       sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
       fprintf(stdout, "# [njjn_fht_invert_contract] writing data to file %s\n", filename);
       affw = aff_writer(filename);
