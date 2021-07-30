@@ -1803,7 +1803,8 @@ int printf_spinor_field(double *s, int print_halo, FILE *ofs) {
                  s[ix+18], s[ix+19], s[ix+20], s[ix+21], s[ix+22], s[ix+23]);
 */
     for(i=0; i<12; i++) {
-      fprintf(ofs, "s[%2d,%2d] <- %18.9e + %18.9e*1.i\n", ix/24+1, i+1, s[ix+2*i], s[ix+2*i+1]);
+      /* fprintf(ofs, "s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", ix/24+1, i+1, s[ix+2*i], s[ix+2*i+1]); */
+      fprintf(ofs, " %2d  %2d   %25.16e  %25.16e\n", ix/24, i, s[ix+2*i], s[ix+2*i+1]);
     }
   }}}}
 
