@@ -69,6 +69,28 @@ extern "C"
 using namespace cvc;
 
 /***************************************************************************
+ *
+ ***************************************************************************/
+static inline void _fv_cvc_eq_convert_fv_szin ( double * const r , double * const s ) {
+  double _spinor1[24];
+  _fv_eq_gamma_ti_fv ( _spinor1, 2, s );
+  _fv_eq_fv ( r, _spinor1 );
+}  /* end of _fv_cvc_eq_convert_fv_szin */
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+static inline void spinor_field_cvc_eq_convert_spinor_field_szin (double * const r , double * const s , unsigned int const N ) {
+#pragma omp parallel for
+  for ( unsigned int i = 0; i < N; i++ ) {
+    double * const _r = r + _GSI(i);
+    double * const _s = s + _GSI(i);
+    _fv_cvc_eq_convert_fv_szin ( _r , _s );
+  }
+}  /* end of spinor_field_cvc_eq_convert_spinor_field_szin */
+
+
+/***************************************************************************
  * helper message
  ***************************************************************************/
 void usage() {
@@ -227,7 +249,9 @@ int main(int argc, char **argv) {
     /* read the gauge field */
     sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
     if(g_cart_id==0) fprintf(stdout, "# [test_gradient_flow] reading gauge field from file %s\n", filename);
+
     exitstatus = read_lime_gauge_field_doubleprec(filename);
+
   } else {
     /* initialize unit matrices */
     if(g_cart_id==0) fprintf(stdout, "\n# [test_gradient_flow] initializing unit matrices\n");
@@ -256,7 +280,8 @@ int main(int argc, char **argv) {
    * multiply the phase to the gauge field
    ***********************************************************/
   double *gauge_field_with_phase = NULL;
-  exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
+  /* exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up ); */
+  exitstatus = gauge_field_eq_gauge_field_ti_bcfactor ( &gauge_field_with_phase, g_gauge_field, -1. );
   if(exitstatus != 0) {
     fprintf(stderr, "[test_gradient_flow] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(38);
@@ -325,9 +350,8 @@ int main(int argc, char **argv) {
    *
    ***************************************************************************/
 
-  double ** spinor_field = init_2level_dtable ( 2, _GSI( VOLUME ) );
-  double ** spinor_work  = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
-  if ( spinor_field == NULL || spinor_work == NULL ) {
+  double ** spinor_field = init_2level_dtable ( 12, _GSI( VOLUME ) );
+  if ( spinor_field == NULL ) {
     fprintf(stderr, "[test_gradient_flow] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(44);
   }
@@ -335,39 +359,128 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * prepare an up-type propagator from oet timeslice source
    ***************************************************************************/
-  int source_timeslice = -1;
-  int source_proc_id   = -1;
-  int gts              = ( g_source_coords_list[0][0] +  T_global ) %  T_global;
+  if ( g_read_propagator ) {
 
-  exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[test_gradient_flow] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(123);
+    int source_proc_id = -1;
+    int sx[4];
+    exitstatus = get_point_source_info ( g_source_coords_list[0], sx, &source_proc_id );
+
+
+    double * buffer = init_1level_dtable ( 288 * VOLUME );
+    if ( buffer == NULL ) {
+      fprintf(stderr, "[test_gradient_flow] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(44);
+    }
+
+    strcpy ( filename, filename_prefix2 );
+
+    exitstatus = read_lime_propagator ( buffer, filename, g_propagator_position);
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[test_gradient_flow] Error from  read_lime_propagator, status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(44);
+    }
+
+    for ( int isc = 0; isc < 12; isc++ ) {
+
+      for ( unsigned int ix = 0; ix < VOLUME; ix ++ ) {
+
+        for ( int ir = 0; ir < 12; ir++ ) {
+
+          // int const is = 3 * ( 3 * ( 4 * (isc/3) + (ir/3) ) + (isc%3) ) + (ir%3);
+          int const is = 3 * ( 3 * ( 4 * (ir/3) + (isc/3) ) + (ir%3) ) + (isc%3);
+
+          unsigned int iy = 288 * ix + 2*is;
+
+          spinor_field[isc][_GSI(ix) + 2 * ir     ] = buffer[iy  ];
+          spinor_field[isc][_GSI(ix) + 2 * ir + 1 ] = buffer[iy+1];
+        }
+      }
+    }
+
+    fini_1level_dtable ( &buffer );
+
+    if ( check_propagator_residual ) {
+      double ** spinor_work  = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
+      if ( spinor_work == NULL ) {
+        fprintf(stderr, "[test_gradient_flow] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(44);
+      }
+
+      for( int i = 0; i < 12; i++ ) {
+        memcpy ( spinor_work[1], spinor_field[i], sizeof_spinor_field);
+        memset ( spinor_work[0], 0, sizeof_spinor_field );
+        if ( g_cart_id == source_proc_id ) {
+          spinor_work[0][ _GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) + 2*i ] = 1.;
+        }
+
+        spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[0], spinor_work[0] , VOLUME );
+        spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[1], spinor_work[1] , VOLUME );
+
+
+        check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], 1 );
+      }
+
+      fini_2level_dtable ( &spinor_work );
+
+    }
+
+  } else {
+    int source_timeslice = -1;
+    int source_proc_id   = -1;
+    int gts              = ( g_source_coords_list[0][0] +  T_global ) %  T_global;
+
+    exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[test_gradient_flow] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    double ** spinor_work  = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
+    if ( spinor_work == NULL ) {
+      fprintf(stderr, "[test_gradient_flow] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(44);
+    }
+
+    /* s0 <- timeslice source, no spin or color dilution */
+    exitstatus = init_timeslice_source_oet ( &(spinor_work[0]), gts, NULL, 1, 1, 1 );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[test_gradient_flow] Error from init_timeslice_source_oet status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    /* init s1 */
+    memset ( spinor_work[1], 0, sizeof_spinor_field );
+
+    /* s1 <- D_up^-1 s0 */
+    exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], 0 );
+    if(exitstatus < 0) {
+      fprintf(stderr, "[test_gradient_flow] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(44);
+    }
+
+    /* || s0 - D s1 || */
+    if ( check_propagator_residual ) {
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], 1 );
+    }  
+
+    memcpy ( spinor_field[0], spinor_work[1], sizeof_spinor_field );
+
+    if ( g_write_propagator ) {
+      sprintf ( filename, "%s.c%d.t%d", filename_prefix2, Nconf, gts );
+      if ( ( exitstatus = write_propagator( spinor_field[0], filename, 0, g_propagator_precision) ) != 0 ) {
+        fprintf(stderr, "[test_gradient_flow] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
+    }
+
+    fini_2level_dtable ( &spinor_work );
   }
 
-  /* s0 <- timeslice source, no spin or color dilution */
-  exitstatus = init_timeslice_source_oet ( &(spinor_work[0]), gts, NULL, 1, 1, 1 );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[test_gradient_flow] Error from init_timeslice_source_oet status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(123);
-  }
+  double * contr_x = NULL;
+  double * contr_p = NULL;
+  char data_tag[100];
 
-
-  /* init s1 */
-  memset ( spinor_work[1], 0, sizeof_spinor_field );
-
-  /* s1 <- D_up^-1 s0 */
-  exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], 0 );
-  if(exitstatus < 0) {
-    fprintf(stderr, "[test_gradient_flow] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    EXIT(44);
-  }
-
-  /* || s0 - D s1 || */
-  if ( check_propagator_residual ) {
-    check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], 1 );
-  }
-
+#if 0
   /* allocate contraction fields in position and momentum space */
   double * contr_x = init_1level_dtable ( 2 * VOLUME );
   if ( contr_x == NULL ) {
@@ -385,7 +498,7 @@ int main(int argc, char **argv) {
    * 
    * bit of overkill here, but I just c&p'ed
    */
-  contract_twopoint_xdep ( contr_x, 5, 5, &(spinor_work[1]), &(spinor_work[1]), 1, 1, 1, 1., 64 );
+  contract_twopoint_xdep ( contr_x, 5, 5, &(spinor_field[0]), &(spinor_field[0]), 1, 1, 1, 1., 64 );
 
   int mom[3] = {0, 0, 0 };
   /* momentum projection at sink */
@@ -395,7 +508,6 @@ int main(int argc, char **argv) {
   EXIT(3);
   }
 
-  char data_tag[100];
   sprintf ( data_tag, "/%c-gf-%c-gi/t%d/gf%d/gi%d", 'u', 'd', gts, 5, 5 );
 
 #if ( defined HAVE_LHPC_AFF ) 
@@ -405,6 +517,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_gradient_flow] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     return(3);
   }
+#endif
 
   /***************************************************************************/
   /***************************************************************************/
@@ -429,7 +542,7 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      flow_fwd_gauge_spinor_field ( gauge_field_smeared, spinor_work[1], 1, gf_dt, 1, 1 );
+      flow_fwd_gauge_spinor_field ( gauge_field_smeared, spinor_field[0], 1, gf_dt, 1, 1 );
 
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "test_gradient_flow", "flow_fwd_gauge_spinor_field", g_cart_id == 0 );
@@ -458,7 +571,7 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
-     * observable: G_{mu.nu} G_{mu,nu} / 4
+     * observable: G_{mu,nu} G_{mu,nu} / 4
      ***************************************************************************/
     double *** Gp = init_3level_dtable ( VOLUME, 6, 9 );
     if ( Gp == NULL ) {
@@ -508,9 +621,10 @@ int main(int argc, char **argv) {
     /***************************************************************************/
     /***************************************************************************/
 
+#if 0
     /* contractions in x-space */
     memset ( contr_x, 0, 2*VOLUME*sizeof(double) );
-    contract_twopoint_xdep ( contr_x, 5, 5, &(spinor_work[1]), &(spinor_work[1]), 1, 1, 1, 1., 64 );
+    contract_twopoint_xdep ( contr_x, 5, 5, &(spinor_field[0]), &(spinor_field[0]), 1, 1, 1, 1., 64 );
 
     exitstatus = momentum_projection ( contr_x, contr_p, T, 1, &mom );
     if(exitstatus != 0) {
@@ -528,6 +642,8 @@ int main(int argc, char **argv) {
       EXIT(3);
     }
 
+#endif
+
   }  /* end of loop on gf_niter */
 
   /***************************************************************************/
@@ -538,7 +654,6 @@ int main(int argc, char **argv) {
   fini_1level_dtable ( &contr_x );
   fini_1level_dtable ( &contr_p );
   fini_2level_dtable ( &spinor_field );
-  fini_2level_dtable ( &spinor_work );
   fini_1level_dtable ( &gauge_field_smeared );
 
   flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
