@@ -46,6 +46,7 @@ extern "C"
 #include "mpi_init.h"
 #include "set_default.h"
 #include "io.h"
+#include "gauge_io.h"
 #include "propagator_io.h"
 #include "read_input_parser.h"
 #include "smearing_techniques.h"
@@ -549,6 +550,13 @@ int main(int argc, char **argv) {
 
     }
 
+    sprintf ( filename, "%s.t%6.4f.n%d", filename_prefix2, i*gf_dt, i );
+    if ( ( exitstatus = write_propagator( spinor_field[0], filename, 0, g_propagator_precision) ) != 0 ) {
+      fprintf(stderr, "[test_gradient_flow] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+
     /***************************************************************************
      * observable: plaquette
      ***************************************************************************/
@@ -560,6 +568,10 @@ int main(int argc, char **argv) {
     } */
     double plaq = 0.;
     plaquette2 ( &plaq , gauge_field_smeared );
+    if ( io_proc == 2 ) {
+      fprintf ( stdout,"# [test_gradient_flow] iter %u plaq %25.16e %s %d\n", i, plaq, __FILE__, __LINE__ );
+    }
+
 
     if ( io_proc == 2 ) {
       sprintf ( data_tag, "/P/dt%6.4f/n%d/", gf_dt, i );
@@ -569,6 +581,16 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
     }
+
+    sprintf ( filename, "%s.%.4d.t%6.4f.n%d", gaugefilename_prefix, Nconf , i*gf_dt , i);
+    double * const gauge_field_backup = g_gauge_field;
+    g_gauge_field = gauge_field_smeared;
+    exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[test_gradient_flow] Error from write_lime_gauge_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(3);
+    }
+    g_gauge_field = gauge_field_backup;
 
     /***************************************************************************
      * observable: G_{mu,nu} G_{mu,nu} / 4
