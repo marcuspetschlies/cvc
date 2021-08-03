@@ -362,6 +362,16 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   if ( g_read_propagator ) {
 
+    strcpy ( filename, filename_prefix2 );
+
+    exitstatus = read_lime_spinor ( spinor_field[0], filename, g_propagator_position);
+    if ( exitstatus != 0 ) {
+      fprintf(stderr, "[test_gradient_flow] Error from  read_lime_spinor, status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(44);
+    }
+
+
+#if 0
     int source_proc_id = -1;
     int sx[4];
     exitstatus = get_point_source_info ( g_source_coords_list[0], sx, &source_proc_id );
@@ -424,7 +434,7 @@ int main(int argc, char **argv) {
       fini_2level_dtable ( &spinor_work );
 
     }
-
+#endif
   } else {
     int source_timeslice = -1;
     int source_proc_id   = -1;
