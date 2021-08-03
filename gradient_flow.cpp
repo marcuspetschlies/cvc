@@ -129,7 +129,10 @@ void apply_laplace ( double * const s, double * const r_in, double * const g ) {
   static double * r = NULL;
 
   if ( s == NULL ) {
-    if ( r != NULL ) free ( r );
+    if ( r != NULL ) {
+      free ( r );
+      r = NULL;
+    }
     fprintf ( stdout, "# [apply_laplace] clean up done %s %d\n", __FILE__, __LINE__ );
     return;
   }
@@ -224,6 +227,8 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
     fini_1level_dtable ( &z );
 
     fini_2level_dtable ( &phi );
+
+    w = NULL; z = NULL; phi = NULL;
         
     fprintf ( stdout, "# [flow_fwd_gauge_spinor_field] clean up done %s %d\n", __FILE__, __LINE__ );
     return;
@@ -409,7 +414,9 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
     fini_1level_dtable ( &z );
 
     fini_2level_dtable ( &lambda );
-        
+     
+     w = NULL; z = NULL; lambda = NULL;
+
     fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] clean up done %s %d\n", __FILE__, __LINE__ );
     return;
   }
