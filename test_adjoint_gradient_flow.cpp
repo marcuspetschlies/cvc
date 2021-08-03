@@ -513,14 +513,17 @@ int main(int argc, char **argv) {
     flow_fwd_gauge_spinor_field ( gfaux, spinor_field[2], gf_m, gf_dt, 1, 1 );
     fini_1level_dtable ( &gfaux );
 
+    flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
+
   }  /* end of if read_propagator else */
 
+#if 0
   complex csp = {0.,0.};
  
   spinor_scalar_product_co ( &csp, spinor_field[0], spinor_field[2], VOLUME );
   if ( io_proc == 2 ) fprintf ( stdout, "# [test_adjoint_gradient_flow] t %6.4f m %3u csp %25.16e %25.16e %s %d\n",  gf_m * gf_dt, gf_m,
       csp.re, csp.im , __FILE__, __LINE__ );
-
+#endif
 
   char data_tag[100];
 
@@ -558,11 +561,11 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[test_adjoint_gradient_flow] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(2);
   }
-
+#if 0
   spinor_scalar_product_co ( &csp, spinor_field[0], spinor_field[1], VOLUME );
   if ( io_proc == 2 ) fprintf ( stdout, "# [test_adjoint_gradient_flow] t %6.4f m %3u csp %25.16e %25.16e %s %d\n",  0 * gf_dt, 0,
       csp.re, csp.im , __FILE__, __LINE__ );
-
+#endif
   /***************************************************************************/
   /***************************************************************************/
 
