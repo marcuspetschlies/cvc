@@ -513,14 +513,17 @@ int main(int argc, char **argv) {
     flow_fwd_gauge_spinor_field ( gfaux, spinor_field[2], gf_m, gf_dt, 1, 1 );
     fini_1level_dtable ( &gfaux );
 
+    flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
+
   }  /* end of if read_propagator else */
 
+#if 0
   complex csp = {0.,0.};
  
   spinor_scalar_product_co ( &csp, spinor_field[0], spinor_field[2], VOLUME );
   if ( io_proc == 2 ) fprintf ( stdout, "# [test_adjoint_gradient_flow] t %6.4f m %3u csp %25.16e %25.16e %s %d\n",  gf_m * gf_dt, gf_m,
       csp.re, csp.im , __FILE__, __LINE__ );
-
+#endif
 
   char data_tag[100];
 
@@ -533,7 +536,9 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   double ** gauge_field_smeared = init_2level_dtable ( gf_ns+1, 72 * VOLUME );
 
-  memcpy ( gauge_field_smeared[gf_ns], g_gauge_field, sizeof_gauge_field );
+  unsigned int gf_nb = (unsigned int) ceil ( pow ( (double)gf_m , 1./ ( (double)gf_ns + 1. ) ) );
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [test_adjoint_gradient_flow] gf_m = %3d gf_ns = %d  gf_nb = %3d %s %d\n", gf_m, gf_ns, gf_nb , __FILE__, __LINE__ );
 
   /***************************************************************************
    ***************************************************************************
@@ -542,32 +547,34 @@ int main(int argc, char **argv) {
    **
    ***************************************************************************
    ***************************************************************************/
-  unsigned int gf_nb = (unsigned int) ceil ( pow ( (double)gf_m , 1./ ( (double)gf_ns + 1. ) ) );
+  for ( int isc = 0; isc < 12; isc++ ) {
 
-  if ( g_verbose > 2 ) fprintf ( stdout, "# [test_adjoint_gradient_flow] gf_m = %3d gf_ns = %d  gf_nb = %3d %s %d\n", gf_m, gf_ns, gf_nb , __FILE__, __LINE__ );
+    memcpy ( gauge_field_smeared[gf_ns], g_gauge_field, sizeof_gauge_field );
 
-  gettimeofday ( &ta, (struct timezone *)NULL );
+    gettimeofday ( &ta, (struct timezone *)NULL );
 
-  flow_adjoint_gauge_spinor_field ( gauge_field_smeared, spinor_field[0], gf_dt, gf_m, gf_nb, gf_ns );
+    flow_adjoint_gauge_spinor_field ( gauge_field_smeared, spinor_field[isc], gf_dt, gf_m, gf_nb, gf_ns );
 
-  gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "test_adjoint_gradient_flow", "flow_adjoint_gauge_spinor_field", g_cart_id == 0 );
+    gettimeofday ( &tb, (struct timezone *)NULL );
+    show_time ( &ta, &tb, "test_adjoint_gradient_flow", "flow_adjoint_gauge_spinor_field", g_cart_id == 0 );
 
-  sprintf ( filename, "%s.t%6.4f.m%u.nb%u.ns%u", filename_prefix3, gf_dt*gf_m, gf_m, gf_nb, gf_ns );
-  if ( ( exitstatus = write_propagator( spinor_field[0], filename, 0, g_propagator_precision) ) != 0 ) {
-    fprintf(stderr, "[test_adjoint_gradient_flow] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(2);
-  }
-
+    sprintf ( filename, "%s.t%6.4f.m%u.nb%u.ns%u.sc%d", filename_prefix3, gf_dt*gf_m, gf_m, gf_nb, gf_ns, isc );
+    if ( ( exitstatus = write_propagator( spinor_field[isc], filename, 0, g_propagator_precision) ) != 0 ) {
+      fprintf(stderr, "[test_adjoint_gradient_flow] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+  
+    flow_adjoint_step_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
+  }  /* end of loop on isc */
+#if 0
   spinor_scalar_product_co ( &csp, spinor_field[0], spinor_field[1], VOLUME );
   if ( io_proc == 2 ) fprintf ( stdout, "# [test_adjoint_gradient_flow] t %6.4f m %3u csp %25.16e %25.16e %s %d\n",  0 * gf_dt, 0,
       csp.re, csp.im , __FILE__, __LINE__ );
-
+#endif
   /***************************************************************************/
   /***************************************************************************/
 
   exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
-  flow_adjoint_step_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
 
   fini_2level_dtable ( &spinor_field );
   fini_2level_dtable ( &gauge_field_smeared );
