@@ -79,46 +79,6 @@ extern "C"
 
 using namespace cvc;
 
-/* typedef int ( * reduction_operation ) (double**, double*, fermion_propagator_type*, unsigned int ); */
-
-typedef int ( * reduction_operation ) (double**, fermion_propagator_type*, fermion_propagator_type*, fermion_propagator_type*, unsigned int);
-
-
-/***************************************************************************
- * 
- ***************************************************************************/
-static inline int reduce_project_write ( double ** vx, double *** vp, fermion_propagator_type * fa, fermion_propagator_type * fb, fermion_propagator_type * fc, reduction_operation reduce,
-    struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
-
-  int exitstatus;
-
-  /* contraction */
-  exitstatus = reduce ( vx, fa, fb, fc, N );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    return( 1 );
-  }
-
-  /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
-  exitstatus = contract_vn_momentum_projection ( vp, vx, nd, momentum_list, momentum_number);
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from contract_vn_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    return( 2 );
-  }
-
-#if defined HAVE_LHPC_AFF
-  /* write to AFF file */
-  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
-#endif
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
-    return( 3 );
-  }
-
-  return ( 0 );
-
-}  /* end of reduce_project_write */
-
 /***************************************************************************
  * x <- gamma * y
  ***************************************************************************/
@@ -279,7 +239,7 @@ inline void pm_pl_eq_gamma_ti_pm_ti_gamma ( double _Complex ** const x , gamma_m
 
           double _Complex z = 0.;
 
-          for ( int l = 0; l < 3; l++ ) {
+          for ( int l = 0; l < 4; l++ ) {
 
             int const ll = 3 * l + jc;
 
@@ -315,6 +275,64 @@ inline void pm_eq_pm_ti_co  ( double _Complex ** const x , double _Complex ** co
   }}
   return;
 }
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+inline void pm_set_from_sf_point ( double _Complex ** const p, double ** const s, unsigned int ix ) {
+
+  unsigned int const iix = _GSI( ix );
+
+  for ( int k=0; k<12; k++) {
+    double * const _prop = s[k] + iix;
+    for ( int i=0; i<12;i++) {
+      p[i][k] = _prop[2 * i ] + I * _prop[2 * i + 1];
+    }
+  }
+
+return;
+}  /* pm_set_from_sf */
+
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+inline void pm_print (double _Complex ** const p, char * const name, FILE * ofs ) {
+  fprintf ( ofs, "%s <- array( dim=c(12,12)) \n", name );
+  for( int i = 0; i < 12; i++ ) {
+  for( int k = 0; k < 12; k++ ) {
+    fprintf ( ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", name, i+1, k+1, creal( p[i][k] ), cimag ( p[i][k] ) );
+  }}
+  return;
+}  /* pm_print */
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+inline void gamma_print ( gamma_matrix_type * const g, char * const name, FILE * ofs ) {
+  fprintf ( ofs, "%s <- array( dim=c(12,12)) \n", name );
+
+  for( int i = 0; i < 4; i++ ) {
+    for( int ic = 0; ic < 3; ic++ ) {
+
+      int const ii = 3 * i + ic;
+
+      for( int k = 0; k < 4; k++ ) {
+        for( int kc = 0; kc < 3; kc++ ) {
+
+          int const kk = 3 * k + kc;
+
+          fprintf ( ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", name, ii+1, kk+1, (kc==ic) * creal( g->m[i][k] ), (kc==ic) * cimag ( g->m[i][k] ) );
+        }
+      }
+    }
+  }
+  return;
+}  /* gamma_print */
+
+
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * helper message
@@ -546,6 +564,12 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [mixing_probe] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
+#if _TEST
+  /* TEST */
+  FILE * ofs = fopen ( "test.out", "w");
+  /* END */
+#endif
+
   /***************************************************************************
    * set the gamma matrices
    ***************************************************************************/
@@ -578,7 +602,20 @@ int main(int argc, char **argv) {
   gamma_matrix_set( &( sigma_munu[4]), 14, 1. ); 
   gamma_matrix_set( &( sigma_munu[5]), 15, 1. ); 
 
-
+#if _TEST
+  /* TEST */
+  gamma_print ( &(gamma_s[0]), "g4", ofs );
+  gamma_print ( &(gamma_p[0]), "g5", ofs );
+  gamma_print ( &(gamma_v[0]), "g0", ofs );
+  gamma_print ( &(gamma_v[1]), "g1", ofs );
+  gamma_print ( &(gamma_v[2]), "g2", ofs );
+  gamma_print ( &(gamma_v[3]), "g3", ofs );
+  gamma_print ( &(gamma_a[0]), "g6", ofs );
+  gamma_print ( &(gamma_a[1]), "g7", ofs );
+  gamma_print ( &(gamma_a[2]), "g8", ofs );
+  gamma_print ( &(gamma_a[3]), "g9", ofs );
+  /* END */
+#endif
 
   /***************************************************************************
    * prepare the Fourier phase field
@@ -730,7 +767,18 @@ int main(int argc, char **argv) {
       }
       
       gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "mixing_probe", "forward-light-smear-invert-check", g_cart_id == 0 );
+      show_time ( &ta, &tb, "mixing_probe", "forward-light-invert-check", g_cart_id == 0 );
+
+      if ( g_write_propagator ) {
+        for ( int i = 0; i < 12; i++ ) {
+          sprintf(filename, "%s.%c.c%d.t%dx%dy%dz%d.sc%d.inverted", filename_prefix, flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3], i );
+          if ( ( exitstatus = write_propagator ( propagator[iflavor][i], filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[mixing_probe] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
+          }
+        }
+      }
+
 
     }  /* end of loop on flavor */
 
@@ -749,11 +797,13 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * loop on flavor combinations
      ***************************************************************************/
-    for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+    /* for ( int iflavor = 0; iflavor < 2; iflavor++ ) */
+    for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
+    {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      int const ncorr = 2 * 4 * 4 + 2;
+      int const ncorr = 2 * 4 * 4 + 3;
 
       double _Complex ** corr_accum = init_2level_ztable ( T, ncorr );
       if ( corr_accum == NULL ) {
@@ -771,12 +821,13 @@ int main(int argc, char **argv) {
         double _Complex **  up = init_2level_ztable ( 12, 12 );
         double _Complex ** aux = init_2level_ztable ( 12, 12 );
 
-        unsigned int const iix = _GSI( g_ipt[sx[0]][sx[1]][sx[2]][sx[3]] );
-        for ( int k=0; k<12;k++) {
-          double * const _prop = propagator[iflavor][k] + iix;
-        for ( int i=0; i<12;i++) {
-          up[i][k] = _prop[2 * i] + I * _prop[2 * i + 1 ];
-        }}
+        pm_set_from_sf_point ( up, propagator[iflavor], g_ipt[sx[0]][sx[1]][sx[2]][sx[3]] );
+
+#if _TEST
+        /* TEST */
+        pm_print ( up, "up0", ofs );
+        /* END */
+#endif
 
         /***************************************************************************
          * ugu; first time init to zero, then add up
@@ -846,8 +897,24 @@ int main(int argc, char **argv) {
       }
 #endif
 
+#if _TEST
+      /* TEST */
+      pm_print ( gug[0], "sus", ofs );
+      pm_print ( gug[1], "pup", ofs );
+      pm_print ( gug[2], "vuv", ofs );
+      pm_print ( gug[3], "aua", ofs );
+
+      fprintf ( ofs, "gu <- numeric()\n" );
+      for ( int i = 0; i < 10; i++ ) {
+        fprintf ( ofs, " gu[%d] <- %25.16e + %25.16e*1.i\n", i+1, creal(gu[i]), cimag ( gu[i] ) );
+      }
+      /* END */
+#endif
+
+
+
       /***************************************************************************
-       * build D prop
+       * build displaced prop
        ***************************************************************************/
       /* up and down quark propagator with covariant displacement */
       double ** propagator_disp = init_2level_dtable ( 12, _GSI( VOLUME ) );
@@ -932,7 +999,10 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+      /* for ( unsigned int ix = 0; ix < VOLUME; ix++ )  */
+      for ( unsigned int ix = 637; ix <= 637; ix++ ) 
+      {
+        
 
         int const it = ix / VOL3;
 
@@ -965,40 +1035,44 @@ int main(int argc, char **argv) {
         }
         pm_eq_gamma_ti_pm ( g5sigmaG, &(gamma_p[0]), pm );
 
+#if _TEST
+        /* TEST */
+        pm_print ( g5sigmaG, "g5sigmaG", ofs );
+        /* END */
+#endif
+
 
         /***************************************************************************
          * make the point-wise up and down propagator matrix
          ***************************************************************************/
         /* fill up from 12 spinor fields */
-        memset ( up[0], 0, 144 * sizeof( double _Complex ) );
-        for ( int k=0; k<12;k++) {
-          double * const _prop = propagator[iflavor][k] + iix;
-        for ( int i=0; i<12;i++) {
-          up[i][k] = _prop[2 * i ] + I * _prop[2 * i + 1];
-        }}
+        pm_set_from_sf_point ( up, propagator[iflavor], ix );
 
         /* fill dn from 12 spinor fields */
-        memset ( dn[0], 0, 144 * sizeof( double _Complex ) );
-        for ( int k=0; k<12;k++) {
-          double * const _prop = propagator[1-iflavor][k] + iix;
-        for ( int i=0; i<12;i++) {
-          dn[i][k] = _prop[2 * i ] + I * _prop[2 * i + 1];
-        }}
+        pm_set_from_sf_point ( dn, propagator[1-iflavor], ix );
 
         /* fill dup from 12 spinor fields */
-        memset ( dup[0], 0, 144 * sizeof( double _Complex ) );
-        for ( int k=0; k<12;k++) {
-          double * const _prop = propagator_disp[k] + iix;
-        for ( int i=0; i<12;i++) {
-          dup[i][k] = _prop[2 * i ] + I * _prop[2 * i + 1];
-        }}
+        pm_set_from_sf_point ( dup, propagator_disp, ix );
+
+#if _TEST
+        /* TEST */
+        pm_print ( up, "up", ofs );
+        pm_print ( dn, "dn", ofs );
+        pm_print ( dup, "dup", ofs );
+        /* END */
+#endif
 
         /***************************************************************************
          * auxilliary field
          * gdg <- g5 dn g5
          ***************************************************************************/
-        memset ( gdg[0], 0, 144 * sizeof( double _Complex ) );
         pm_pl_eq_gamma_ti_pm_ti_gamma ( gdg, &(gamma_p[0]), dn, 0. );
+
+#if _TEST
+        /* TEST */
+        pm_print ( gdg, "gdg", ofs );
+        /* END */
+#endif
 
         /***************************************************************************
          * auxialliary fields aux and aux2, which contain
@@ -1046,6 +1120,20 @@ int main(int argc, char **argv) {
           pm_eq_pm_pl_pm ( aux2[3], aux2[3], pm2, (double _Complex)(i>0), gu[6+i] );
         }
 
+#if _TEST
+        /* TEST */
+        pm_print ( aux[0], "u_sus_pDp", ofs );
+        pm_print ( aux[1], "u_pup_pDp", ofs );
+        pm_print ( aux[2], "u_vuv_pDp", ofs );
+        pm_print ( aux[3], "u_aua_pDp", ofs );
+
+        pm_print ( aux2[0], "tsu_u_s_pDp", ofs );
+        pm_print ( aux2[1], "tpu_u_p_pDp", ofs );
+        pm_print ( aux2[2], "tvu_u_v_pDp", ofs );
+        pm_print ( aux2[3], "tau_u_a_pDp", ofs );
+        /* END */
+#endif
+
 #if 0
         /***************************************************************************
          * finally, combine aux and aux2 into aux
@@ -1063,32 +1151,32 @@ int main(int argc, char **argv) {
          ***************************************************************************/
 
         /***************************************************************************
-         * dim-4 operator psibar id psi, to be multiplied with m_q
-         ***************************************************************************/
-
-        /* scalar, B */
-        for ( int i = 0; i < 4; i++ ) {
-          corr[it][i] += co_eq_tr_pm ( aux[i] );
-        }
-        /* scalar, D */
-        for ( int i = 0; i < 4; i++ ) {
-          corr[it][4+i] += co_eq_tr_pm ( aux2[i] );
-        }
-
-        /***************************************************************************
          * dim-3 operator psibar g5 psi
          ***************************************************************************/
 
         /* pseudoscalar , B */
         for ( int i = 0; i < 4; i++ ) {
           pm_eq_gamma_ti_pm ( pm, &(gamma_p[0]), aux[i] );
-          corr[it][8+i] += co_eq_tr_pm ( pm );
+          corr[it][i] += co_eq_tr_pm ( pm );
         }
 
         /* pseudoscalar , D */
         for ( int i = 0; i < 4; i++ ) {
           pm_eq_gamma_ti_pm ( pm, &(gamma_p[0]), aux2[i] );
-          corr[it][12+i] += co_eq_tr_pm ( pm );
+          corr[it][4+i] += co_eq_tr_pm ( pm );
+        }
+
+        /***************************************************************************
+         * dim-4 operator psibar id psi, to be multiplied with m_q
+         ***************************************************************************/
+
+        /* scalar, B */
+        for ( int i = 0; i < 4; i++ ) {
+          corr[it][8+i] += co_eq_tr_pm ( aux[i] );
+        }
+        /* scalar, D */
+        for ( int i = 0; i < 4; i++ ) {
+          corr[it][12+i] += co_eq_tr_pm ( aux2[i] );
         }
 
         /***************************************************************************
@@ -1160,14 +1248,18 @@ int main(int argc, char **argv) {
          ***************************************************************************/
 
         /* Tr [ g5 U g5 g5 D^+ g5 ] */
-        pm_eq_gamma_ti_pm ( pm, &(gamma_p[0]), gdg );
+        pm_eq_gamma_ti_pm_dag ( pm, &(gamma_p[0]), gdg );
         pm_eq_pm_ti_pm ( pm2, up, pm );
         pm_eq_gamma_ti_pm ( pm, &(gamma_p[0]), pm2 );
         corr[it][32] += co_eq_tr_pm ( pm );
 
         /* Tr [ Id U Id g5 D^+ g5 ] */
-        pm_eq_pm_ti_pm ( pm, up, gdg );
+        pm_eq_pm_ti_pm_dag ( pm, up, gdg );
         corr[it][33] += co_eq_tr_pm ( pm );
+
+        /* Tr [ g5 U g5 g5 U^+ g5 ] */
+        pm_eq_pm_ti_pm_dag ( pm, up, up );
+        corr[it][34] += co_eq_tr_pm ( pm );
 
       }  /* end of loop on x */
 
@@ -1241,7 +1333,7 @@ int main(int argc, char **argv) {
        * write to file
        ***************************************************************************/
       if ( io_proc == 2 ) {
-        char const diag_list[ncorr][4] = { "b", "d", "m1" };
+        char const diag_list[ncorr][4] = { "b", "d", "m1", "m2" };
         char const op_c_list[ncorr][2] = { "s", "p", "v", "a" };
         char const op_f_list[6][12] = { "g5", "m", "D", "g5sigmaG", "g5", "id" };
 
@@ -1277,6 +1369,20 @@ int main(int argc, char **argv) {
             }
             char tag[400];
             sprintf ( tag, "/fl_%c/op_%s/d_%s/c_%s", flavor_tag[iflavor], op_f_list[4+i], diag_list[2], op_f_list[4+i] );
+            exitstatus = write_aff_contraction ( buffer, affw, NULL, tag, T_global, "complex" );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[mixing_probe] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(4);
+            }
+          }
+          for ( int i = 0; i< 1; i++ ) {
+
+            int const corr_id = 34 + i;
+            for ( int it = 0; it < T_global; it++ ) {
+              buffer[it] = corr_out[it][corr_id];
+            }
+            char tag[400];
+            sprintf ( tag, "/fl_%c/op_%s/d_%s/c_%s", flavor_tag[iflavor], op_f_list[4], diag_list[3], op_f_list[4] );
             exitstatus = write_aff_contraction ( buffer, affw, NULL, tag, T_global, "complex" );
             if ( exitstatus != 0 ) {
               fprintf(stderr, "[mixing_probe] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1319,6 +1425,12 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &propagator );
 
   }  /* end of loop on source locations */
+  
+#if _TEST
+  /* TEST */
+  fclose ( ofs );
+  /* END */
+#endif
 
   /***************************************************************************/
   /***************************************************************************/
