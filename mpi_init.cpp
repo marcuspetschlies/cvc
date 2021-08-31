@@ -23,6 +23,9 @@ MPI_Datatype spinor_time_slice_cont;
 MPI_Datatype eo_spinor_time_slice_cont;
 
 MPI_Datatype contraction_time_slice_cont;
+
+MPI_Datatype eo_propagator_time_slice_cont;
+
 #  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
 
 /* gauge slices */
@@ -123,7 +126,6 @@ MPI_Datatype eo_spinor_z_odd_bwd_slice_struct;
 MPI_Datatype eo_spinor_z_even_bwd_slice_struct;
 
 /* slices of even-odd propagators */
-MPI_Datatype eo_propagator_time_slice_cont;
 
 MPI_Datatype eo_propagator_x_slice_vector;
 MPI_Datatype eo_propagator_x_subslice_cont;
@@ -1565,6 +1567,9 @@ void mpi_init_xchange_contraction(int N) {
 #endif
 }  /* end of mpi_init_xchange_contraction */
 
+/****************************************************************
+ * finalize / deallocate exchange data types for contraction
+ ****************************************************************/
 void mpi_fini_xchange_contraction (void) {
 #ifdef HAVE_MPI
   MPI_Type_free(&contraction_time_slice_cont);
@@ -1580,9 +1585,11 @@ void mpi_fini_xchange_contraction (void) {
   MPI_Type_free(&contraction_x_subslice_cont);
 #endif
 #endif
-}
+}  /* end of mpi_fini_xchange_contraction */
 
-
+/****************************************************************
+ * finalize / deallocate datatypes
+ ****************************************************************/
 void mpi_fini_datatypes (void) {
 #ifdef HAVE_MPI
   MPI_Type_free(&gauge_point);
@@ -1637,6 +1644,277 @@ void mpi_fini_datatypes (void) {
 
 #endif
 #endif
-}
+}  /* end of mpi_fini_data_types */
+
+
+/******************************************************************************
+ *
+ ******************************************************************************/
+void mpi_init_xchanger (xchanger_type *x, int N ) {
+#ifdef HAVE_MPI
+  x->N = N;
+
+  MPI_Type_contiguous(N, MPI_DOUBLE, &x->point);
+  MPI_Type_commit(&x->point);
+
+  /* ======================================================================== */
+
+  MPI_Type_contiguous(LX*LY*LZ, x->point, &x->time_slice_cont);
+  MPI_Type_commit(&x->time_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+  MPI_Type_contiguous(LY*LZ, x->point, &x->x_subslice_cont);
+  MPI_Type_commit(&x->x_subslice_cont);
+
+  MPI_Type_vector(T, 1, LX, x->x_subslice_cont, &x->x_slice_vector);
+  MPI_Type_commit(&x->x_slice_vector);
+
+  MPI_Type_contiguous(T*LY*LZ, x->point, &x->x_slice_cont);
+  MPI_Type_commit(&x->x_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LZ, x->point, &x->y_subslice_cont);
+  MPI_Type_commit(&x->y_subslice_cont);
+
+  MPI_Type_vector(T*LX, LZ, LY*LZ, x->point, &x->y_slice_vector);
+  MPI_Type_commit(&x->y_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LZ, x->point, &x->y_slice_cont);
+  MPI_Type_commit(&x->y_slice_cont);
+
+  /* ------------------------------------------------------------------------ */
+
+  MPI_Type_contiguous(LX*LY, x->point, &x->z_subslice_cont);
+  MPI_Type_commit(&x->z_subslice_cont);
+
+  MPI_Type_vector(T*LX*LY, 1, LZ, x->point, &x->z_slice_vector);
+  MPI_Type_commit(&x->z_slice_vector);
+
+  MPI_Type_contiguous(T*LX*LY, x->point, &x->z_slice_cont);
+  MPI_Type_commit(&x->z_slice_cont);
+
+  /******************************************************************************
+   * edges
+   ******************************************************************************/
+  MPI_Type_contiguous(2*LY*LZ, x->point, &x->xt_edge_cont);
+  MPI_Type_commit(&x->xt_edge_cont);
+  MPI_Type_vector(2, 1, T, x->x_subslice_cont, &x->xt_edge_vector);
+  MPI_Type_commit(&x->xt_edge_vector);
+
+  MPI_Type_contiguous(2*LX*LZ, x->point, &x->yt_edge_cont);
+  MPI_Type_commit(&x->yt_edge_cont);
+  MPI_Type_vector(2, 1, T, x->y_subslice_cont, &x->yt_edge_vector);
+  MPI_Type_commit(&x->yt_edge_vector);
+
+  MPI_Type_contiguous( 2*T*LZ, x->point, &x->yx_edge_cont);
+  MPI_Type_commit(&x->yx_edge_cont);
+  MPI_Type_vector(2*T, LZ, LX*LZ, x->point, &x->yx_edge_vector);
+  MPI_Type_commit(&x->yx_edge_vector);
+
+  MPI_Type_contiguous( 2*LX*LY, x->point, &x->zt_edge_cont);
+  MPI_Type_commit(&x->zt_edge_cont);
+  MPI_Type_vector(2, 1, T, x->z_subslice_cont, &x->zt_edge_vector);
+  MPI_Type_commit(&x->zt_edge_vector);
+
+  MPI_Type_contiguous( 2*T*LY, x->point, &x->zx_edge_cont);
+  MPI_Type_commit(&x->zx_edge_cont);
+  MPI_Type_vector(2*T, LY, LX*LY, x->point, &x->zx_edge_vector);
+  MPI_Type_commit(&x->zx_edge_vector);
+
+  MPI_Type_contiguous( 2*T*LX, x->point, &x->zy_edge_cont);
+  MPI_Type_commit(&x->zy_edge_cont);
+  MPI_Type_vector(2*T*LX, 1, LY, x->point, &x->zy_edge_vector);
+  MPI_Type_commit(&x->zy_edge_vector);
+
+#endif  /* of if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) */
+#endif
+}  /* end of mpi_init_xchanger */
+
+/******************************************************************************/
+/******************************************************************************/
+
+/******************************************************************************
+ *
+ ******************************************************************************/
+void mpi_fini_xchanger ( xchanger_type *x) {
+#ifdef HAVE_MPI
+  x->N = 0;
+
+  MPI_Type_free( &x->point           );
+  MPI_Type_free( &x->time_slice_cont );
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+  MPI_Type_free( &x->z_slice_cont    );
+  MPI_Type_free( &x->z_slice_vector  );
+  MPI_Type_free( &x->z_subslice_cont );
+  MPI_Type_free( &x->y_slice_cont    );
+  MPI_Type_free( &x->y_slice_vector  );
+  MPI_Type_free( &x->y_subslice_cont );
+  MPI_Type_free( &x->x_slice_cont    );
+  MPI_Type_free( &x->x_slice_vector  );
+  MPI_Type_free( &x->x_subslice_cont );
+
+  MPI_Type_free( &x->xt_edge_cont    );
+  MPI_Type_free( &x->xt_edge_vector  );
+  MPI_Type_free( &x->yt_edge_cont    );
+  MPI_Type_free( &x->yt_edge_vector  );
+  MPI_Type_free( &x->yx_edge_cont    );
+  MPI_Type_free( &x->yx_edge_vector  );
+  MPI_Type_free( &x->zt_edge_cont    );
+  MPI_Type_free( &x->zt_edge_vector  );
+  MPI_Type_free( &x->zx_edge_cont    );
+  MPI_Type_free( &x->zx_edge_vector  );
+  MPI_Type_free( &x->zy_edge_cont    );
+  MPI_Type_free( &x->zy_edge_vector  );
+#endif
+#endif
+}  /* mpi_fini_xchanger */
+
+/******************************************************************************/
+/******************************************************************************/
+
+/******************************************************************************
+ * general xchanger, including edges
+ ******************************************************************************/
+void mpi_xchanger ( double *phi, xchanger_type *p ) {
+
+#ifdef HAVE_MPI
+  int cntr=0;
+  int N = p->N;
+
+  MPI_Request request[120];
+  MPI_Status status[120];
+
+  MPI_Isend(&phi[0],        1, p->time_slice_cont, g_nb_t_dn, 83, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*VOLUME], 1, p->time_slice_cont, g_nb_t_up, 83, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(T-1)*LX*LY*LZ], 1, p->time_slice_cont, g_nb_t_up, 84, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(T+1)*LX*LY*LZ], 1, p->time_slice_cont, g_nb_t_dn, 84, g_cart_grid, &request[cntr]);
+  cntr++;
+
+#if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
+  MPI_Isend(&phi[0],                             1, p->x_slice_vector, g_nb_x_dn, 85, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ)],         1, p->x_slice_cont,   g_nb_x_up, 85, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(LX-1)*LY*LZ],                1, p->x_slice_vector, g_nb_x_up, 86, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ+T*LY*LZ)], 1, p->x_slice_cont,   g_nb_x_dn, 86, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Waitall(cntr, request, status);
+
+  cntr = 0;
+
+  MPI_Isend(&phi[N*(VOLUME+2*LX*LY*LZ)],             1, p->xt_edge_vector, g_nb_t_dn, 87, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND)],                   1, p->xt_edge_cont, g_nb_t_up, 87, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*LX*LY*LZ+(T-1)*LY*LZ)], 1, p->xt_edge_vector, g_nb_t_up, 88, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+2*LY*LZ)],           1, p->xt_edge_cont, g_nb_t_dn, 88, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+#if defined PARALLELTXY || (defined PARALLELTXYZ)
+  MPI_Isend(&phi[0],                                       1, p->y_slice_vector, g_nb_y_dn, 89, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)],         1, p->y_slice_cont, g_nb_y_up, 89, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(LY-1)*LZ],                             1, p->y_slice_vector, g_nb_y_up, 90, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+T*LX*LZ)], 1, p->y_slice_cont, g_nb_y_dn, 90, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Waitall(cntr, request, status);
+
+  cntr = 0;
+
+  MPI_Isend(&phi[N*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)],             1, p->yt_edge_vector, g_nb_t_dn, 91, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*LY*LZ)],                     1, p->yt_edge_cont, g_nb_t_up, 91, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(T-1)*LX*LZ)], 1, p->yt_edge_vector, g_nb_t_up, 92, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*LY*LZ+2*LX*LZ)],             1, p->yt_edge_cont, g_nb_t_dn, 92, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ)],           1, p->yx_edge_vector, g_nb_x_dn, 93, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*LY*LZ+4*LX*LZ)],           1, p->yx_edge_cont, g_nb_x_up, 93, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*LX*LY*LZ+2*T*LY*LZ+(LX-1)*LZ)], 1, p->yx_edge_vector, g_nb_x_up, 94, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*LY*LZ+4*LX*LZ+2*T*LZ)],    1, p->yx_edge_cont, g_nb_x_dn, 94, g_cart_grid, &request[cntr]);
+  cntr++;
+#endif
+
+#if defined PARALLELTXYZ
+  /* boundary faces */
+  MPI_Isend(&phi[0],                                                     1, p->z_slice_vector, g_nb_z_dn, 95, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) )],        1, p->z_slice_cont, g_nb_z_up, 95, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(LZ-1)],                                              1, p->z_slice_vector, g_nb_z_up, 96, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ) + T*LX*LY)], 1, p->z_slice_cont, g_nb_z_dn, 96, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Waitall(cntr, request, status);
+
+  /* boundary edges */
+
+  cntr = 0;
+
+  /* z-t edges */
+  MPI_Isend(&phi[N*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )          )], 1, p->zt_edge_vector, g_nb_t_dn,  97, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ)               )], 1, p->zt_edge_cont,   g_nb_t_up,  97, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*(LX*LY*LZ + T*LY*LZ + T*LX*LZ)+(T-1)*LX*LY)], 1, p->zt_edge_vector, g_nb_t_up,  98, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ) + 2*LX*LY     )], 1, p->zt_edge_cont,   g_nb_t_dn,  98, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  /* z-x edges */
+  MPI_Isend(&phi[N*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )             )], 1, p->zx_edge_vector, g_nb_x_dn, 99, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY)          )], 1, p->zx_edge_cont,   g_nb_x_up, 99, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LX-1)*LY )], 1, p->zx_edge_vector, g_nb_x_up, 100, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY) + 2*T*LY )], 1, p->zx_edge_cont,   g_nb_x_dn, 100, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  /* z-y edges */
+  MPI_Isend(&phi[N*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ )                    )], 1, p->zy_edge_vector, g_nb_y_dn, 101, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY)          )], 1, p->zy_edge_cont,   g_nb_y_up, 101, g_cart_grid, &request[cntr]);
+  cntr++;
+
+  MPI_Isend(&phi[N*(VOLUME+2*( LX*LY*LZ + T*LY*LZ + T*LX*LZ ) + (LY-1)           )], 1, p->zy_edge_vector, g_nb_y_up, 102, g_cart_grid, &request[cntr]);
+  cntr++;
+  MPI_Irecv(&phi[N*(VOLUME+RAND+4*(LY*LZ + LX*LZ + T*LZ + LX*LY + T*LY) + 2*T*LX )], 1, p->zy_edge_cont,   g_nb_y_dn, 102, g_cart_grid, &request[cntr]);
+  cntr++;
+
+#endif
+
+  MPI_Waitall(cntr, request, status);
+
+#endif
+}  /* end of mpi_xchanger */
+
 
 }  /* end of namespace cvc */
