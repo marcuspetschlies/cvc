@@ -11,10 +11,13 @@ extern "C"
 
 #include "lime.h"
 
+#ifdef HAVE_LIBLEMON
+#include "lemon.h"
+#endif
+
 #ifdef __cplusplus
 }
 #endif
-
 
 namespace cvc {
 int write_propagator(double * const s, char * filename, const int append, const int prec);
