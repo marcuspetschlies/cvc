@@ -797,8 +797,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * loop on flavor combinations
      ***************************************************************************/
-    /* for ( int iflavor = 0; iflavor < 2; iflavor++ ) */
-    for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
+    for ( int iflavor = 0; iflavor < 2; iflavor++ )
     {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
@@ -999,8 +998,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      /* for ( unsigned int ix = 0; ix < VOLUME; ix++ )  */
-      for ( unsigned int ix = 637; ix <= 637; ix++ ) 
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ )
       {
         
 
