@@ -1977,7 +1977,6 @@ void  TraceAdagB(complex *w, double A[12][24], double B[12][24]) {
 /* make random gauge transformation g */
 void init_gauge_trafo(double **g, double heat) {
 
-  int ix, i;
   double ran[12], inorm, u[18], v[18], w[18];
 #ifdef HAVE_MPI 
   int cntr;
@@ -1998,7 +1997,7 @@ void init_gauge_trafo(double **g, double heat) {
   }
     
   /* set g to random field */
-  for(ix=0; ix<VOLUME; ix++) {
+  for ( unsigned int ix=0; ix<VOLUME; ix++) {
     u[ 0] = 0.; u[ 1] = 0.; u[ 2] = 0.; u[ 3] = 0.; u[ 4] = 0.; u[ 5] = 0.;
     u[ 6] = 0.; u[ 7] = 0.; u[ 8] = 0.; u[ 9] = 0.; u[10] = 0.; u[11] = 0.;
     u[12] = 0.; u[13] = 0.; u[14] = 0.; u[15] = 0.; u[16] = 0.; u[17] = 0.;
@@ -2112,7 +2111,6 @@ void init_gauge_trafo(double **g, double heat) {
 
 void apply_gt_gauge(double *g, double*gauge_field) {
 
-  int ix, mu;
   double u[18];
   FILE* ofs;
 
@@ -2122,8 +2120,8 @@ void apply_gt_gauge(double *g, double*gauge_field) {
   printf_gauge_field(gauge_field, ofs);
   fclose(ofs);
 */
-  for(ix=0; ix<VOLUME; ix++) {
-    for(mu=0; mu<4; mu++) {
+  for ( unsigned int ix=0; ix<VOLUME; ix++) {
+    for ( int mu=0; mu<4; mu++) {
       _cm_eq_cm_ti_cm(u, &g[18*ix], &gauge_field[_GGI(ix,mu)]);
       _cm_eq_cm_ti_cm_dag(&gauge_field[_GGI(ix, mu)], u, &g[18*g_iup[ix][mu]]);
     }
