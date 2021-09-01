@@ -930,7 +930,7 @@ int main(int argc, char **argv) {
 
       /* loop spin-color components */
       for ( int i = 0; i < 12; i++ ) {
-        
+
         /* loop on directions */
         for ( int imu = 0; imu < 4; imu++ ) {
 
@@ -961,6 +961,54 @@ int main(int argc, char **argv) {
 
         /* multiply by 1/2 */
         spinor_field_ti_eq_re ( propagator_disp[i], 0.5, VOLUME );
+
+#if 0
+        /* TEST */
+        double * spinor_work = init_1level_dtable ( _GSI( VOLUME+RAND) );
+        memcpy ( spinor_work, propagator[iflavor][i], sizeof_spinor_field );
+#ifdef HAVE_MPI
+        xchange_field( spinor_work );
+
+#endif
+#pragma omp parallel for
+        for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+          unsigned int iix = _GSI( ix );
+
+          double spinor1[24], spinor2[24];
+
+          _fv_eq_cm_ti_fv ( spinor1, gauge_field_with_phase +  _GGI(ix,0),  spinor_work +  _GSI(g_iup[ix][0]) );
+          _fv_eq_cm_dag_ti_fv ( spinor2, gauge_field_with_phase +  _GGI(g_idn[ix][0],0 ),  spinor_work +  _GSI(g_idn[ix][0]) );
+          _fv_pl_eq_fv ( spinor1, spinor2 )
+          _fv_eq_gamma_ti_fv ( spinor2, 0 , spinor1 );
+          _fv_ti_eq_re ( spinor2, 0.5 );
+          _fv_pl_eq_fv ( propagator_disp[i]+_GSI(ix), spinor2 );
+
+          _fv_eq_cm_ti_fv ( spinor1, gauge_field_with_phase +  _GGI(ix,1),  spinor_work +  _GSI(g_iup[ix][1]) );
+          _fv_eq_cm_dag_ti_fv ( spinor2, gauge_field_with_phase +  _GGI(g_idn[ix][1],1 ),  spinor_work +  _GSI(g_idn[ix][1]) );
+          _fv_pl_eq_fv ( spinor1, spinor2 )
+          _fv_eq_gamma_ti_fv ( spinor2, 1 , spinor1 );
+          _fv_ti_eq_re ( spinor2, 0.5 );
+          _fv_pl_eq_fv ( propagator_disp[i]+_GSI(ix), spinor2 );
+
+          _fv_eq_cm_ti_fv ( spinor1, gauge_field_with_phase +  _GGI(ix,2),  spinor_work +  _GSI(g_iup[ix][2]) );
+          _fv_eq_cm_dag_ti_fv ( spinor2, gauge_field_with_phase +  _GGI(g_idn[ix][2],2 ),  spinor_work +  _GSI(g_idn[ix][2]) );
+          _fv_pl_eq_fv ( spinor1, spinor2 )
+          _fv_eq_gamma_ti_fv ( spinor2, 2 , spinor1 );
+          _fv_ti_eq_re ( spinor2, 0.5 );
+          _fv_pl_eq_fv ( propagator_disp[i]+_GSI(ix), spinor2 );
+
+          _fv_eq_cm_ti_fv ( spinor1, gauge_field_with_phase +  _GGI(ix,3),  spinor_work +  _GSI(g_iup[ix][3]) );
+          _fv_eq_cm_dag_ti_fv ( spinor2, gauge_field_with_phase +  _GGI(g_idn[ix][3],3 ),  spinor_work +  _GSI(g_idn[ix][3]) );
+          _fv_pl_eq_fv ( spinor1, spinor2 )
+          _fv_eq_gamma_ti_fv ( spinor2, 3 , spinor1 );
+          _fv_ti_eq_re ( spinor2, 0.5 );
+          _fv_pl_eq_fv ( propagator_disp[i]+_GSI(ix), spinor2 );
+
+        }
+        fini_1level_dtable ( &spinor_work );
+        /* END */
+#endif
 
       }  /* end of loop on spin color components */
 
