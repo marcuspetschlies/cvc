@@ -19,7 +19,7 @@
 
 namespace cvc {
 
-int APE_Smearing(double *smeared_gauge_field, double APE_smearing_alpha, int APE_smearing_niter);
+int APE_Smearing(double *smeared_gauge_field, double const APE_smearing_alpha, int const APE_smearing_niter);
 int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int N, double kappa);
 
 void generic_staples ( double * const buff_out, const unsigned int x, const int mu, double * const buff_in );
