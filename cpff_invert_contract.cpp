@@ -382,12 +382,18 @@ int main(int argc, char **argv) {
   for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
 
     /***************************************************************************
+     * random source timeslice
+     ***************************************************************************/
+    double dts;
+    ranlxd ( &dts , 1 );
+    int gts = (int)(dts * T_global);
+
+    /***************************************************************************
      * local source timeslice and source process ids
      ***************************************************************************/
 
     int source_timeslice = -1;
     int source_proc_id   = -1;
-    int gts              = ( g_source_coords_list[isource_location][0] +  T_global ) %  T_global;
 
     exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
     if( exitstatus != 0 ) {
