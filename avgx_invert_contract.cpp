@@ -51,6 +51,7 @@ extern "C"
 #include "prepare_source.h"
 #include "prepare_propagator.h"
 #include "project.h"
+#include "table_init_i.h"
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "dummy_solver.h"
@@ -277,27 +278,6 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
-  /***********************************************
-   * if we want to use Jacobi smearing, we need
-   * smeared gauge field
-   ***********************************************/
-  if( N_Jacobi > 0 ) {
-
-    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
-
-    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
-
-    if ( N_ape > 0 ) {
-      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
-      if(exitstatus != 0) {
-        fprintf(stderr, "[avgx_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
-        EXIT(47);
-      }
-    }  /* end of if N_aoe > 0 */
-  }  /* end of if N_Jacobi > 0 */
-
-
-
   /***************************************************************************
    * set io process
    ***************************************************************************/
@@ -388,7 +368,24 @@ int main(int argc, char **argv) {
   }
 #endif  /* of if _SMEAR_QUDA */
 
+  /***********************************************
+   * if we want to use Jacobi smearing, we need
+   * smeared gauge field
+   ***********************************************/
+  if( N_Jacobi > 0 ) {
 
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[avgx_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
 
   /***************************************************************************
    * initialize rng state
@@ -404,6 +401,8 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "rng %2d %10d\n", g_cart_id, rng_state[i] );
     }
   }
+  
+  int isample = -1;
 
   /***************************************************************************
    * loop on source timeslices
@@ -416,6 +415,7 @@ int main(int argc, char **argv) {
     double dts;
     ranlxd ( &dts , 1 );
     int gts = (int)(dts * T_global);
+    isample++;
 
     /***************************************************************************
      * local source timeslice and source process ids
@@ -434,7 +434,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * output filename
      ***************************************************************************/
-    sprintf ( output_filename, "%s.%.4d.t%d.aff", outfile_prefix, Nconf, gts );
+    sprintf ( output_filename, "%s.%.4d.t%d.s%d.aff", outfile_prefix, Nconf, gts, isample );
     /***************************************************************************
      * writer for aff output file
      ***************************************************************************/
@@ -470,7 +470,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * loop on stochastic oet samples
      ***************************************************************************/
-    for ( int isample = 0; isample < g_nsample_oet; isample++ ) {
+    /* for ( int isample = 0; isample < g_nsample_oet; isample++ ) { */
 
       /***************************************************************************
        * synchronize rng states to state at zero
@@ -1275,7 +1275,7 @@ int main(int argc, char **argv) {
 
       exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
 
-    }  /* end of loop on samples */
+    /* } */  /* end of loop on samples */
 
   }  /* end of loop on source locaions */
 
