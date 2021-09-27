@@ -893,6 +893,12 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
 
   if ( io_proc > 0 ) {
 
+    /***************************************************************************
+     * turn off automatic error writings
+     ***************************************************************************/
+    H5Eset_auto (H5E_DEFAULT, NULL, NULL);
+
+
     double ratime, retime;
 
     double ** zbuffer = NULL;
