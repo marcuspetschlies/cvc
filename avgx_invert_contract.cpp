@@ -402,12 +402,11 @@ int main(int argc, char **argv) {
     }
   }
   
-  int isample = -1;
-
   /***************************************************************************
    * loop on source timeslices
    ***************************************************************************/
-  for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) {
+  for ( int isample = g_sourceid; isample <= g_sourceid2; isample += g_sourceid_step )
+  {
 
     /***************************************************************************
      * random source timeslice
@@ -415,7 +414,11 @@ int main(int argc, char **argv) {
     double dts;
     ranlxd ( &dts , 1 );
     int gts = (int)(dts * T_global);
-    isample++;
+
+    if (  MPI_Bcast( &gts, 1, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) {
+      fprintf ( stderr, "[avgx_invert_contract] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
 
     /***************************************************************************
      * local source timeslice and source process ids
@@ -434,7 +437,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * output filename
      ***************************************************************************/
-    sprintf ( output_filename, "%s.%.4d.t%d.s%d.aff", outfile_prefix, Nconf, gts, isample );
+    sprintf ( output_filename, "%s.%.4d.t%d.s%d.aff", g_outfile_prefix, Nconf, gts, isample );
     /***************************************************************************
      * writer for aff output file
      ***************************************************************************/
@@ -447,7 +450,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #elif ( defined HAVE_HDF5 )
-    sprintf ( output_filename, "%s.%.4d.t%d.h5", outfile_prefix, Nconf, gts );
+    sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, isample );
 #endif
     if(io_proc == 2 && g_verbose > 1 ) { 
       fprintf(stdout, "# [avgx_invert_contract] writing data to file %s\n", output_filename);
