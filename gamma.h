@@ -53,5 +53,30 @@ void gamma_matrix_ti_eq_re ( gamma_matrix_type * const g1, double const z );
 
 void gamma_matrix_ti_eq_co ( gamma_matrix_type * const g1, double _Complex const z );
 
+/***************************************************************************
+ *
+ ***************************************************************************/
+inline void gamma_print ( gamma_matrix_type * const g, char * const name, FILE * ofs ) {
+  fprintf ( ofs, "%s <- array( dim=c(12,12)) \n", name );
+
+  for( int i = 0; i < 4; i++ ) {
+    for( int ic = 0; ic < 3; ic++ ) {
+
+      int const ii = 3 * i + ic;
+
+      for( int k = 0; k < 4; k++ ) {
+        for( int kc = 0; kc < 3; kc++ ) {
+
+          int const kk = 3 * k + kc;
+
+          fprintf ( ofs, "%s[%d,%d] <- %25.16e + %25.16e*1.i\n", name, ii+1, kk+1, (kc==ic) * creal( g->m[i][k] ), (kc==ic) * cimag ( g->m[i][k] ) );
+        }
+      }
+    }
+  }
+  return;
+}  /* gamma_print */
+
+
 }
 #endif
