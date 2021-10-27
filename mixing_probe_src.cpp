@@ -407,6 +407,11 @@ int main(int argc, char **argv) {
   }
   fprintf(stdout, "# [mixing_probe_src] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
+#if _TEST
+  FILE *ofs = fopen ( "mx_prb_src.test", "w" );
+#endif
+
+
   /***************************************************************************
    * set the gamma matrices
    ***************************************************************************/
@@ -454,6 +459,21 @@ int main(int argc, char **argv) {
   gamma_matrix_set( &( sigma_munu[3]), 13, 1. );
   gamma_matrix_set( &( sigma_munu[4]), 14, 1. );
   gamma_matrix_set( &( sigma_munu[5]), 15, 1. );
+
+#if _TEST
+  /* TEST */
+  gamma_print ( &(gamma_s[0]), "g4", ofs );
+  gamma_print ( &(gamma_p[0]), "g5", ofs );
+  gamma_print ( &(gamma_v[0]), "g0", ofs );
+  gamma_print ( &(gamma_v[1]), "g1", ofs );
+  gamma_print ( &(gamma_v[2]), "g2", ofs );
+  gamma_print ( &(gamma_v[3]), "g3", ofs );
+  gamma_print ( &(gamma_a[0]), "g6", ofs );
+  gamma_print ( &(gamma_a[1]), "g7", ofs );
+  gamma_print ( &(gamma_a[2]), "g8", ofs );
+  gamma_print ( &(gamma_a[3]), "g9", ofs );
+  /* END */
+#endif
 
 
   /***************************************************************************
@@ -997,10 +1017,6 @@ int main(int argc, char **argv) {
         EXIT(2);
       }
 
-#if _TEST
-      FILE *ofs = fopen ( "mx_prb_src.test", "w" );
-#endif
-
 #ifdef HAVE_OPENMP
       omp_lock_t writelock;
 
@@ -1044,7 +1060,8 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+      /* for ( unsigned int ix = 0; ix < VOLUME; ix++ ) */
+      for ( unsigned int ix = 2; ix < 3; ix++ )
       {
         
 
@@ -1083,59 +1100,62 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * auxilliary field
          * these store 
-         * gug <. sum_c Gamma_c U Gamma_c 
-         * gu  <- Tr[ Gamma_c U ] for each c
+         * gug <. sum_c Gamma_c Lu Gamma_c 
          ***************************************************************************/
 
         /***************************************************************************
          * ugu; first time init to zero, then add up
          ***************************************************************************/
         /* scalar */
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[0], &(gamma_s[0]), up, 0. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[0], &(gamma_s[0]), loop[ix], 0. );
 
         /* pseudoscalar */
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[1], &(gamma_p[0]), up, 0. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[1], &(gamma_p[0]), loop[ix], 0. );
 
         /* vector */
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[0]), up, 0. );
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[1]), up, 1. );
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[2]), up, 1. );
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[3]), up, 1. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[0]), loop[ix], 0. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[1]), loop[ix], 1. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[2]), loop[ix], 1. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[2], &(gamma_v[3]), loop[ix], 1. );
 
         /* axial-vector */
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[0]), up, 0. );
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[1]), up, 1. );
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[2]), up, 1. );
-        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[3]), up, 1. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[0]), loop[ix], 0. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[1]), loop[ix], 1. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[2]), loop[ix], 1. );
+        pm_pl_eq_gamma_ti_pm_ti_gamma ( gug[3], &(gamma_a[3]), loop[ix], 1. );
 
         /***************************************************************************
-         * ug; single number per entry
+         * auxilliary field
+         *
+         * gu  <- Tr[ Gamma_c Lu ] for each c
+         * single number per entry
          *
          * NOTE:sequence of gamma_i ( = Gamma_c ) must be the same everywhere
          * id g5 v a
          ***************************************************************************/
         /* scalar */
-        pm_eq_gamma_ti_pm ( pm , &(gamma_s[0]), up );
+        pm_eq_gamma_ti_pm ( pm , &(gamma_s[0]), loop[ix] );
         gu[0] = co_eq_tr_pm ( pm );
 
         /* pseudoscalar */
-        pm_eq_gamma_ti_pm ( pm , &(gamma_p[0]), up );
+        pm_eq_gamma_ti_pm ( pm , &(gamma_p[0]), loop[ix] );
         gu[1] = co_eq_tr_pm ( pm );
 
         /* vector */
         for ( int i = 0; i < 4; i++ ) {
-          pm_eq_gamma_ti_pm ( pm , gamma_v+i, up );
+          pm_eq_gamma_ti_pm ( pm , gamma_v+i, loop[ix] );
           gu[2+i] = co_eq_tr_pm ( pm );
         }
 
         /* pseudovector */
         for ( int i = 0; i < 4; i++ ) {
-          pm_eq_gamma_ti_pm ( pm , gamma_a+i, up );
+          pm_eq_gamma_ti_pm ( pm , gamma_a+i, loop[ix] );
           gu[6+i] = co_eq_tr_pm ( pm );
         }
 
 #if _TEST
         /* TEST */
+        pm_print ( loop[ix], "loop", ofs );
         pm_print ( gug[0], "sus", ofs );
         pm_print ( gug[1], "pup", ofs );
         pm_print ( gug[2], "vuv", ofs );
@@ -1322,10 +1342,6 @@ int main(int argc, char **argv) {
       omp_destroy_lock(&writelock);
 #endif
 
-#if _TEST
-      fclose ( ofs );
-#endif
-
       double _Complex ** corr_out = init_2level_ztable ( T_global, ncorr );
       if ( corr_out == NULL ) {
         fprintf ( stderr, "[mixing_probe_src] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
@@ -1454,6 +1470,10 @@ int main(int argc, char **argv) {
     fini_3level_dtable ( &propagator_snk_smeared );
 
   }  /* end of loop on source locations */
+
+#if _TEST
+  fclose ( ofs );
+#endif
 
   /***************************************************************************/
   /***************************************************************************/
