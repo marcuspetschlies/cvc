@@ -135,7 +135,6 @@ namespace cvc {
  * ATTENTION: s = i G_munu is calculated; s is antisymmetric in (mu,nu)
  *            but hermitean
  ***********************************************************/
-
 void clover_term_fini(double***s) {
   if(*s != NULL) {
     if((*s)[0] != NULL) {
@@ -143,7 +142,9 @@ void clover_term_fini(double***s) {
     }
     free(*s);
   }
+  *s = NULL;
 }  /* end of clover_term_fini */
+
 
 void clover_term_init (double***s, int nmat) {
 
