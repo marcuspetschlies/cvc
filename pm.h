@@ -189,6 +189,51 @@ inline void pm_pl_eq_gamma_ti_pm_ti_gamma ( double _Complex ** const x , gamma_m
 }  /* end of pm_pl_eq_gamma_ti_pm_ti_gamma */
 
 /***************************************************************************
+ * x += gamma * y^dag * gamma
+ *
+ * NOTE: x and y MUST BE DIFFERENT memory locations
+ ***************************************************************************/
+inline void pm_pl_eq_gamma_ti_pm_dag_ti_gamma ( double _Complex ** const x , gamma_matrix_type * const g, double _Complex ** const y, double _Complex const a ) {
+
+  for ( int j = 0; j < 4; j++ ) {
+    for ( int jc = 0; jc < 3; jc++ ) {
+
+      int const jj = 3 * j + jc;
+
+      for ( int i = 0; i < 4; i++ ) {
+    
+        for (int ic = 0; ic < 3; ic++ ) {
+        
+          int const ii = 3 * i + ic;
+
+          double _Complex z = 0.;
+
+          for ( int l = 0; l < 4; l++ ) {
+
+            int const ll = 3 * l + jc;
+
+            for ( int k = 0; k < 4; k++ ) {
+
+              int const kk = 3 * k + ic;
+
+              z += g->m[i][k] * conj( y[ll][kk] ) * g->m[l][j];
+
+            }  /* end of loop on k */
+
+          }  /* end of loop on l */
+
+          x[ii][jj] = a * x[ii][jj] + z;
+
+        }  /* ic */
+      }  /* i */
+    }  /* jc */
+  }  /* j */
+
+  return;
+
+}  /* end of pm_pl_eq_gamma_ti_pm_dag_ti_gamma */
+
+/***************************************************************************
  *
  ***************************************************************************/
 inline void pm_eq_pm_ti_co  ( double _Complex ** const x , double _Complex ** const y, double _Complex const a ) {
@@ -229,6 +274,20 @@ inline void pm_print (double _Complex ** const p, char * const name, FILE * ofs 
   }}
   return;
 }  /* pm_print */
+
+
+/***************************************************************************
+ * x <- a y^+ + b z
+ ***************************************************************************/
+inline void pm_eq_pm_dag_pl_pm ( double _Complex ** const x, double _Complex ** const y, double _Complex ** const z, double _Complex const a, double _Complex const b ) {
+
+  for ( int ii = 0; ii < 12; ii++ ) {
+  for ( int ll = 0; ll < 12; ll++ ) {
+    x[ii][ll] = a * conj ( y[ll][ii] ) + b * z[ii][ll];
+  }}
+  return;
+}  /* pm_eq_pm_dag_pl_pm */
+
 
 }
 
