@@ -553,7 +553,7 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      flow_fwd_gauge_spinor_field ( gauge_field_smeared, spinor_field[0], 1, gf_dt, 1, 1 );
+      flow_fwd_gauge_spinor_field ( gauge_field_smeared, spinor_field, 1, 1, gf_dt, 1, 1 );
 
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "test_gradient_flow", "flow_fwd_gauge_spinor_field", g_cart_id == 0 );
@@ -688,7 +688,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &spinor_field );
   fini_1level_dtable ( &gauge_field_smeared );
 
-  flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
+  flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0, 0., 0, 0 );
 
 #ifdef HAVE_LHPC_AFF
   /***************************************************************************

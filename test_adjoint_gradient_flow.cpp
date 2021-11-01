@@ -510,10 +510,10 @@ int main(int argc, char **argv) {
     double * gfaux = init_1level_dtable ( 72 * VOLUME );
     memcpy ( gfaux, g_gauge_field, sizeof_gauge_field );
     memcpy ( spinor_field[2], spinor_field[1], sizeof_spinor_field );
-    flow_fwd_gauge_spinor_field ( gfaux, spinor_field[2], gf_m, gf_dt, 1, 1 );
+    flow_fwd_gauge_spinor_field ( gfaux, &(spinor_field[2]), 1, gf_m, gf_dt, 1, 1 );
     fini_1level_dtable ( &gfaux );
 
-    flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
+    flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0, 0., 0, 0 );
 
   }  /* end of if read_propagator else */
 
@@ -553,7 +553,7 @@ int main(int argc, char **argv) {
 
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    flow_adjoint_gauge_spinor_field ( gauge_field_smeared, spinor_field[isc], gf_dt, gf_m, gf_nb, gf_ns );
+    flow_adjoint_gauge_spinor_field ( gauge_field_smeared, &(spinor_field[isc]), 1, gf_dt, gf_m, gf_nb, gf_ns );
 
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "test_adjoint_gradient_flow", "flow_adjoint_gauge_spinor_field", g_cart_id == 0 );
@@ -564,7 +564,7 @@ int main(int argc, char **argv) {
       EXIT(2);
     }
   
-    flow_adjoint_step_gauge_spinor_field ( NULL, NULL, 0, 0., 0, 0 );
+    flow_adjoint_step_gauge_spinor_field ( NULL, NULL, 0, 0, 0., 0, 0 );
   }  /* end of loop on isc */
 #if 0
   spinor_scalar_product_co ( &csp, spinor_field[0], spinor_field[1], VOLUME );
