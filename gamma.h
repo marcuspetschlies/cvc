@@ -1,5 +1,6 @@
 #ifndef _GAMMA_H
 #define _GAMMA_H
+#include <complex.h>
 
 namespace cvc {
 
