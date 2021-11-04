@@ -64,6 +64,7 @@ extern "C"
 
 #include "clover.h"
 #include "pm.h"
+#include "gluon_operators.h"
 #include "gradient_flow.h"
 
 #ifndef _OP_ID_UP
@@ -567,7 +568,7 @@ int main(int argc, char **argv) {
    *
    * DO WE NEED PLUSRAND HERE ?
    ***************************************************************************/
-  alloc_gauge_field( &gflow_gauge_field, VOLUME );
+  alloc_gauge_field( &gflow_gauge_field, VOLUMEPLUSRAND );
   if( gflow_gauge_field == NULL )  {
     fprintf(stderr, "[mixing_probe_src] Error from alloc_gauge_field %s %d\n", __FILE__, __LINE__);
     EXIT(1);
@@ -624,8 +625,8 @@ int main(int argc, char **argv) {
        *   from stochastic_source
        ***************************************************************************/
 #if _USE_TIME_DILUTION
-      // for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
-      for ( int timeslice = 1; timeslice <= 1; timeslice ++ )
+      /* for ( int timeslice = 0; timeslice < T_global; timeslice ++ ) */
+      for ( int timeslice = 2; timeslice < 3; timeslice ++ )
       {
 #endif
 
@@ -759,7 +760,7 @@ int main(int argc, char **argv) {
                              */
                             /* ( scalar_field[isample][ 2 * ( ix + loffset ) ] - I * scalar_field[isample][ 2 * ( ix + loffset ) + 1] ) 
                              */
-                            ( spinor_work[1][ iy + 2 * jsc  ] - I * spinor_work[1][ iy + 2 * jsc + 1 ] )
+                            ( spinor_work[0][ iy + 2 * jsc  ] - I * spinor_work[0][ iy + 2 * jsc + 1 ] )
                             /* 
                              * times prop vector element
                              */
@@ -1032,6 +1033,8 @@ int main(int argc, char **argv) {
 
       int steps = istep == 0 ? gflow_steps[0] : gflow_steps[istep] - gflow_steps[istep-1];
 
+      if ( io_proc == 2 ) fprintf ( stdout, "# [mixing_probe_src] iter %d steps %d %s %d\n", istep, steps, __FILE__, __LINE__ );
+
       /***************************************************************************
        * flow the source and solution
        ***************************************************************************/
@@ -1041,6 +1044,88 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "mixing_probe_src", "flow_fwd_gauge_spinor_field", g_cart_id == 0 );
+
+      /***************************************************************************
+       ***************************************************************************
+       **
+       ** gauge observables
+       **
+       ***************************************************************************
+       ***************************************************************************/
+ 
+      /***************************************************************************
+       * observable: G_{mu,nu} G_{mu,nu} / 4
+       ***************************************************************************/
+      double *** Gp = init_3level_dtable ( VOLUME, 6, 9 );
+      if ( Gp == NULL ) {
+        fprintf ( stderr, "[mixing_probe_src] Error from  init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+      double * op = init_1level_dtable ( T_global );
+      if ( op == NULL ) {
+        fprintf ( stderr, "[mixing_probe_src] Error from  init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+      exitstatus = G_plaq ( Gp, gflow_gauge_field, 1);
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[mixing_probe_src] Error from G_plaq, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+      exitstatus = gluonic_operators_qtop_from_fst_projected ( op, Gp, 1 );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[mixing_probe_src] Error from gluonic_operators_qtop_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+      if ( io_proc == 2 ) {
+
+        char gflow_tag[100];
+        sprintf ( gflow_tag, "gf%6.4f_%d", gflow_dt, gflow_steps[istep] );
+
+        char tag[400];
+        sprintf ( tag, "/%s/qtop/", gflow_tag );
+
+        exitstatus = write_aff_contraction ( op, affw, NULL, tag, T_global, "double" );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[mixing_probe_src] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(4);
+        }
+      }
+
+      exitstatus = gluonic_operators_ggdens_from_fst_projected ( op, Gp, 1 );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[mixing_probe_src] Error from gluonic_operators_ggdens_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(8);
+      }
+
+      if ( io_proc == 2 ) {
+
+        char gflow_tag[100];
+        sprintf ( gflow_tag, "gf%6.4f_%d", gflow_dt, gflow_steps[istep] );
+
+        char tag[400];
+        sprintf ( tag, "/%s/gg/", gflow_tag );
+
+        exitstatus = write_aff_contraction ( op, affw, NULL, tag, T_global, "double" );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[mixing_probe_src] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(4);
+        }
+      }
+
+      fini_1level_dtable ( &op );
+      fini_3level_dtable ( &Gp );
+
+      /***************************************************************************
+       ***************************************************************************
+       **
+       ** fermionc observables
+       **
+       ***************************************************************************
+       ***************************************************************************/
 
 
       /***************************************************************************
@@ -1059,7 +1144,8 @@ int main(int argc, char **argv) {
          * 17 = 1-1 iso-triplet 3
          * 18 = g5 - g5 charged
          */
-        int const ncorr = 2 * 4 * 2 + 3;
+        int const ncorr = 2 * 4 * 2 + 3 + int( istep == 0 ) * 3;
+        if ( io_proc == 2 && g_verbose > 0 ) fprintf ( stdout, "# [mixing_probe_src] istep %3d  ncorr = %3d %s %d\n", istep, ncorr, __FILE__, __LINE__ );
   
         double _Complex ** corr_accum = init_2level_ztable ( T, ncorr );
         if ( corr_accum == NULL ) {
@@ -1110,8 +1196,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-        /* for ( unsigned int ix = 0; ix < VOLUME; ix++ ) */
-        for ( unsigned int ix = 2; ix < 3; ix++ )
+        for ( unsigned int ix = 0; ix < VOLUME; ix++ )
         {
           
   
@@ -1330,14 +1415,14 @@ int main(int argc, char **argv) {
            ***************************************************************************/
   
           /* make the point-wise up and down propagator matrix
-           * with sink-smeared propagators
+           * with gflowed propagators
            */
   
           /* fill up from 12 spinor fields */
-          pm_set_from_sf_point ( up, propagator_snk_smeared[iflavor], ix );
+          pm_set_from_sf_point ( up, propagator[iflavor], ix );
   
           /* fill dn from 12 spinor fields */
-          pm_set_from_sf_point ( dn, propagator_snk_smeared[1-iflavor], ix );
+          pm_set_from_sf_point ( dn, propagator[1-iflavor], ix );
   
           /***************************************************************************
            * auxilliary field
@@ -1359,6 +1444,48 @@ int main(int argc, char **argv) {
           pm_eq_pm_ti_pm_dag ( pm, up, up );
           corr[it][18] += co_eq_tr_pm ( pm );
   
+          /***************************************************************************
+           * only for istep = 0 build the 2-point functions
+           * from source and sink smeared operators
+           ***************************************************************************/
+          if ( istep == 0 ) {
+
+            /***************************************************************************
+             * pobing operator correlation functions at source and sink
+             ***************************************************************************/
+   
+            /* make the point-wise up and down propagator matrix
+             * with sink-smeared propagators
+             */
+  
+            /* fill up from 12 spinor fields */
+            pm_set_from_sf_point ( up, propagator_snk_smeared[iflavor], ix );
+  
+            /* fill dn from 12 spinor fields */
+            pm_set_from_sf_point ( dn, propagator_snk_smeared[1-iflavor], ix );
+  
+            /***************************************************************************
+             * auxilliary field
+             * gdg <- g5 dn g5
+             ***************************************************************************/
+            pm_pl_eq_gamma_ti_pm_ti_gamma ( gdg, &(gamma_p[0]), dn, 0. );
+  
+            /* Tr [ g5 U g5 g5 D^+ g5 ] */
+            pm_eq_gamma_ti_pm_dag ( pm, &(gamma_p[0]), gdg );
+            pm_eq_pm_ti_pm ( pm2, up, pm );
+            pm_eq_gamma_ti_pm ( pm, &(gamma_p[0]), pm2 );
+            corr[it][19] += co_eq_tr_pm ( pm );
+  
+            /* Tr [ Id U Id g5 D^+ g5 ] */
+            pm_eq_pm_ti_pm_dag ( pm, up, gdg );
+            corr[it][20] += co_eq_tr_pm ( pm );
+  
+            /* Tr [ g5 U g5 g5 U^+ g5 ] */
+            pm_eq_pm_ti_pm_dag ( pm, up, up );
+            corr[it][21] += co_eq_tr_pm ( pm );
+
+          }  /* end of if istep == 0 */
+
         }  /* end of loop on x */
   
         /***************************************************************************/
@@ -1498,7 +1625,41 @@ int main(int argc, char **argv) {
               EXIT(4);
             }
           }
-  
+ 
+          if ( istep == 0 ) { 
+
+            {
+              for ( int i = 0; i < 2; i++ ) {
+
+                int const corr_id = 19 + i;
+                for ( int it = 0; it < T_global; it++ ) {
+                  buffer[it] = corr_out[it][corr_id];
+                }
+                char tag[400];
+                sprintf ( tag, "/fl_%c/op_%s/d_%s/c_%s", flavor_tag[iflavor], op_f_list[2+i], diag_list[2], op_f_list[2+i] );
+                exitstatus = write_aff_contraction ( buffer, affw, NULL, tag, T_global, "complex" );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[mixing_probe_src] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(4);
+                }
+              }
+            }
+
+            {
+              int const corr_id = 21;
+              for ( int it = 0; it < T_global; it++ ) {
+                buffer[it] = corr_out[it][corr_id];
+              }
+              char tag[400];
+              sprintf ( tag, "/fl_%c/op_%s/d_%s/c_%s", flavor_tag[iflavor], op_f_list[2], diag_list[3], op_f_list[2] );
+              exitstatus = write_aff_contraction ( buffer, affw, NULL, tag, T_global, "complex" );
+              if ( exitstatus != 0 ) {
+                fprintf(stderr, "[mixing_probe_src] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(4);
+              }
+            }
+          }  /* end of if istep */
+
           fini_1level_ztable ( &buffer );
   
         }  /* end of if io_proc == 2 */
