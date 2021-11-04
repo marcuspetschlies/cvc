@@ -180,5 +180,7 @@ int gluonic_operators_qtop_from_fst_projected ( double * op, double *** const G,
 
 int gluonic_operators_gg_from_fst_projected ( double ** op, double *** const G, int const traceless );
 
+int gluonic_operators_ggdens_from_fst_projected ( double * op, double *** const G, int const traceless );
+
 }  /* end of namespace cvc */
 #endif

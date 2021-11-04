@@ -2080,4 +2080,136 @@ int gluonic_operators_gg_from_fst_projected ( double ** op, double *** const G, 
 
 }  /* end of gluonic_operators_gg_from_fst_projected */
 
+
+/****************************************************************************/
+/****************************************************************************/
+
+/****************************************************************************
+ * action density
+ *
+ *
+ * 6 components of G expected; each 3x3 complex matrix
+ * 
+ * G_{0,1}  G_{0,2}   G_{0,3}   G_{1,2}   G_{1,3}   G_{2,3}
+ *   0        1         2         3         4         5
+ *
+ * further we asume anti-symmetry in mu, nu
+ * G_{1,0} = - G_{0,1}
+ * G_{2,0} = - G_{0,2}
+ * G_{3,0} = - G_{0,3}
+ * G_{2,1} = - G_{1,2}
+ * G_{3,1} = - G_{1,3}
+ * G_{3,2} = - G_{2,3}
+ *
+ * diagonal elements are zero
+ ****************************************************************************/
+int gluonic_operators_ggdens_from_fst_projected ( double * op, double *** const G, int const traceless ) {
+
+  double const qtop_norm = -1. / ( 8. * M_PI * M_PI );
+  unsigned int const VOL3 = LX * LY * LZ;
+  double * pl = init_1level_dtable ( T );
+  if ( pl == NULL ) {
+    fprintf( stderr, "[gluonic_operators_ggdens_from_fst_projected] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(2);
+  }
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  for ( int it = 0; it < T; it++ ) {
+#ifdef HAVE_OPENMP
+    omp_init_lock(&writelock);
+
+#pragma omp parallel shared(it)
+{
+#endif
+    double pl_tmp = 0.;
+
+    if ( traceless ) {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for ( unsigned int iy = 0; iy < VOL3; iy++) {
+
+        unsigned int const ix = it * VOL3 + iy;
+
+        /* for GG   : G_{0,1} x G_{0,1} + G_{0,2} x G_{0,2} + G_{0,3} x G_{0,3} + G_{1,2} x G_{1,2} + G_{1,3} x G_{1,3} + G_{2,3} x G_{2,3} 
+         * indices    0       x 0         1       x 1       + 2       x 2       + 3       x 3       + 4       x 4       + 5       x 5        */
+
+        for ( int k = 1; k < 9; k++ ) {
+          pl_tmp +=   G[ix][0][k] * G[ix][0][k]
+                    + G[ix][1][k] * G[ix][1][k]
+                    + G[ix][2][k] * G[ix][2][k]
+                    + G[ix][3][k] * G[ix][3][k]
+                    + G[ix][4][k] * G[ix][4][k]
+                    + G[ix][5][k] * G[ix][5][k];
+        }
+      }
+    } else {
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+      for ( unsigned int iy = 0; iy < VOL3; iy++) {
+
+        unsigned int const ix = it * VOL3 + iy;
+
+        /* for O44 : G_{0,1} x G_{1,0} + G_{0,2} x G_{2,0} + G_{0,3} x G_{3,0} 
+         * indices        0  x      0         1  x      1         2  x      2  */
+
+        for ( int k = 0; k < 9; k++ ) {
+          pl_tmp +=   G[ix][0][k] * G[ix][0][k]
+                    + G[ix][1][k] * G[ix][1][k]
+                    + G[ix][2][k] * G[ix][2][k]
+                    + G[ix][3][k] * G[ix][3][k]
+                    + G[ix][4][k] * G[ix][4][k]
+                    + G[ix][5][k] * G[ix][5][k];
+        }
+      }
+    }
+
+    pl_tmp *= qtop_norm;
+
+#ifdef HAVE_OPENMP
+    omp_set_lock(&writelock);
+#endif
+
+    pl[it] += pl_tmp;
+
+#ifdef HAVE_OPENMP
+    omp_unset_lock(&writelock);
+}  /* end of parallel region */
+    omp_destroy_lock(&writelock);
+#endif
+
+  }  /* end of loop on timeslices */
+
+
+#ifdef HAVE_MPI
+
+  double * buffer = init_1level_dtable ( T );
+  if ( buffer == NULL ) {
+    fprintf( stderr, "[gluonic_operators_ggdens_from_fst_projected] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    return(3);
+  }
+  if ( MPI_Reduce ( pl, buffer, T, MPI_DOUBLE, MPI_SUM,  0, g_ts_comm) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators_ggdens_from_fst_projected] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  if ( MPI_Gather ( buffer, T, MPI_DOUBLE, op, T, MPI_DOUBLE, 0, g_tr_comm ) != MPI_SUCCESS ) {
+    fprintf ( stderr, "[gluonic_operators_ggdens_from_fst_projected] Error from MPI_Gather %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  fini_1level_dtable ( &buffer );
+#else
+  memcpy ( op, pl, T_global*sizeof(double) );
+#endif
+
+  fini_1level_dtable ( &pl );
+  return( 0 );
+
+}  /* end of gluonic_operators_ggdens_from_fst_projected */
+
 }  /* end of namespace cvc */
