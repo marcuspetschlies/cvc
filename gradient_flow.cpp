@@ -271,9 +271,11 @@ void flow_fwd_gauge_spinor_field ( double * const g, double ** const chi, int co
    ******************************************************************/
 
   if ( flow_spinor && !flow_gauge ) {
+    memcpy ( w[0], g, sizeof_gauge_field );
     memcpy ( w[1], g, sizeof_gauge_field );
     memcpy ( w[2], g, sizeof_gauge_field );
 #ifdef HAVE_MPI
+    xchange_gauge_field ( w[0] );
     xchange_gauge_field ( w[1] );
     xchange_gauge_field ( w[2] );
 #endif
@@ -286,67 +288,52 @@ void flow_fwd_gauge_spinor_field ( double * const g, double ** const chi, int co
      * flow gauge field & store intermediate fields 
      ******************************************************************/
 
-    /******************************************************************
-     * STEP 0
-     ******************************************************************/
-    if ( flow_gauge || flow_spinor ) {
-      memcpy ( w[0], g, sizeof_gauge_field );
-#ifdef HAVE_MPI
-      xchange_gauge_field ( w[0] );
-#endif
-    }
-
-    /******************************************************************
-     * STEP 1
-     * W1 = exp( 1/4 Z0 ) W0
-     ******************************************************************/
     if ( flow_gauge ) {
+      /******************************************************************
+       * STEP 0
+       ******************************************************************/
+      memcpy ( w[0], g, sizeof_gauge_field );
+
+      /******************************************************************
+       * STEP 1
+       * W1 = exp( 1/4 Z0 ) W0
+       ******************************************************************/
       /* calculate Z0 = Z( W0 ) */
       ZX ( z, w[0], 1./4., 0. );
 
       /* W1 = exp(dt Z0) W0 */
-      apply_ZX ( w[1], z, dt );
-    } else if ( flow_spinor ) {
       memcpy ( w[1], w[0], sizeof_gauge_field );
-#ifdef HAVE_MPI
-      xchange_gauge_field ( w[1] );
-#endif
-    }
+      apply_ZX ( w[1], z, dt );
 
-    /******************************************************************
-     * STEP 2
-     * W2 = exp( 8/9 Z1 - 17/36 Z0 ) W1
-     ******************************************************************/
-    if ( flow_gauge ) {
+      /******************************************************************
+       * STEP 2
+       * W2 = exp( 8/9 Z1 - 17/36 Z0 ) W1
+       ******************************************************************/
       /* calculate Z1 = Z( W1 )
        * and z <- 8/9 Z1 -17/9 z = 8/9 Z1 - 17/36 Z0 */
       ZX ( z, w[1], 8./9., -17./9. );
 
       /* W2 = exp( dt z ) W1 */
-      apply_ZX ( w[2], z, dt );
-    } else if ( flow_spinor ) {
       memcpy ( w[2], w[1], sizeof_gauge_field );
-#ifdef HAVE_MPI
-      xchange_gauge_field ( w[2] );
-#endif
-    }
+      apply_ZX ( w[2], z, dt );
 
-    /******************************************************************
-     * STEP 3
-     * W3 = exp( 3/4 Z2 -8/9 Z1 + 17/36 Z0 ) W2
-     *
-     * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     * !! W3 = g
-     * !!
-     * !! OVERWRITING g at this point !!
-     * !!
-     * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-     ******************************************************************/
-    if ( flow_gauge ) {
+      /******************************************************************
+       * STEP 3
+       * W3 = exp( 3/4 Z2 -8/9 Z1 + 17/36 Z0 ) W2
+       *
+       * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       * !! W3 = g
+       * !!
+       * !! OVERWRITING g at this point !!
+       * !!
+       * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ******************************************************************/
       /* calculate Z2 = Z( W2 )
        * and z <- 3/4 Z2 - z = 3/4 Z2 - 8/9 Z1 + 17/36 Z1 */
       ZX ( z, w[2], 3./4., -1. );
 
+      /* keep W2, W3 = g */
+      memcpy ( g, w[2], sizeof_gauge_field );
       apply_ZX ( g, z, dt );
     }
 
@@ -411,6 +398,9 @@ void flow_fwd_gauge_spinor_field ( double * const g, double ** const chi, int co
       }  /* end of loop on fields */
 
     }  /* end of if flow_spinor */
+
+    /******************************************************************/
+    /******************************************************************/
 
   }  /* end of loop on iterations */
 
