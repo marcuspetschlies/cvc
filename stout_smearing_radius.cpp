@@ -52,11 +52,9 @@ void usage() {
   EXIT(0);
 }
 
-#define MAX_SMEARING_LEVELS 40
+#define MAX_SMEARING_LEVELS 100
 
-#define _GLUONIC_OPERATORS_PLAQ 0
 #define _GLUONIC_OPERATORS_CLOV 1
-#define _GLUONIC_OPERATORS_RECT 1
 
 #define _QTOP 0
 
@@ -206,11 +204,26 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * set a source at link x=0, mu=0
    ***************************************************************************/
-  double heat = 0.1;
-  random_gauge_point ( &( g_gauge_field[_GGI(0,0)] ), heat);
+  double heat = 1.0;
+  double ** gauge_point = init_2level_dtable ( 4, 18 );
+  if ( gauge_point == NULL ) {
+    fprintf ( stderr, "[stout_smearing_radius] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(123);
+  }
+
+  if ( g_cart_id == 0 ) {
+    random_gauge_point ( gauge_point, heat);
+    _cm_eq_cm ( g_gauge_field+_GGI(0,0), gauge_point[0] );
+/*    _cm_eq_cm ( g_gauge_field+_GGI(0,1), gauge_point[1] );
+    _cm_eq_cm ( g_gauge_field+_GGI(0,2), gauge_point[2] );
+    _cm_eq_cm ( g_gauge_field+_GGI(0,3), gauge_point[3] );
+    */
+  }
+  fini_2level_dtable ( &gauge_point );
 
   double plaq = 0.;
   plaquette2( &plaq, g_gauge_field );
+  if ( io_proc == 2 ) fprintf ( stdout, "# [stout_smearing_radius] initial plaq  %25.16e %s %d\n", plaq, __FILE__, __LINE__ );
 
   /***************************************************************************
    *
@@ -249,14 +262,18 @@ int main(int argc, char **argv) {
     sprintf( timer_tag, "stout-smear-%u", stout_iter );
     show_time ( &ta, &tb, "stout_smearing_radius", timer_tag, io_proc==2 );
 
+
+    plaquette2( &plaq, g_gauge_field );
+    if ( io_proc == 2 ) fprintf ( stdout, "# [stout_smearing_radius] stout iter %2d plaq  %25.16e %s %d\n", stout_level_iter[istout], plaq, __FILE__, __LINE__ );
+
     /***************************************************************************
      * optionally write checkpoint configuration
      ***************************************************************************/
-    if ( write_checkpoint && ( stout_level_iter[istout] % write_checkpoint == 0 ) && ( stout_level_iter[istout] > 0 ) ) {
+    if ( write_checkpoint && ( stout_level_iter[istout] % write_checkpoint == 0 ) ) /* && ( stout_level_iter[istout] > 0 )   */
+    {
       sprintf ( filename, "%s.%.4d.stoutn%d.stoutr%6.4f", gaugefilename_prefix, Nconf,  stout_level_iter[istout] , stout_rho );
       if(g_cart_id==0) fprintf(stdout, "# [stout_smearing_radius] writing gauge field to file %s\n", filename);
 
-      double plaq = 0.;
       plaquette2 ( &plaq, g_gauge_field );
 
       exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
@@ -267,22 +284,9 @@ int main(int argc, char **argv) {
 
     }
 
-
 #ifdef HAVE_MPI
     xchange_gauge_field ( g_gauge_field );
 #endif
-
-    /***************************************************************************
-     * operator output field
-     ***************************************************************************/
-    double ** pl = init_2level_dtable ( T_global, 2 );
-    if( pl == NULL ) {
-      fprintf(stderr, "[stout_smearing_radius] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-      EXIT(14);
-    }
-
-    /***************************************************************************/
-    /***************************************************************************/
 
 #if _GLUONIC_OPERATORS_CLOV
 
@@ -291,7 +295,7 @@ int main(int argc, char **argv) {
      **
      ** Measurement with gluonic operators from field strength tensor
      **
-     ** CLOVER DEFINITION
+     ** CLOVER-PLAQUETTE DEFINITION
      **
      ***************************************************************************
      ***************************************************************************/
@@ -326,28 +330,75 @@ int main(int argc, char **argv) {
      ***********************************************************/
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    double ** p_tc = init_2level_dtable ( T_global, 21 );
-    if ( p_tc == NULL ) {
+    double * op = init_1level_dtable ( VOLUME );
+    if ( op == NULL ) {
       fprintf ( stderr, "[stout_smearing_radius] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(8);
     }
 
-    exitstatus = gluonic_operators_gg_from_fst_projected ( p_tc, Gp, 0 );
+    exitstatus = gluonic_operators_gg_density ( op, Gp, 1 );
     if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[stout_smearing_radius] Error from gluonic_operators_gg_from_fst_projected, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      fprintf ( stderr, "[stout_smearing_radius] Error from gluonic_operators_gg_density, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(8);
     }
 
     gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "stout_smearing_radius", "gluonic_operators_gg_from_fst_projected", io_proc==2 );
+    show_time ( &ta, &tb, "stout_smearing_radius", "gluonic_operators_gg_density", io_proc==2 );
+
+    /***********************************************************
+     * rms radius
+     ***********************************************************/
+
+    /* sprintf ( filename, "ggdens.c%d.s%d", Nconf, stout_level_iter[istout] );
+    FILE * ofs = fopen ( filename, "w" );
+    */
+
+
+    double pl[2] = { 0.,  0. };
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+      int x[4] = { 
+        g_lexic2coords[ix][0] + g_proc_coords[0] * T,
+        g_lexic2coords[ix][1] + g_proc_coords[1] * LX,
+        g_lexic2coords[ix][2] + g_proc_coords[2] * LY,
+        g_lexic2coords[ix][3] + g_proc_coords[3] * LZ };
+
+      int y[4] = { 
+        x[0] <= T_global/2  ? x[0] : x[0] - T_global,
+        x[1] <= LX_global/2 ? x[1] : x[1] - LX_global,
+        x[2] <= LY_global/2 ? x[2] : x[2] - LY_global,
+        x[3] <= LZ_global/2 ? x[3] : x[3] - LZ_global };
+
+      pl[0] += ( y[0] * y[0] + y[1] * y[1] + y[2] * y[2] + y[3] * y[3] ) * op[ix];
+
+      pl[1] += op[ix];
+
+      /* fprintf ( ofs, "%3d %3d %3d %3d    %3d %3d %3d %3d   %16.7e\n", 
+          x[0], x[1], x[2], x[3],
+          y[0], y[1], y[2], y[3],
+          op[ix] );
+          */
+
+
+    }
+    
+    /* fclose ( ofs ); */
+
+#ifdef HAVE_MPI
+    double buffer[2] = { pl[0], pl[1] };
+    if ( MPI_Reduce ( buffer, pl, 2, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS ) {
+      fprintf ( stderr, "[stout_smearing_radius] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+      EXIT(8);
+    }
+#endif
 
     if ( io_proc == 2 ) {
-      sprintf ( data_tag, "%s/clover/GG", stout_tag );
+      pl[0] = sqrt( pl[0] / pl[1] );
+      sprintf ( data_tag, "%s/plaquette/GG/rrms", stout_tag );
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-      exitstatus = write_aff_contraction ( p_tc[0], affw, NULL, data_tag, 21 * T_global, "double" );
+      exitstatus = write_aff_contraction ( &(pl[0]), affw, NULL, data_tag, 1, "double" );
 #elif ( defined HAVE_HDF5 )
-      int const dims = 21 * T_global;
-      exitstatus = write_h5_contraction ( p_tc[0], NULL, output_filename, data_tag, "double", 1, &dims );
+      int const dims = 1;
+      exitstatus = write_h5_contraction ( &(pl[0]), NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
 #endif
@@ -355,9 +406,24 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[stout_smearing_radius] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
         EXIT(48);
       }
+
+      sprintf ( data_tag, "%s/plaquette/GG/weight", stout_tag );
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = write_aff_contraction ( &(pl[1]), affw, NULL, data_tag, 1, "double" );
+#elif ( defined HAVE_HDF5 )
+      int const dims = 1;
+      exitstatus = write_h5_contraction ( &(pl[1]), NULL, output_filename, data_tag, "double", 1, &dims );
+#else
+      exitstatus = 1;
+#endif
+      if ( exitstatus != 0) {
+        fprintf(stderr, "[stout_smearing_radius] Error from write_contraction %s %d\n", __FILE__, __LINE__ );
+        EXIT(48);
+      }
+
     }  /* end of if io_proc == 2  */
 
-    fini_2level_dtable ( &p_tc );
+    fini_1level_dtable ( &op );
 
     /***********************************************************/
     /***********************************************************/
@@ -368,8 +434,6 @@ int main(int argc, char **argv) {
 
     /***************************************************************************/
     /***************************************************************************/
-
-    fini_2level_dtable ( &pl );
 
   }  /* end of loop on stout smearing steps */
 
