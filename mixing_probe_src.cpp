@@ -500,7 +500,7 @@ int main(int argc, char **argv) {
       EXIT(12);
     }
 
-    finit_2level_dtable ( &spinor_work );
+    fini_2level_dtable ( &spinor_work );
 
   }
 #endif  /* of if _SMEAR_QUDA or _GFLOW_QUDA */
