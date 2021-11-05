@@ -22,6 +22,11 @@
 #include "lhpc-aff.h"
 #endif
 
+#ifdef _GFLOW_QUDA
+#warning "including quda header file quda.h directly "
+#include "quda.h"
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -716,8 +721,9 @@ int main(int argc, char **argv) {
              * now we loop over the number of gflow steps
              ***************************************************************************/
 
+#if defined _GFLOW_CVC
             memcpy ( gflow_gauge_field, gauge_field_with_phase , sizeof_gauge_field );
-
+#endif
             for ( int istep = 0; istep < gflow_nstep; istep++ ) {
 
               int steps = istep == 0 ? gflow_steps[0] : gflow_steps[istep] - gflow_steps[istep-1];
@@ -727,7 +733,19 @@ int main(int argc, char **argv) {
                ***************************************************************************/
               gettimeofday ( &ta, (struct timezone *)NULL );
 
+#ifdef _GFLOW_QUDA
+              /***************************************************************************
+               * IN-PLACE WORKS HERE ? 
+               * CHECK THAT
+               ***************************************************************************/
+              STOPPED HERE
+                NEED A CHECKPOINT OR PASS MULTIPLE FIELDS
+               _performGFlownStep ( spinor_field[0], spinor_workd[0], steps, gf_dt, 1, QUDA_WFLOW_TYPE_WILSON , ( istep == 0 ) );
+               _performGFlownStep ( spinor_field[1], spinor_workd[1], steps, gf_dt, 1, QUDA_WFLOW_TYPE_WILSON , ( istep == 0 ) );
+
+#elif defined _GFLOW_CVC
               flow_fwd_gauge_spinor_field ( gflow_gauge_field, spinor_work, 2, steps, gflow_dt, 1, 1 );
+#endif              
  
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "mixing_probe_src", "flow_fwd_gauge_spinor_field", g_cart_id == 0 );
