@@ -802,7 +802,16 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      int const ncorr = 2 * 4 * 4 + 3;
+      /* total number of correlators is 32 + 5
+       *
+       * 2 [b,d] x 4 [vasp] x 4 [g5,m,D,g5sigmaG] = 0,...,31
+       * 32 = g5-g5 iso-singlet
+       * 33 = 1-1 iso-triplet 3
+       * 34 = D-D iso-triplet
+       * 35 = g5sigmaG iso-singlet
+       * 36 = g5 - g5 charged
+       */
+      int const ncorr = 2 * 4 * 4 + 5;
 
       double _Complex ** corr_accum = init_2level_ztable ( T, ncorr );
       if ( corr_accum == NULL ) {
@@ -908,6 +917,52 @@ int main(int argc, char **argv) {
         fprintf ( ofs, " gu[%d] <- %25.16e + %25.16e*1.i\n", i+1, creal(gu[i]), cimag ( gu[i] ) );
       }
       /* END */
+#endif
+
+      /***************************************************************************
+       * build g5 sigma_munu G_munu
+       * for the source point
+       ***************************************************************************/
+      double _Complex **  g5sigmaG_src = init_2level_ztable ( 12, 12 );
+      
+      if ( source_proc_id == g_cart_id ) {
+        double _Complex **  pm = init_2level_ztable ( 12, 12 );
+
+        memset ( g5sigmaG_src[0], 0, 144 * sizeof( double _Complex ) );
+
+        memset ( pm[0], 0, 144 * sizeof( double _Complex ) );
+
+        for (int i=0; i<6;i++ ) {
+
+          double * const _gpm = Gpm[ix][i];
+
+          for ( int j = 0; j<4; j++ ) {
+          for ( int jc = 0; jc<3; jc++ ) {
+
+            int const jj = 3 * j + jc;
+
+            for ( int k = 0; k<4; k++ ) {
+            for ( int kc = 0; kc<3; kc++ ) {
+
+              int const kk = 3 * k + kc;
+              pm[jj][kk] += ( _gpm[2*(3*jc+kc) ] + I * _gpm[2*(3*jc+kc)+1] ) * sigma_munu[i].m[j][k];
+            }}
+          }}
+        }
+        pm_eq_gamma_ti_pm ( g5sigmaG_src, &(gamma_p[0]), pm );
+
+        fini_2level_ztable ( &pm );
+      }  /* end of if have source */
+
+#ifdef HAVE_MPI
+      /***************************************************************************
+       * broadcast g5sigmaG_src to all
+       ***************************************************************************/
+      exitstatus = MPI_Bcast (g5sigmaG_src[0], 144, MPI_DOUBLE, source_proc_id, g_cart_grid );
+      if ( exitstatus != MPI_SUCCESS ) {
+        fprintf ( stderr, "[mixing_probe] Error from MPI_Bcast, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(2);
+      }
 #endif
 
 
@@ -1016,8 +1071,14 @@ int main(int argc, char **argv) {
 
 
       /***************************************************************************
-       * loop on space time for contractions
+       ***************************************************************************
+       **
+       ** loop on space time for contractions
+       **
+       ***************************************************************************
        ***************************************************************************/
+
+
 #ifdef HAVE_OPENMP
       omp_lock_t writelock;
 
@@ -1087,7 +1148,6 @@ int main(int argc, char **argv) {
         /* END */
 #endif
 
-
         /***************************************************************************
          * make the point-wise up and down propagator matrix
          ***************************************************************************/
@@ -1121,7 +1181,7 @@ int main(int argc, char **argv) {
 #endif
 
         /***************************************************************************
-         * auxialliary fields aux and aux2, which contain
+         * auxialliary fields aux, which contains
          *
          * aux = up_fc * ( gc up_cc gc ) * ( g5 D^+ g5 )_fc
          ***************************************************************************/
@@ -1130,12 +1190,18 @@ int main(int argc, char **argv) {
         for ( int i = 0; i < 4; i++ ) {
           /* pm <- ( gc up gc )  g5 dn^+ g5 */
           pm_eq_pm_ti_pm_dag ( pm, gug[i], gdg );
-       
+
           /* aux <- up pm = up ( gc up gc ) [ g5 dn^+ g5 ] */
           pm_eq_pm_ti_pm ( aux[i], up, pm );
         }
 
+        /***************************************************************************
+         * auxialliary field aux2, which contains
+         *
+         * aux2 = up_fi * gf * ( g5 D^+ g5 )_fi * Tr[ gf up_ff ]
+         ***************************************************************************/
         memset ( aux2[0][0], 0, 576 * sizeof( double _Complex ) );
+
         /* scalar */
         pm_eq_gamma_ti_pm_dag ( pm , &(gamma_s[0]), gdg );
         pm_eq_pm_ti_pm ( aux2[0], up, pm );
@@ -1178,17 +1244,6 @@ int main(int argc, char **argv) {
         pm_print ( aux2[2], "tvu_u_v_pDp", ofs );
         pm_print ( aux2[3], "tau_u_a_pDp", ofs );
         /* END */
-#endif
-
-#if 0
-        /***************************************************************************
-         * finally, combine aux and aux2 into aux
-         *
-         * aux <- -2 aux + 2 aux2
-         ***************************************************************************/
-        for ( int i = 0; i < 4; i++ ) {
-          pm_eq_pm_pl_pm ( aux[i], aux[i], aux2[i], -2., 2. );
-        }
 #endif
 
         /***************************************************************************
@@ -1290,7 +1345,7 @@ int main(int argc, char **argv) {
         /***************************************************************************/
 
         /***************************************************************************
-         * pobing operator correlation functions at source and sink
+         * probing operator correlation functions at source and sink
          ***************************************************************************/
 
         /* Tr [ g5 U g5 g5 D^+ g5 ] */
@@ -1303,9 +1358,15 @@ int main(int argc, char **argv) {
         pm_eq_pm_ti_pm_dag ( pm, up, gdg );
         corr[it][33] += co_eq_tr_pm ( pm );
 
+        /* Tr [  gD gD ] */
+        /* corr[it][34] */
+
+        /* Tr [  g5sigmaG g5sigmaG ] */
+        /* corr[it][35] */
+
         /* Tr [ g5 U g5 g5 U^+ g5 ] */
         pm_eq_pm_ti_pm_dag ( pm, up, up );
-        corr[it][34] += co_eq_tr_pm ( pm );
+        corr[it][36] += co_eq_tr_pm ( pm );
 
       }  /* end of loop on x */
 
@@ -1379,9 +1440,9 @@ int main(int argc, char **argv) {
        * write to file
        ***************************************************************************/
       if ( io_proc == 2 ) {
-        char const diag_list[ncorr][4] = { "b", "d", "m1", "m2" };
-        char const op_c_list[ncorr][2] = { "s", "p", "v", "a" };
-        char const op_f_list[6][12] = { "g5", "m", "D", "g5sigmaG", "g5", "id" };
+        char const diag_list[4][4] = { "b", "d", "m1", "m2" };
+        char const op_c_list[4][2] = { "s", "p", "v", "a" };
+        char const op_f_list[8][12] = { "g5", "m", "D", "g5sigmaG", "g5", "id" , "D", "g5sigmaG" };
 
         double _Complex * buffer = init_1level_ztable ( T_global );
 
@@ -1407,7 +1468,7 @@ int main(int argc, char **argv) {
         }
 
         {
-          for ( int i = 0; i< 2; i++ ) {
+          for ( int i = 0; i < 4; i++ ) {
 
             int const corr_id = 32 + i;
             for ( int it = 0; it < T_global; it++ ) {
@@ -1421,19 +1482,19 @@ int main(int argc, char **argv) {
               EXIT(4);
             }
           }
-          for ( int i = 0; i< 1; i++ ) {
+        }
 
-            int const corr_id = 34 + i;
-            for ( int it = 0; it < T_global; it++ ) {
-              buffer[it] = corr_out[it][corr_id];
-            }
-            char tag[400];
-            sprintf ( tag, "/fl_%c/op_%s/d_%s/c_%s", flavor_tag[iflavor], op_f_list[4], diag_list[3], op_f_list[4] );
-            exitstatus = write_aff_contraction ( buffer, affw, NULL, tag, T_global, "complex" );
-            if ( exitstatus != 0 ) {
-              fprintf(stderr, "[mixing_probe] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(4);
-            }
+        {
+          int const corr_id = 36;
+          for ( int it = 0; it < T_global; it++ ) {
+            buffer[it] = corr_out[it][corr_id];
+          }
+          char tag[400];
+          sprintf ( tag, "/fl_%c/op_%s/d_%s/c_%s", flavor_tag[iflavor], op_f_list[4], diag_list[3], op_f_list[4] );
+          exitstatus = write_aff_contraction ( buffer, affw, NULL, tag, T_global, "complex" );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[mixing_probe] Error from write_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(4);
           }
         }
         fini_1level_ztable ( &buffer );
