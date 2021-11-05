@@ -401,6 +401,16 @@ int main(int argc, char **argv) {
     fprintf ( stderr, "[mx_prb_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
     EXIT(15);
   }
+  double _Complex ***** corr_op_b = init_5level_ztable ( 4, 4, num_conf, num_src_per_conf, T_global  );
+  if ( corr_op_b == NULL ) {
+    fprintf ( stderr, "[mx_prb_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(15);
+  }
+  double _Complex ***** corr_op_d = init_5level_ztable ( 4, 4, num_conf, num_src_per_conf, T_global  );
+  if ( corr_op_d == NULL ) {
+    fprintf ( stderr, "[mx_prb_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+    EXIT(15);
+  }
 
   double _Complex **** corr_twop = init_4level_ztable ( 3, num_conf, num_src_per_conf, T_global  );
   if ( corr_twop == NULL ) {
@@ -429,8 +439,10 @@ int main(int argc, char **argv) {
 
       char data_filename[500];
             
-      sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, 
-          conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, 
+          conf_src_list.stream[iconf],
+          conf_src_list.conf[iconf],
+          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [mx_prb_analyse] data_filename   = %s %s %d\n", data_filename, __FILE__, __LINE__ );
       }
@@ -460,7 +472,9 @@ int main(int argc, char **argv) {
        ***************************************************************************
        ***************************************************************************/
 
-      for ( int iop_mx = 0; iop_mx < 4; iop_mx++ ) {
+      /* for ( int iop_mx = 0; iop_mx < 4; iop_mx++ ) */
+      for ( int iop_mx = 0; iop_mx < 2; iop_mx++ )
+      {
 
         double _Complex ***buffer = init_3level_ztable ( 2, 2, T_global );
         if ( buffer == NULL ) {
@@ -470,7 +484,9 @@ int main(int argc, char **argv) {
 
         for ( int iop_c = 0; iop_c < 4; iop_c ++ ) {
 
-          for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
+          /* for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) */
+          for ( int iflavor = 0; iflavor < 1 ; iflavor++ )
+          {
 
             /***************************************************************************
              * Op  tag
@@ -518,8 +534,17 @@ int main(int argc, char **argv) {
 
           for ( int it = 0; it < T_global; it++ ) {
             int const itt = ( it + gsx[0] ) % T_global;
-            corr_op[iop_mx][iop_c][iconf][isrc][it] = ( -buffer[0][0][itt] + buffer[0][1][itt] ) + conj( ( -buffer[1][0][itt] + buffer[1][1][itt] ) );
-            corr_op[iop_mx][iop_c][iconf][isrc][it] *= 0.5 * op_norm_list[iop_mx];
+            /* corr_op[iop_mx][iop_c][iconf][isrc][it] = ( -buffer[0][0][itt] + buffer[0][1][itt] ) + conj( ( -buffer[1][0][itt] + buffer[1][1][itt] ) );
+            corr_op[iop_mx][iop_c][iconf][isrc][it] *= 0.5 * op_norm_list[iop_mx]; */
+
+            corr_op[iop_mx][iop_c][iconf][isrc][it] = ( -buffer[0][0][itt] + buffer[0][1][itt] );
+            corr_op[iop_mx][iop_c][iconf][isrc][it] *= op_norm_list[iop_mx];
+
+            corr_op_d[iop_mx][iop_c][iconf][isrc][it] =  -buffer[0][0][itt];
+            corr_op_d[iop_mx][iop_c][iconf][isrc][it] *= op_norm_list[iop_mx];
+
+            corr_op_b[iop_mx][iop_c][iconf][isrc][it] =   buffer[0][1][itt];
+            corr_op_b[iop_mx][iop_c][iconf][isrc][it] *= op_norm_list[iop_mx];
           }
  
         }  /* end of loop on 4q operator componenst spva */
@@ -580,7 +605,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[mx_prb_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(105);
           }
-
+#if 0
           sprintf ( key, "/fl_%s/op_%s/d_%s/c_%s", flavor_tag[1], op_twop_list[iop_twop], diag, op_twop_list[iop_twop] );
           if ( g_verbose > 2 ) fprintf( stdout, "# [mx_prb_analyse] key for path2 = %s %s %d\n", key, __FILE__, __LINE__ );
 
@@ -598,10 +623,11 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[mx_prb_analyse] Error from aff_node_get_complex, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(105);
           }
-
+#endif
           for ( int it = 0; it < T_global; it++ ) {
             int const itt = ( it + gsx[0] ) % T_global;
-            corr_twop[iop_twop][iconf][isrc][it] = buffer[0][itt] + buffer[1][itt];
+            /* corr_twop[iop_twop][iconf][isrc][it] = buffer[0][itt] + buffer[1][itt]; */
+            corr_twop[iop_twop][iconf][isrc][it] = buffer[0][itt];
           }
  
         fini_2level_ztable ( &buffer );
@@ -714,87 +740,115 @@ int main(int argc, char **argv) {
    *
    ***************************************************************************/
 
-  for ( int iop_mx = 0; iop_mx < 4; iop_mx++ )
-  {
+  for ( int iuse = 0; iuse < 3; iuse++ ) {
+    char diag_str[4] = "";
+    double _Complex ***** _corr_op = NULL;
 
-    for ( int iop_c = 0; iop_c < 4; iop_c ++ ) {
+    switch ( iuse ) {
+      case 0:
+        strcpy ( diag_str, "b+d" );
+        _corr_op = corr_op;
+        break;
+      case 1:
+        strcpy ( diag_str, "b" );
+        _corr_op = corr_op_b;
+        break;
+      case 2:
+        strcpy ( diag_str, "d" );
+        _corr_op = corr_op_d;
+        break;
+    }
 
-      sprintf ( filename, "fl_%s.op_%s.c_%s", flavor_tag[0], op_mx_list[iop_mx], op_c_list[iop_c] );
-      if ( g_verbose > 2 ) fprintf( stdout, "# [mx_prb_analyse] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
 
-      FILE * ofs = fopen ( filename, "w" );
+    /* for ( int iop_mx = 0; iop_mx < 4; iop_mx++ ) */
+    for ( int iop_mx = 0; iop_mx < 2; iop_mx++ )
+    {
+  
+      for ( int iop_c = 0; iop_c < 4; iop_c ++ ) {
+  
+        double *** buffer = init_3level_dtable ( 2, num_conf, T_global );
+        if ( buffer == NULL ) {
+          fprintf ( stderr, "[] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          EXIT(12);
+        }
 
-      double *** buffer = init_3level_dtable ( 2, num_conf, T_global );
-        
 #pragma omp parallel for
-      for( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-        for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-          for ( int it = 0; it < T_global; it++ ) {
-            buffer[0][iconf][it] += creal ( corr_op[iop_mx][iop_c][iconf][isrc][it] );
-            buffer[1][iconf][it] += cimag ( corr_op[iop_mx][iop_c][iconf][isrc][it] );
-          }
-        }
-        for ( int it = 0; it < T_global; it++ ) {
-          buffer[0][iconf][it] /= (double)num_src_per_conf;
-        }
-        for ( int it = 0; it < T_global; it++ ) {
-          buffer[1][iconf][it] /= (double)num_src_per_conf;
-        }
-      
-        for ( int it = 0; it < T_global; it++ ) {
-          fprintf( ofs, "%25.16e %25.16e %c %6d\n", 
-              buffer[0][iconf][it], buffer[1][iconf][it], conf_src_list.stream[iconf], conf_src_list.conf[iconf] );
-        }
-
-      }
- 
-      fclose ( ofs );
-
-      /***************************************************************************
-       * UWerr analysis
-       ***************************************************************************/
-      for ( int ireim = 0; ireim <= 1; ireim++ ) {
-
-        char obs_name[500];
-        sprintf ( obs_name,  "%s.%s", filename, reim_str[ireim] );
-
-        exitstatus = apply_uwerr_real ( buffer[ireim][0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0  ) {
-          fprintf ( stderr, "[mx_prb_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(16);
-        }
-
-
-        /***********************************************************
-         * effective mass analysis
-         * only for real part
-         ***********************************************************/
-        if ( ireim < 2 ) {
-          for ( int itau = 1; itau < T_global/2; itau++ ) {
-
-            char obs_name2[500];
-            sprintf ( obs_name2,  "%s.acosh_ratio.tau%d", obs_name, itau );
-
-            int arg_first[3]  = { 0, 2*itau, itau };
-            int arg_stride[3] = {1, 1, 1};
-
-            exitstatus = apply_uwerr_func ( buffer[ireim][0], num_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride,
-                obs_name2, acosh_ratio, dacosh_ratio );
-            if ( exitstatus != 0  ) {
-              fprintf ( stderr, "[mx_prb_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(16);
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+  
+          for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+            for ( int it = 0; it < T_global; it++ ) {
+              buffer[0][iconf][it] += creal ( _corr_op[iop_mx][iop_c][iconf][isrc][it] );
+              buffer[1][iconf][it] += cimag ( _corr_op[iop_mx][iop_c][iconf][isrc][it] );
             }
           }
+          for ( int it = 0; it < T_global; it++ ) {
+            buffer[0][iconf][it] /= (double)num_src_per_conf;
+          }
+          for ( int it = 0; it < T_global; it++ ) {
+            buffer[1][iconf][it] /= (double)num_src_per_conf;
+          }
         }
+   
+        sprintf ( filename, "fl_%s.op_%s.d_%s.c_%s", flavor_tag[0], op_mx_list[iop_mx], diag_str, op_c_list[iop_c] );
+        if ( g_verbose > 2 ) fprintf( stdout, "# [mx_prb_analyse] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
+  
+        FILE * ofs = fopen ( filename, "w" );
+          
+        for( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf( ofs, "%25.16e %25.16e %c %6d\n", 
+                buffer[0][iconf][it], buffer[1][iconf][it], conf_src_list.stream[iconf], conf_src_list.conf[iconf] );
+          }
+        }
+        fclose ( ofs );
+  
+        /***************************************************************************
+         * UWerr analysis
+         ***************************************************************************/
+        for ( int ireim = 0; ireim <= 1; ireim++ ) {
+  
+          char obs_name[500];
+          sprintf ( obs_name,  "%s.%s", filename, reim_str[ireim] );
+  
+          exitstatus = apply_uwerr_real ( buffer[ireim][0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0  ) {
+            fprintf ( stderr, "[mx_prb_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(16);
+          }
+  
+  
+          /***********************************************************
+           * effective mass analysis
+           ***********************************************************/
+          if ( ireim < 1 ) {
+            for ( int itau = 1; itau < T_global/2; itau++ ) {
+  
+              char obs_name2[500];
+              sprintf ( obs_name2,  "%s.acosh_ratio.tau%d", obs_name, itau );
+  
+              int arg_first[3]  = { 0, 2*itau, itau };
+              int arg_stride[3] = {1, 1, 1};
+  
+              exitstatus = apply_uwerr_func ( buffer[ireim][0], num_conf, T_global, T_global/2-itau, 3, arg_first, arg_stride,
+                  obs_name2, acosh_ratio, dacosh_ratio );
+              if ( exitstatus != 0  ) {
+                fprintf ( stderr, "[mx_prb_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(16);
+              }
+            }
+          }
+  
+        }  /* end of loop on ireim */
+  
+  
+  
+        fini_3level_dtable ( &buffer );
+  
+  
+      }  /* end of loop on 4q components */
+    }  /* end of loop on mx operators */
 
-      }  /* end of loop on ireim */
-
-      fini_3level_dtable ( &buffer );
-
-
-    }
-  }
+  }  /* end of iuse for b+d, b and d */
 
   /***************************************************************************
    * ratios
@@ -848,6 +902,8 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***************************************************************************/
   fini_5level_ztable ( &corr_op );
+  fini_5level_ztable ( &corr_op_b );
+  fini_5level_ztable ( &corr_op_d );
   fini_4level_ztable ( &corr_twop );
   fini_1level_itable ( &(conf_src_list.conf) );
   fini_3level_itable ( &(conf_src_list.src) );
