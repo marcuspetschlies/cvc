@@ -625,8 +625,7 @@ int main(int argc, char **argv) {
        *   from stochastic_source
        ***************************************************************************/
 #if _USE_TIME_DILUTION
-      /* for ( int timeslice = 0; timeslice < T_global; timeslice ++ ) */
-      for ( int timeslice = 2; timeslice < 3; timeslice ++ )
+      for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
       {
 #endif
 
