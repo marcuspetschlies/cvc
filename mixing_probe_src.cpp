@@ -574,8 +574,6 @@ int main(int argc, char **argv) {
     EXIT(1);
   }
 
-  memcpy ( gflow_gauge_field, gauge_field_with_phase , sizeof_gauge_field );
-
 
   /***************************************************************************
    ***************************************************************************
@@ -717,6 +715,9 @@ int main(int argc, char **argv) {
              *
              * now we loop over the number of gflow steps
              ***************************************************************************/
+
+            memcpy ( gflow_gauge_field, gauge_field_with_phase , sizeof_gauge_field );
+
             for ( int istep = 0; istep < gflow_nstep; istep++ ) {
 
               int steps = istep == 0 ? gflow_steps[0] : gflow_steps[istep] - gflow_steps[istep-1];
