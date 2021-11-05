@@ -133,6 +133,21 @@ int main(int argc, char **argv) {
   sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
   exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
 
+#if 0
+  double * gt = NULL;
+
+  init_gauge_trafo ( &gt, 1.0 );
+
+  apply_gt_gauge ( gt, g_gauge_field );
+
+  plaquette2 ( &plaq, g_gauge_field );
+
+  sprintf ( filename, "%s.gt.%.4d", gaugefilename_prefix, Nconf );
+  exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
+
+  free ( gt );
+#endif
+
   free_geometry();
 
 #ifdef HAVE_MPI
