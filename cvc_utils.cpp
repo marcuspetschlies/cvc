@@ -4639,13 +4639,30 @@ int unit_gauge_field(double*g, unsigned int N) {
 void printf_fp(fermion_propagator_type f, char*name, FILE*ofs) {
   int i,j;
   FILE *my_ofs = ofs==NULL ? stdout : ofs;
-  fprintf(my_ofs, "# [] fermion propagator point:\n");
+  fprintf(my_ofs, "# [printf_fp] fermion propagator point:\n");
+#if 0
   fprintf(my_ofs, "\t%s <- array(0., dim=c(%d, %d))\n", name, g_fv_dim, g_fv_dim);
   for(i=0;i<g_fv_dim;i++) {
   for(j=0;j<g_fv_dim;j++) {
     //fprintf(my_ofs, "\t%s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", name, i+1,j+1,f[i][2*j], f[i][2*j+1]);
     fprintf(my_ofs, "\t%s[%2d,%2d] <- %25.16e + %25.16e*1.i\n", name, i+1,j+1,f[j][2*i], f[j][2*i+1]);
   }}
+
+#endif
+  fprintf(my_ofs, "\t%s <- array(0., dim=c(%d,%d,%d,%d))\n", name, 4, 3, 4, 3 );
+  for( int i=0;i<4;i++) {
+    for ( int a = 0; a < 3; a++ ) {
+      int const ia = 3 * i + a;
+      for(int j=0;j<4;j++) {
+        for ( int b = 0; b < 3; b++ ) {
+          int const jb = 3 * j + b;
+          fprintf(my_ofs, "\t%s[%d,%d,%d,%d] <- %25.16e + %25.16e*1.i\n", name, i+1, a+1, j+1, b+1, f[jb][2*ia], f[jb][2*ia+1]);
+        }
+      }
+    }
+  }
+  fprintf(my_ofs, "\n\n");
+
 }
 
 /*****************************************************
