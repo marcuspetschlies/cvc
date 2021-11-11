@@ -424,6 +424,68 @@ echo "    _fp_pl_eq_fp( (_r), (_w) );"
 echo "    _fp_ti_eq_re( (_r), _ONE_OVER_SQRT2 );"
 echo -e "}\n\n"
 
+
+# ----------------------------------------------------------------------------------------------------------------
+
+echo "static inline void _fp_eq_fp_conj(fermion_propagator_type _r, fermion_propagator_type _s ) {"
+for((s2=0;s2<$N_SPINOR_DIM;s2++)); do
+  for((b=0;b<$N_COLOR_DIM;b++)); do
+    j=$(($N_COLOR_DIM*$s2+$b))
+    for((s1=0;s1<$N_SPINOR_DIM;s1++)); do
+      for((a=0;a<$N_COLOR_DIM;a++)); do
+        k=$(($N_COLOR_DIM*$s1+$a))
+        echo "  (_r)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+0)))] = +(_s)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+0)))];"
+        echo "  (_r)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+1)))] = -(_s)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+1)))];"
+      done
+    done
+  done
+done
+echo -e "}\n\n"
+
+
+# ----------------------------------------------------------------------------------------------------------------
+
+echo "static inline void _fp_eq_spintrace_fp(fermion_propagator_type _r, fermion_propagator_type _s ) {"
+echo "  double c[$N_COLOR_DIM][$N_COLOR_DIM][2];"
+for((b=0;b<$N_COLOR_DIM;b++)); do
+for((a=0;a<$N_COLOR_DIM;a++)); do
+echo "  c[$b][$a][0] = 0.;"
+echo "  c[$b][$a][1] = 0.;"
+done
+done
+
+for((s2=0;s2<$N_SPINOR_DIM;s2++)); do
+  for((b=0;b<$N_COLOR_DIM;b++)); do
+    j=$(($N_COLOR_DIM*$s2+$b))
+    for((a=0;a<$N_COLOR_DIM;a++)); do
+      k=$(($N_COLOR_DIM*$s2+$a))
+      echo "  c[$b][$a][0] += (_s)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+0)))];"
+      echo " c[$b][$a][1] += (_s)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+1)))];"
+    done
+  done
+done
+
+for((s2=0;s2<$N_SPINOR_DIM;s2++)); do
+  for((b=0;b<$N_COLOR_DIM;b++)); do
+  j=$(($N_COLOR_DIM*$s2+$b))
+  for((s1=0;s1<$N_SPINOR_DIM;s1++)); do
+    for((a=0;a<$N_COLOR_DIM;a++)); do
+      k=$(($N_COLOR_DIM*$s1+$a))
+
+      if [ $s1 -eq $s2 ]; then
+        echo "  (_r)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+0)))] = c[$b][$a][0];"
+        echo "  (_r)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+1)))] = c[$b][$a][1];"
+      else
+        echo "  (_r)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+0)))] = 0.;"
+        echo "  (_r)[$(printf "%2d" $j)][$(printf "%2d" $((2*$k+1)))] = 0.;"
+      fi
+    done
+    done
+  done
+done
+echo -e "}\n\n"
+
+
 echo "#endif"
 
 exit 0
