@@ -18,8 +18,11 @@
 #include "contract/del_contract_23_inline.h"
 #include "contract/del_contract_24_inline.h"
 #include "contract/del_contract_34_inline.h"
+
 #include "contract/eps_contract_13_inline.h"
 #include "contract/eps_contract_14_inline.h"
 #include "contract/eps_contract_23_inline.h"
 #include "contract/eps_contract_24_inline.h"
+#include "contract/eps_contract_12_inline.h"
+#include "contract/eps_contract_34_inline.h"
 #endif
