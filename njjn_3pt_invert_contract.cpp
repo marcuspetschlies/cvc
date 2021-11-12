@@ -69,7 +69,7 @@ extern "C"
 #define _OP_ID_DN 1
 
 #ifndef _USE_LOOP
-#define _USE_LOOP 1
+#define _USE_LOOP 0
 #endif
 
 using namespace cvc;
@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
-  int read_loop_field    = 1;
+  int with_gt = 0;
   
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "gch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -222,6 +222,9 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
+      break;
+    case 'g':
+      with_gt = 1;
       break;
     case 'h':
     case '?':
@@ -391,6 +394,26 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   unsigned int const VOL3 = LX * LY * LZ;
   size_t const sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
+
+  /***************************************************************************
+   * if gt read gt
+   ***************************************************************************/
+  double * gaugetrafo = NULL;
+  if ( with_gt ) {
+    gaugetrafo = init_1level_dtable ( 18*VOLUME );
+    if ( gaugetrafo == NULL ) {
+      fprintf(stderr, "[njjn_3pt_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__);
+      EXIT(14);
+    }
+
+    sprintf ( filename, "%s.gt", gaugefilename_prefix  );
+    exitstatus = read_lime_contraction ( gaugetrafo, filename, 9, 0 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[make_random_config] Error from read_lime_contraction status %d %s %d\m", exitstatus, __FILE__, __LINE__ );
+      EXIT(12);
+    }
+
+  }
 
   /***************************************************************************
    * init rng state
@@ -820,7 +843,7 @@ int main(int argc, char **argv) {
        ***************************************************************************/
 
       /* BEGIN OF POINT CHECK */
-      FILE * ofs = fopen( "test", "w" );
+      FILE * ofs = with_gt ? fopen( "test.gt", "w" ) : fopen( "test", "w" );
       unsigned int const test_site = VOLUME -1;
 
       printf_fp ( fup[test_site], "up", ofs );
@@ -1001,6 +1024,23 @@ int main(int argc, char **argv) {
         _fp_pl_eq_fp ( _fseq, faux );
       
         printf_fp ( _fseq, "seq", ofs );
+
+        /***************************************************************************
+         * apply gt
+         ***************************************************************************/
+        if ( with_gt ) {
+          double U[18], V[18];
+
+          _cm_eq_cm_dag( U, gaugetrafo + 18*ix );
+
+          _cm_eq_cm_dag( V, gaugetrafo + 18 * g_ipt[gsx[0]][gsx[1]][gsx[2]][gsx[3]] );
+
+          _fp_eq_cm_ti_fp ( faux, U, _fseq );
+
+          _fp_eq_fp_ti_cm_dagger ( faux2, V, faux );
+
+          printf_fp ( faux2, "fgt", ofs );
+        }
 
       }  /* end of loop on ix */
 
@@ -1258,6 +1298,11 @@ int main(int argc, char **argv) {
 #endif
   if ( gauge_field_with_phase != NULL ) free ( gauge_field_with_phase );
   if ( gauge_field_smeared    != NULL ) free ( gauge_field_smeared );
+
+  if ( with_gt ) {
+    fini_1level_dtable ( &gaugetrafo );
+  }
+
 
   /* free clover matrix terms */
   fini_clover ( );
