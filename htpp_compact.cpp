@@ -80,7 +80,18 @@ char const gamma_bin_to_name[16][8] = { "id", "gx", "gy", "gxgy", "gz", "gxgz", 
 /***************************************************************************
  * momentum filter
  ***************************************************************************/
-inline int momentum_filter ( int * const pf, int * const pc, int * const pi1, int * const pi2, int const pp_max ) {
+/* inline int momentum_filter ( int * const pf, int * const pc, int * const pi1, int * const pi2, int const pp_max ) */
+inline int momentum_filter ( int const qf[3], int const qc[3], int const qi1[3], int const qi2[3], int const pp_max ) 
+{
+  int pf[3]  = { 0, 0, 0 };
+  int pc[3]  = { 0, 0, 0 };
+  int pi1[3] = { 0, 0, 0 };
+  int pi2[3] = { 0, 0, 0 };
+
+  if ( qf  !=  NULL ) memcpy ( pf,  qf,  3 * sizeof ( int ) );
+  if ( qc  !=  NULL ) memcpy ( pc,  qc,  3 * sizeof ( int ) );
+  if ( qi1 !=  NULL ) memcpy ( pi1, qi1, 3 * sizeof ( int ) );
+  if ( qi2 !=  NULL ) memcpy ( pi2, qi2, 3 * sizeof ( int ) );
 
   /* check mometnum conservation  */
   if ( pf == NULL || pc == NULL ) return ( 1 == 0 );
@@ -134,19 +145,18 @@ inline int momentum_filter ( int * const pf, int * const pc, int * const pi1, in
  ***********************************************************/
 int main(int argc, char **argv) {
   
-  int const max_single_particle_momentum_squared = 3;
-
-
   int const gamma_v_number = 4;
   int const gamma_v_list[4] = { 1, 2, 4, 8  };
 
   int const gamma_rho_number = 6;
   int const gamma_rho_list[6] = { 1, 2, 4, 9, 10, 12 };
-  
+
+  /*
   int const gamma_a_number = 4;
   int const gamma_a_list[4] = { 14, 13, 11, 7 };
+  */
 
-  int const gamma_p_number = 1;
+  /* int const gamma_p_number = 1; */
   int const gamma_p_list[1] = { 15 };
 
 
@@ -158,6 +168,9 @@ int main(int argc, char **argv) {
   char filename[100];
   int num_conf = 0, num_src_per_conf = 0;
   char diagram_name[100], correlator_name[100];
+  int momentum_key_format = 0;
+  char mode[12] = "NA";
+  int max_single_particle_momentum_squared = 3;
 
   struct timeval ta, tb;
   struct timeval start_time, end_time;
@@ -166,7 +179,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:E:D:C:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:E:D:C:M:X:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -191,6 +204,14 @@ int main(int argc, char **argv) {
     case 'C':
       strcpy ( correlator_name, optarg );
       fprintf ( stdout, "# [htpp_compact] correlator_name set to %s\n", correlator_name );
+      break;
+    case 'M':
+      strcpy ( mode, optarg );
+      fprintf ( stdout, "# [htpp_compact] mode set to %s\n", mode );
+      break;
+    case 'X':
+      max_single_particle_momentum_squared = atoi ( optarg );
+      fprintf ( stdout, "# [htpp_compact] max_single_particle_momentum_squared set to %d\n", max_single_particle_momentum_squared );
       break;
     case 'h':
     case '?':
@@ -333,7 +354,14 @@ int main(int argc, char **argv) {
     EXIT(2);
   }
 
-#if M_J_M
+  /***********************************************************
+   ***********************************************************
+   **
+   ** M_J_M
+   **
+   ***********************************************************
+   ***********************************************************/
+if (strcmp ( mode, "M_J_M" ) == 0 ) {
   double ****** corr_mjm = (double******) malloc ( g_total_momentum_number * sizeof( double*****) );
 
   /***********************************************************
@@ -379,12 +407,12 @@ int main(int argc, char **argv) {
        ***********************************************************/
       for ( int iptot = 0; iptot < g_total_momentum_number; iptot++ ) {
 
-        int ptot[3] = {
+        int const ptot[3] = {
                  g_total_momentum_list[iptot][0],
                  g_total_momentum_list[iptot][1],
                  g_total_momentum_list[iptot][2] };
 
-        int pi1[3] = {
+        int const pi1[3] = {
             -ptot[0],
             -ptot[1],
             -ptot[2] };
@@ -400,12 +428,12 @@ int main(int argc, char **argv) {
            ***********************************************************/
           for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
-            int pf[3] = {
+            int const pf[3] = {
                 g_sink_momentum_list[ipf][0],
                 g_sink_momentum_list[ipf][1],
                 g_sink_momentum_list[ipf][2] };
 
-            int pc[3] = {
+            int const pc[3] = {
                   ptot[0] - pf[0],
                   ptot[1] - pf[1],
                   ptot[2] - pf[2] };
@@ -670,10 +698,17 @@ int main(int argc, char **argv) {
     }  /* end of loop on base sources */
   }  /* end of loop on configs */
   free ( corr_mjm );
-#endif  /* of if M_J_M */                 
+}  /* end of if mode =  M_J_M */                 
 
 
-#if MXM_J_M
+  /***********************************************************
+   ***********************************************************
+   **
+   ** MXM_J_M
+   **
+   ***********************************************************
+   ***********************************************************/
+if ( strcmp( mode, "MXM_J_M" ) == 0 ) {
 
   double ***** corr_mxmjm = (double*****) malloc ( g_total_momentum_number * sizeof( double****) );
 
@@ -681,6 +716,12 @@ int main(int argc, char **argv) {
    * loop on configs 
    ***********************************************************/
   for( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    /***********************************************************
+     * reset momentum key format for each configuration
+     ***********************************************************/
+    momentum_key_format = 0;
+
 
     struct timeval conf_stime, conf_etime;
 
@@ -738,27 +779,54 @@ int main(int argc, char **argv) {
            ***********************************************************/
           for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
-            int pf[3] = {
+            int const pf[3] = {
                 g_sink_momentum_list[ipf][0],
                 g_sink_momentum_list[ipf][1],
                 g_sink_momentum_list[ipf][2] };
 
-            int pc[3] = {
+            int const pc[3] = {
                   ptot[0] - pf[0],
                   ptot[1] - pf[1],
                   ptot[2] - pf[2] };
- 
-            for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-              int pi1[3] = {
+            int const mptot[3] = {
+                  -ptot[0],
+                  -ptot[1],
+                  -ptot[2] };
+
+            if ( ! momentum_filter ( pf, pc, mptot, NULL , 3 ) ) {
+              fprintf ( stdout, "# [htpp_compact] skip ptot %3d %3d %3d  pf %3d %3d %3d  pc %3d %3d %3d\n",
+                  ptot[0], ptot[1], ptot[2], pf[0], pf[1], pf[2], pc[0], pc[1], pc[2] );
+              continue;
+            }
+
+
+#if 0 
+            for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ )
+#endif
+            for ( int ipi = 0; ipi < g_seq_source_momentum_number; ipi++ )
+            {
+#if 0
+              int const pi1[3] = {
                 g_source_momentum_list[ipi][0],
                 g_source_momentum_list[ipi][1],
                 g_source_momentum_list[ipi][2] };
 
-              int pi2[3] = {
+              int const pi2[3] = {
                   -ptot[0] - pi1[0],
                   -ptot[1] - pi1[1],
                   -ptot[2] - pi1[2] };
+#endif
+
+              int const pi2[3] = {
+                g_seq_source_momentum_list[ipi][0],
+                g_seq_source_momentum_list[ipi][1],
+                g_seq_source_momentum_list[ipi][2] };
+
+              int const pi1[3] = {
+                  -ptot[0] - pi2[0],
+                  -ptot[1] - pi2[1],
+                  -ptot[2] - pi2[2] };
 
               if ( momentum_filter ( pf, pc, pi1, pi2 , max_single_particle_momentum_squared ) ) momentum_number[iptot]++;
             }
@@ -785,27 +853,50 @@ int main(int argc, char **argv) {
              ***********************************************************/
             for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
-              int pf[3] = {
+              int const pf[3] = {
                   g_sink_momentum_list[ipf][0],
                   g_sink_momentum_list[ipf][1],
                   g_sink_momentum_list[ipf][2] };
   
-              int pc[3] = {
+              int const pc[3] = {
                     ptot[0] - pf[0],
                     ptot[1] - pf[1],
                     ptot[2] - pf[2] };
- 
-            for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) {
 
-              int pi1[3] = {
+              int const mptot[3] = {
+                    -ptot[0],
+                    -ptot[1],
+                    -ptot[2] };
+
+              if ( ! momentum_filter ( pf, pc, mptot, NULL , 3 ) ) continue;
+#if 0
+            for ( int ipi = 0; ipi < g_source_momentum_number; ipi++ ) 
+#endif
+            for ( int ipi = 0; ipi < g_seq_source_momentum_number; ipi++ ) 
+            {
+#if 0
+              int const pi1[3] = {
                 g_source_momentum_list[ipi][0],
                 g_source_momentum_list[ipi][1],
                 g_source_momentum_list[ipi][2] };
 
-              int pi2[3] = {
+              int const pi2[3] = {
                   -ptot[0] - pi1[0],
                   -ptot[1] - pi1[1],
                   -ptot[2] - pi1[2] };
+#endif
+
+              int const pi2[3] = {
+
+                g_seq_source_momentum_list[ipi][0],
+                g_seq_source_momentum_list[ipi][1],
+                g_seq_source_momentum_list[ipi][2] };
+
+              int const pi1[3] = {
+                  -ptot[0] - pi2[0],
+                  -ptot[1] - pi2[1],
+                  -ptot[2] - pi2[2] };
+
 #if TIMERS
               gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -828,11 +919,10 @@ int main(int argc, char **argv) {
                * aff key for reading data
                ***********************************************************/
 
-              char key[500];
+              char key[500], key2[500];
 
               sprintf ( key,
                         "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
-                        /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d", */
                         diagram_name,
                         pf[0], pf[1], pf[2],
                         gamma_bin_to_name[gamma_p_list[0]], g_src_snk_time_separation,
@@ -840,9 +930,15 @@ int main(int argc, char **argv) {
                         gamma_bin_to_name[gamma_v_list[iv]], gamma_bin_to_name[gamma_p_list[0]],
                         pc[0], pc[1], pc[2] );
 
-              if ( g_verbose > 2 ) {
-                fprintf ( stdout, "# [htpp_compact] key = %s %s %d\n", key , __FILE__, __LINE__ );
-              }
+              sprintf ( key2,
+                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/pi2x%dpi2y%dpi2z%d/gi2_%s/g1_%s/g2_%s/x%d_y%d_z%d",
+                        diagram_name,
+                        pf[0], pf[1], pf[2],
+                        gamma_bin_to_name[gamma_p_list[0]], g_src_snk_time_separation,
+                        pi2[0], pi2[1], pi2[2], gamma_bin_to_name[gamma_p_list[0]],
+                        gamma_bin_to_name[gamma_v_list[iv]], gamma_bin_to_name[gamma_p_list[0]],
+                        pc[0], pc[1], pc[2] );
+
 #if TIMERS
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "htpp_compact", "momentum-filter-and-key", io_proc == 2 );
@@ -853,9 +949,39 @@ int main(int argc, char **argv) {
               gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
 
-              exitstatus = read_aff_contraction (  corr_buffer, affr, NULL, key, T_global );
-              if ( exitstatus != 0 ) {
-                fprintf(stderr, "[htpp_compact] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              int rac_status = 0;
+
+              if ( momentum_key_format == 0 ) {
+                if ( g_verbose > 1 ) {
+                  fprintf ( stdout, "# [htpp_compact] key = %s %s %d\n", key , __FILE__, __LINE__ );
+                }
+
+                rac_status = read_aff_contraction (  corr_buffer, affr, NULL, key, T_global );
+              }
+
+              if ( rac_status != 0 || momentum_key_format == 1 ) {
+
+                if ( g_verbose > 1 && momentum_key_format == 0 ) {
+                  fprintf ( stdout, "# [htpp_compact] trying alternative key = %s %s %d\n", key2 , __FILE__, __LINE__ );
+                }
+
+                if ( aff_reader_clearerr ( affr ) != 0 ) {
+                  fprintf ( stderr, "[htpp_compact] Error from aff_reader_clearerr %s %d\n", __FILE__, __LINE__);
+                  EXIT(15);
+                }
+
+                rac_status = read_aff_contraction (  corr_buffer, affr, NULL, key2, T_global );
+                if ( rac_status == 0 && momentum_key_format == 0 ) {
+                  momentum_key_format = 1;
+                  if ( g_verbose > 1 ) {
+                    fprintf ( stdout, "# [htpp_compact] switch to momentum_key_format = %d %s %d\n", momentum_key_format , __FILE__, __LINE__ );
+                  }
+                }
+
+              }
+
+              if ( rac_status != 0 ) {
+                fprintf(stderr, "[htpp_compact] Error from read_aff_contraction, status was %d %s %d\n", rac_status, __FILE__, __LINE__ );
                 EXIT(12);
               }
 
@@ -1007,7 +1133,7 @@ int main(int argc, char **argv) {
 
   free ( corr_mxmjm );
 
-#endif  /* of if MXM_J_M */                 
+} /* end of if mode = MXM_J_M */                 
 
   /***************************************************************************
    * free the correl fields
