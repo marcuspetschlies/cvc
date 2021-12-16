@@ -840,6 +840,233 @@ int read_from_h5_file ( void * const buffer, void * file, char*tag,  int const i
 
 }  /* end of read_from_h5_file */
 
+
+/***************************************************************************
+ *  read data set with unknown size
+ ***************************************************************************/
+int read_from_h5_file_varsize ( void ** const buffer, void * file, char*tag,  const char * data_type, size_t * const ncdim, size_t ** const cdim,  int const io_proc ) {
+
+#define _H5_CLOSE_FILE_ID(_fid) {\
+ do{\
+   int const _status = H5Fclose ( _fid );\
+   if( _status < 0 ) {\
+     fprintf(stderr, "[read_from_h5_file_varsize] Error from H5Fclose, status was %d %s %d\n", _status, __FILE__, __LINE__);\
+     return(6);\
+   }\
+ } while(0);\
+}
+
+  /***************************************************************************
+   * turn off automatic error writings
+   ***************************************************************************/
+  H5Eset_auto (H5E_DEFAULT, NULL, NULL);
+
+  /***************************************************************************
+   * some default settings for H5Dread
+   ***************************************************************************/
+  static hid_t mem_type_id   = H5T_NATIVE_DOUBLE;
+  static hid_t mem_space_id  = H5S_ALL;
+  static hid_t file_space_id = H5S_ALL;
+  static hid_t xfer_plist_id = H5P_DEFAULT;
+  static hid_t dapl_id       = H5P_DEFAULT;
+  static unsigned flags = H5F_ACC_RDONLY;  /* IN: File access flags. Allowable values are:
+                                              H5F_ACC_RDWR   --- Allow read and write access to file.
+                                              H5F_ACC_RDONLY --- Allow read-only access to file.
+  
+                                              H5F_ACC_RDWR and H5F_ACC_RDONLY are mutually exclusive; use exactly one.
+                                              An additional flag, H5F_ACC_DEBUG, prints debug information.
+                                              This flag can be combined with one of the above values using the bit-wise OR operator (`|'),
+                                              but it is used only by HDF5 Library developers; it is neither tested nor supported for use in applications. */
+  static hid_t fapl_id = H5P_DEFAULT;
+  static hid_t file_id = -1;
+  herr_t  status;
+
+  char * filename = (char *)file;
+
+  static char current_filename[400] = "NA";
+  static int initialized = 0;
+  int open_new = 0;
+
+  if ( !initialized ) {
+    /* first call, not initialized,
+     * use input filename,
+     * open new file
+     */
+    strcpy ( current_filename, filename );
+    open_new = 1;
+  } else {
+    /* is initialized, there is in an open file,
+     * if input file is NULL, only close and return,
+     * else check if new name, if so, open new file with input filename 
+     */
+    if( file == NULL ) {
+      if ( io_proc == 2 ) {
+        _H5_CLOSE_FILE_ID(file_id);
+        if ( g_verbose > 2 ) fprintf( stdout, "# [read_from_h5_file_varsize] close and return\n" );
+      }
+      return ( 0 ) ;
+    }
+    if ( strcmp( current_filename, filename ) != 0 ) {
+      open_new = 1;
+      strcpy ( current_filename, filename );
+    }
+  }
+
+  struct timeval ta, tb;
+
+    /***************************************************************************
+     * io_proc 2 is origin of Cartesian grid and does the write to disk
+     ***************************************************************************/
+  if(io_proc == 2) {
+
+    if ( initialized && open_new ) {
+      if ( g_verbose > 2 ) fprintf( stdout, "# [read_from_h5_file_varsize] close for open new \n" );
+      _H5_CLOSE_FILE_ID(file_id);
+    }
+    
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    /***************************************************************************
+     * create or open file
+     ***************************************************************************/
+
+    if ( open_new ) {
+      if ( g_verbose > 2 ) fprintf( stdout, "# [read_from_h5_file_varsize] open new for %s\n", filename );
+      struct stat fileStat;
+      if ( stat( filename, &fileStat) < 0 ) {
+        fprintf ( stderr, "[read_from_h5_file_varsize] Error, file %s does not exist %s %d\n", filename, __FILE__, __LINE__ );
+        return ( 1 );
+      } else {
+        /* open an existing file. */
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file_varsize] open existing file\n" );
+  
+
+        /*  hid_t H5Fopen ( const char *name, unsigned flags, hid_t fapl_id ) */
+        file_id = H5Fopen (         filename,         flags,        fapl_id );
+
+        if ( file_id < 0 ) {
+          fprintf ( stderr, "[read_from_h5_file_varsize] Error from H5Fopen %s %d\n", __FILE__, __LINE__ );
+          return ( 2 );
+        }
+      }
+  
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file_varsize] file_id = %ld\n", file_id );
+    }
+  
+    /***************************************************************************
+     *  open H5 data set 
+     ***************************************************************************/
+    hid_t dataset_id = H5Dopen2 ( file_id, tag, dapl_id );
+    if ( dataset_id < 0 ) {
+      fprintf ( stderr, "[read_from_h5_file_varsize] Error from H5Dopen2 %s %d\n", __FILE__, __LINE__ );
+      return ( 3 );
+    }
+
+    hid_t dspace = H5Dget_space( dataset_id );
+    *ncdim = H5Sget_simple_extent_ndims(dspace);
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file_varsize] ncdim = %zu\n", *ncdim );
+
+    *cdim = (size_t*)malloc ( *ncdim * sizeof ( size_t ) );
+    
+    hsize_t * hcdim = (hsize_t*)malloc ( *ncdim * sizeof ( hsize_t ) );
+
+    H5Sget_simple_extent_dims ( dspace, hcdim, NULL);
+
+    for ( size_t i = 0; i < *ncdim; i++ ) (*cdim)[i] = hcdim[i];
+
+    free( hcdim );
+
+    size_t nelem = 1;
+    for ( size_t i = 0; i < *ncdim; i++ ) nelem *= (*cdim)[i] ;
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [read_from_h5_file_varsize] nelem = %zu %s %d\n", nelem, __FILE__, __LINE__ );
+
+    size_t nsize = 0;
+    if ( strcmp( data_type , "double" ) == 0 ) {
+      nsize = sizeof ( double ) ;
+
+    } else if ( strcmp( data_type , "int" ) == 0 ) {
+      nsize = sizeof ( int ) ;
+    } else if ( strcmp( data_type , "char" ) == 0 ) {
+      nsize = sizeof ( char ) ;
+    } else {
+      fprintf ( stdout, "[read_from_h5_file_varsize] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      return ( 8 );
+    }
+
+    *buffer = malloc ( nelem * nsize );
+    if ( *buffer == NULL ) {
+      fprintf ( stdout, "[read_from_h5_file_varsize] Error from malloc %s %d\n", __FILE__, __LINE__ );
+      return ( 8 );
+    }
+
+    /***************************************************************************
+     *
+     ***************************************************************************/
+
+    /***************************************************************************
+     * some default settings for H5Dread
+     ***************************************************************************/
+    hid_t mem_type_id;
+    if ( strcmp( data_type , "double" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_DOUBLE;
+    } else if ( strcmp( data_type , "int" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_INT;
+    } else if ( strcmp( data_type , "char" ) == 0 ) {
+      mem_type_id   = H5T_NATIVE_CHAR;
+    } else {
+      fprintf ( stdout, "[read_from_h5_file_varsize] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+      return ( 8 );
+    }
+
+    hid_t mem_space_id  = H5S_ALL;
+    hid_t file_space_id = H5S_ALL;
+    hid_t xfer_plist_id = H5P_DEFAULT;
+
+    /***************************************************************************
+     * read data set
+     ***************************************************************************/
+    status = H5Dread ( dataset_id, mem_type_id, mem_space_id, file_space_id, xfer_plist_id, *buffer );
+    if ( status < 0 ) {
+      fprintf ( stderr, "[read_from_h5_file_varsize] Error from H5Dread %s %d\n", __FILE__, __LINE__ );
+      return ( 4 );
+    }
+
+    /***************************************************************************
+     * close data set
+     ***************************************************************************/
+    status = H5Dclose ( dataset_id );
+    if ( status < 0 ) {
+      fprintf ( stderr, "[read_from_h5_file_varsize] Error from H5Dclose %s %d\n", __FILE__, __LINE__ );
+      return ( 5 );
+    }
+
+    /***************************************************************************
+     * close the file
+     ***************************************************************************/
+    /*status = H5Fclose ( file_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[read_from_h5_file_varsize] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(6);
+    } */
+
+    /***************************************************************************
+     * time measurement
+     ***************************************************************************/
+    gettimeofday ( &tb, (struct timezone *)NULL );
+  
+    show_time ( &ta, &tb, "read_from_h5_file_varsize", "read h5", 1 );
+
+  }  /* if io_proc == 2 */
+
+  if(!initialized) initialized = 1;
+
+  return(0);
+
+}  /* end of read_from_h5_file_varsize */
+
 #endif  /* of if HAVE_HDF5 */
 
 
