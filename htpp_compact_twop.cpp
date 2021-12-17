@@ -58,7 +58,7 @@ extern "C"
 #endif
 
 #ifndef M_M
-#define M_M 0
+#define M_M 1
 #endif
 
 #ifndef MXM_M
@@ -70,7 +70,7 @@ extern "C"
 #endif
 
 #ifndef MXM_MXM_OET
-#define MXM_MXM_OET 1
+#define MXM_MXM_OET 0
 #endif
 
 using namespace cvc;
@@ -319,8 +319,8 @@ int main(int argc, char **argv) {
       /***********************************************************
        * reader for aff output file
        ***********************************************************/
-      // sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-      sprintf ( filename, "%s/stream_%c/%d/%s.aff", filename_prefix, stream, Nconf, filename_prefix2 );
+      sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      // sprintf ( filename, "%s/stream_%c/%d/%s.aff", filename_prefix, stream, Nconf, filename_prefix2 );
    
       struct AffReader_s * affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -408,12 +408,19 @@ int main(int argc, char **argv) {
                         gamma_bin_to_name[tp->gf2], gamma_bin_to_name[tp->gi1[0]],
                         pc[0], pc[1], pc[2] );
 
-#endif
+
               sprintf ( key,
                         "/%s/gf%.2d_gi%.2d/px%.2dpy%.2dpz%.2d/x%.2dy%.2dz%.2dt%.2d",
                         diagram_name, g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi],
                         pf[0], pf[1], pf[2],
                         csx[1], csx[2], csx[3], csx[0] );
+#endif
+
+              /* /fb-fl/t60x47y20z39/g1_gz/g2_gz/PX0_PY2_PZ1 */
+              sprintf ( key, "/%s/t%.2dx%.2dy%.2dz%.2d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
+                        diagram_name, csx[0], csx[1], csx[2], csx[3], 
+                        gamma_bin_to_name[g_sink_gamma_id_list[igf]], gamma_bin_to_name[g_source_gamma_id_list[igi]],
+                        pf[0], pf[1], pf[2]);
 
               if ( g_verbose > 2 ) {
                 fprintf ( stdout, "# [htpp_compact_twop] key = %s %s %d\n", key , __FILE__, __LINE__ );
@@ -445,6 +452,8 @@ int main(int argc, char **argv) {
                       + pi1[1] * csx[2] / (double)LY_global 
                       + pi1[2] * csx[3] / (double)LZ_global ) * I );
             
+                /* double _Complex const ephase = 1.; */
+
                 if ( g_verbose > 4 ) fprintf ( stdout, "# [htpp_compact_twop] pi1 = %3d %3d %3d csx = %3d %3d %3d  ephase = %16.7e %16.7e\n",
                       pi1[0], pi1[1], pi1[2],
                       csx[1], csx[2], csx[3],
@@ -457,7 +466,8 @@ int main(int argc, char **argv) {
                   /* it = time relative to source
                    * tt = lattice timeslice
                    */
-                  int const tt = ( csx[0] + it ) % T_global; 
+                  int const tt = ( csx[0] + it ) % T_global;
+                  /* int const tt = it; */
                   double _Complex const zbuffer = corr_buffer[tt] * ephase;
               
                   corr_m_m[iptot][icoh][igi][igf][2*it  ] = creal ( zbuffer );
@@ -493,7 +503,7 @@ int main(int argc, char **argv) {
         /***********************************************************
          * output filename
          ***********************************************************/
-        sprintf ( filename, "%s.px%d_py%d_pz%d.h5", correlator_name, ptot[0], ptot[1], ptot[2] );
+        sprintf ( filename, "%s.px%d_py%d_pz%d.h5", "m-m", ptot[0], ptot[1], ptot[2] );
 
         if ( iconf == 0 && isrc == 0 ) {
 
@@ -526,7 +536,16 @@ int main(int argc, char **argv) {
  
           char key[500];
 
-          sprintf ( key, "/s%c/c%d/t%dx%dy%dz%d", stream, Nconf, csx[0], csx[1], csx[2], csx[3] );
+          /* sprintf ( key, "/s%c/c%d/t%dx%dy%dz%d", stream, Nconf, csx[0], csx[1], csx[2], csx[3] ); */
+          
+          for ( int igi = 0; igi < g_source_gamma_id_number; igi++ ) {
+          for ( int igf = 0; igf < g_sink_gamma_id_number; igf++ ) {
+
+            /* /bu-ub/gf_g5/gi_g5/s0/c2108/t18x12y26z1 */
+            sprintf ( key, "/%s/gf_%s/gi_%s/s%c/c%d/t%dx%dy%dz%d", correlator_name,
+                gamma_bin_to_name[g_sink_gamma_id_list[igf]],
+                gamma_bin_to_name[g_source_gamma_id_list[igi]],
+                stream, Nconf, csx[0], csx[1], csx[2], csx[3] );
 
 #if 0
                     sprintf ( key, "/%s/pfx%dpfy%dpfz%d/pi1x%dpi1y%dpi1z%d/gc_%s/s%c/c%d/t%dx%dy%dz%d",
@@ -537,18 +556,25 @@ int main(int argc, char **argv) {
                         stream, Nconf, csx[0], csx[1], csx[2], csx[3] );
 #endif
 
-          if ( g_verbose > 2 ) {
-            fprintf ( stdout, "# [htpp_compact_twop] h5 key = %s %s %d\n", key , __FILE__, __LINE__ );
-          }
-
+            if ( g_verbose > 2 ) {
+              fprintf ( stdout, "# [htpp_compact_twop] h5 key = %s %s %d\n", key , __FILE__, __LINE__ );
+            }
+#if 0
           int const ndim = 3;
           int const cdim[3] = { g_source_gamma_id_number, g_sink_gamma_id_number, 2 * n_tc };
 
           exitstatus = write_h5_contraction ( corr_m_m[iptot][icoh][0][0], NULL, filename, key, "double", ndim, cdim );
-          if ( exitstatus != 0) {
-            fprintf ( stderr, "[http_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(123);
-          }
+#endif
+            int const ndim = 1;
+            int const cdim[1] = { 2 * n_tc };
+
+            exitstatus = write_h5_contraction ( corr_m_m[iptot][icoh][igi][igf], NULL, filename, key, "double", ndim, cdim );
+
+            if ( exitstatus != 0) {
+             fprintf ( stderr, "[http_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+               EXIT(123);
+            }
+          }}
 #if TIMERS
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "htpp_compact_twop", "write_h5_contraction", io_proc == 2 );
