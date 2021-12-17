@@ -336,10 +336,11 @@ int main(int argc, char **argv) {
      * reader for h5 file
      ***********************************************************/
     if ( ( strcmp ( corr_type , "m-j-m"   ) == 0 ) || 
-         ( strcmp ( corr_type , "mxm-j-m" ) == 0 ) ||
-         ( strcmp ( corr_type , "m-m"     ) == 0 ) ) {
+         ( strcmp ( corr_type , "mxm-j-m" ) == 0 ) ) {
         sprintf ( filename, "%s/%s.dt%d.px%d_py%d_pz%d.h5", filename_prefix, filename_prefix2, g_src_snk_time_separation,
             ptot[0], ptot[1], ptot[2] );
+    } else if ( strcmp ( corr_type , "m-m"     ) == 0 ) {
+        sprintf ( filename, "%s/%s.px%d_py%d_pz%d.h5", filename_prefix, filename_prefix2, ptot[0], ptot[1], ptot[2] );
     } else {
       continue;
     }
@@ -347,51 +348,66 @@ int main(int argc, char **argv) {
     if ( g_verbose > 1 ) fprintf ( stdout, "# [htpp_compact_analyse] filename = %s %s %d\n", filename, __FILE__, __LINE__ );
  
 
+    int gamma_rho_number = 0;
+    int gamma_v_number = 0;
     int * gamma_rho_list = NULL, * gamma_v_list = NULL;
     size_t ndim = 0, * dim = NULL;
 
-    exitstatus = read_from_h5_file_varsize ( (void**)&gamma_rho_list, filename, "gamma_rho",  "int", &ndim, &dim,  io_proc );
-    if ( exitstatus != 0 ) {
-      fprintf( stderr, "[htpp_compact_analyse] Error from read_from_h5_file_varsize , status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(2);
-    }  
+    if ( strcmp ( corr_type , "m-j-m"   ) == 0 ) {
+      exitstatus = read_from_h5_file_varsize ( (void**)&gamma_rho_list, filename, "gamma_rho",  "int", &ndim, &dim,  io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf( stderr, "[htpp_compact_analyse] Error from read_from_h5_file_varsize , status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(2);
+      }  
+    
+      gamma_rho_number = dim[0];
+      free ( dim ); dim = NULL;
+    }
 
-    int const gamma_rho_number = dim[0];
-    free ( dim ); dim = NULL;
+    if ( strcmp ( corr_type , "m-j-m"   ) == 0 || strcmp ( corr_type , "mxm-j-m"   ) == 0 ) { 
+      exitstatus = read_from_h5_file_varsize ( (void**)&gamma_v_list, filename, "gamma_v",  "int", &ndim, &dim,  io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf( stderr, "[htpp_compact_analyse] Error from read_from_h5_file_varsize , status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(2);
+      }  
 
-    exitstatus = read_from_h5_file_varsize ( (void**)&gamma_v_list, filename, "gamma_v",  "int", &ndim, &dim,  io_proc );
-    if ( exitstatus != 0 ) {
-      fprintf( stderr, "[htpp_compact_analyse] Error from read_from_h5_file_varsize , status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(2);
-    }  
-
-    int const gamma_v_number = dim[0];
-    free ( dim ); dim = NULL;
+      gamma_v_number = dim[0];
+      free ( dim ); dim = NULL;
+    }
 
     int * buffer = NULL;
-    exitstatus = read_from_h5_file_varsize ( (void**)&buffer, filename, "mom",  "int", &ndim, &dim,  io_proc );
-    if ( exitstatus != 0 ) {
-      fprintf( stderr, "[htpp_compact_analyse] Error from read_from_h5_file_varsize , status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(2); 
-    }  
+    int momentum_number = 0;
+    int *** momentum_list = NULL;
+    if ( strcmp ( corr_type , "m-j-m"   ) == 0 || strcmp ( corr_type , "mxm-j-m"   ) == 0 ) { 
+      exitstatus = read_from_h5_file_varsize ( (void**)&buffer, filename, "mom",  "int", &ndim, &dim,  io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf( stderr, "[htpp_compact_analyse] Error from read_from_h5_file_varsize , status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(2); 
+      }  
 
-    if ( ndim != 3 ) {
-      EXIT(12);
-    }
-    int momentum_number = dim[0];
+      if ( ndim != 3 ) {
+        EXIT(12);
+      }
+      momentum_number = dim[0];
 
-    int *** momentum_list = init_3level_itable ( dim[0], dim[1], dim[2] );
-    if ( momentum_list == NULL ) {
-      fprintf( stderr, "[htpp_compact_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__ );
-      EXIT(14);
-    }
+      momentum_list = init_3level_itable ( dim[0], dim[1], dim[2] );
+      if ( momentum_list == NULL ) {
+        fprintf( stderr, "[htpp_compact_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__ );
+        EXIT(14);
+      }
+
+      memcpy ( momentum_list[0][0], buffer, dim[0] * dim[1] * dim[2] * sizeof ( int ) );
  
-    if ( buffer != NULL ) free ( buffer );
-    free ( dim ); dim = NULL;
+      if ( buffer != NULL ) free ( buffer );
+      free ( dim ); dim = NULL;
+    }
 
-
-    int nitem = 2 * n_tc * gamma_rho_number * gamma_v_number * momentum_number;
-
+    int nitem = 2 * n_tc;
+    if ( strcmp ( corr_type , "mxm-j-m"   ) == 0 ) {
+      nitem *= gamma_v_number * momentum_number;
+    } else if ( strcmp ( corr_type , "m-j-m"   ) == 0 ) {
+      nitem *= gamma_rho_number * gamma_v_number * momentum_number;
+    }
 
     double *** corr = init_3level_dtable ( num_conf, num_src_per_conf, nitem );
  
@@ -424,7 +440,13 @@ int main(int argc, char **argv) {
             conf_src_list[iconf][isrc][5] };
 
         char tag[400];
-        sprintf ( tag, "/s%c/c%d/t%dx%dy%dz%d", stream, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+        if ( strcmp ( corr_type , "m-j-m"   ) == 0 || strcmp ( corr_type , "mxm-j-m"   ) == 0 ) {
+          sprintf ( tag, "/s%c/c%d/t%dx%dy%dz%d", stream, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+        } else if ( strcmp ( corr_type , "m-m"   ) == 0 ) {
+          sprintf ( tag, "/%s/gf_%s/gi_%s/s%c/c%d/t%dx%dy%dz%d", filename_prefix3,
+             gamma_id_to_ascii[g_sink_gamma_id_list[0]], gamma_id_to_ascii[g_source_gamma_id_list[0]],
+              stream, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+        }
 
         if ( g_verbose > 1 ) fprintf ( stdout, "# [htpp_compact_analyse] tag = %s %s %d\n", tag, __FILE__, __LINE__ );
 
@@ -448,96 +470,227 @@ int main(int argc, char **argv) {
     /***********************************************************
      * analyse per momentum and gamma config
      ***********************************************************/
-    for ( int igi = 0; igi < gamma_rho_number; igi++ ) {
-      for ( int igc = 0; igc < gamma_v_number; igc++ ) {
 
-        for ( int imom = 0; imom < momentum_number; imom++ ) {
+    if ( strcmp ( corr_type , "m-j-m" ) == 0 ) {
 
-          int pf[3] = {
-            momentum_list[imom][0][0],
-            momentum_list[imom][0][1],
-            momentum_list[imom][0][2] };
-
-          int pi1[3] = {
-            momentum_list[imom][1][0],
-            momentum_list[imom][1][1],
-            momentum_list[imom][1][2] };
-
-          for ( int ireim = 0; ireim < 2; ireim++ ) {
-
-            double ** data = init_2level_dtable ( num_conf, n_tc );
-            if ( data == NULL ) {
-              fprintf ( stderr, "[htpp_compact_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-              EXIT(12);
-            }
-
+      for ( int igi = 0; igi < gamma_rho_number; igi++ ) {
+        for ( int igc = 0; igc < gamma_v_number; igc++ ) {
+  
+          for ( int imom = 0; imom < momentum_number; imom++ ) {
+  
+            int pf[3] = {
+              momentum_list[imom][0][0],
+              momentum_list[imom][0][1],
+              momentum_list[imom][0][2] };
+  
+            int pi1[3] = {
+              momentum_list[imom][1][0],
+              momentum_list[imom][1][1],
+              momentum_list[imom][1][2] };
+  
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
+  
+              double ** data = init_2level_dtable ( num_conf, n_tc );
+              if ( data == NULL ) {
+                fprintf ( stderr, "[htpp_compact_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+                EXIT(12);
+              }
+  
 #pragma omp parallel for
-            for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                
+                  for ( int it = 0; it < n_tc; it++ ) {
+  
+                    int const idx =  2 * ( ( ( igi * gamma_v_number + igc ) * momentum_number + imom ) * n_tc + it ) + ireim ;
+  
+                    data[iconf][it] += corr[iconf][isrc][idx]; 
+                  }
+                }
+                for ( int it = 0; it < n_tc; it++ ) data[iconf][it] /= (double)num_src_per_conf;
+              }
+  
+              char obs_name[2000];
+  
+              sprintf ( obs_name, "%s.dt%d.px%d_py%d_pz%d.pfx%d_pfy%d_pfz%d.gi_%s.gc_%s.%s", filename_prefix2, g_src_snk_time_separation,
+                  ptot[0], ptot[1], ptot[2],
+                  pf[0], pf[1], pf[2],
+                  gamma_id_to_ascii[gamma_rho_list[igi]],
+                  gamma_id_to_ascii[gamma_v_list[igc]], reim_str[ireim] );
+  
+              exitstatus = apply_uwerr_real (  data[0], num_conf, n_tc, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(14);
+              }
+  
+             /***************************************************************************
+              * effective mass analysis
+              ***************************************************************************/
+              if ( strcmp( "m-m", corr_type ) == 0 ) {
               
-                for ( int it = 0; it < n_tc; it++ ) {
-
-                  int const idx =  2 * ( ( ( igi * gamma_v_number + igc ) * momentum_number + imom ) * n_tc + it ) + ireim ;
-
-                  data[iconf][it] += corr[iconf][isrc][idx]; 
+                int const Thp1 = n_tc / 2 + 1;
+       
+                for ( int itau = 1; itau < Thp1/2; itau++ ) {
+                  int narg = 3;
+                  int arg_first[3] = { 0, 2 * itau, itau };
+                  int arg_stride[3] = {1,1,1};
+                  int nT = Thp1 - 2 * itau;
+  
+                  char obs_name2[2000];
+                  sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
+  
+                  exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, T_global, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
+                  if ( exitstatus != 0 ) {
+                    fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(115);
+                  }
+  
                 }
+  
               }
-              for ( int it = 0; it < n_tc; it++ ) data[iconf][it] /= (double)num_src_per_conf;
-            }
+  
+              fini_2level_dtable ( &data );
+  
+            }  /* end of loop on re im */
+  
+          }  /* end of loop on momentum */
+  
+        }  /* end of loop on gamma_c */
+  
+      }  /* end of loop on gamma_i1 */
 
-            char obs_name[2000];
+    }  /* end of if m-j-m */
 
-            sprintf ( obs_name, "%s.dt%d.px%d_py%d_pz%d.pfx%d_pfy%d_pfz%d.gi_%s.gc_%s.%s", filename_prefix2, g_src_snk_time_separation,
-                ptot[0], ptot[1], ptot[2],
-                pf[0], pf[1], pf[2],
-                gamma_id_to_ascii[gamma_rho_list[igi]],
-                gamma_id_to_ascii[gamma_v_list[igc]], reim_str[ireim] );
+    if ( strcmp ( corr_type , "mxm-j-m" ) == 0 ) {
 
-            exitstatus = apply_uwerr_real (  data[0], num_conf, n_tc, 0, 1, obs_name );
-            if ( exitstatus != 0 ) {
-              fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(14);
-            }
-
-           /***************************************************************************
-            * effective mass analysis
-            ***************************************************************************/
-            if ( strcmp( "m-m", corr_type ) == 0 ) {
-            
-              int const Thp1 = n_tc / 2 + 1;
-     
-              for ( int itau = 1; itau < Thp1/2; itau++ ) {
-                int narg = 3;
-                int arg_first[3] = { 0, 2 * itau, itau };
-                int arg_stride[3] = {1,1,1};
-                int nT = Thp1 - 2 * itau;
-
-                char obs_name2[2000];
-                sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
-
-                exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, T_global, narg, arg_first, arg_stride, obs_name, acosh_ratio, dacosh_ratio );
-                if ( exitstatus != 0 ) {
-                  fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                  EXIT(115);
+      for ( int igc = 0; igc < gamma_v_number; igc++ ) {
+  
+          for ( int imom = 0; imom < momentum_number; imom++ ) {
+  
+            int pf[3] = {
+              momentum_list[imom][0][0],
+              momentum_list[imom][0][1],
+              momentum_list[imom][0][2] };
+  
+            int pi1[3] = {
+              momentum_list[imom][1][0],
+              momentum_list[imom][1][1],
+              momentum_list[imom][1][2] };
+  
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
+  
+              double ** data = init_2level_dtable ( num_conf, n_tc );
+              if ( data == NULL ) {
+                fprintf ( stderr, "[htpp_compact_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+                EXIT(12);
+              }
+  
+#pragma omp parallel for
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                
+                  for ( int it = 0; it < n_tc; it++ ) {
+  
+                    int const idx =  2 * ( ( igc * momentum_number + imom ) * n_tc + it ) + ireim ;
+  
+                    data[iconf][it] += corr[iconf][isrc][idx]; 
+                  }
                 }
-
+                for ( int it = 0; it < n_tc; it++ ) data[iconf][it] /= (double)num_src_per_conf;
               }
-
-            }
-
-            fini_2level_dtable ( &data );
-
-          }  /* end of loop on re im */
-
-        }  /* end of loop on momentum */
-
+  
+              char obs_name[2000];
+  
+              sprintf ( obs_name, "%s.dt%d.px%d_py%d_pz%d.pfx%d_pfy%d_pfz%d.pi1x%d_pi1y%d_pi1z%d.gc_%s.%s", filename_prefix2, g_src_snk_time_separation,
+                  ptot[0], ptot[1], ptot[2],
+                  pf[0], pf[1], pf[2],
+                  pi1[0], pi1[1], pi1[2],
+                  gamma_id_to_ascii[gamma_v_list[igc]], reim_str[ireim] );
+  
+              exitstatus = apply_uwerr_real (  data[0], num_conf, n_tc, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(14);
+              }
+  
+              fini_2level_dtable ( &data );
+  
+            }  /* end of loop on re im */
+  
+          }  /* end of loop on momentum */
+  
       }  /* end of loop on gamma_c */
+  
+    }  /* end of if mxm-j-m */
 
-    }  /* end of loop on gamma_i1 */
+
+    if ( strcmp ( corr_type , "m-m" ) == 0 ) {
+
+            for ( int ireim = 0; ireim < 2; ireim++ ) {
+  
+              double ** data = init_2level_dtable ( num_conf, n_tc );
+              if ( data == NULL ) {
+                fprintf ( stderr, "[htpp_compact_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+                EXIT(12);
+              }
+  
+#pragma omp parallel for
+              for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+                for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                
+                  for ( int it = 0; it < n_tc; it++ ) {
+                    data[iconf][it] += corr[iconf][isrc][2*it+ireim]; 
+                  }
+                }
+                for ( int it = 0; it < n_tc; it++ ) data[iconf][it] /= (double)num_src_per_conf;
+              }
+  
+              char obs_name[2000];
+  
+              sprintf ( obs_name, "%s.px%d_py%d_pz%d.g_%s.g_%s.%s", filename_prefix3,
+                  ptot[0], ptot[1], ptot[2],
+                  gamma_id_to_ascii[g_sink_gamma_id_list[0]],
+                  gamma_id_to_ascii[g_source_gamma_id_list[0]], reim_str[ireim] );
+  
+              exitstatus = apply_uwerr_real (  data[0], num_conf, n_tc, 0, 1, obs_name );
+              if ( exitstatus != 0 ) {
+                fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(14);
+              }
+  
+             /***************************************************************************
+              * effective mass analysis
+              ***************************************************************************/
+              
+                int const Thp1 = n_tc / 2 + 1;
+       
+                for ( int itau = 1; itau < Thp1/2; itau++ ) {
+                  int narg = 3;
+                  int arg_first[3] = { 0, 2 * itau, itau };
+                  int arg_stride[3] = {1,1,1};
+                  int nT = Thp1 - 2 * itau;
+  
+                  char obs_name2[2000];
+                  sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
+  
+                  exitstatus = apply_uwerr_func ( data[0], num_conf, n_tc, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
+                  if ( exitstatus != 0 ) {
+                    fprintf ( stderr, "[htpp_compact_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(115);
+                  }
+  
+                }
+  
+              fini_2level_dtable ( &data );
+  
+            }  /* end of loop on re im */
+
+    }  /* end of if m-m */
 
     fini_3level_dtable ( &corr );
-    free ( gamma_rho_list );
-    free ( gamma_v_list );
+    if ( gamma_rho_list != NULL ) free ( gamma_rho_list );
+    if ( gamma_v_list   != NULL ) free ( gamma_v_list );
     fini_3level_itable ( &momentum_list );
 
 
