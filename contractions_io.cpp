@@ -321,6 +321,11 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader, cons
   int t, x, y, z;
   int words_bigendian = big_endian();
 
+  n_uint64_t const LLsize[4] = { ( LX * g_nproc_x ) * ( LY * g_nproc_y ) * ( LZ * g_nproc_z ),
+                                                      ( LY * g_nproc_y ) * ( LZ * g_nproc_z ),
+                                                                           ( LZ * g_nproc_z ),
+                                                                                            1 };
+
   DML_checksum_init(ans);
   rank = (DML_SiteRank) 0;
  
@@ -341,6 +346,15 @@ int read_binary_contraction_data(double * const s, LimeReader * limereader, cons
   for(x = 0; x < LX; x++){
   for(y = 0; y < LY; y++){
   for(z = 0; z < LZ; z++){
+  
+#ifdef HAVE_MPI
+    limeReaderSeek(limereader,(n_uint64_t) (
+                           ( Tstart  + t ) * LLsize[0]
+                         + ( LXstart + x ) * LLsize[1]
+                         + ( LYstart + y ) * LLsize[2]
+                         + ( LZstart + z ) * LLsize[3] ) * bytes, SEEK_SET);
+#endif
+
     ix = g_ipt[t][x][y][z];
     rank = (DML_SiteRank) (((t+Tstart)*(LX*g_nproc_x) + LXstart + x)*(LY*g_nproc_y) + LYstart + y)*(LZ*g_nproc_z) + LZstart + z;
     if(prec == 32) {
@@ -498,7 +512,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   int ME_flag=0, MB_flag=0;
 
   // n_uint64_t bytes;
-  n_uint64_t bytes;
+  LEMON_OFFSET_TYPE bytes;
 
   DML_Checksum checksum;
   char *message;
@@ -535,7 +549,7 @@ int write_lime_contraction(double * const s, char * filename, const int prec, co
   header = lemonCreateHeader(MB_flag, ME_flag, "cvc_contraction-format", bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
-  lemonWriteRecordData( message, (uint64_t*)&bytes, writer);
+  lemonWriteRecordData( message, &bytes, writer);
   lemonWriterCloseRecord(writer);
   free(message);
 

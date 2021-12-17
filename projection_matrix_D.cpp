@@ -625,14 +625,14 @@ int main(int argc, char **argv) {
              * write coefficient matrices to hdf5 file
              *
              ****************************************************/
-            int const dim[2] = { matrix_dim, matrix_dim };
+            int dim[2] = { matrix_dim, 2 * matrix_dim };
             char tag[500];
   
             sprintf( filename, "subduction.%s.h5", interpolator_name[0] );
   
             sprintf( tag, "%s/v", tag_prefix );
   
-            exitstatus = write_h5_contraction ( projection_matrix_v[imu][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( (double*)(projection_matrix_v[imu][0]), NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -640,7 +640,7 @@ int main(int argc, char **argv) {
   
             sprintf( tag, "%s/s", tag_prefix );
   
-            exitstatus = write_h5_contraction ( projection_matrix_s[imu][0], NULL, filename, tag, "double", 2, dim );
+            exitstatus = write_h5_contraction ( (double*)(projection_matrix_s[imu][0]), NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -648,7 +648,8 @@ int main(int argc, char **argv) {
   
             sprintf( tag, "%s/u", tag_prefix );
   
-            exitstatus = write_h5_contraction ( projection_matrix_u[imu][0], NULL, filename, tag, "double", 2, dim );
+            dim[0] = rank;
+            exitstatus = write_h5_contraction ( (double*)(projection_matrix_u[imu][0]), NULL, filename, tag, "double", 2, dim );
             if ( exitstatus != 0 ) {
               fprintf ( stderr, "[projection_matrix_D] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(2);
@@ -713,7 +714,7 @@ int main(int argc, char **argv) {
            ****************************************************/
           if ( rank > 0 ) {
 
-            /* exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v , matrix_dim, p , operator_side[iac] );
+            /* exitstatus = check_subduction_matrix_multiplett_rotation ( projection_matrix_v , matrix_dim, p , operator_side[iac], 1, NULL );
             if ( exitstatus != 0 ) {
               fprintf( stderr, "[projection_matrix_D] Error from check_subduction_matrix_multiplett_rotation, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(12);
