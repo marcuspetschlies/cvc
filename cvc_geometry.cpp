@@ -308,6 +308,14 @@ void geometry() {
     g_idn[ix][2] = get_index(x0, x1, x2-1, x3);
     g_idn[ix][3] = get_index(x0, x1, x2, x3-1);
 
+    /* we set lexic 2 coords, 
+     * the inverse g_ipt, BUT we use x0,1,2,3, NOT y0,1,2,3
+     */
+    g_lexic2coords[ix][0] = x0;
+    g_lexic2coords[ix][1] = x1;
+    g_lexic2coords[ix][2] = x2;
+    g_lexic2coords[ix][3] = x3;
+
     // is even / odd
     /* if(isboundary == 0) { */
       g_iseven[ix] = ( x0 + T *g_proc_coords[0] + x1 + LX*g_proc_coords[1] \
@@ -721,6 +729,23 @@ int init_geometry(void) {
     }
   }
 
+  /***********************************************************/
+  /***********************************************************/
+
+  /***********************************************************
+   * g_lexic2coords
+   ***********************************************************/
+  g_lexic2coords = ( int ** ) calloc ( V, sizeof(int*) );
+  if ( g_lexic2coords == NULL ) return ( 25 );
+  g_lexic2coords[0] =  ( int * ) calloc ( 4 * V, sizeof ( int ) );
+  if ( g_lexic2coords[0] == NULL ) return ( 24 );
+  for ( unsigned int ix = 1; ix < V; ix++ ) {
+    g_lexic2coords[ix] = g_lexic2coords[ix-1] + 4;
+  }
+
+  /***********************************************************/
+  /***********************************************************/
+
 #if 0
   /***********************************************************
    * initialize g_eot2xyz
@@ -804,6 +829,10 @@ void free_geometry() {
   free( g_eosubt2coords[0][0] );
   free( g_eosubt2coords[0] );
   free( g_eosubt2coords );
+
+  /* free g_lexic2coords buffer */
+  free( g_lexic2coords[0] );
+  free( g_lexic2coords );
 
 #if 0
   free( g_eot2xyz[0][0][0] );
