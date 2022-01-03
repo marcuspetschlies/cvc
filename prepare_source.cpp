@@ -1284,6 +1284,8 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
 
     unsigned int const ix3 = ix % VOL3;
 
+    double _Complex const ephasex = ephase == NULL ? 1. : ephase[ix3];
+
     if ( type == 0 ) {
       /**********************************************************
        * build M <- sum_ig gamma[ig] x Tr [ L x gamma[ig] ]
@@ -1295,11 +1297,6 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
          **********************************************************/
         double _Complex ztmp = 0.;
         _co_eq_tr_scm_ti_gamma( &ztmp, _laux, gamma_mat[ig].m );
-
-        /**********************************************************
-         * ztmp = ztmp * exp ( i p_seq x_seq )
-         **********************************************************/
-        ztmp *= ephase[ix3];
 
         for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
         for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
@@ -1342,6 +1339,11 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
           int const kc = 3 * igamma + ic;
           ztmp += M[ka][kc] * ( prop[kb][_GSI(ix)+2*kc] + I * prop[kb][_GSI(ix)+2*kc+1] );
         }}
+
+        /**********************************************************
+         * ztmp = ztmp * exp ( i p_seq x_seq )
+         **********************************************************/
+        ztmp *= ephasex;
 
         seq_source[kb][_GSI(ix)+2*ka  ] = creal( ztmp );
         seq_source[kb][_GSI(ix)+2*ka+1] = cimag( ztmp );
