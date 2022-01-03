@@ -79,8 +79,11 @@ void random_spinor_field (double *s, unsigned int V);
 int rangauss (double * y1, unsigned int NRAND);
 
 void cm_proj(double *A);
+
 void contract_twopoint(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c);
-void contract_twopoint_snk_momentum(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int*snk_mom);
+
+void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, unsigned int const n_s, unsigned int const n_c, int const snk_mom[3], int const reduce );
+
 void contract_twopoint_snk_momentum_trange(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom, int tmin, int tmax);
 
 void contract_twopoint_xdep(void*contr, const int idsource, const int idsink, void * const chi, void * const phi, int const n_s, int const n_c, unsigned int const stride, double const factor, size_t const prec);
