@@ -3349,6 +3349,12 @@ void contract_twopoint(double *contr, const int idsource, const int idsink, doub
  *****************************************************************************************************************/
 void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, unsigned int const n_s, unsigned int const n_c, int const snk_mom[3], int const reduce ) {
 
+#ifdef _TEST_TIMER
+  struct timeval ta, tb;
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
+
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
@@ -3476,6 +3482,11 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
 
   free ( psource );
   free ( ssource );
+
+#ifdef _TEST_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_twopoint_snk_momentum", "runtime", g_cart_id == 0 );
+#endif
 
 }  // end of contract_twopoint_snk_momentum
 
