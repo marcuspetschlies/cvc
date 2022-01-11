@@ -24,6 +24,7 @@
 #include "global.h"
 #include "cvc_geometry.h"
 #include "cvc_utils.h"
+#include "cvc_timer.h"
 #include "mpi_init.h"
 #include "io.h"
 #include "propagator_io.h"
@@ -1267,7 +1268,13 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
  * prepare sequential FHT source with loop
  **********************************************************/
 int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Complex *** const loop, double ** const prop, gamma_matrix_type * const gamma_mat, int const gamma_num, double _Complex * const ephase, int const type, gamma_matrix_type * const g5herm  ) {
-  
+ 
+
+#ifdef _TEST_TIMER
+  struct timeval ta, tb;
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
   unsigned int const VOL3 = LX * LY * LZ;
 #pragma omp parallel for
   for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
@@ -1355,6 +1362,11 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
     fini_2level_ztable ( &_laux );
 
   }  /* end of loop on volume */
+
+#ifdef _TEST_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "prepare_sequential_fht_loop_source", "runtime", g_cart_id == 0 );
+#endif
 
   return (0);
 }  /* end of prepare_sequential_fht_loop_source */

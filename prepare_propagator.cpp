@@ -21,6 +21,8 @@
 
 #include "cvc_complex.h"
 #include "cvc_linalg.h"
+#include "cvc_timer.h"
+
 #include "iblas.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -912,6 +914,11 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
     int smear_source, int smear_sink, double *gauge_field_smeared,
     int const check_residual, double * const gauge_field, double ** mzz[2], char * prefix ) {
 
+#ifdef _TEST_TIMER
+    struct timeval ta, tb;
+    gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
   size_t const sizeof_spinor_field           = _GSI(VOLUME) * sizeof(double);
   int const rotation_direction = op_id == 0 ? +1 : -1;
   int exitstatus;
@@ -1020,6 +1027,12 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
   }  /* end of loop set of on source fields */
 
   fini_2level_dtable ( &spinor_work );
+
+#ifdef _TEST_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "prepare_propagator_from_source", "runtime", g_cart_id == 0 );
+#endif
+
   return(0);
 }  /* end of prepare_propagator_from_source */
 
