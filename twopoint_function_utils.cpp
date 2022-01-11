@@ -1630,7 +1630,7 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
   }  // end of loop on data sets
 
   double retime = _GET_TIME;
-  if ( g_verbose > 0 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] time for apply norm = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] time for apply norm = %e seconds %s %d\n", retime-ratime, __FILE__, __LINE__ );
   return ( 0 );
 }  /* end of twopoint_function_apply_diagram_norm */
 
