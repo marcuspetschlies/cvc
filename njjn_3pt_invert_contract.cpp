@@ -93,6 +93,10 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
     struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
 
   int exitstatus;
+#ifdef _TEST_TIMER
+  struct timeval ta, tb;
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
 
   /* contraction */
   exitstatus = reduce ( vx, fa, fb, fc, N );
@@ -116,6 +120,11 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
     fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
     return( 3 );
   }
+
+#ifdef _TEST_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "reduce_project_write", "runtime", g_cart_id == 0 );
+#endif
 
   return ( 0 );
 
@@ -678,6 +687,8 @@ int main(int argc, char **argv) {
     }
 
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       for ( int i =0; i < 12; i++ ) {
         memcpy ( propagator_snk_smeared[iflavor][i], propagator[iflavor][i], sizeof_spinor_field );
         exitstatus = Jacobi_Smearing ( gauge_field_smeared, propagator_snk_smeared[iflavor][i], N_Jacobi, kappa_Jacobi );
@@ -687,6 +698,9 @@ int main(int argc, char **argv) {
           EXIT(47);
         }
       }
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sink-smear", g_cart_id == 0 );
+
     }
 
     /***************************************************************************
@@ -837,7 +851,10 @@ int main(int argc, char **argv) {
      ***************************************************************************
      ***************************************************************************/
     for ( int iflavor = 0; iflavor < 2; iflavor++ )
+    /* for ( int iflavor = 0; iflavor < 1; iflavor++ ) */
     {
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       fermion_propagator_type * fup  = create_fp_field ( VOLUME );
       fermion_propagator_type * fdn  = create_fp_field ( VOLUME );
@@ -1073,6 +1090,8 @@ int main(int argc, char **argv) {
       free_fp_field ( &fup  );
       free_fp_field ( &fdn  );
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-source-case-1-to-4", g_cart_id == 0 );
 
       /***************************************************************************
        ***************************************************************************
@@ -1081,6 +1100,8 @@ int main(int argc, char **argv) {
        **
        ***************************************************************************
        ***************************************************************************/
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       double ** sequential_source = init_2level_dtable ( 12, _GSI( VOLUME ) );
       if( sequential_source == NULL ) {
@@ -1114,6 +1135,11 @@ int main(int argc, char **argv) {
        ***************************************************************************/
       g5_phi( sequential_source[0], 12*VOLUME );
 
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-source-assign-g5", g_cart_id == 0 );
+
+
       /* allocate sequential propagator */
       double ** sequential_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
       if( sequential_propagator == NULL ) {
@@ -1123,6 +1149,7 @@ int main(int argc, char **argv) {
 
       for ( int itseq = 0; itseq < g_sequential_source_timeslice_number; itseq++ ) 
       {
+        gettimeofday ( &ta, (struct timezone *)NULL );
 
         int const gtseq =  ( gsx[0] + g_sequential_source_timeslice_list[itseq] + T_global ) % T_global;
         int const have_tseq = ( gtseq / T == g_proc_coords[0] );
@@ -1137,7 +1164,6 @@ int main(int argc, char **argv) {
          *  with wrapper function prepare_propagator_from_source from
          *  prepare_propagator.cpp
          ***************************************************************************/
-        gettimeofday ( &ta, (struct timezone *)NULL );
 
         /***************************************************************************
          * invert
@@ -1151,6 +1177,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[njjn_3pt_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
           EXIT(123);
         }
+
 
         for ( int i = 0; i < 12; i++ ) {
 
@@ -1176,6 +1203,9 @@ int main(int argc, char **argv) {
          ***************************************************************************/
         g5_phi( sequential_propagator[0], 12*VOLUME );
 
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-propagator-g5", g_cart_id == 0 );
+
         if ( g_write_sequential_propagator ) {
           for ( int i = 0; i < 12; i++ ) {
             sprintf ( filename, "sequential_source.%c.c%d.t%dx%dy%dz%d.sc%d.inverted",
@@ -1188,8 +1218,6 @@ int main(int argc, char **argv) {
           }
         }
 
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-source-invert-check-smear", g_cart_id == 0 );
 
         /***************************************************************************
          ***************************************************************************
@@ -1198,6 +1226,9 @@ int main(int argc, char **argv) {
          **
          ***************************************************************************
          ***************************************************************************/
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
         for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ ) {
 
           gamma_matrix_type gammafive;
@@ -1259,8 +1290,12 @@ int main(int argc, char **argv) {
              * using Gamma_i = unit matrix = Gamma_f;
              *
              * seq^+ glg
+             *
+             * MIND THE gamma_5 added !!!
+             * so contract with gamma_src = gamma_5 = gamma_snk to 
+             * counteract
              ***************************************************************************/
-            contract_twopoint_snk_momentum ( contr_p, 4, 4, sequential_propagator, glg_propagator, 4, 3, sink_momentum, 1 ); 
+            contract_twopoint_snk_momentum ( contr_p, 5, 5, sequential_propagator, glg_propagator, 4, 3, sink_momentum, 1 ); 
  
 
             /***************************************************************************
@@ -1332,6 +1367,9 @@ int main(int argc, char **argv) {
           fini_2level_dtable ( &glg_propagator );
 
         }  /* end of loop on gamma sets */
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "njjn_3pt_invert_contract", "contract-3pt-write-per-tseq", g_cart_id == 0 );
 
       }  /* end of loop on source-sink time separations */
 
