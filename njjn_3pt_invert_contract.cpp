@@ -844,7 +844,7 @@ int main(int argc, char **argv) {
 
       /* BEGIN OF POINT CHECK */
       FILE * ofs = with_gt ? fopen( "test.gt", "w" ) : fopen( "test", "w" );
-      unsigned int const test_site = VOLUME -1;
+      unsigned int const test_site = 0;
 
       printf_fp ( fup[test_site], "up", ofs );
       printf_fp ( fdn[test_site], "dn", ofs );
@@ -901,7 +901,7 @@ int main(int argc, char **argv) {
 
         /* faux2 = epsilon epsilon fdn^T fup  */
         _fp_eq_fp_eps_contract13_fp( faux2, fdn[ix], fup[ix] );
-
+        
         // printf_fp ( faux2, "d1u3", ofs );
 
         /* faux = faux2^+ */
@@ -939,6 +939,9 @@ int main(int argc, char **argv) {
 
         /* faux2 = epsilon epsilon fup fdn^T  */
         _fp_eq_fp_eps_contract24_fp( faux2, fup[ix], fdn[ix] );
+
+
+        printf_fp ( faux2, "f24", ofs );
 
         /* faux2 = g0 faux */
         _fp_eq_gamma_ti_fp ( faux, 0, faux2 );
