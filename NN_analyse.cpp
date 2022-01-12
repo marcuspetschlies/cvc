@@ -138,25 +138,15 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
 
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
 
- if ( strcmp ( tp_type, "b-b" ) == 0 ) {
-   sprintf ( name,  "%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d", tp->name,
+ if ( strcmp ( tp_type, "N-N" ) == 0 ) {
+   sprintf ( name,  "%s.%s.Gi_%s_%s.Gf_%s_%s.px%dpy%dpz%d", tp->type , tp->name,
        gamma_id_to_Cg_ascii[tp->gi1[0]],
        gamma_id_to_ascii[tp->gi1[1]],
        gamma_id_to_Cg_ascii[tp->gf1[0]],
        gamma_id_to_ascii[tp->gf1[1]],
        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
 
-  } else if ( strcmp( tp_type, "b-qq-b" ) == 0 ) {
-
-    sprintf ( name,  "%s.Gi_%s_%s.Gc_%s.Gf_%s_%s.qx%dqy%dqz%d.px%dpy%dpz%d", tp->name,
-        gamma_id_to_Cg_ascii[tp->gi1[0]],
-        gamma_id_to_ascii[tp->gi1[1]],
-        gamma_id_to_ascii[tp->gf2],
-        gamma_id_to_Cg_ascii[tp->gf1[0]],
-        gamma_id_to_ascii[tp->gf1[1]],
-        tp->pf2[0], tp->pf2[1], tp->pf2[2],
-        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
-  }
+  } 
 }  /* end of make_correlator_string */
 
 /***************************************************************************
@@ -320,6 +310,7 @@ int main(int argc, char **argv) {
   char line[100];
   int countc = -1, counts=0;
   int conf_prev = -1;
+  char stream_prev = '0';
 
   while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts <= num_src_per_conf ) {
     if ( line[0] == '#' ) {
@@ -339,11 +330,12 @@ int main(int argc, char **argv) {
 
     if ( g_verbose > 5 ) fprintf ( stdout, "# [NN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
 
-    if ( conf_tmp != conf_prev ) {
+    if ( conf_tmp != conf_prev || stream_tmp != stream_prev ) {
       /* new config */
       countc++;
       counts=0;
       conf_prev = conf_tmp;
+      stream_prev = stream_tmp;
 
       conf_src_list.stream[countc] = stream_tmp;
       conf_src_list.conf[countc]   = conf_tmp;
@@ -435,7 +427,7 @@ int main(int argc, char **argv) {
        * NOTE: WE ASSUME ALL 2pt FUNCTION NAMES TO BE SAME
        ***************************************************************************/
       /* /N-N/T24_X0_Y19_Z30/... */
-      sprintf ( key, "/%s/T%d_X%d_Y%d_Z%d", g_twopoint_function_list[0].name, gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d", g_twopoint_function_list[0].type, g_twopoint_function_list[0].name, gsx[0], gsx[1], gsx[2], gsx[3] );
       if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for path1 = %s %s %d\n", key, __FILE__, __LINE__ );
 
       affpath1 = aff_reader_chpath ( affr, affn, key );

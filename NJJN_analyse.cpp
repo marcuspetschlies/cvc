@@ -102,17 +102,17 @@ typedef struct {
     "gygz"
   };
 
-/***************************************************************************
- *
- ***************************************************************************/
-void make_key_string ( char * key, twopoint_function_type *tp, const char * type, const char * diagram_name , const int * sx, int const isample ) {
-
-  const char gamma_id_to_group[16][3] = {
+  char const gamma_id_to_group[16][3] = {
     "vv", "vv", "vv", "vv", 
     "ss", "pp", 
     "aa", "aa", "aa", "aa", 
     "tt", "tt", "tt", "tt", "tt", "tt" 
   };
+
+/***************************************************************************
+ *
+ ***************************************************************************/
+void make_key_string ( char * key, twopoint_function_type *tp, const char * type, const char * diagram_name , const int * sx, int const isample ) {
 
   const int * gsx = ( sx == NULL ) ? tp->source_coords : sx;
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
@@ -175,7 +175,8 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
 
     sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
         tp->pf2[0], tp->pf2[1], tp->pf2[2],
-        gamma_id_to_ascii[tp->gf2],
+        /* gamma_id_to_ascii[tp->gf2], */
+        gamma_id_to_group[tp->gf2],
         gamma_id_to_Cg_ascii[tp->gf1[0]],
         gamma_id_to_Cg_ascii[tp->gi1[0]],
         tp->pf1[0], tp->pf1[1], tp->pf1[2] );
@@ -343,6 +344,8 @@ int main(int argc, char **argv) {
   char line[100];
   int countc = -1, counts=0;
   int conf_prev = -1;
+  char stream_prev = '0';
+
 
   while ( fgets ( line, 100, ofs) != NULL && countc < num_conf && counts <= num_src_per_conf ) {
     if ( line[0] == '#' ) {
@@ -362,11 +365,12 @@ int main(int argc, char **argv) {
 
     if ( g_verbose > 5 ) fprintf ( stdout, "# [NJJN_analyse] before: conf_tmp = %4d   conf_prev = %4d   countc = %d   counts = %d\n", conf_tmp, conf_prev, countc, counts );
 
-    if ( conf_tmp != conf_prev ) {
+    if ( conf_tmp != conf_prev || stream_tmp != stream_prev ) {
       /* new config */
       countc++;
       counts=0;
       conf_prev = conf_tmp;
+      stream_prev = stream_tmp;
 
       conf_src_list.stream[countc] = stream_tmp;
       conf_src_list.conf[countc]   = conf_tmp;
@@ -431,8 +435,9 @@ int main(int argc, char **argv) {
 
       char data_filename[500];
             
-      // sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], Nconf, filename_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-      sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
+          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+      /* sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [NJJN_analyse] data_filename   = %s\n", data_filename );
       }
@@ -444,7 +449,8 @@ int main(int argc, char **argv) {
       affr = aff_reader ( data_filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
       if( aff_status_str != NULL ) {
-        fprintf(stderr, "[NJJN_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
+        fprintf(stderr, "[NJJN_analyse] Error from aff_reader for filename %s, status was %s %s %d\n", 
+            data_filename, aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
 

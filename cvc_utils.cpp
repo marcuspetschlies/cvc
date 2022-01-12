@@ -3344,211 +3344,155 @@ void contract_twopoint(double *contr, const int idsource, const int idsink, doub
 }
 
 /*****************************************************************************************************************
- * contraction of meson 2-point functions with sink momentum
+ * contraction of meson 2-point functions with sink momentum vector
+ *   includes MPI-reduction inside timslice of g_cart_grid
  *****************************************************************************************************************/
-#ifndef HAVE_OPENMP
-void contract_twopoint_snk_momentum(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom) {
+void contract_twopoint_snk_momentum ( double * const contr, int const idsource, int const idsink, double ** const chi, double ** const phi, unsigned int const n_s, unsigned int const n_c, int const snk_mom[3], int const reduce ) {
 
-  int x0, x1, x2, x3, ix, iix, psource[4], tt=0, isimag, mu, c, j;
-  int VOL3 = LX*LY*LZ;
-  int sx0=0, sx1=0, sx2=0, sx3=0;
-  double ssource[4], spinor1[24], spinor2[24];
-  double phase, cphase, sphase, px, py, pz;
-  double tmp[2], re, im;
-  complex w;
-
-  psource[0] = gamma_permutation[idsource][ 0] / 6;
-  psource[1] = gamma_permutation[idsource][ 6] / 6;
-  psource[2] = gamma_permutation[idsource][12] / 6;
-  psource[3] = gamma_permutation[idsource][18] / 6;
-  isimag = gamma_permutation[idsource][ 0] % 2;
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  ssource[0] =  gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]];
-  ssource[1] =  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]];
-  ssource[2] =  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]];
-  ssource[3] =  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]];
-/*
-  fprintf(stdout, "__________________________________\n");
-  fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d\n", idsource, idsink, psource[0]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d\n", idsource, idsink, psource[1]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d\n", idsource, idsink, psource[2]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d\n", idsource, idsink, psource[3]);
-*/
-
-/*  if(g_cart_id==0) fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-    ssource[0], ssource[1], ssource[2], ssource[3]); */
-
-  if(g_source_type==0) { // point souce
-    iix = g_source_location;
-    sx0 = iix / (LX_global * LY_global * LZ_global);
-    iix -= sx0 * LX_global * LY_global * LZ_global;
-    sx1 = iix / (LY_global * LZ_global);
-    iix -= sx1 * LY_global * LZ_global;
-    sx2 = iix / (LZ_global);
-    sx3 = iix - sx2 * LZ_global;
-    //fprintf(stdout, "# [contract_twopoint_snk_momentum] global source coordinates = (%d, %d, %d, %d)\n", sx0, sx1, sx2, sx3);
-  }
-
-  px = 2.*M_PI*(double)snk_mom[0]/(double)LX_global;
-  py = 2.*M_PI*(double)snk_mom[1]/(double)LY_global;
-  pz = 2.*M_PI*(double)snk_mom[2]/(double)LZ_global;
-  // fprintf(stdout, "# [contract_twopoint_snk_momentum] p = (%e, %e, %e)\n", px, py, pz);
-
-  for(x0=0; x0<T; x0++) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      iix = g_ipt[x0][x1][x2][x3];
-      phase = (double)(x1+g_proc_coords[1]*LX - sx1)*px + (double)(x2+g_proc_coords[2]*LY - sx2)*py + (double)(x3+g_proc_coords[3]*LZ - sx3)*pz;
-      cphase = cos( phase );
-      sphase = sin( phase );
-
-      tmp[0] = 0.; tmp[1] = 0.;
-      for(mu=0; mu<4; mu++) {
-        for(c=0; c<n_c; c++) {
-/*
-           if(g_cart_id==0 && (iix==0 || iix==111)) {
-             fprintf(stdout, "iix=%4d, c=%d, mu=%d, idsource=%d, idsink=%d\n", iix, c, mu, idsource, idsink); 
-             for(j=0; j<12; j++) 
-               fprintf(stdout, "phi = %e +I %e\n", phi[mu*n_c+c][_GSI(iix)+2*j], phi[mu*n_c+c][_GSI(iix)+2*j+1]);
-           }
-*/
-          _fv_eq_gamma_ti_fv(spinor1, idsink, phi[mu*n_c+c]+_GSI(iix));
-          _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
-          _co_eq_fv_dag_ti_fv(&w, chi[psource[mu]*n_c+c]+_GSI(iix), spinor2);
-
-          tmp[0] += ssource[mu]*w.re;
-          tmp[1] += ssource[mu]*w.im;
-
-/*          if(g_cart_id==0) fprintf(stdout, "# source[%2d, %2d] = %25.16e +I %25.16e\n", mu, tt, ssource[mu]*w.re, ssource[mu]*w.im); */
-        }  // of color  index
-      }    // of spinor index
-
-      // multiply by momentum phase factor and add to correlator
-      re = tmp[0]*cphase - tmp[1]*sphase;
-      im = tmp[0]*sphase + tmp[1]*cphase;
-      //fprintf(stdout, "\tephase<-%e+%e*1.i; tmp<-%e+%e*1.i; z<-%e+%e*1.i\n", cphase, sphase, tmp[0], tmp[1], re, im);
-      if( !isimag ) {
-        contr[2*tt  ] += re;
-        contr[2*tt+1] += im;
-      } else {
-        contr[2*tt  ] +=  im;
-        contr[2*tt+1] += -re;
-      }
-    }}}  // of x3, x2, x1
-    tt++;
-  }      // of x0
-}
-#else
-void contract_twopoint_snk_momentum(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c, int* snk_mom) {
-
-  int x0, iix, psource[4], isimag;
-  int sx0=0, sx1=0, sx2=0, sx3=0;
-  double ssource[4];
-  double px, py, pz;
-
-  psource[0] = gamma_permutation[idsource][ 0] / 6;
-  psource[1] = gamma_permutation[idsource][ 6] / 6;
-  psource[2] = gamma_permutation[idsource][12] / 6;
-  psource[3] = gamma_permutation[idsource][18] / 6;
-  isimag = gamma_permutation[idsource][ 0] % 2;
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  ssource[0] =  gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]];
-  ssource[1] =  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]];
-  ssource[2] =  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]];
-  ssource[3] =  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]];
-/*
-  fprintf(stdout, "__________________________________\n");
-  fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d\n", idsource, idsink, psource[0]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d\n", idsource, idsink, psource[1]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d\n", idsource, idsink, psource[2]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d\n", idsource, idsink, psource[3]);
-*/
-
-/*  if(g_cart_id==0) fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-    ssource[0], ssource[1], ssource[2], ssource[3]); */
-
-  if(g_source_type==0) { // point souce
-    iix = g_source_location;
-    sx0 = iix / (LX_global * LY_global * LZ_global);
-    iix -= sx0 * LX_global * LY_global * LZ_global;
-    sx1 = iix / (LY_global * LZ_global);
-    iix -= sx1 * LY_global * LZ_global;
-    sx2 = iix / (LZ_global);
-    sx3 = iix - sx2 * LZ_global;
-    //fprintf(stdout, "# [contract_twopoint_snk_momentum] global source coordinates = (%d, %d, %d, %d)\n", sx0, sx1, sx2, sx3);
-  }
-
-  px = 2.*M_PI*(double)snk_mom[0]/(double)LX_global;
-  py = 2.*M_PI*(double)snk_mom[1]/(double)LY_global;
-  pz = 2.*M_PI*(double)snk_mom[2]/(double)LZ_global;
-  // fprintf(stdout, "# [contract_twopoint_snk_momentum] p = (%e, %e, %e)\n", px, py, pz);
-
-#pragma omp parallel private(x0, iix) shared(T,LX,LY,LZ, sx0,sx1,sx2,sx3, px, py, pz, isimag, ssource, psource, contr, chi, phi, n_c, snk_mom)
-{
-  int x1, x2, x3, ix, tt=0, mu, c, j;
-  double phase, cphase, sphase;
-  double tmp[2], re, im;
-  complex w;
-  double spinor1[24], spinor2[24];
-
-  int threadid = omp_get_thread_num();
-  int num_threads = omp_get_num_threads();
-
-  // TEST
-  // fprintf(stdout, "# [contract_twopoint_snk_momentum] thread%.4d number of threads %d\n", threadid, num_threads);
-
-  tt = threadid;
-  for(x0=threadid; x0<T; x0+=num_threads) {
-    for(x1=0; x1<LX; x1++) {
-    for(x2=0; x2<LY; x2++) {
-    for(x3=0; x3<LZ; x3++) {
-      iix = g_ipt[x0][x1][x2][x3];
-      // phase = (double)(x1-sx1)*px + (double)(x2-sx2)*py + (double)(x3-sx3)*pz;
-      phase = (double)(x1+g_proc_coords[1]*LX - sx1)*px + (double)(x2+g_proc_coords[2]*LY - sx2)*py + (double)(x3+g_proc_coords[3]*LZ - sx3)*pz;
-      cphase = cos( phase );
-      sphase = sin( phase );
-
-      tmp[0] = 0.; tmp[1] = 0.;
-      for(mu=0; mu<4; mu++) {
-        for(c=0; c<n_c; c++) {
-/*
-           if(g_cart_id==0 && (iix==0 || iix==111)) {
-             fprintf(stdout, "iix=%4d, c=%d, mu=%d, idsource=%d, idsink=%d\n", iix, c, mu, idsource, idsink); 
-             for(j=0; j<12; j++) 
-               fprintf(stdout, "phi = %e +I %e\n", phi[mu*n_c+c][_GSI(iix)+2*j], phi[mu*n_c+c][_GSI(iix)+2*j+1]);
-           }
-*/
-          _fv_eq_gamma_ti_fv(spinor1, idsink, phi[mu*n_c+c]+_GSI(iix));
-          _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
-          _co_eq_fv_dag_ti_fv(&w, chi[psource[mu]*n_c+c]+_GSI(iix), spinor2);
-
-          tmp[0] += ssource[mu]*w.re;
-          tmp[1] += ssource[mu]*w.im;
-
-/*          if(g_cart_id==0) fprintf(stdout, "# source[%2d, %2d] = %25.16e +I %25.16e\n", mu, tt, ssource[mu]*w.re, ssource[mu]*w.im); */
-        }  // of color  index
-      }    // of spinor index
-
-      // multiply by momentum phase factor and add to correlator
-      re = tmp[0]*cphase - tmp[1]*sphase;
-      im = tmp[0]*sphase + tmp[1]*cphase;
-      //fprintf(stdout, "\tephase<-%e+%e*1.i; tmp<-%e+%e*1.i; z<-%e+%e*1.i\n", cphase, sphase, tmp[0], tmp[1], re, im);
-      if( !isimag ) {
-        contr[2*tt  ] += re;
-        contr[2*tt+1] += im;
-      } else {
-        contr[2*tt  ] +=  im;
-        contr[2*tt+1] += -re;
-      }
-    }}}  // of x3, x2, x1
-    tt += num_threads;
-  }      // of x0
-}  // end of parallel region
-}
+#ifdef _TEST_TIMER
+  struct timeval ta, tb;
+  gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
+
+
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  double const TWO_MPI =  2. * M_PI;
+
+  int isimag = 0;
+  int    * psource = (int   *)calloc ( n_s , sizeof(int)    );
+  double * ssource = (double*)calloc ( n_s , sizeof(double) );
+
+  /* default value for sign is 1. */
+
+  for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+    ssource[mu] = 1.;
+  }
+
+  if ( idsource >= 0 && n_s > 1 ) {
+    /* permutation and sign from the source gamma matrix; the minus sign
+     * in the lower two lines is the action of gamma_5 */
+
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      psource[mu] = gamma_permutation[idsource][6*mu] / 6;
+      ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
+    }
+
+    isimag = gamma_permutation[idsource][ 0] % 2;
+  }
+
+  if ( g_cart_id == 0 && g_verbose > 3 ) {
+    fprintf(stdout, "# [contract_twopoint_snk_momentum] __________________________________\n");
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      fprintf(stdout, "# [contract_twopoint_snk_momentum] isource=%d, idsink=%d, p[%d] = %d, s[%d] = %e\n", idsource, idsink, mu, psource[mu], mu, ssource[mu] );
+    }
+  }
+
+  double const px = TWO_MPI * (double)snk_mom[0] / (double)LX_global;
+  double const py = TWO_MPI * (double)snk_mom[1] / (double)LY_global;
+  double const pz = TWO_MPI * (double)snk_mom[2] / (double)LZ_global;
+
+  double const phase_offset = (double)( g_proc_coords[1] * LX ) * px + (double)( g_proc_coords[2] * LY ) * py + (double)( g_proc_coords[3] * LZ ) * pz;
+
+#ifdef HAVE_OPENMP
+  omp_init_lock ( &writelock );
+#pragma omp parallel default(shared)
+{
+#endif
+
+  complex w;
+  double spinor1[_GSI(1)], spinor2[_GSI(1)];
+  double * contr_tmp = ( double * )calloc ( 2 * T, sizeof ( double ) );
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+    unsigned int const iix = _GSI( ix );
+
+    int const x0 = g_lexic2coords[ix][0];
+    int const x1 = g_lexic2coords[ix][1];
+    int const x2 = g_lexic2coords[ix][2];
+    int const x3 = g_lexic2coords[ix][3];
+
+    double const phase  = phase_offset + (double)( x1 ) * px + (double)( x2 ) * py + (double)( x3 ) * pz;
+    double const cphase = cos( phase );
+    double const sphase = sin( phase );
+
+    double tmp[2] = { 0., 0. };
+
+    for ( unsigned int mu=0; mu < n_s; mu++ ) {
+
+      for ( unsigned int c=0; c < n_c; c++) {
+
+        _fv_eq_gamma_ti_fv ( spinor1, idsink, phi[mu*n_c+c] + iix );
+        _fv_eq_gamma_ti_fv ( spinor2, 5, spinor1 );
+        _co_eq_fv_dag_ti_fv ( &w, chi[psource[mu]*n_c+c] + iix, spinor2);
+
+        tmp[0] += ssource[mu] * w.re;
+        tmp[1] += ssource[mu] * w.im;
+
+      }  // of color  index
+    }    // of spinor index
+
+    // multiply by momentum phase factor and add to correlator
+    double const re = tmp[0]*cphase - tmp[1]*sphase;
+    double const im = tmp[0]*sphase + tmp[1]*cphase;
+
+    // add to temporary contr field
+    if( !isimag ) {
+      contr_tmp[2*x0  ] += re;
+      contr_tmp[2*x0+1] += im;
+    } else {
+      contr_tmp[2*x0  ] +=  im;
+      contr_tmp[2*x0+1] += -re;
+    }
+
+  }  // end of loop on ix
+#ifdef HAVE_OPENMP
+  omp_set_lock ( &writelock );
+#endif
+  for ( int x0 = 0; x0 < 2*T; x0++ ) {
+    contr[x0] += contr_tmp[x0];
+  }
+#ifdef HAVE_OPENMP
+  omp_unset_lock ( &writelock );
+
+  free ( contr_tmp );
+}  // end of parallel region
+  omp_destroy_lock ( &writelock );
+#endif
+
+#ifdef HAVE_MPI 
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ ) 
+  if ( reduce ) {
+    double * buffer = ( double * )  malloc ( 2 * T * sizeof ( double ) );
+  
+    memcpy ( buffer, contr, 2*T*sizeof(double ) );
+    if ( MPI_Reduce ( buffer, contr, 2*T, MPI_DOUBLE, MPI_SUM, 0, g_ts_comm ) != MPI_SUCCESS ) {
+      fprintf( stderr, "[contract_twopoint_snk_momentum] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    }
+    free ( buffer );
+  }
+#  endif
+#endif
+
+  free ( psource );
+  free ( ssource );
+
+#ifdef _TEST_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "contract_twopoint_snk_momentum", "runtime", g_cart_id == 0 );
+#endif
+
+}  // end of contract_twopoint_snk_momentum
+
+/*****************************************************************************************************************/
+/*****************************************************************************************************************/
+
 
 
 /*****************************************************************************************************************
