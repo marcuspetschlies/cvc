@@ -37,6 +37,8 @@
 #include "gauge_io.h"
 #include "read_input_parser.h"
 
+#include "contractions_io.h"
+
 using namespace cvc;
 
 /***********************************************************
@@ -68,12 +70,13 @@ int main(int argc, char **argv) {
   double ratime, retime;
   double heat = 1.;
   double plaq;
+  int with_gt = 0;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:r:")) != -1) {
+  while ((c = getopt(argc, argv, "gh?f:r:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -81,6 +84,9 @@ int main(int argc, char **argv) {
       break;
     case 'r':
       heat = atof( optarg );
+      break;
+    case 'g':
+      with_gt = 1;
       break;
     case 'h':
     case '?':
@@ -132,6 +138,36 @@ int main(int argc, char **argv) {
 
   sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
   exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[make_random_config] Error from write_lime_gauge_field status %d %s %d\m", exitstatus, __FILE__, __LINE__ );
+    EXIT(12);
+  }
+
+  if ( with_gt ) {
+    double * gt = NULL;
+
+    init_gauge_trafo ( &gt, 1.0 );
+
+    apply_gt_gauge ( gt, g_gauge_field );
+
+    plaquette2 ( &plaq, g_gauge_field );
+
+    sprintf ( filename, "%s.gt.%.4d", gaugefilename_prefix, Nconf );
+    exitstatus = write_lime_gauge_field ( filename, plaq, Nconf, 64 );
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[make_random_config] Error from write_lime_gauge_field status %d %s %d\m", exitstatus, __FILE__, __LINE__ );
+      EXIT(12);
+    }
+
+    sprintf ( filename, "%s.gt", gaugefilename_prefix  );
+    exitstatus = write_lime_contraction ( gt, filename, 64, 9, "gauge-transformation", Nconf, 0);
+
+    if ( exitstatus != 0 ) {
+      fprintf ( stderr, "[make_random_config] Error from write_lime_contraction status %d %s %d\m", exitstatus, __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    free ( gt );
+  }
 
   free_geometry();
 
