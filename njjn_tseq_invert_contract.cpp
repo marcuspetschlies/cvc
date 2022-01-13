@@ -67,15 +67,7 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_Ia  1  /* loop calculation */
-#define _PART_IIb 1  /* N1, N2 */
-#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
-
-#ifndef _USE_TIME_DILUTION
-#define _USE_TIME_DILUTION 1
-#endif
-
+#define _USE_LOOP 1
 
 using namespace cvc;
 
@@ -140,7 +132,7 @@ void usage() {
  ***************************************************************************/
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "njjn_fht";
+  const char outfile_prefix[] = "njjn_tseq";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
 
@@ -214,10 +206,6 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
-  int read_loop_field    = 0;
-  int write_loop_field   = 0;
-  int read_scalar_field  = 0;
-  int write_scalar_field = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -228,7 +216,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sSrwch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -236,18 +224,6 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
-      break;
-    case 'r':
-      read_loop_field = 1;
-      break;
-    case 'w':
-      write_loop_field = 1;
-      break;
-    case 's':
-      read_scalar_field = 1;
-      break;
-    case 'S':
-      write_scalar_field = 1;
       break;
     case 'h':
     case '?':
