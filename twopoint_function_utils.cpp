@@ -1598,10 +1598,6 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
    * for now, check, that d is 4
    * this should be generalized
    ******************************************************/
-  if ( d != 4 ) {
-    fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Error, spinor dimension must be 4 %s %d\n", __FILE__, __LINE__ );
-    return(1);
-  }
 
   if ( p->c == NULL ) {
     fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Error, data array not initialized %s %d\n", __FILE__, __LINE__ );
@@ -1615,16 +1611,28 @@ int twopoint_function_apply_diagram_norm ( twopoint_function_type *p ) {
 
   for ( int id = 0; id < nD; id++ ) {
 
-    double _Complex *** const diagram = p->c[id];
-
     double const norm = twopoint_function_get_diagram_norm ( p, id );
     if ( g_verbose > 3 ) fprintf ( stdout, "# [twopoint_function_apply_diagram_norm] using diagram norm %2d %16.7e %s %d\n", id, norm, __FILE__, __LINE__ );
 
+    if ( d != 4 ) {
+      if( g_verbose > 4 ) fprintf ( stderr, "[twopoint_function_apply_diagram_norm] Warning, spinor dimension not equal to 4 %s %d\n", __FILE__, __LINE__ );
+      /* return(1); */
+
+      double _Complex * const diagram = p->c[id][0][0];
+
+      for ( int t = 0; t < nT*d*d; t++ ) {
+        diagram[t] *= norm;
+      }
+    } else {
+
+      double _Complex *** const diagram = p->c[id];
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-    for ( int t = 0; t < nT; t++ ) {
-      zm4x4_ti_eq_re ( diagram[t], norm );
+      for ( int t = 0; t < nT; t++ ) {
+        zm4x4_ti_eq_re ( diagram[t], norm );
+      }
+  
     }
 
   }  // end of loop on data sets
