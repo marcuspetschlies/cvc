@@ -76,8 +76,8 @@ extern "C"
 #define _NJJN_TEST 0
 #endif
 
-#define _P_UUUU_P  1
-#define _P_DDDD_P  0
+#define _P_UUUU_P  0
+#define _P_DDDD_P  1
 
 using namespace cvc;
 
@@ -430,7 +430,7 @@ int main(int argc, char **argv) {
     sprintf ( filename, "%s.gt", gaugefilename_prefix  );
     exitstatus = read_lime_contraction ( gaugetrafo, filename, 9, 0 );
     if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[make_random_config] Error from read_lime_contraction status %d %s %d\m", exitstatus, __FILE__, __LINE__ );
+      fprintf ( stderr, "[make_random_config] Error from read_lime_contraction status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
     }
 
@@ -907,8 +907,7 @@ int main(int argc, char **argv) {
      **
      ***************************************************************************
      ***************************************************************************/
-    /* for ( int iflavor = 0; iflavor < 2; iflavor++ ) */
-    for ( int iflavor = 0; iflavor < 1; iflavor++ )
+    for ( int iflavor = 0; iflavor < 2; iflavor++ )
     {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
@@ -1474,18 +1473,17 @@ int main(int argc, char **argv) {
      **
      ***************************************************************************
      ***************************************************************************/
-    /* for ( int iflavor = 0; iflavor < 2; iflavor++ )  */
-    for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
+    for ( int iflavor = 0; iflavor < 2; iflavor++ )
     {
 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       fermion_propagator_type * fup  = create_fp_field ( VOLUME );
-      fermion_propagator_type * fdn  = create_fp_field ( VOLUME );
 
       /* takes the 12 spin-color components of propagator[iflavor]
        * and makes a propagator matrix per lattice site
        */
-      assign_fermion_propagator_from_spinor_field ( fup, propagator_snk_smeared[  iflavor], VOLUME);
-      assign_fermion_propagator_from_spinor_field ( fdn, propagator_snk_smeared[1-iflavor], VOLUME);
+      assign_fermion_propagator_from_spinor_field ( fup, propagator_snk_smeared[iflavor], VOLUME);
 
       /***************************************************************************
        * build dn <- Gamma_f dn Gamma_i
@@ -1501,25 +1499,7 @@ int main(int argc, char **argv) {
       unsigned int const test_site = 0;
 
       printf_fp ( fup[test_site], "up", ofs );
-      printf_fp ( fdn[test_site], "dn", ofs );
 #endif
-
-      /* fdn <- Gamma_f fdn */
-      fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fdn, gamma_f1_list[0], fdn, VOLUME );
-
-#if _NJJN_TEST
-      printf_fp ( fdn[test_site], "Gdn", ofs);
-#endif
-
-      /* fdn <- fdn Gamma_i */
-      fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fdn, gamma_f1_list[0], fdn, VOLUME );
-
-#if _NJJN_TEST
-      printf_fp ( fdn[test_site], "GdnG", ofs );
-#endif
-
-      /* fdn <- fdn sign_f sign_i */
-      /* fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fdn, fdn, -gamma_f1_sign[0]*gamma_f1_sign[0], VOLUME ); */
 
       /***************************************************************************
        * build 
@@ -1538,9 +1518,10 @@ int main(int argc, char **argv) {
 #pragma omp parallel
 {
       /* auxilliary propagator matrix */
-      fermion_propagator_type faux, faux2;
+      fermion_propagator_type faux, faux2, faux3;
       create_fp ( &faux );
       create_fp ( &faux2 );
+      create_fp ( &faux3 );
 
 #pragma omp for
 #if _NJJN_TEST
@@ -1553,144 +1534,76 @@ int main(int argc, char **argv) {
         fermion_propagator_type _fseq = fseq[ix];
 
         /***************************************************************************
-         * Case 1
+         * Case 5
          *
-         * _fseq = ( 1 + g0) / 2 )  [ epsilon epsilon D^T U  ]^{T_s,*} 
+         * _fseq = [ epsilon epsilon Gf^T U P U Gi^T  ]^*
          *
          * USING THAT P = ( 1 + g0 ) / 2 is real and symmetric
          ***************************************************************************/
 
-        /* faux2 = epsilon epsilon fdn^T fup  */
-        _fp_eq_fp_eps_contract13_fp( faux2, fdn[ix], fup[ix] );
+        /* faux = Gf^T U */
+        _fp_eq_gamma_transposed_ti_fp ( faux, gamma_f1_list[0], fup[ix] );
 
-        // printf_fp ( faux2, "d1u3", ofs );
+        /* faux3 = U Gi^T */
+        _fp_eq_fp_ti_gamma_transposed ( faux3, gamma_f1_list[0], fup[ix] );
 
-        /* faux = faux2^+ */
-        /* _fp_eq_fp_adjoint ( faux, faux2 ); */
+        /* faux2 = g0 faux3 */
+        _fp_eq_gamma_ti_fp ( faux2, 0, faux3 );
 
-        /* faux = ( faux2^T_s )^* spin-transposed and conjugate */
-        _fp_eq_fp_spin_transposed ( faux, faux2 );
-        _fp_eq_fp_conj ( faux, faux );
-
-        // printf_fp ( faux, "d1u3tsc", ofs );
-
-        /* faux2 = g0 faux = g0 _fseq^+ */
-        _fp_eq_gamma_ti_fp ( faux2, 0, faux );
-
-        // printf_fp ( faux2, "g0_d1u3tsc", ofs );
-
-        /* faux2 <- faux2 + faux = ( 1 + g0 ) faux2^Ts* */
-        _fp_pl_eq_fp ( faux2, faux );
+        /* faux2 <- faux2 + faux3 = ( g0 + 1 ) fup Gi^T */
+        _fp_pl_eq_fp ( faux2, faux3 );
 
         /* faux2 <- faux2 * 0.5 */
         _fp_ti_eq_re ( faux2, 0.5 );
 
-#if _NJJN_TEST
-        if ( test_site == ix ) printf_fp ( faux2, "C1", ofs );
-#endif
+        /* faux3 = epsilon epsilon faux faux2 */
+        _fp_eq_fp_eps_contract23_fp( faux3, faux, faux2 );
 
-        /* _fseq <- _fseq + faux2 */
-        _fp_pl_eq_fp ( _fseq, faux2 );
+        /* faux3 <- faux3^* */
+        _fp_eq_fp_conj ( faux3, faux3 );
+
+#if _NJJN_TEST
+        if ( test_site == ix ) printf_fp ( faux3, "C5", ofs );
+#endif
+        /* _fseq <- _fseq + faux3 */
+        _fp_pl_eq_fp ( _fseq, faux3 );
 
         /***************************************************************************
-         * Case 2
+         * Case 6
          *
-         * _fseq = ( 1 + g0) / 2 )  [ epsilon epsilon D^T U  ]^{T_s,*} 
+         * _fseq = epsilon epsilon Gf^T U Gi^T [P U]
          *
          * USING THAT P = ( 1 + g0 ) / 2 is real and symmetric
          ***************************************************************************/
 
-        /* faux2 = epsilon epsilon fup fdn^T  */
-        _fp_eq_fp_eps_contract24_fp( faux2, fup[ix], fdn[ix] );
+        /* faux = Gf^T U */
+        _fp_eq_gamma_transposed_ti_fp ( faux, gamma_f1_list[0], fup[ix] );
+        
+        /* faux2 = faux Gi^T = Gf^T U Gi^T */
+        _fp_eq_fp_ti_gamma_transposed ( faux2, gamma_f1_list[0], faux );
 
-        /* faux2 = g0 faux */
-        _fp_eq_gamma_ti_fp ( faux, 0, faux2 );
+        /* faux = 0 U */
+        _fp_eq_gamma_ti_fp ( faux, 0, fup[ix] );
 
-        /* faux <- faux + faux2 */
-        _fp_pl_eq_fp ( faux, faux2 );
-
-        /* faux <- faux * 0.5 */
-        _fp_ti_eq_re ( faux, 0.5 );
-
-        /* faux = ( faux2^T_s )^* spin-transposed and conjugate */
-        _fp_eq_fp_spin_transposed ( faux2, faux );
-        _fp_eq_fp_conj ( faux2, faux2 );
-
-#if _NJJN_TEST
-        if ( test_site == ix ) printf_fp ( faux2, "C2", ofs );
-#endif
-
-        /* _fseq <- _fseq + faux2 */
-        _fp_pl_eq_fp ( _fseq, faux2 );
-
-
-        /***************************************************************************
-         * Case 3
-         *
-         * _fseq = [ Tr_s[ epsilon epsilon U D^T ] ( 1 + g0) / 2 ) ]^{T_s,*}
-         *
-         * USING THAT P = ( 1 + g0 ) / 2 is real and symmetric
-         ***************************************************************************/
-
-        /* faux2 = epsilon epsilon fdn^T fup */
-        _fp_eq_fp_eps_contract13_fp( faux,  fdn[ix], fup[ix] );
-
-        /* faux2 = delta_s,s' Tr_spin( faux ) */
-        _fp_eq_spintrace_fp ( faux2, faux );
-
-        /* faux = ( faux2^T_s )^* spin-transposed and conjugate */
-        _fp_eq_fp_spin_transposed ( faux, faux2 );
-        _fp_eq_fp_conj ( faux, faux );
-
-        /* faux2 = g0 faux */
-        _fp_eq_gamma_ti_fp ( faux2, 0, faux );
-
-        /* faux2 <- faux2 + faux */
-        _fp_pl_eq_fp ( faux2, faux );
+        /* faux <- faux + U = ( 1 + g0 ) U */
+        _fp_pl_eq_fp ( faux, fup[ix] );
 
         /* faux <- faux * 0.5 */
-        _fp_ti_eq_re ( faux2, 0.5 );
+        _fp_ti_eq_re( faux, 0.5 );
+
+        /* faux3 = faux2 [ faux ] = Gf^T U Gi^T tr_s [ P U ] */
+        _fp_eq_fp_eps_contract34_fp( faux3, faux2, faux );
+
+        /* faux3 <- faux3^* */
+        _fp_eq_fp_conj ( faux3, faux3 );
 
 #if _NJJN_TEST
-        if ( test_site == ix ) printf_fp ( faux2, "C3", ofs );
+        if ( test_site == ix ) printf_fp ( faux3, "C6", ofs );
 #endif
 
-        /* _fseq <- _fseq + faux2 */
-        _fp_pl_eq_fp ( _fseq, faux2 );
+        /* _fseq <- _fseq + faux3 */
+        _fp_pl_eq_fp ( _fseq, faux3 );
 
-        /***************************************************************************
-         * Case 4
-         *
-         * _fseq = [ Tr_s[ epsilon epsilon ( 1 + g0 ) / 2 U ] D^T ]^{T_s,*}
-         *
-         * USING THAT P = ( 1 + g0 ) / 2 is real and symmetric
-         ***************************************************************************/
-
-        /* faux2 = g0 fup */
-        _fp_eq_gamma_ti_fp ( faux2, 0, fup[ix] );
-
-        /* faux <- faux + fup */
-        _fp_pl_eq_fp ( faux2, fup[ix] );
-
-        /* faux <- faux * 0.5 */
-        _fp_ti_eq_re ( faux2, 0.5 );
-
-        /* faux = delta_s,s' Tr_spin( fup ) */
-        _fp_eq_spintrace_fp ( faux, faux2 );
-
-        /* faux = epsilon epsilon faux fdn^T */
-        _fp_eq_fp_eps_contract24_fp( faux2,  faux, fdn[ix] );
-
-        /* faux = ( faux2^T_s )^* spin-transposed and conjugate */
-        _fp_eq_fp_spin_transposed ( faux, faux2 );
-        _fp_eq_fp_conj ( faux, faux );
-
-#if _NJJN_TEST
-        if ( test_site == ix ) printf_fp ( faux, "C4", ofs );
-#endif
-
-        /* _fseq <- _fseq + faux */
-        _fp_pl_eq_fp ( _fseq, faux );
       
 #if _NJJN_TEST
         if ( test_site == ix ) printf_fp ( _fseq, "seq", ofs );
@@ -1700,6 +1613,7 @@ int main(int argc, char **argv) {
 
       free_fp ( &faux  );
       free_fp ( &faux2 );
+      free_fp ( &faux3 );
 
 
 }  /* end of parallel region */
@@ -1710,12 +1624,16 @@ int main(int argc, char **argv) {
 #endif
 
       free_fp_field ( &fup  );
-      free_fp_field ( &fdn  );
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-source-case-5-to-6", g_cart_id == 0 );
 
 
       /***************************************************************************
        * invert on this source for a specific sequential source timeslice
        ***************************************************************************/
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       double ** sequential_source = init_2level_dtable ( 12, _GSI( VOLUME ) );
       if( sequential_source == NULL ) {
@@ -1733,6 +1651,10 @@ int main(int argc, char **argv) {
       /* free memory of fseq */
       free_fp_field ( &fseq );
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_3pt_invert_contract", "contract-3pt-write-per-tseq", g_cart_id == 0 );
+
+
       if ( g_write_sequential_source ) {
         for ( int i = 0; i < 12; i++ ) {
           sprintf ( filename, "sequential_source.%c.c%d.t%dx%dy%dz%d.sc%d",
@@ -1748,6 +1670,9 @@ int main(int argc, char **argv) {
        * multiply sequential source with g5
        ***************************************************************************/
       g5_phi( sequential_source[0], 12*VOLUME );
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-source-assign-g5", g_cart_id == 0 );
 
       /* allocate sequential propagator */
       double ** sequential_propagator = init_2level_dtable ( 12, _GSI( VOLUME ) );
@@ -1796,7 +1721,7 @@ int main(int argc, char **argv) {
             memcpy ( sequential_timeslice_source + offset , sequential_source[i] + offset, sizeof_spinor_field_timeslice );
           }
 
-          exitstatus = prepare_propagator_from_source ( &(sequential_propagator[i]), &sequential_timeslice_source, 1, 1-iflavor, 1, 0, gauge_field_smeared,
+          exitstatus = prepare_propagator_from_source ( &(sequential_propagator[i]), &sequential_timeslice_source, 1, iflavor, 1, 0, gauge_field_smeared,
               check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
           if ( exitstatus != 0 ) {
             fprintf ( stderr, "[njjn_3pt_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -1811,6 +1736,9 @@ int main(int argc, char **argv) {
          ***************************************************************************/
         g5_phi( sequential_propagator[0], 12*VOLUME );
 
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-propagator-g5", g_cart_id == 0 );
+
         if ( g_write_sequential_propagator ) {
           for ( int i = 0; i < 12; i++ ) {
             sprintf ( filename, "sequential_source.%c.c%d.t%dx%dy%dz%d.sc%d.inverted",
@@ -1823,8 +1751,6 @@ int main(int argc, char **argv) {
           }
         }
 
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_3pt_invert_contract", "sequential-source-invert-check-smear", g_cart_id == 0 );
 
         /***************************************************************************
          ***************************************************************************
@@ -1833,6 +1759,8 @@ int main(int argc, char **argv) {
          **
          ***************************************************************************
          ***************************************************************************/
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
         for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ ) {
 
           gamma_matrix_type gammafive;
@@ -1846,9 +1774,9 @@ int main(int argc, char **argv) {
 
           /***************************************************************************
            * need to set the quark flavor of the loop, which here is always iflavor
-           * loop_flavor = iflavor
+           * loop_flavor = 1 - iflavor
            ***************************************************************************/
-          int const loop_flavor = iflavor;
+          int const loop_flavor = 1-iflavor;
 
           for ( int seq_source_type = 0; seq_source_type <= 1; seq_source_type++ )
           {
@@ -1872,7 +1800,7 @@ int main(int argc, char **argv) {
              * but NO SINK smearing
              ***************************************************************************/
             exitstatus = prepare_sequential_fht_loop_source (
-                glg_propagator, loop, propagator[  iflavor],
+                glg_propagator, loop, propagator[1-iflavor],
                 sequential_gamma_list[igamma], sequential_gamma_num[igamma],
                 NULL, seq_source_type, ( loop_flavor == 0 ? NULL : &gammafive ) ); 
  
@@ -1895,7 +1823,7 @@ int main(int argc, char **argv) {
              *
              * seq^+ glg
              ***************************************************************************/
-            contract_twopoint_snk_momentum ( contr_p, 4, 4, sequential_propagator, glg_propagator, 4, 3, sink_momentum, 1 ); 
+            contract_twopoint_snk_momentum ( contr_p, 5, 5, sequential_propagator, glg_propagator, 4, 3, sink_momentum, 1 ); 
  
 
             /***************************************************************************
@@ -1925,7 +1853,12 @@ int main(int argc, char **argv) {
 
               if ( io_proc == 2 ) {
          
-                char correlator_tag[20] = ( iflavor == 0 ) ? "p-dbGddbGd-p" : "n-ubGuubGu-n";
+                char correlator_tag[20] = "NA";
+                if ( iflavor == 0 ) {
+                  strcpy ( correlator_tag, "p-dbGddbGd-p" );
+                } else if ( iflavor == 1 ) {
+                  strcpy ( correlator_tag, "n-ubGuubGu-n" );
+                }
 
                 char aff_tag_prefix[200], aff_tag[400];
 
@@ -1955,12 +1888,16 @@ int main(int argc, char **argv) {
 
             }  /* end of if io_proc > 0 */
 
-            fini_2level_dtable ( &glg_propagator );
             fini_1level_dtable ( &contr_p );
 
           }  /* end of loop on seq source type */
+            
+          fini_2level_dtable ( &glg_propagator );
 
         }  /* end of loop on gamma sets */
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "njjn_3pt_invert_contract", "contract-3pt-write-per-tseq", g_cart_id == 0 );
 
       }  /* end of loop on source-sink time separations */
 
