@@ -76,7 +76,7 @@ extern "C"
 #define _NJJN_TEST 0
 #endif
 
-#define _P_UUUU_P  0
+#define _P_UUUU_P  1
 #define _P_DDDD_P  1
 
 using namespace cvc;
@@ -1264,7 +1264,7 @@ int main(int argc, char **argv) {
           memset ( sequential_timeslice_source, 0, sizeof_spinor_field );
 
           if ( have_tseq ) {
-            if ( g_verbose > 1 ) fprintf ( stdout, "# [] proc %4d has g/tseq %3d / %3d   %s %d\n", g_cart_id, gtseq, tseq, __FILE__, __LINE__ );
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [njjn_3pt_invert_contract] proc %4d has g/tseq %3d / %3d   %s %d\n", g_cart_id, gtseq, tseq, __FILE__, __LINE__ );
             memcpy ( sequential_timeslice_source + offset , sequential_source[i] + offset, sizeof_spinor_field_timeslice );
           }
 
