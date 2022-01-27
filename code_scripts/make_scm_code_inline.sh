@@ -11,15 +11,20 @@ function fmt2 {
 
 source dimensions.in
 SCM_TYPE="double _Complex"
-echo "#ifndef _SCM_LINALG_INLINE_H"
-echo "#define _SCM_LINALG_INLINE_H"
+cat << EOF
+#ifndef _SCM_LINALG_INLINE_H
+#define _SCM_LINALG_INLINE_H
 
-echo "#include <math.h>"
-echo "#include <complex.h>"
-echo ""
-echo "/* spinor dimension: $N_SPINOR_DIM */"
-echo "/* color dimension: $N_COLOR_DIM */"
-echo ""
+
+#include <math.h>
+#include <complex.h>
+
+/* spinor dimension: $N_SPINOR_DIM */
+/* color dimension: $N_COLOR_DIM */
+
+namespace cvc {
+
+EOF
 
 echo "static inline void _co_eq_tr_scm( ${SCM_TYPE} * const _t, ${SCM_TYPE} ** const _r ) {"
 echo "  ${SCM_TYPE} z = 0.;"
@@ -131,7 +136,105 @@ echo -e "}\n\n"
 
 # ----------------------------------------------------------------------------------------------------------------
 
-echo "#endif"
+echo "static inline void _scm_pl_eq_gamma_ti_scm_ti_gamma_perm ( ${SCM_TYPE} ** const  _r, int const _mul, ${SCM_TYPE} ** const _s, int const _mur ) {"
+echo "  int const __lisimag = gamma_permutation[(_mul)][0] % 2;"
+echo "  int const __risimag = gamma_permutation[(_mur)][0] % 2;"
+echo "  ${SCM_TYPE} const __norm = (( 1 - (__lisimag) ) + (__lisimag)*I) * (( 1 - (__risimag) ) + (__risimag)*I);"
+printf "  int const __lperm[$N_SPINOR_DIM] = {"
+for((beta=0;beta<$(( $N_SPINOR_DIM -1)) ;beta++)); do printf "gamma_permutation[(_mul)][%2d]/%d , " $((2*$N_COLOR_DIM*$beta)) $((2*$N_COLOR_DIM)) ; done
+printf "gamma_permutation[(_mul)][%2d]/%d };\n " $((2*$N_COLOR_DIM * ($N_SPINOR_DIM -1) )) $((2*$N_COLOR_DIM)) 
+
+printf "  int const __rperm[$N_SPINOR_DIM] = {"
+for((beta=0;beta<$(( $N_SPINOR_DIM -1)) ;beta++)); do printf "gamma_permutation[(_mur)][%2d]/%d , " $((2*$N_COLOR_DIM*$beta)) $((2*$N_COLOR_DIM)) ; done
+printf "gamma_permutation[(_mur)][%2d]/%d };\n " $((2*$N_COLOR_DIM * ($N_SPINOR_DIM -1) )) $((2*$N_COLOR_DIM)) 
+
+echo "  int __lid, __rid;"
+
+for((beta=0;beta<$N_SPINOR_DIM;beta++)); do
+
+  for((b=0;b<$N_COLOR_DIM;b++)); do
+    j=$(($N_COLOR_DIM*$beta+$b))
+    echo "  __lid = $N_COLOR_DIM * __lperm[$beta] + $b;"
+
+    for((alpha=0;alpha<$N_SPINOR_DIM;alpha++)); do
+
+      for((a=0;a<$N_COLOR_DIM;a++)); do
+        i=$(($N_COLOR_DIM*$alpha+$a))
+        echo "  __rid = $N_COLOR_DIM * __rperm[$alpha] + $a;"
+
+        # echo "  (_r)[$j][$i] += (_s)[__lid][__rid] * gamma_sign[(_mul)][2*(__lid)] * gamma_sign[(_mur)][2*(__rid)] * __norm;"
+        echo "  (_r)[$j][$i] += (_s)[__lid][__rid] * gamma_sign[(_mul)][2*($j)+1] * gamma_sign[(_mur)][2*(__rid)+1] * __norm;"
+      done
+    done
+  done
+done
+echo -e "}\n\n"
+
+# ----------------------------------------------------------------------------------------------------------------
+
+echo "static inline void _co_eq_tr_gamma_ti_scm_perm ( ${SCM_TYPE} * const _t, ${SCM_TYPE} ** const _r, int const _mu ) {"
+echo "  int const __isimag = gamma_permutation[(_mu)][0] % 2;"
+echo "  ${SCM_TYPE} const __norm = (( 1 - (__isimag) ) + (__isimag)*I);"
+printf "  int const __perm[$N_SPINOR_DIM] = {"
+for((beta=0;beta<$(( $N_SPINOR_DIM -1)) ;beta++)); do printf "gamma_permutation[(_mu)][%2d]/%d , " $((2*$N_COLOR_DIM*$beta)) $((2*$N_COLOR_DIM)) ; done
+printf "gamma_permutation[(_mu)][%2d]/%d };\n " $((2*$N_COLOR_DIM * ($N_SPINOR_DIM -1) )) $((2*$N_COLOR_DIM))
+
+echo "  int __lid;"
+echo "  ${SCM_TYPE} __tmp = 0.;"
+for((beta=0;beta<$N_SPINOR_DIM;beta++)); do
+
+  for((b=0;b<$N_COLOR_DIM;b++)); do
+    j=$(($N_COLOR_DIM*$beta+$b))
+    echo "  __lid = $N_COLOR_DIM * __perm[$beta] + $b;"
+    echo "  __tmp += (_r)[__lid][$j] * gamma_sign[(_mu)][2*($j)+1];"
+  done
+done
+echo "  *(_t) = __norm * __tmp;"
+echo -e "}\n\n"
+
+# ----------------------------------------------------------------------------------------------------------------
+
+echo "static inline void _scm_eq_gamma_ti_scm_adj_ti_gamma_perm ( ${SCM_TYPE} ** const  _r, int const _mul, ${SCM_TYPE} ** const _s, int const _mur ) {"
+echo "  int const __lisimag = gamma_permutation[(_mul)][0] % 2;"
+echo "  int const __risimag = gamma_permutation[(_mur)][0] % 2;"
+echo "  ${SCM_TYPE} const __norm = (( 1 - (__lisimag) ) + (__lisimag)*I) * (( 1 - (__risimag) ) + (__risimag)*I);"
+printf "  int const __lperm[$N_SPINOR_DIM] = {"
+for((beta=0;beta<$(( $N_SPINOR_DIM -1)) ;beta++)); do printf "gamma_permutation[(_mul)][%2d]/%d , " $((2*$N_COLOR_DIM*$beta)) $((2*$N_COLOR_DIM)) ; done
+printf "gamma_permutation[(_mul)][%2d]/%d };\n " $((2*$N_COLOR_DIM * ($N_SPINOR_DIM -1) )) $((2*$N_COLOR_DIM))
+
+printf "  int const __rperm[$N_SPINOR_DIM] = {"
+for((beta=0;beta<$(( $N_SPINOR_DIM -1)) ;beta++)); do printf "gamma_permutation[(_mur)][%2d]/%d , " $((2*$N_COLOR_DIM*$beta)) $((2*$N_COLOR_DIM)) ; done
+printf "gamma_permutation[(_mur)][%2d]/%d };\n " $((2*$N_COLOR_DIM * ($N_SPINOR_DIM -1) )) $((2*$N_COLOR_DIM))
+
+echo "  int __lid, __rid;"
+
+for((beta=0;beta<$N_SPINOR_DIM;beta++)); do
+
+  for((b=0;b<$N_COLOR_DIM;b++)); do
+    j=$(($N_COLOR_DIM*$beta+$b))
+    echo "  __lid = $N_COLOR_DIM * __lperm[$beta] + $b;"
+
+    for((alpha=0;alpha<$N_SPINOR_DIM;alpha++)); do
+
+      for((a=0;a<$N_COLOR_DIM;a++)); do
+        i=$(($N_COLOR_DIM*$alpha+$a))
+        echo "  __rid = $N_COLOR_DIM * __rperm[$alpha] + $a;"
+
+        echo "  (_r)[$j][$i] = conj((_s)[__rid][__lid]) * gamma_sign[(_mul)][2*($j)+1] * gamma_sign[(_mur)][2*(__rid)+1] * __norm;"
+      done
+    done
+  done
+done
+echo -e "}\n\n"
+
+# ----------------------------------------------------------------------------------------------------------------
+
+cat << EOF
+
+}
+
+#endif
+EOF
 
 exit 0
 

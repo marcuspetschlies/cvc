@@ -1285,7 +1285,8 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
     if ( g5herm == NULL ) {
       _scm_eq_scm(  _laux,  _loop );
     } else {
-      _scm_eq_gamma_ti_scm_adj_ti_gamma ( _laux, g5herm->m, _loop,  g5herm->m );
+      /* _scm_eq_gamma_ti_scm_adj_ti_gamma ( _laux, g5herm->m, _loop,  g5herm->m ); */
+      _scm_eq_gamma_ti_scm_adj_ti_gamma_perm ( _laux, g5herm->id, _loop,  g5herm->id );
     }
 
 
@@ -1303,7 +1304,8 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
          * ztmp = Tr [ L x g ]
          **********************************************************/
         double _Complex ztmp = 0.;
-        _co_eq_tr_scm_ti_gamma( &ztmp, _laux, gamma_mat[ig].m );
+        /* _co_eq_tr_scm_ti_gamma( &ztmp, _laux, gamma_mat[ig].m ); */
+        _co_eq_tr_gamma_ti_scm_perm ( &ztmp, _laux, gamma_mat[ig].id );
 
         for ( int ialpha = 0; ialpha < 4; ialpha++ ) {
         for ( int ibeta = 0; ibeta < 4; ibeta++ ) {
@@ -1323,7 +1325,8 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
        * build M <- sum_ig gamma[ig] x L x gamma[ig]
        **********************************************************/
       for ( int ig = 0; ig < gamma_num; ig++ ) {
-        _scm_pl_eq_gamma_ti_scm_ti_gamma ( M, gamma_mat[ig].m, _laux,  gamma_mat[ig].m );
+        /* _scm_pl_eq_gamma_ti_scm_ti_gamma ( M, gamma_mat[ig].m, _laux,  gamma_mat[ig].m ); */
+        _scm_pl_eq_gamma_ti_scm_ti_gamma_perm ( M, gamma_mat[ig].id, _laux,  gamma_mat[ig].id );
       }  /* end of loop on vertex gamma list */
 
     }  /* end of loop on type */
