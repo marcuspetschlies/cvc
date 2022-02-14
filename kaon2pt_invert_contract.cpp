@@ -409,12 +409,9 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * random source timeslice
      ***************************************************************************/
-    /* double dts;
+    double dts;
     ranlxd ( &dts , 1 );
     int gts = (int)(dts * T_global);
-    */
-    /* TEST */
-    int gts = T_global / 4;
 
     if (  MPI_Bcast( &gts, 1, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) {
       fprintf ( stderr, "[kaon2pt_invert_contract] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
