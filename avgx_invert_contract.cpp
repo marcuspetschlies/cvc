@@ -100,8 +100,13 @@ int main(int argc, char **argv) {
   int color_dilution = 1;
   double g_mus =0.;
 
-  int const gamma_v_number = 4;
-  int gamma_v_list[4] = { 0, 1, 2, 3  };
+  int const gamma_v_number = 8;
+  int gamma_v_list[8] = { 0, 1, 2, 3, 6, 7, 8, 9 };
+  /* int const gamma_v_number = 4;
+  int gamma_v_list[4] = { 0, 1, 2, 3  }; */
+
+  int const gamma_t_number = 6;
+  int gamma_t_list[6] = { 10 , 11 , 12 , 13 , 14 , 15 };
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -991,6 +996,59 @@ int main(int argc, char **argv) {
                  *                   l
                  *****************************************************************/
   
+                for ( int icurrent_gamma = 0; icurrent_gamma < gamma_t_number; icurrent_gamma++ )
+                {
+
+                  int current_gamma = gamma_t_list[icurrent_gamma];
+
+                  double * contr_p = init_1level_dtable (  2*T );
+                  if ( contr_p == NULL ) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                    EXIT(47);
+                  }
+
+                  /*****************************************************************
+                   * Sbar(0)^+ g5 Gc [ D SSL ] Gi g5
+                   * Gc = current_gamma
+                   * Gi = source_gamma
+                   *
+                   * SSL was produced for flavor iflavor
+                   *
+                   * Sbar: mapping of iflavor2 with 3 - iflavor2
+                   * 0 -> 3 ( dn-type strange)
+                   * 1 -> 2 ( up-type strange)
+                   *****************************************************************/
+
+                  contract_twopoint_snk_momentum ( contr_p, source_gamma,  current_gamma,
+                      stochastic_propagator_zero_list[ 3 - iflavor2 ],
+                      sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
+
+
+                  sprintf ( data_tag, "/%s-g-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pix%dpiy%dpiz%d/",
+                      flavor_tag[2+iflavor2],
+                      flavor_tag[2+iflavor2], flavor_tag[iflavor],
+                      muval[2+iflavor2], muval[2+iflavor2], muval[iflavor],
+                      gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                      sink_gamma, current_gamma, source_gamma,
+                      source_momentum[0], source_momentum[1], source_momentum[2] );
+
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
+#elif ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_h5_file ( &contr_p, output_filename, data_tag, &sink_momentum, 1, io_proc );
+#endif
+                  if(exitstatus != 0) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(3);
+                  }
+
+                  fini_1level_dtable ( &contr_p );
+
+                }  /* end of loop on current gamma */
+
+                /*****************************************************************/
+                /*****************************************************************/
+
                 /*****************************************************************
                  * contractions for covariant displacement insertion
                  *****************************************************************/
@@ -1168,6 +1226,56 @@ int main(int argc, char **argv) {
                  *                   s
                  *****************************************************************/
   
+                for ( int icurrent_gamma = 0; icurrent_gamma < gamma_t_number; icurrent_gamma++ )
+	        {
+                 
+                  int current_gamma = gamma_t_list[icurrent_gamma];
+
+                  double * contr_p = init_1level_dtable (  2*T );
+                  if ( contr_p == NULL ) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                    EXIT(47);
+                  }
+                  
+                  /*****************************************************************
+                   * sequential_propagator_displ_list is based on 
+                   *
+                   * stochastic_propagator_zero_smeared_list for 2+iflavor ( up-/dn-type strange )
+                   *
+                   * closing diagram with stochastic_propagator_mom_list 
+                   * as Lbar(p) adjoint, i.e. 1-iflavor2
+                   * which gives -pi = msource_momentum
+                   *****************************************************************/
+                  contract_twopoint_snk_momentum ( contr_p, source_gamma,  current_gamma, 
+                      stochastic_propagator_mom_list[ 1 - iflavor2 ], 
+                      sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
+  
+  
+                  sprintf ( data_tag, "/%s-g-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pix%dpiy%dpiz%d/", 
+                    flavor_tag[iflavor2],
+                    flavor_tag[iflavor2], flavor_tag[2+iflavor],
+                    muval[iflavor2], muval[iflavor2], muval[2+iflavor],
+                    gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                    sink_gamma, current_gamma, source_gamma,
+                    msource_momentum[0], msource_momentum[1], msource_momentum[2] );
+  
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &msink_momentum, 1, io_proc );
+#elif ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_h5_file ( &contr_p, output_filename, data_tag, &msink_momentum, 1, io_proc );
+#endif
+                  if(exitstatus != 0) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(3);
+                  }
+                
+                  fini_1level_dtable ( &contr_p );
+                      
+                }  /* end of loop on current gamma */
+
+                /*****************************************************************/
+                /*****************************************************************/
+
                 /*****************************************************************
                  * contractions for covariant displacement insertion
                  *****************************************************************/
