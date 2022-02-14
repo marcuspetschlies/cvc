@@ -45,7 +45,8 @@
 #endif
 
 #define _RAT_METHOD 1
-#define _RAT_SUB_METHOD 0
+/* not used for conn */
+/* #define _RAT_SUB_METHOD 0 */
 
 #define _TWOP_STATS 1
 
@@ -153,8 +154,8 @@ int main(int argc, char **argv) {
   int write_data = 0;
 
   double twop_weight[2]   = {0., 0.};
-  double fbwd_weight[2]   = {1., 0.};
-  double mirror_weight[2] = {0., 0.};
+  /* double fbwd_weight[2]   = {1., 0.}; */
+  /* double mirror_weight[2] = {0., 0.}; */
 
   double g_mus = 0.;
 
@@ -169,7 +170,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:E:w:F:T:B:M:m:i:I:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:E:w:F:T:m:i:I:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -199,7 +200,7 @@ int main(int argc, char **argv) {
       sscanf( optarg, "%lf,%lf", twop_weight, twop_weight+1 );
       fprintf ( stdout, "# [avxn_conn_analyse] twop_weight set to %25.16e / %25.16e\n", twop_weight[0], twop_weight[1] );
       break;
-    case 'B':
+/*    case 'B':
       sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
       fprintf ( stdout, "# [avxn_conn_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
       break;
@@ -207,6 +208,7 @@ int main(int argc, char **argv) {
       sscanf( optarg, "%lf,%lf", mirror_weight, mirror_weight+1 );
       fprintf ( stdout, "# [avxn_conn_analyse] mirror_weight set to %25.16e / %25.16e\n", mirror_weight[0], mirror_weight[1] );
       break;
+*/
     case 'm':
       g_mus = atof ( optarg );
       break;
