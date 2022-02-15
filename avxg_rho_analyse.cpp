@@ -1,5 +1,5 @@
 /****************************************************
- * avxn_analyse 
+ * avxg_rho_analyse 
  ****************************************************/
 
 #include <stdlib.h>
@@ -44,16 +44,13 @@
 #define _SQR(_a) ((_a)*(_a))
 #endif
 
-#define _TWOP_SCATT  0
-#define _TWOP_CYD_H5 0
-#define _TWOP_CYD    0
-#define _TWOP_AFF    0
-#define _TWOP_AVGX_H5 1
-
+#define _TWOP_H5    1
 
 #define _TWOP_STATS  1
 
 #define _LOOP_ANALYSIS 1
+
+#define _LOOP_CVC      1
 
 #define _RAT_METHOD       1
 #define _RAT_SUB_METHOD   1
@@ -146,8 +143,6 @@ int main(int argc, char **argv) {
 
 #if _TWOP_CYD_H5
   const char flavor_tag[2][3] = { "uu", "dd" };
-#elif _TWOP_AVGX_H5
-  char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
 #else
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 #endif
@@ -168,16 +163,16 @@ int main(int argc, char **argv) {
   int use_conn = 1; */
   int twop_fold_propagator = 0;
   int loop_num_evecs = -1;
-  int loop_nstoch = -1;
-  int loop_nstoch_max = -1;
+  int loop_nstoch = 0;
   int loop_block_size = 1;
   int loop_use_es = 0;
   int write_data = 0;
   double loop_norm = 1.;
   int operator_type = 0;
+  char loop_type[10] = "Clv";
 
-  char loop_type[10] = "LpsDw";
-  int loop_transpose = 1;
+  int stout_level_iter = 0;
+  double stout_level_rho = 0.0;
 
   struct timeval ta, tb, start_time, end_time;
 
@@ -185,13 +180,11 @@ int main(int argc, char **argv) {
   double fbwd_weight[2]   = {0., 0.};
   double mirror_weight[2] = {0., 0.};
 
-  double g_mus = 0.;
-
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:t:b:m:l:O:T:B:M:x:s:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:E:w:m:l:O:T:B:M:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -199,77 +192,53 @@ int main(int argc, char **argv) {
       break;
     case 'N':
       num_conf = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] number of configs = %d\n", num_conf );
+      fprintf ( stdout, "# [avxg_rho_analyse] number of configs = %d\n", num_conf );
       break;
     case 'S':
       num_src_per_conf = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] number of sources per config = %d\n", num_src_per_conf );
+      fprintf ( stdout, "# [avxg_rho_analyse] number of sources per config = %d\n", num_src_per_conf );
       break;
     case 'F':
       twop_fold_propagator = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] twop fold_propagator set to %d\n", twop_fold_propagator );
+      fprintf ( stdout, "# [avxg_rho_analyse] twop fold_propagator set to %d\n", twop_fold_propagator );
       break;
     case 'E':
       strcpy ( ensemble_name, optarg );
-      fprintf ( stdout, "# [avxn_analyse] ensemble_name set to %s\n", ensemble_name );
+      fprintf ( stdout, "# [avxg_rho_analyse] ensemble_name set to %s\n", ensemble_name );
       break;
     case 'O':
       operator_type = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] operator_type set to %d\n", operator_type );
-      break;
-    case 'v':
-      loop_num_evecs = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_num_evecs set to %d\n", loop_num_evecs );
-      break;
-    case 'n':
-      loop_nstoch = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_nstoch set to %d\n", loop_nstoch );
-      if ( loop_nstoch_max == -1 ) loop_nstoch_max = loop_nstoch;
-      break;
-    case 'x':
-      loop_nstoch_max = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_nstoch_max set to %d\n", loop_nstoch_max );
-      break;
-    case 'u':
-      loop_use_es = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_use_es set to %d\n", loop_use_es );
-      break;
-    case 't':
-      loop_transpose = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_transpose %d\n", loop_transpose );
+      fprintf ( stdout, "# [avxg_rho_analyse] operator_type set to %d\n", operator_type );
       break;
     case 'w':
       write_data = atoi ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] write_date set to %d\n", write_data );
+      fprintf ( stdout, "# [avxg_rho_analyse] write_date set to %d\n", write_data );
       break;
     case 'm':
       loop_norm = atof ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_norm set to %e\n", loop_norm );
-      break;
-    case 'b':
-      loop_block_size = atof ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_block_size set to %d\n", loop_block_size );
+      fprintf ( stdout, "# [avxg_rho_analyse] loop_norm set to %e\n", loop_norm );
       break;
     case 'l':
       strcpy ( loop_type, optarg );
-      fprintf ( stdout, "# [avxn_analyse] loop_type set to %s\n", loop_type );
+      fprintf ( stdout, "# [avxg_rho_analyse] loop_type set to %s\n", loop_type );
       break;
     case 'T':
       sscanf( optarg, "%lf,%lf", twop_weight, twop_weight+1 );
-      fprintf ( stdout, "# [avxn_analyse] twop_weight set to %25.16e / %25.16e\n", twop_weight[0], twop_weight[1] );
+      fprintf ( stdout, "# [avxg_rho_analyse] twop_weight set to %25.16e / %25.16e\n", twop_weight[0], twop_weight[1] );
       break;
     case 'B':
       sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
-      fprintf ( stdout, "# [avxn_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
+      fprintf ( stdout, "# [avxg_rho_analyse] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
       break;
     case 'M':
       sscanf( optarg, "%lf,%lf", mirror_weight, mirror_weight+1 );
-      fprintf ( stdout, "# [avxn_analyse] mirror_weight set to %25.16e / %25.16e\n", mirror_weight[0], mirror_weight[1] );
+      fprintf ( stdout, "# [avxg_rho_analyse] mirror_weight set to %25.16e / %25.16e\n", mirror_weight[0], mirror_weight[1] );
       break;
     case 's':
-      g_mus = atof ( optarg );
-      fprintf ( stdout, "# [avxn_analyse] g_mus set to %e\n", g_mus );
+      sscanf ( optarg, "%d,%lf", &stout_level_iter, &stout_level_rho);
+      fprintf ( stdout, "# [xg_analyse] stout_level iter %2d  rho %6.4f \n", stout_level_iter, stout_level_rho );
       break;
+
     case 'h':
     case '?':
     default:
@@ -282,7 +251,7 @@ int main(int argc, char **argv) {
 
   /* set the default values */
   if(filename_set==0) strcpy(filename, "p2gg.input");
-  /* fprintf(stdout, "# [avxn_analyse] Reading input from file %s\n", filename); */
+  /* fprintf(stdout, "# [avxg_rho_analyse] Reading input from file %s\n", filename); */
   read_input_parser(filename);
 
   /*********************************
@@ -295,26 +264,26 @@ int main(int argc, char **argv) {
    * report git version
    ******************************************************/
   if ( g_cart_id == 0 ) {
-    fprintf(stdout, "# [avxn_analyse] git version = %s\n", g_gitversion);
+    fprintf(stdout, "# [avxg_rho_analyse] git version = %s\n", g_gitversion);
   }
 
   /*********************************
    * set number of openmp threads
    *********************************/
 #ifdef HAVE_OPENMP
-  if(g_cart_id == 0) fprintf(stdout, "# [avxn_analyse] setting omp number of threads to %d\n", g_num_threads);
+  if(g_cart_id == 0) fprintf(stdout, "# [avxg_rho_analyse] setting omp number of threads to %d\n", g_num_threads);
   omp_set_num_threads(g_num_threads);
 #pragma omp parallel
 {
-  fprintf(stdout, "# [avxn_analyse] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
+  fprintf(stdout, "# [avxg_rho_analyse] proc%.4d thread%.4d using %d threads\n", g_cart_id, omp_get_thread_num(), omp_get_num_threads());
 }
 #else
-  if(g_cart_id == 0) fprintf(stdout, "[avxn_analyse] Warning, resetting global thread number to 1\n");
+  if(g_cart_id == 0) fprintf(stdout, "[avxg_rho_analyse] Warning, resetting global thread number to 1\n");
   g_num_threads = 1;
 #endif
 
   if ( init_geometry() != 0 ) {
-    fprintf(stderr, "[avxn_analyse] Error from init_geometry %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[avxg_rho_analyse] Error from init_geometry %s %d\n", __FILE__, __LINE__);
     EXIT(4);
   }
 
@@ -328,10 +297,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
   io_proc = get_io_proc ();
   if( io_proc < 0 ) {
-    fprintf(stderr, "[avxn_analyse] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[avxg_rho_analyse] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
     EXIT(14);
   }
-  if ( g_verbose > 2 ) fprintf(stdout, "# [avxn_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+  if ( g_verbose > 2 ) fprintf(stdout, "# [avxg_rho_analyse] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
    
   /***********************************************************
    * read list of configs and source locations
@@ -340,20 +309,20 @@ int main(int argc, char **argv) {
   sprintf ( filename, "source_coords.%s.lst" , ensemble_name );
   FILE *ofs = fopen ( filename, "r" );
   if ( ofs == NULL ) {
-    fprintf(stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
+    fprintf(stderr, "[avxg_rho_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__);
     EXIT(15);
   }
 
   int *** conf_src_list = init_3level_itable ( num_conf, num_src_per_conf, 6 );
   if ( conf_src_list == NULL ) {
-    fprintf(stderr, "[avxn_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[avxg_rho_analyse] Error from init_3level_itable %s %d\n", __FILE__, __LINE__);
     EXIT(16);
   }
   char line[100];
   int count = 0;
   while ( fgets ( line, 100, ofs) != NULL && count < num_conf * num_src_per_conf ) {
     if ( line[0] == '#' ) {
-      fprintf( stdout, "# [avxn_analyse] comment %s\n", line );
+      fprintf( stdout, "# [avxg_rho_analyse] comment %s\n", line );
       continue;
     }
     int itmp[5];
@@ -391,6 +360,7 @@ int main(int argc, char **argv) {
   /**********************************************************
    * gamma matrices
    **********************************************************/
+#if 0
   init_gamma_matrix ();
  
   gamma_matrix_type gamma_mu[4];
@@ -406,6 +376,7 @@ int main(int argc, char **argv) {
     gamma_matrix_printf ( &(gamma_mu[2]), "gamma_z", stdout );
     gamma_matrix_printf ( &(gamma_mu[3]), "gamma_t", stdout );
   }
+#endif
 
   /**********************************************************
    **********************************************************
@@ -418,504 +389,74 @@ int main(int argc, char **argv) {
   /***********************************************************
    * read twop function data
    ***********************************************************/
-  double ****** twop = NULL;
+  double _Complex ****** twop = NULL;
 
-  twop = init_6level_dtable ( g_sink_momentum_number, num_conf, num_src_per_conf, 2, T_global, 2 );
+  twop = init_6level_ztable ( g_sink_gamma_id_number, g_source_gamma_id_number, g_sink_momentum_number, num_conf, num_src_per_conf, T_global );
   if( twop == NULL ) {
-    fprintf ( stderr, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[avxg_rho_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT (24);
   }
-
-#if _TWOP_CYD
-  for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
-
-    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-      Nconf = conf_src_list[iconf][0][1];
-     
-      for( int imeson = 0; imeson < 2; imeson++ ) {
-
-        sprintf( filename, "stream_%c/%s/twop.%.4d.pseudoscalar.%d.PX%d_PY%d_PZ%d",
-            conf_src_list[iconf][0][0], filename_prefix, Nconf, imeson+1,
-            ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][0],
-            ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][1],
-            ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][2] );
-
-        FILE * dfs = fopen ( filename, "r" );
-        if( dfs == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-          EXIT (24);
-        } else {
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s filename \n", filename );
-        }
-        fflush ( stdout );
-        fflush ( stderr );
-
-        for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-          char line[400];
-
-          for ( int it = -1; it < T_global; it++ ) {
-            if ( fgets ( line, 100, dfs) == NULL ) {
-              fprintf ( stderr, "[avxn_analyse] Error from fgets, expecting line input for it %3d conf %3d src %3d filename %s %s %d\n", 
-                  it, iconf, isrc, filename, __FILE__, __LINE__ );
-              EXIT (26);
-            } 
-          
-            if ( line[0] == '#' &&  it == -1 ) {
-              if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading key %s\n", line );
-              continue;
-            } /* else {
-              fprintf ( stderr, "[avxn_analyse] Error in layout of file %s %s %d\n", filename, __FILE__, __LINE__ );
-              EXIT(27);
-            }
-              */
-            sscanf ( line, "%lf %lf\n", twop[isink_momentum][iconf][isrc][imeson][it], twop[isink_momentum][iconf][isrc][imeson][it]+1 );
-         
-            if ( g_verbose > 5 ) fprintf ( stdout, "%d %25.16e %25.16e\n" , it, twop[isink_momentum][iconf][isrc][imeson][it][0],
-                twop[isink_momentum][iconf][isrc][imeson][it][1] );
-          }
-
-        }
-        fclose ( dfs );
-
-        /**********************************************************
-         * write source-averaged correlator to ascii file
-         **********************************************************/
-        if ( write_data == 1 && g_verbose > 4 ) {
-
-#if 0 
-          for ( int ireim = 0; ireim < 2; ireim++ ) {
-            double ** data = init_2level_dtable ( num_conf, T_global );
-
-#pragma omp parallel for
-           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-             for ( int it = 0; it < T_global; it++ ) {
-               double dtmp = 0.;
-               for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-                  dtmp += twop[isink_momentum][iconf][isrc][imeson][it][ireim];
-                }
-                data[iconf][it] = dtmp / (double)num_src_per_conf;
-              }
-            }
-
-            sprintf( filename, "twop.pseudoscalar.%d.PX%d_PY%d_PZ%d.%s.corr", imeson+1,
-              ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][0],
-              ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][1],
-              ( 1 - 2 * imeson) * g_sink_momentum_list[isink_momentum][2], reim_str[ireim] );
-
-            write_data_real ( data, filename, conf_src_list, num_conf, T_global );
-            fini_2level_dtable ( &data );
-
-          }  /* end of loop on reim */
-#endif
-          if ( imeson == 1 ) {
-            for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
- 
-              fprintf ( stdout, "# twop %c %6d  src  %3d %3d %3d %3d  p %3d %3d %3d m %d\n", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
-                  conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
-                  g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2],
-                  imeson );
-
-              for ( int it = 0; it < T_global; it++ ) {
-                fprintf ( stdout, "%3d    %25.16e %25.16e    %25.16e %25.16e    %25.16e %25.16e\n",
-                    it, 
-                    twop[isink_momentum][iconf][isrc][0][it][0], twop[isink_momentum][iconf][isrc][0][it][1],
-                    twop[isink_momentum][iconf][isrc][1][it][0], twop[isink_momentum][iconf][isrc][1][it][1],
-                    ( twop[isink_momentum][iconf][isrc][0][it][0] + twop[isink_momentum][iconf][isrc][1][it][0] ) * 0.5,
-                    ( twop[isink_momentum][iconf][isrc][0][it][1] + twop[isink_momentum][iconf][isrc][1][it][1] ) * 0.5 );
-              }
-            }
-          }
-        }  /* end of if write_data == 1 */
-
-      }  /* end of loop on meson type */
-    }  /* end of loop on configurations */
-  }  /* end of loop on sink momenta */
-#endif  /* end of _TWOP_CYD */
-
-  /***********************************************************/
-  /***********************************************************/
-
-#if _TWOP_CYD_H5
-  for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
-
-    int ksink_momentum = -1;
-    for ( int k = 0; k < g_sink_momentum_number; k++ ) {
-      if ( 
-             ( g_sink_momentum_list[isink_momentum][0] == -g_sink_momentum_list[k][0] )
-          && ( g_sink_momentum_list[isink_momentum][1] == -g_sink_momentum_list[k][1] )
-          && ( g_sink_momentum_list[isink_momentum][2] == -g_sink_momentum_list[k][2] )
-         ) {
-        ksink_momentum = k;
-        break;
-      }
-    }
-    if ( ksink_momentum == -1 ) {
-      fprintf ( stderr, "[] Error, no negative momentum for %3d   %3d %3d %3d %s %d\n", isink_momentum,
-          g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2], __FILE__, __LINE__ );
-      EXIT(1);
-    } else {
-      if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [avxn_analyse] matching %3d   %3d %3d %3d and %3d   %3d %3d %3d %s %d\n", 
-            isink_momentum, g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2],
-            ksink_momentum, g_sink_momentum_list[ksink_momentum][0], g_sink_momentum_list[ksink_momentum][1], g_sink_momentum_list[ksink_momentum][2],
-            __FILE__, __LINE__ );
-      }
-    }
-
-    sprintf( filename, "%s/twop.pseudoscalar.PX%d_PY%d_PZ%d.h5", filename_prefix,
-        g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2] ); 
-
-    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-     
-          char h5_tag[200];
-
-          sprintf ( h5_tag, "/s%c/c%d/t%dx%dy%dz%d/%s",
-              conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
-              conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
-              flavor_tag[ 0 ] );
-
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_analyse] h5 tag = %s %s %d\n", h5_tag, __FILE__, __LINE__  );
-
-          exitstatus = read_from_h5_file ( (void*)(twop[isink_momentum][iconf][isrc][0][0]), filename, h5_tag, "double", io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(2);
-          }
-
-          sprintf ( h5_tag, "/s%c/c%d/t%dx%dy%dz%d/%s",
-              conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
-              conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5],
-              flavor_tag[ 1 ] );
-
-          if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_analyse] h5 tag = %s %s %d\n", h5_tag, __FILE__, __LINE__  );
-
-          exitstatus = read_from_h5_file ( (void*)(twop[ksink_momentum][iconf][isrc][1][0]), filename, h5_tag, "double", io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(2);
-          }
-
-
-      }  /* end of loop on sources  */
-
-    }  /* end of loop on configurations */
-
-  }  /* end of loop on momenta */
-
-#endif  /* end of _TWOP_CYD_H5 */
-
-  /***********************************************************/
-  /***********************************************************/
-
-#if _TWOP_SCATT
-  for( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-    for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-
-      sprintf ( filename, "stream_%c/%s%.4d_sx%.2dsy%.2dsz%.2dst%.3d_P.h5", conf_src_list[iconf][isrc][0], filename_prefix, conf_src_list[iconf][isrc][1],
-          conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5], conf_src_list[iconf][isrc][2] );
-
-      char h5_tag[200];
-      sprintf( h5_tag, "/sx%.2dsy%.2dsz%.2dst%.2d/mvec", conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5], conf_src_list[iconf][isrc][2] );
-
-      int * ibuffer = NULL;
-      size_t nmdim=0, * mdim = NULL;
-
-      exitstatus = read_from_h5_file_varsize ( (void**)(&ibuffer), filename, h5_tag,  "int", &nmdim, &mdim,  io_proc );
-      if ( exitstatus != 0 ) {
-        fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file_varsize for file %s tag %s , status was %d %s %d\n", filename, h5_tag, exitstatus, __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      int const momentum_number = (int)mdim[0];
-
-      int ** momentum_list    = init_2level_itable ( mdim[0], mdim[1] );
-      int  * sink_momentum_id = init_1level_itable ( g_sink_momentum_number );
-      if ( momentum_list == NULL || sink_momentum_id == NULL ) {
-        fprintf( stderr, "[avxn_analyse] Error from init_Xlevel_itable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      memcpy ( momentum_list[0], ibuffer, mdim[0] * mdim[1] * sizeof(int) );
-
-      if ( ibuffer != NULL ) free ( ibuffer );
-
-      /* momentum matching with sink momentum list */
-      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
-
-        int ksink_momentum = 0;
-        for ( ; ksink_momentum < momentum_number; ksink_momentum++ ) {
-          if (
-              ( g_sink_momentum_list[isink_momentum][0] == momentum_list[ksink_momentum][0] ) &&
-              ( g_sink_momentum_list[isink_momentum][1] == momentum_list[ksink_momentum][1] ) &&
-              ( g_sink_momentum_list[isink_momentum][2] == momentum_list[ksink_momentum][2] ) ) break;
-        }
-        if ( ksink_momentum == momentum_number ) {
-          fprintf( stderr, "[avxn_analyse] Error, no matching for sink momentum %d    %3d %3d %3d %s %d\n", isink_momentum,
-               g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2], __FILE__, __LINE__ );
-          EXIT(12);
-        }
-
-        sink_momentum_id[isink_momentum] = ksink_momentum;
-      }
-
-      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
-        fprintf( stdout, "# [] sink momentum matching %d (%3d %3d %3d)   %d  (%3d %3d %3d)\n",
-            isink_momentum, g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2],
-            sink_momentum_id[isink_momentum], 
-            momentum_list[sink_momentum_id[isink_momentum]][0],
-            momentum_list[sink_momentum_id[isink_momentum]][1],
-            momentum_list[sink_momentum_id[isink_momentum]][2] );
-      }
-
-  
-      double **** buffer = init_4level_dtable ( T_global, momentum_number, 1, 2 ); 
-      if ( buffer == NULL ) {
-        fprintf( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      sprintf( h5_tag, "/sx%.2dsy%.2dsz%.2dst%.2d/P", conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5], conf_src_list[iconf][isrc][2] );
-
-      exitstatus = read_from_h5_file ( buffer[0][0][0], filename, h5_tag,  "double", io_proc );
-      if ( exitstatus != 0 ) {
-        fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
-      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
-
-#pragma omp parallel for
-        for ( int it = 0; it < T_global; it++ ) {
-
-          twop[isink_momentum][iconf][isrc][0][it][0] =  buffer[it][sink_momentum_id[isink_momentum]][0][0];
-          twop[isink_momentum][iconf][isrc][0][it][1] =  buffer[it][sink_momentum_id[isink_momentum]][0][1];
-
-          twop[isink_momentum][iconf][isrc][1][it][0] =  buffer[it][sink_momentum_id[isink_momentum]][0][0];
-          twop[isink_momentum][iconf][isrc][1][it][1] = -buffer[it][sink_momentum_id[isink_momentum]][0][1];
-        }
-
-      }  /* end of loop on momenta */
-      fini_4level_dtable ( &buffer );
-
-
-      fini_2level_itable ( &momentum_list );
-      fini_1level_itable ( &sink_momentum_id );
-      free ( mdim );
-
-    }  /* end of loop on sources  */
-
-  }  /* end of loop on configurations */
-
-#endif  /* end of _TWOP_SCATT */
-
-  /***********************************************************/
-  /***********************************************************/
-
-#if _TWOP_AFF
-    gettimeofday ( &ta, (struct timezone *)NULL );
-
-    /***********************************************************
-     * loop on flavor ids
-     ***********************************************************/
-    for ( int iflavor = 0; iflavor <= 1 ; iflavor++ ) {
-
-      /***********************************************************
-       * loop on sink momenta
-       ***********************************************************/
-      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-  
-        /***********************************************************
-         * open AFF reader
-         ***********************************************************/
-        struct AffReader_s *affr = NULL;
-        struct AffNode_s *affn = NULL, *affdir = NULL;
-        char key[400];
-        char data_filename[500];
-    
-        /* sprintf( data_filename, "%s/stream_%c/%d/%s.%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", filename_prefix,
-            conf_src_list[iconf][isrc][0], 
-            conf_src_list[iconf][isrc][1], 
-            correlator_prefix[operator_type], flavor_tag[iflavor],
-            conf_src_list[iconf][isrc][1], 
-            conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] ); */
- 
-        /* sprintf( data_filename, "%s/stream_%c/light/p2gg_twop_local/%s.%s.%d.gf%.2d.gi%.2d.aff",
-            filename_prefix,
-            conf_src_list[iconf][0][0], 
-            correlator_prefix[operator_type], flavor_tag[iflavor],
-            conf_src_list[iconf][0][1], g_sink_gamma_id_list[igf], g_source_gamma_id_list[igi] ); */
-
-        sprintf( data_filename, "%s/%s.%s.gf%.2d.gi%.2d.px%dpy%dpz%d.aff",
-            filename_prefix,
-            correlator_prefix[operator_type], flavor_tag[iflavor],
-            g_sink_gamma_id_list[0], g_source_gamma_id_list[0],
-            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][0], 
-            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][1],
-            ( 1 - 2 * iflavor ) * g_sink_momentum_list[ipf][2] );
-
-        affr = aff_reader ( data_filename );
-        const char * aff_status_str = aff_reader_errstr ( affr );
-        if( aff_status_str != NULL ) {
-          fprintf(stderr, "[avxn_analyse] Error from aff_reader for filename %s, status was %s %s %d\n", data_filename, aff_status_str, __FILE__, __LINE__);
-          EXIT(15);
-        } else {
-          if ( g_verbose > 1 ) fprintf(stdout, "# [avxn_analyse] reading data from file %s\n", data_filename);
-        }
-  
-        if( (affn = aff_reader_root( affr )) == NULL ) {
-          fprintf(stderr, "[avxn_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
-          EXIT(103);
-        }
-  
-        double ** buffer = init_2level_dtable ( T_global, 2 );
-        if( buffer == NULL ) {
-          fprintf(stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
-          EXIT(15);
-        }
-
-        /***********************************************************
-         * loop on configs
-         ***********************************************************/
-        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-          /***********************************************************
-           * loop on sources
-           ***********************************************************/
-          for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-
-            sprintf( key, "/stream_%c/conf_%d/t%.2dx%.2dy%.2dz%.2d",
-                conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1],
-                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
-
-            if ( g_verbose > 2 ) fprintf ( stdout, "# [avxn_analyse] key = %s\n", key );
-  
-            affdir = aff_reader_chpath (affr, affn, key );
-            if( affdir == NULL ) {
-              fprintf(stderr, "[avxn_analyse] Error from aff_reader_chpath %s %d\n", __FILE__, __LINE__);
-              EXIT(105);
-            }
-  
-            uint32_t uitems = T_global;
-            int texitstatus = aff_node_get_complex ( affr, affdir, (double _Complex*)buffer[0], uitems );
-            if( texitstatus != 0 ) {
-              fprintf(stderr, "[avxn_analyse] Error from aff_node_get_complex, status was %d %s %d\n", texitstatus, __FILE__, __LINE__);
-              EXIT(105);
-            }
-  
-            /***********************************************************
-             * source phase
-             ***********************************************************/
-            const double phase = -TWO_MPI * ( 1 - 2 * iflavor ) * (
-                  conf_src_list[iconf][isrc][3] * g_sink_momentum_list[ipf][0] / (double)LX_global
-                + conf_src_list[iconf][isrc][4] * g_sink_momentum_list[ipf][1] / (double)LY_global
-                + conf_src_list[iconf][isrc][5] * g_sink_momentum_list[ipf][2] / (double)LZ_global );
-  
-            const double ephase[2] = { cos( phase ) , sin( phase ) } ;
-  
-            /***********************************************************
-             * order from source time and add source phase
-             ***********************************************************/
-            for ( int it = 0; it < T_global; it++ ) {
-              int const itt = ( conf_src_list[iconf][isrc][2] + it ) % T_global; 
-              twop[ipf][iconf][isrc][iflavor][it][0] = buffer[itt][0] * ephase[0] - buffer[itt][1] * ephase[1];
-              twop[ipf][iconf][isrc][iflavor][it][1] = buffer[itt][1] * ephase[0] + buffer[itt][0] * ephase[1];
-            }
-  
-          }  /* end of loop on sources */
-        }  /* end of loop on configs */
-          
-        fini_2level_dtable( &buffer );
-
-        /**********************************************************
-         * close the reader
-         **********************************************************/
-        aff_reader_close ( affr );
-  
-      }  /* end of loop on sink momenta */
-    }  /* end of loop on flavor */
-
-    gettimeofday ( &tb, (struct timezone *)NULL );
-    show_time ( &ta, &tb, "avxn_analyse", "read-twop-aff", g_cart_id == 0 );
-
-#endif  /* of if _TWOP_AFF */
 
   /***********************************************************/
   /***********************************************************/
 
 #if _TWOP_H5
-
   /***********************************************************
-   * loop on configs
+   * loop on sink momenta
    ***********************************************************/
-  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+  for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
 
-    double ** buffer = init_2level_dtable ( T_global, 2 );
+    gettimeofday ( &ta, (struct timezone *)NULL );
+
+    int pf[3] = {
+      g_sink_momentum_list[ipf][0],
+      g_sink_momentum_list[ipf][1],
+      g_sink_momentum_list[ipf][2] 
+    };
+
+    int pi[3] = {
+      -pf[0],
+      -pf[1],
+      -pf[2] 
+    };
+
+    char data_filename[500];
+    char key[400];
+    sprintf( data_filename, "%s/m-m.px%d_py%d_pz%d.h5", filename_prefix, pf[0], pf[1], pf[2] );
+       
+    if ( g_verbose > 1 ) {
+      fprintf ( stdout, "# [avxg_rho_analyse] reading from data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
+      fflush(stdout);
+    }
+
+    double _Complex *** buffer = init_3level_ztable (g_sink_gamma_id_number, g_source_gamma_id_number, T_global );
+    if( buffer== NULL ) {
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT (24);
+    }
 
     /***********************************************************
-     * loop on sources
+     * loop on configs
      ***********************************************************/
-    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-
+    for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+ 
       /***********************************************************
-       * open AFF reader
+       * loop on sources
        ***********************************************************/
-      char data_filename[500];
-      char key[400];
-    
-      /* sprintf( data_filename, "stream_%c/%s/corr.%.4d.t%d.h5",
-          conf_src_list[iconf][isrc][0],
-          filename_prefix,
-          conf_src_list[iconf][isrc][1],
-          conf_src_list[iconf][isrc][2] ); 
-      */
+      for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
 
+        /* /s0/c1408/t26x25y13z23/ */
+        sprintf( key, "/s%c/c%d/t%dx%dy%dz%d", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], 
+                conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5]);
 
-      sprintf( data_filename, "%s/r%c/corr.%.4d.t%d.h5",
-          filename_prefix, conf_src_list[iconf][isrc][0],
-          conf_src_list[iconf][isrc][1],
-          conf_src_list[iconf][isrc][2] );
-
-      if ( g_verbose > 1 ) {
-        fprintf ( stdout, "# [avxn_analyse] reading from data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
-        fflush(stdout);
-      }
-
-      /***********************************************************
-       * loop on sink momenta
-       ***********************************************************/
-      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-
-        gettimeofday ( &ta, (struct timezone *)NULL );
-
-        int pf[3] = {
-          g_sink_momentum_list[ipf][0],
-          g_sink_momentum_list[ipf][1],
-          g_sink_momentum_list[ipf][2] 
-        };
-
-        int pi[3] = {
-          -pf[0],
-          -pf[1],
-          -pf[2] 
-        };
-
-        sprintf( key, "/u+-g-u-g/t%d/gf5/pfx%dpfy%dpfz%d/gi5/pix%dpiy%dpiz%d",
-                conf_src_list[iconf][isrc][2], 
-                pf[0], pf[1], pf[2],
-                pi[0], pi[1], pi[2] );
-
-        
         if ( g_verbose > 2 ) {
-          fprintf ( stdout, "# [avxn_analyse] key = %s\n", key );
+          fprintf ( stdout, "# [avxg_rho_analyse] key = %s\n", key );
           fflush(stdout);
         }
 
         exitstatus = read_from_h5_file ( (void*)buffer[0], data_filename, key, "double", io_proc );
         if ( exitstatus != 0 ) {
-          fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf( stderr, "[avxg_rho_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -940,7 +481,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
 
         gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "avxn_analyse", "read-twop-h5", g_cart_id == 0 );
+        show_time ( &ta, &tb, "avxg_rho_analyse", "read-twop-h5", g_cart_id == 0 );
 
       }  /* end of loop on sink momenta */
 
@@ -951,172 +492,6 @@ int main(int argc, char **argv) {
           
 #endif  /* end of _TWOP_H5 */
 
-  /***********************************************************/
-  /***********************************************************/
-
-/**********************************************************/
-#if _TWOP_AVGX_H5
-/**********************************************************/
-  gettimeofday ( &ta, (struct timezone *)NULL );
-
-  /***********************************************************
-   * loop on configs
-   ***********************************************************/
-  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-    double *** buffer = init_3level_dtable ( 2, T_global, 2 );
-
-    /***********************************************************
-     * loop on sources
-     ***********************************************************/
-    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
-
-      /***********************************************************
-       * open AFF reader
-       ***********************************************************/
-      char data_filename[500];
-    
-      sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
-          conf_src_list[iconf][isrc][0],
-          filename_prefix,
-          conf_src_list[iconf][isrc][1],
-          filename_prefix2,
-          conf_src_list[iconf][isrc][1],
-          conf_src_list[iconf][isrc][2],
-          conf_src_list[iconf][isrc][3] );
-
-      /***********************************************************
-       * loop on sink momenta
-       ***********************************************************/
-      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
-
-        int pf[3] = {
-          g_sink_momentum_list[ipf][0],
-          g_sink_momentum_list[ipf][1],
-          g_sink_momentum_list[ipf][2] 
-        };
-
-        int pi[3] = {
-          -pf[0],
-          -pf[1],
-          -pf[2] 
-        };
-
-        char key[400], key2[400];
-
-/*        if ( twop_weight[0] != 0. ) { */
-          /* s-gf-l-gi/mu-0.0186/mu0.0007/t116/s0/gf5/gi5/pix-1piy0piz0/px1py0pz0 */
-          
-          sprintf( key, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_tag[0],
-                  -g_mus, g_mu,
-                  conf_src_list[iconf][isrc][2], 
-                  conf_src_list[iconf][isrc][3], 
-                  pi[0], pi[1], pi[2],
-                  pf[0], pf[1], pf[2]);
-
-          sprintf( key2, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_tag[0],
-                  -g_mus, g_mu,
-                  conf_src_list[iconf][isrc][2], 
-                  0, 
-                  pi[0], pi[1], pi[2],
-                  pf[0], pf[1], pf[2]);
-
-
-
-          if ( g_verbose > 3 ) fprintf ( stdout, "# [avxn_analyse] key = %s %s %d\n", key, __FILE__, __LINE__  );
-
-          exitstatus = read_from_h5_file ( (void*)(buffer[0][0]), data_filename, key, "double", io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file for file %s key %s, status was %d %s %d\n", 
-                data_filename, key, exitstatus, __FILE__, __LINE__ );
-            /* EXIT(1); */
-          
-            if ( g_verbose > 3 ) fprintf ( stdout, "# [avxn_analyse] key2 = %s %s %d\n", key2, __FILE__, __LINE__  );
-
-            exitstatus = read_from_h5_file ( (void*)(buffer[0][0]), data_filename, key2, "double", io_proc );
-            if ( exitstatus != 0 ) {
-              fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file for file %s key %s, status was %d %s %d\n", 
-                  data_filename, key2, exitstatus, __FILE__, __LINE__ );
-              EXIT(1);
-            }
-          }
-/*        } */  /* end of twop_weight 0 */
-
-#if 0
-        if ( twop_weight[1] != 0. ) {
-
-          sprintf( key, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_type_2pt[flavor_id_2pt],
-                  muval_2pt_list[0], -muval_2pt_list[1],
-                  conf_src_list[iconf][isrc][2], 
-                  conf_src_list[iconf][isrc][3], 
-                  -pi[0], -pi[1], -pi[2],
-                  -pf[0], -pf[1], -pf[2]);
-
-          sprintf( key2, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_type_2pt[flavor_id_2pt],
-                  muval_2pt_list[0], -muval_2pt_list[1],
-                  conf_src_list[iconf][isrc][2],
-                  0,
-                  -pi[0], -pi[1], -pi[2],
-                  -pf[0], -pf[1], -pf[2]);
-
-
-          if ( g_verbose > 3 ) fprintf ( stdout, "# [avxn_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
-
-          exitstatus = read_from_h5_file ( (void*)(buffer[1][0]), data_filename, key, "double", io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file for file %s key %s, status was %d %s %d\n",
-                data_filename, key, exitstatus, __FILE__, __LINE__ );
-            /* EXIT(1); */
-
-            if ( g_verbose > 3 ) fprintf ( stdout, "# [avxn_analyse] key2 = %s %s %d\n", key2, __FILE__, __LINE__ );
-
-            exitstatus = read_from_h5_file ( (void*)(buffer[1][0]), data_filename, key2, "double", io_proc );
-            if ( exitstatus != 0 ) {
-              fprintf( stderr, "[avxn_analyse] Error from read_from_h5_file file %s key %s, status was %d %s %d\n",
-                  data_filename, key2, exitstatus, __FILE__, __LINE__ );
-              EXIT(1);
-            }
-
-          }
-        }
-#endif  /* fo if 0 */
-
-        /***********************************************************
-         * NOTE: NO SOURCE PHASE NECESSARY
-         * ONLY REORDERING from source
-         ***********************************************************/
-#pragma omp parallel for
-        for ( int it = 0; it < T_global; it++ ) {
-          int const itt = ( it + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
-
-          twop[ipf][iconf][isrc][0][it][0] =  buffer[0][itt][0];
-          twop[ipf][iconf][isrc][0][it][1] =  buffer[0][itt][1];
-
-          twop[ipf][iconf][isrc][1][it][0] =  buffer[0][itt][0];
-          twop[ipf][iconf][isrc][1][it][1] = -buffer[0][itt][1];
-        }
-
-        /***********************************************************
-         * NOTE: opposite parity transformed case is given by 
-         *       ???
-         *       
-         ***********************************************************/
-
-      }  /* end of loop on sink momenta */
-
-    }  /* end of loop on sources */
-
-    fini_3level_dtable ( &buffer );
-  }  /* end of loop on configs */
-          
-  gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "avxn_analyse", "read-twop-h5", g_cart_id == 0 );
-
-#endif  /* end of if _TWOP_AVGX_H5 */
 
   /**********************************************************
    * average 2-pt over momentum orbit
@@ -1124,7 +499,7 @@ int main(int argc, char **argv) {
 
   double **** twop_orbit = init_4level_dtable ( num_conf, num_src_per_conf, T_global, 2 );
   if( twop_orbit == NULL ) {
-    fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT (24);
   }
 
@@ -1167,7 +542,7 @@ int main(int argc, char **argv) {
     }  /* end of loop on isrc */
   }  /* end of loop on iconf */
 
-#if _TWOP_CYD_H5 || _TWOP_CYD || _TWOP_AFF || _TWOP_H5  || _TWOP_SCATT
+#if  _TWOP_AFF || _TWOP_H5  
   /**********************************************************
    * write orbit-averaged data to ascii file, per source
    **********************************************************/
@@ -1198,7 +573,7 @@ int main(int argc, char **argv) {
 
     double ** data = init_2level_dtable ( num_conf, T_global );
     if ( data == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
       EXIT(1);
     }
 
@@ -1251,7 +626,7 @@ int main(int argc, char **argv) {
     }  /* end of if write data */
 
     if ( num_conf < 6 ) {
-      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
     } else {
 
       /**********************************************************
@@ -1259,7 +634,7 @@ int main(int argc, char **argv) {
        **********************************************************/
       exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
       }
 
@@ -1278,7 +653,7 @@ int main(int argc, char **argv) {
 
         exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(115);
         }
       }
@@ -1303,7 +678,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, T_global );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1328,7 +703,7 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[imom][2], reim_str[ireim] );
 
         if ( num_conf < 6 ) {
-          fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
         } else {
 
           /**********************************************************
@@ -1336,7 +711,7 @@ int main(int argc, char **argv) {
            **********************************************************/
           exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
           if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
           }
 
@@ -1357,285 +732,226 @@ int main(int argc, char **argv) {
    *
    **********************************************************/
   double ****** loop = NULL;
-  double ****** loop_exact = NULL;
   double ****** loop_sub = NULL;
   double ****** loop_sym = NULL;
 
   loop = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
   if ( loop == NULL ) {
-    fprintf ( stderr, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(25);
-  }
-
-  loop_exact = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
-  if ( loop_exact == NULL ) {
-    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stderr, "[avxg_rho_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(25);
   }
 
   /**********************************************************
    *
-   * read stochastic hp loop data
+   * read operaator insertion
    *
    **********************************************************/
-  if ( loop_nstoch > 0 && ( loop_use_es == 1 || loop_use_es == 3 ) ) {
+#if _LOOP_CY
+  for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
-    double const loop_norm_stoch = loop_norm / loop_nstoch;
-    fprintf ( stdout, "# [avx_analyse] loop_norm_stoch = %e  %s %d\n", loop_norm_stoch, __FILE__ , __LINE__ );
-
-    for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int idir = 0; idir < 4; idir++ ) {
-  
-          double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
-  
-          sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
-              loop_type,
-              loop_num_evecs,
-              loop_nstoch_max,
-              idir,
-              g_insertion_momentum_list[imom][0],
-              g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] );
+
+        char stream_tag;
+
+        switch ( conf_src_list[iconf][0][0] ) {
+          case 'a':
+            stream_tag = '0';
+            break;
+          case 'b':
+            stream_tag = '1';
+            break;
+          default:
+            fprintf(stderr, "[xg_analyse] Error, unrecognized stream char %c %d %s %d\n", conf_src_list[iconf][0][0], __FILE__, __LINE__);
+            EXIT(105);
+            break;
+        }
+
+
+        for ( int imu = 0; imu < 4; imu++ ) {
+        for ( int inu = imu; inu < 4; inu++ ) {
+
+          sprintf ( filename, "nStout%d/%.4d_r%c/%s_%s_EMT_%d%d_%.4d_r%c.dat", stout_level_iter, conf_src_list[iconf][0][1],
+              stream_tag, filename_prefix2, loop_type, imu, inu, conf_src_list[iconf][0][1], stream_tag );
           
+          if ( g_verbose > 1 ) fprintf ( stdout, "# [avxg_rho_analyse] reading data from file %s\n", filename );
 
-          /* sprintf ( filename, "%s/loop.%.4d_r%c.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2,
-              conf_src_list[iconf][0][1], conf_src_list[iconf][0][0],
-              loop_type,
-              loop_num_evecs,
-              loop_nstoch_max,
-              idir,
-              g_insertion_momentum_list[imom][0],
-              g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] ); */
-  
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s\n", filename );
-
-          FILE * dfs = fopen ( filename, "r" );
-          if( dfs == NULL ) {
-            fprintf ( stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+          FILE *ifs = fopen ( filename, "r" );
+          if( ifs == NULL ) {
+            fprintf ( stderr, "[avxg_rho_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
             EXIT (24);
           }
   
+          int itmp[5];
+          double dtmp[2];
+
           for ( int it = 0; it < T_global; it++ ) {
-            int itmp[3];
-            double dtmp[2];
-            for ( int ia = 0; ia < 4; ia++ ) {
-            for ( int ib = 0; ib < 4; ib++ ) {
-              if ( fscanf ( dfs, "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, dtmp, dtmp+1 ) != 5 ) {
-                fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                EXIT (24);
-              }
-              zloop_buffer[it][ia][ib] = dtmp[0] + dtmp[1] * I;
-           
-              if ( g_verbose > 4 ) fprintf (stdout,"loop %3d %3d %3d  %25.16e %25.16e\n", 
-                  itmp[0], itmp[1], itmp[2], creal( zloop_buffer[it][ia][ib]), cimag( zloop_buffer[it][ia][ib]) );
-            }}
-          }
-          fclose ( dfs );
-  
-          for ( int istoch = 0; istoch < loop_nstoch / loop_block_size; istoch++ ) {
-            if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data for istoch %d  %s %d\n", istoch, __FILE__, __LINE__ );
+            fscanf ( ifs, "%d %d %d %d %d %lf %lf\n",
+                itmp, itmp+1, itmp+2, itmp+3, itmp+4, dtmp, dtmp+1 );
 
-#pragma omp parallel for
-            for ( int imu = 0; imu < 4; imu++ ) {
-              for ( int it = 0; it < T_global; it++ ) {
-  
-                double _Complex ztmp = 0.;
-                for ( int ia = 0; ia < 4; ia++ ) {
-                for ( int ib = 0; ib < 4; ib++ ) {
-                  ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
-                }}
-
-                /**********************************************************
-                 * factor 0.5 from using doublet vs wanted single flavor
-                 *
-                 * WHERE DID THAT COME FROM ???
-                 **********************************************************/
-                loop[imom][iconf][imu][idir][it][0] += creal ( ztmp * loop_norm_stoch );
-                loop[imom][iconf][imu][idir][it][1] += cimag ( ztmp * loop_norm_stoch );
-              }
-            }  /* end of loop on mu */
-
-	  }  /* end of loop on samples */
-  
-          fini_3level_ztable ( &zloop_buffer );
-        }  /* end of loop on directions */
-      }  /* end of loop on configs */
-    }  /* end of loop on insertion momenta */
-
-  }  /* end of if loop_nstoch > 0 */
-
-
-  /**********************************************************
-   *
-   * read exact lm loop data
-   *
-   **********************************************************/
-  if ( loop_num_evecs > 0 && ( loop_use_es == 2 || loop_use_es == 3 ) ) {
-
-    double const loop_norm_exact = loop_norm;
-
-    for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
-      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int idir = 0; idir < 4; idir++ ) {
-  
-          double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
-          
-          sprintf ( filename, "stream_%c/%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
-              loop_type,
-              loop_num_evecs,
-              idir,
-              g_insertion_momentum_list[imom][0],
-              g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] );
-
-	  
-          /* sprintf ( filename, "%s/loop.%.4d_r%c.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", filename_prefix2,
-              conf_src_list[iconf][0][1], conf_src_list[iconf][0][0],
-              loop_type,
-              loop_num_evecs,
-              idir,
-              g_insertion_momentum_list[imom][0],
-              g_insertion_momentum_list[imom][1],
-              g_insertion_momentum_list[imom][2] ); */
-
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
-          FILE * dfs = fopen ( filename, "r" );
-          if( dfs == NULL ) {
-            fprintf ( stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-            EXIT (24);
-          }
-   
-          for ( int it = 0; it < T_global; it++ ) {
-            int itmp[3];
-            double dtmp[2];
-            for ( int ia = 0; ia < 4; ia++ ) {
-            for ( int ib = 0; ib < 4; ib++ ) {
-              if ( fscanf ( dfs, "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, dtmp, dtmp+1 ) != 5 ) {
-                fprintf ( stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                EXIT (24);
-              }
-              zloop_buffer[it][ia][ib] = dtmp[0] + dtmp[1] * I;
-           
-              if ( g_verbose > 4 ) fprintf (stdout,"loop %3d %3d %3d  %25.16e %25.16e\n", 
-                  itmp[0], itmp[1], itmp[2], creal( zloop_buffer[it][ia][ib]), cimag( zloop_buffer[it][ia][ib]) );
-            }}
-          }
-  
-#pragma omp parallel for
-          for ( int imu = 0; imu < 4; imu++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-  
-              double _Complex ztmp = 0.;
-              for ( int ia = 0; ia < 4; ia++ ) {
-              for ( int ib = 0; ib < 4; ib++ ) {
-                ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
-              }}
-              /**********************************************************
-               * factor 0.5 from using doublet vs wanted single flavor
-               *
-               * AGAIN, WHERE DID THAT COME FROM ???
-               **********************************************************/
-              loop_exact[imom][iconf][imu][idir][it][0] += creal ( ztmp * loop_norm_exact );
-              loop_exact[imom][iconf][imu][idir][it][1] += cimag ( ztmp * loop_norm_exact  );
-            }
-
-          }  /* end of loop on mu */
-
-	  fclose ( dfs );
-  
-          fini_3level_ztable ( &zloop_buffer );
-        }  /* end of loop on directions */
-      }  /* end of loop on configs */
-    }  /* end of loop on insertion momenta */
-  }  /* end of if loop_nstoch > 0 */
-
-  /**********************************************************
-   *
-   * read stochastic volsrc loop data
-   *
-   **********************************************************/
-  if ( loop_nstoch > 0 && loop_use_es == 4 ) {
-    for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
-      for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-        for ( int idir = 0; idir < 4; idir++ ) {
-  
-          double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
-  
-          if (loop_num_evecs >= 0 ) {
-            sprintf ( filename, "loops_%c/%s/loop.%.4d.stoch.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
-                loop_type, loop_num_evecs, idir,
-                g_insertion_momentum_list[imom][0],
-                g_insertion_momentum_list[imom][1],
-                g_insertion_momentum_list[imom][2] );
-          } else {
-            sprintf ( filename, "loops_%c/%s/loop.%d.stoch.%s.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
-                loop_type, idir,
-                g_insertion_momentum_list[imom][0],
-                g_insertion_momentum_list[imom][1],
-                g_insertion_momentum_list[imom][2] );
-          }
-  
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
-          FILE * dfs = fopen ( filename, "r" );
-          if( dfs == NULL ) {
-            fprintf ( stderr, "[avxn_analyse] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-            EXIT (24);
-          }
-  
-          for ( int istoch = 0; istoch < loop_nstoch / loop_block_size; istoch++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-              int itmp[4];
-              double dtmp[2];
-              for ( int ia = 0; ia < 4; ia++ ) {
-              for ( int ib = 0; ib < 4; ib++ ) {
-                if ( fscanf ( dfs, "%d %d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, itmp+3, dtmp, dtmp+1 ) != 6 ) {
-                  fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                  EXIT (24);
-                }
-                zloop_buffer[it][ia][ib] += dtmp[0] + dtmp[1] * I;
-              }}
+            loop[imom][iconf][imu][inu][it][0] = dtmp[0] * loop_norm; 
+            loop[imom][iconf][imu][inu][it][1] = dtmp[1] * loop_norm;
+            /* already symmetrized here */
+            if ( imu != inu ) {
+              loop[imom][iconf][inu][imu][it][0] = loop[imom][iconf][imu][inu][it][0];
+              loop[imom][iconf][inu][imu][it][1] = loop[imom][iconf][imu][inu][it][1];
             }
           }
-          for ( int it = 0; it < T_global; it++ ) {
-            for ( int ia = 0; ia < 4; ia++ ) {
-            for ( int ib = 0; ib < 4; ib++ ) {
-              zloop_buffer[it][ia][ib] /= (double)loop_nstoch;
-            }}
-          }
 
-          fclose ( dfs );
-  
-#pragma omp parallel for
-          for ( int imu = 0; imu < 4; imu++ ) {
-            for ( int it = 0; it < T_global; it++ ) {
-  
-              double _Complex ztmp = 0.;
-              for ( int ia = 0; ia < 4; ia++ ) {
-              for ( int ib = 0; ib < 4; ib++ ) {
-                ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
-              }}
+          fclose ( ifs );
 
-              /**********************************************************
-               * normalize with loop norm
-               **********************************************************/
-              loop[imom][iconf][imu][idir][it][0] = creal ( ztmp * loop_norm );
-              loop[imom][iconf][imu][idir][it][1] = cimag ( ztmp * loop_norm );
+        }}
 
-              if ( g_verbose > 5 ) fprintf ( stdout, "loop orig p %3d %3d %3d conf %c %6d dir %d mu %d t %3d     %25.16e %25.16e\n",
-                  g_insertion_momentum_list[imom][0], g_insertion_momentum_list[imom][1], g_insertion_momentum_list[imom][2],
-                  conf_src_list[iconf][0][0], conf_src_list[iconf][0][1], 
-                  idir, imu, it, loop[imom][iconf][imu][idir][it][0], loop[imom][iconf][imu][idir][it][1] );
-            }
-          }  /* end of loop on mu */
-  
-          fini_3level_ztable ( &zloop_buffer );
-        }  /* end of loop on directions */
       }  /* end of loop on configs */
-    }  /* end of loop on insertion momenta */
-  }  /* end of if loop_nstoch > 0 */
+  }  /* end of loop on insertion momenta */
 
+#endif  /* of if _LOOP_CY */
+
+#if _LOOP_CVC
+/**************************************
+  # x x
+  b [,1] <-  a[ 1, ] + a[16, ] + a[19, ]
+
+  # x y
+  b [,2] <-  a[ 2, ] + a[20, ]
+
+  # x z
+  b [,3] <-  a[ 3, ] - a[18, ]
+
+  # x t
+  b [,4] <-  a[ 9, ] + a[14, ]
+
+  # y y
+  b [,5] <-  a[ 7, ] + a[16, ] + a[21, ]
+
+  # y z
+  b [,6] <-  a[ 8, ] + a[17, ]
+
+  # y t
+  b [,7] <- -a[ 4, ] + a[15, ]
+
+  # z z
+  b [,8] <- a[12, ] +a[19, ] +  a[21, ]
+
+  # z t
+  b [,9] <- - a[ 5, ] - a[11, ]
+
+  # t t
+  b [,10] <- a[ 1, ] + a[ 7, ] + a[12, ]
+
+  b <- b / 2
+
+ **************************************/
+
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    struct AffReader_s *affr = NULL;
+    struct AffNode_s *affn = NULL;
+    struct AffNode_s *affdir = NULL;
+
+    sprintf ( filename, "stream_%c/%s/%d/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+        filename_prefix3, conf_src_list[iconf][0][1] );
+
+    if ( g_verbose > 2 ) fprintf( stdout, "# [avxg_rho_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
+    
+    affr = aff_reader (filename);
+    if( const char * aff_status_str = aff_reader_errstr(affr) ) {
+      fprintf(stderr, "[avxg_rho_analyse] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
+      EXIT( 4 );
+    }
+
+    if( (affn = aff_reader_root( affr )) == NULL ) {
+      fprintf(stderr, "[avxg_rho_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+      EXIT( 2 );
+    }
+
+    double ** buffer = init_2level_dtable ( T_global, 21 ); 
+    if ( buffer == NULL ) {
+      fprintf( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    char key[400];
+    sprintf ( key, "/StoutN%d/StoutRho%6.4f/clover/GG/", stout_level_iter, stout_level_rho );
+
+    affdir = aff_reader_chpath ( affr, affn, key );
+    if ( affdir == NULL ) {
+      fprintf(stderr, "[avxg_rho_analyse] Error from affdir for dir %s %s %d\n", key, __FILE__, __LINE__);
+      EXIT( 2 );
+    }
+
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [avxg_rho_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
+
+    uint32_t items = 21 * T_global;
+
+    exitstatus = aff_node_get_double ( affr, affdir, buffer[0], items );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[avxg_rho_analyse] Error from aff_node_get_complex for key \"%s\", status was %d errmsg %s %s %d\n", key, exitstatus,
+      aff_reader_errstr ( affr ), __FILE__, __LINE__);
+      EXIT( 105 );
+    }
+
+    aff_reader_close ( affr );
+
+    /* exitstatus = read_aff_contraction ( buffer[0], NULL, filename, key, T_global*21);
+    if ( exitstatus != 0 ) {
+      fprintf( stderr, "[avxg_rho_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+      EXIT(1);
+    } */
+
+    for ( int it = 0; it < T_global; it++ ) {
+      int const imom = 0;
+      double * const a = buffer[it];
+      // x x
+      
+      loop[imom][iconf][0][0][it][0] = a[0] + a[15] + a[18];
+
+      // x y
+      loop[imom][iconf][0][1][it][0] = a[1] + a[19];
+      loop[imom][iconf][1][0][it][0] = loop[imom][iconf][0][1][it][0];
+
+      // x z
+      loop[imom][iconf][0][2][it][0] = a[2] - a[17];
+      loop[imom][iconf][2][0][it][0] = loop[imom][iconf][0][2][it][0];
+
+      // x t
+      loop[imom][iconf][0][3][it][0] = a[8] + a[13];
+      loop[imom][iconf][3][0][it][0] = loop[imom][iconf][0][3][it][0];
+
+      // y y
+      loop[imom][iconf][1][1][it][0] = a[6] + a[15] + a[20];
+
+      // y z
+      loop[imom][iconf][1][2][it][0] = a[7] + a[16];
+      loop[imom][iconf][2][1][it][0] = loop[imom][iconf][1][2][it][0];
+
+      // y t
+      loop[imom][iconf][1][3][it][0] = -a[3] + a[14];
+      loop[imom][iconf][3][1][it][0] = loop[imom][iconf][1][3][it][0];
+
+      // z z
+      loop[imom][iconf][2][2][it][0] = a[11] +a[18] +  a[20];
+
+      // z t
+      loop[imom][iconf][2][3][it][0] = - a[4] - a[10];
+      loop[imom][iconf][3][2][it][0] = loop[imom][iconf][2][3][it][0];
+
+      // t t
+      loop[imom][iconf][3][3][it][0] = a[0] + a[6] + a[11];
+
+      for ( int imu = 0; imu < 4; imu++ ) {
+      for ( int inu = 0; inu < 4; inu++ ) {
+        // b <- b / 2
+        loop[imom][iconf][imu][inu][it][0] *= 0.5 * loop_norm;
+        loop[imom][iconf][imu][inu][it][1]  = 0.0;
+      }}
+
+    }  /* end of loop timeslices */
+
+    fini_2level_dtable (  &buffer );
+
+  }  /* end of loop on configs */
+
+#endif  /* of if _LOOP_CVC */
 
   /**********************************************************
    *
@@ -1644,13 +960,13 @@ int main(int argc, char **argv) {
    **********************************************************/
   loop_sub = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
   if ( loop_sub == NULL ) {
-    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stdout, "[avxg_rho_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(25);
   }
 
   loop_sym = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
   if ( loop_sym == NULL ) {
-    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf ( stdout, "[avxg_rho_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(25);
   }
 
@@ -1666,12 +982,10 @@ int main(int argc, char **argv) {
             /* real part */
             loop_sym[imom][iconf][imu][idir][it][0] = 0.5 * ( 
                         loop[imom][iconf][imu][idir][it][0] +       loop[imom][iconf][idir][imu][it][0] 
-                + loop_exact[imom][iconf][imu][idir][it][0] + loop_exact[imom][iconf][idir][imu][it][0] 
                 );
             /* imaginary part */
             loop_sym[imom][iconf][imu][idir][it][1] = 0.5 * ( 
                         loop[imom][iconf][imu][idir][it][1] +       loop[imom][iconf][idir][imu][it][1] 
-                + loop_exact[imom][iconf][imu][idir][it][1] + loop_exact[imom][iconf][idir][imu][it][1] 
                 );
 
             /**********************************************************
@@ -1690,10 +1004,6 @@ int main(int argc, char **argv) {
                  +       loop[imom][iconf][1][1][it][0]
                  +       loop[imom][iconf][2][2][it][0]
                  +       loop[imom][iconf][3][3][it][0] 
-                 + loop_exact[imom][iconf][0][0][it][0]
-                 + loop_exact[imom][iconf][1][1][it][0]
-                 + loop_exact[imom][iconf][2][2][it][0]
-                 + loop_exact[imom][iconf][3][3][it][0] 
                  );
 
               /* imarginary */
@@ -1702,10 +1012,6 @@ int main(int argc, char **argv) {
                  +       loop[imom][iconf][1][1][it][1]
                  +       loop[imom][iconf][2][2][it][1]
                  +       loop[imom][iconf][3][3][it][1] 
-                 + loop_exact[imom][iconf][0][0][it][1]
-                 + loop_exact[imom][iconf][1][1][it][1]
-                 + loop_exact[imom][iconf][2][2][it][1]
-                 + loop_exact[imom][iconf][3][3][it][1] 
                  );
             }
           }
@@ -1719,7 +1025,7 @@ int main(int argc, char **argv) {
    * stochastic part
    **********************************************************/
   char loop_tag[400];
-  sprintf ( loop_tag, "es%d.nev%d.Nstoch%d", loop_use_es, loop_num_evecs, loop_nstoch );
+  sprintf ( loop_tag, "nstout%d_%6.4f", stout_level_iter, stout_level_rho );
 
   /**********************************************************
    * write loop_sub to separate ascii file
@@ -1729,7 +1035,7 @@ int main(int argc, char **argv) {
       for ( int imu = 0; imu < 4; imu++ ) {
       for ( int idir = 0; idir < 4; idir++ ) {
 
-        sprintf ( filename, "loop_sub.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
+        sprintf ( filename, "loop_sub.%s.%s.mu%d_nu%d.PX%d_PY%d_PZ%d.corr",
             loop_type, loop_tag, imu, idir,
             g_insertion_momentum_list[imom][0],
             g_insertion_momentum_list[imom][1],
@@ -1738,7 +1044,7 @@ int main(int argc, char **argv) {
 
         FILE * loop_sub_fs = fopen( filename, "w" );
         if ( loop_sub_fs == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         } 
 
@@ -1750,7 +1056,7 @@ int main(int argc, char **argv) {
         }
         fclose ( loop_sub_fs );
 
-        sprintf ( filename, "loop_sym.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
+        sprintf ( filename, "loop_sym.%s.%s.mu%d_nu%d.PX%d_PY%d_PZ%d.corr",
             loop_type, loop_tag, imu, idir,
             g_insertion_momentum_list[imom][0],
             g_insertion_momentum_list[imom][1],
@@ -1759,7 +1065,7 @@ int main(int argc, char **argv) {
 
         FILE * loop_sym_fs = fopen( filename, "w" );
         if ( loop_sym_fs == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from fopen %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         } 
 
@@ -1783,7 +1089,7 @@ int main(int argc, char **argv) {
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
     if ( num_conf < 6 ) {
-      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
       /* EXIT(1); */
       continue;
     }
@@ -1798,7 +1104,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, T_global );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1806,12 +1112,12 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
         for ( int iconf = 0; iconf < num_conf; iconf++ ) {
           for ( int it = 0; it < T_global; it++ ) {
-            data[iconf][it] = loop[imom][iconf][imu][idir][it][ireim] + loop_exact[imom][iconf][imu][idir][it][ireim];
+            data[iconf][it] = loop[imom][iconf][imu][idir][it][ireim];
           }
         }
 
         char obs_name[400];
-        sprintf ( obs_name, "loop.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop.%s.%s.mu%d_nu%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
             imu, idir,
@@ -1822,7 +1128,7 @@ int main(int argc, char **argv) {
         /* apply UWerr analysis */
         exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1840,7 +1146,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, T_global );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1853,7 +1159,7 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[400];
-        sprintf ( obs_name, "loop_sym.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop_sym.%s.%s.mu%d_nu%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
             imu, idir,
@@ -1864,7 +1170,7 @@ int main(int argc, char **argv) {
         /* apply UWerr analysis */
         exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1882,7 +1188,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, T_global );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1895,7 +1201,7 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[400];
-        sprintf ( obs_name, "loop_sub.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop_sub.%s.%s.mu%d_nu%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
             imu, idir,
@@ -1906,7 +1212,7 @@ int main(int argc, char **argv) {
         /* apply UWerr analysis */
         exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1924,7 +1230,7 @@ int main(int argc, char **argv) {
 
         double * data = init_1level_dtable ( num_conf );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1939,7 +1245,7 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[400];
-        sprintf ( obs_name, "loop_sub.tavg.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop_sub.tavg.%s.%s.mu%d_nu%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
             imu, idir,
@@ -1950,7 +1256,7 @@ int main(int argc, char **argv) {
         /* apply UWerr analysis */
         exitstatus = apply_uwerr_real ( data, num_conf, 1, 0, 1, obs_name );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -1967,7 +1273,7 @@ int main(int argc, char **argv) {
    **********************************************************/
   double *** loop_sub_tavg = init_3level_dtable ( g_insertion_momentum_number, num_conf, 3 );
   if ( loop_sub_tavg == NULL ) {
-    fprintf( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    fprintf( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(12);
   }
 
@@ -2019,7 +1325,6 @@ int main(int argc, char **argv) {
 
 
   fini_6level_dtable ( &loop );
-  fini_6level_dtable ( &loop_exact );
 
 
 #if _RAT_METHOD
@@ -2038,7 +1343,7 @@ int main(int argc, char **argv) {
 
     double ***** threep = init_5level_dtable ( 5, num_conf, num_src_per_conf, T_global, 2 ) ;
     if ( threep == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
@@ -2058,7 +1363,7 @@ int main(int argc, char **argv) {
         int const tsink  = (  g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
         int const tsink2 = ( -g_sequential_source_timeslice_list[idt] + T_global ) % T_global;
 
-        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxn_analyse] t_src %3d   dt %3d   tsink %3d tsink2 %3d\n", conf_src_list[iconf][isrc][2],
+        if ( g_verbose > 4 ) fprintf ( stdout, "# [avxg_rho_analyse] t_src %3d   dt %3d   tsink %3d tsink2 %3d\n", conf_src_list[iconf][isrc][2],
             g_sequential_source_timeslice_list[idt], tsink, tsink2 );
 
         /**********************************************************
@@ -2348,7 +1653,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, T_global );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -2376,7 +1681,7 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][2], reim_str[ireim] );
 
         if ( num_conf < 6 ) {
-          fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
         } else {
 
           /**********************************************************
@@ -2384,7 +1689,7 @@ int main(int argc, char **argv) {
            **********************************************************/
           exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
           if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
           }
         }
@@ -2415,7 +1720,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, nT + 1 );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -2447,7 +1752,7 @@ int main(int argc, char **argv) {
 
         exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(115);
         }
 
@@ -2476,7 +1781,7 @@ int main(int argc, char **argv) {
 
         double ** data = init_2level_dtable ( num_conf, nT + 2 );
         if ( data == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
@@ -2525,7 +1830,7 @@ int main(int argc, char **argv) {
 
         exitstatus = apply_uwerr_func ( data[0], num_conf, nT+2, nT, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
         if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(115);
         }
 
@@ -2562,19 +1867,19 @@ int main(int argc, char **argv) {
 
     double *** threep_44 = init_3level_dtable ( num_conf, num_src_per_conf, Thp1 ) ;
     if ( threep_44 == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
     double *** threep_4k = init_3level_dtable ( num_conf, num_src_per_conf, Thp1 ) ;
     if ( threep_4k == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
     double *** threep_ik = init_3level_dtable ( num_conf, num_src_per_conf, Thp1 ) ;
     if ( threep_ik == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
@@ -2727,7 +2032,7 @@ int main(int argc, char **argv) {
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
     }
@@ -2759,7 +2064,7 @@ int main(int argc, char **argv) {
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
     }
@@ -2791,7 +2096,7 @@ int main(int argc, char **argv) {
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
 
@@ -2824,19 +2129,19 @@ int main(int argc, char **argv) {
     /* loop on sink times */
     double *** threep_44 = init_3level_dtable ( num_conf, num_src_per_conf, Thp1 ) ;
     if ( threep_44 == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
     double *** threep_4k = init_3level_dtable ( num_conf, num_src_per_conf, Thp1 ) ;
     if ( threep_4k == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
     double *** threep_ik = init_3level_dtable ( num_conf, num_src_per_conf, Thp1 ) ;
     if ( threep_ik == NULL ) {
-      fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
     }
 
@@ -2850,7 +2155,7 @@ int main(int argc, char **argv) {
         double **** loop_accum_fwd = init_4level_dtable ( 4, 4, Thp1, 2 );
         double **** loop_accum_bwd = init_4level_dtable ( 4, 4, Thp1, 2 );
         if ( loop_accum_fwd == NULL || loop_accum_bwd == NULL ) {
-          fprintf ( stderr, "[avxn_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
+          fprintf ( stderr, "[avxg_rho_analyse] Error from init_4level_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
         for ( int ia = 0; ia < 4; ia++ ) {
@@ -3009,7 +2314,7 @@ int main(int argc, char **argv) {
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
     }
@@ -3054,7 +2359,7 @@ int main(int argc, char **argv) {
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
     }
@@ -3099,7 +2404,7 @@ int main(int argc, char **argv) {
       /* apply UWerr analysis */
       exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        fprintf ( stderr, "[avxg_rho_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(115);
       }
     }  /* end of loop on itau */
@@ -3146,7 +2451,7 @@ int main(int argc, char **argv) {
 #endif
 
   gettimeofday ( &end_time, (struct timezone *)NULL );
-  show_time ( &start_time, &end_time, "avxn_analyse", "runtime", g_cart_id == 0 );
+  show_time ( &start_time, &end_time, "avxg_rho_analyse", "runtime", g_cart_id == 0 );
 
   return(0);
 }

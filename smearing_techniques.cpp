@@ -277,6 +277,8 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
   }
 
 #if ( defined HAVE_TMLQCD_LIBWRAPPER ) && ( defined _SMEAR_QUDA )
+   if ( g_cart_id == 0 ) fprintf(stdout, "# [Jacobi_Smearing] calling _performWuppertalnStep\n");
+
   _performWuppertalnStep ( psi, psi, N, kappa );
 #else
 
