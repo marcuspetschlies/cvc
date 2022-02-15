@@ -349,9 +349,9 @@ int main(int argc, char **argv) {
      * rms radius
      ***********************************************************/
 
-    /* sprintf ( filename, "ggdens.c%d.s%d", Nconf, stout_level_iter[istout] );
+    sprintf ( filename, "ggdens.p%d.c%d.s%d", g_cart_id, Nconf, stout_level_iter[istout] );
     FILE * ofs = fopen ( filename, "w" );
-    */
+    
 
 
     double pl[2] = { 0.,  0. };
@@ -372,16 +372,14 @@ int main(int argc, char **argv) {
 
       pl[1] += op[ix];
 
-      /* fprintf ( ofs, "%3d %3d %3d %3d    %3d %3d %3d %3d   %16.7e\n", 
+      fprintf ( ofs, "%3d %3d %3d %3d    %3d %3d %3d %3d   %16.7e\n", 
           x[0], x[1], x[2], x[3],
           y[0], y[1], y[2], y[3],
           op[ix] );
-          */
-
 
     }
     
-    /* fclose ( ofs ); */
+    fclose ( ofs );
 
 #ifdef HAVE_MPI
     double buffer[2] = { pl[0], pl[1] };
@@ -411,7 +409,6 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( &(pl[1]), affw, NULL, data_tag, 1, "double" );
 #elif ( defined HAVE_HDF5 )
-      int const dims = 1;
       exitstatus = write_h5_contraction ( &(pl[1]), NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;
