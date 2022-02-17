@@ -67,10 +67,10 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_Ia  1  /* loop calculation */
-#define _PART_IIb 0  /* N1, N2 */
+#define _PART_Ia  0  /* loop calculation */
+#define _PART_IIb 1  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -1542,7 +1542,8 @@ int main(int argc, char **argv) {
               }
 
 
-              for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
+              /* for ( int iflavor = 0; iflavor < 2; iflavor++ ) */
+              for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
               {
 
                 /***************************************************************************
@@ -1641,7 +1642,9 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  *  W for  uu uu type insertion
                  ***************************************************************************/
-                for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+                /* for ( int iflavor = 0; iflavor < 2; iflavor++ ) */
+                for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
+                {
 
 	          gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -1728,7 +1731,7 @@ int main(int argc, char **argv) {
                   show_time ( &ta, &tb, "njjn_fht_invert_contract", "w-uuuu-diagram-reduce-project-write", g_cart_id == 0 );
 
                 }  /* end of loop on flavor */
-
+#if 0
                 /***************************************************************************
                  *  W for  uu dd type insertion
                  *  4 diagrams
@@ -1857,6 +1860,7 @@ int main(int argc, char **argv) {
                   show_time ( &ta, &tb, "njjn_fht_invert_contract", "w-uudd-diagram-reduce-project-write", g_cart_id == 0 );
 
                 }  /* end of loop on flavor */
+#endif
 
               }  /* end of loop on coherent sources */
           

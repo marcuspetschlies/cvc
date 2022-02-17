@@ -140,10 +140,19 @@ void make_key_string ( char * key, twopoint_function_type *tp, const char * type
          || strcmp ( tp->name, "duuu-fd-fu" ) == 0 
         ) {
 
-      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+      /* sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
           tp->pf2[0], tp->pf2[1], tp->pf2[2],
           isample,
           gamma_id_to_group[tp->gf2],
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          diagram_name,
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] ); */
+
+      sprintf ( key, "/%s/%s/nsample%d/Gc_%s/tseq%d/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name,
+          isample,
+          gamma_id_to_group[tp->gf2],
+          g_sequential_source_timeslice,
           gamma_id_to_Cg_ascii[tp->gf1[0]],
           gamma_id_to_Cg_ascii[tp->gi1[0]],
           diagram_name,
@@ -172,7 +181,7 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
 
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
-
+#if 0
     sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
         tp->pf2[0], tp->pf2[1], tp->pf2[2],
         /* gamma_id_to_ascii[tp->gf2], */
@@ -180,6 +189,14 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
         gamma_id_to_Cg_ascii[tp->gf1[0]],
         gamma_id_to_Cg_ascii[tp->gi1[0]],
         tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+#endif
+
+    sprintf ( name, "%s.%s.Gc_%s.tseq%d.Gf_%s.Gi_%s", tp_type, tp->name,
+        /* gamma_id_to_ascii[tp->gf2], */
+        gamma_id_to_group[tp->gf2],
+        g_sequential_source_timeslice,
+        gamma_id_to_Cg_ascii[tp->gf1[0]],
+        gamma_id_to_Cg_ascii[tp->gi1[0]] );
   }
 
 }  /* end of make_correlator_string */
@@ -435,9 +452,9 @@ int main(int argc, char **argv) {
 
       char data_filename[500];
             
-      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
-          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
-      /* sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      /* sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
+          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      sprintf ( data_filename, "%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [NJJN_analyse] data_filename   = %s\n", data_filename );
       }
@@ -573,10 +590,10 @@ int main(int argc, char **argv) {
           /***********************************************************
            * add boundary phase
            ***********************************************************/
-          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+          /*if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
             fprintf( stderr, "[NJJN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(103);
-          }
+          }*/
 
           /***********************************************************
            * add source phase
@@ -711,9 +728,9 @@ int main(int argc, char **argv) {
       make_correlator_string ( correlator_name,  tp , NULL );
 
 
-      for ( int iparity = 0; iparity < 2; iparity++ ) {
+      for ( int iparity = 0; iparity < 1; iparity++ ) {
 
-        for ( int ireim = 0; ireim < 1; ireim++ )  /* real part only for now */
+        for ( int ireim = 0; ireim <= 1; ireim++ )  /* real part only for now */
         {
 
           double ** data = init_2level_dtable ( num_conf, tp->T );

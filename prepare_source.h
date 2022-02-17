@@ -34,6 +34,8 @@ int prepare_sequential_fht_loop_source ( double ** const seq_source, double _Com
 
 int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double ** const prop, double * const scalar_field, int const gamma_id, double _Complex * const ephase );
 
+int prepare_sequential_fht_twinpeak_source_crossed ( double ** const seq_source, double ** const prop, double * const scalar_field, int const gamma_id, int const c1, int const c2 );
+
 }  /* end of namespace cvc */
 
 #endif

@@ -67,15 +67,8 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_Ia  1  /* loop calculation */
 #define _PART_IIb 1  /* N1, N2 */
-#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
-
-#ifndef _USE_TIME_DILUTION
-#define _USE_TIME_DILUTION 1
-#endif
-
+#define _PART_IV  1  /* W type sequential diagrams */
 
 using namespace cvc;
 
@@ -120,6 +113,32 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
 }  /* end of reduce_project_write */
 
 
+/***************************************************************************
+ * 
+ ***************************************************************************/
+static inline int project_write ( double ** vx, double *** vp, struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, int const io_proc ) {
+
+  int exitstatus;
+
+  /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
+  exitstatus = contract_vn_momentum_projection ( vp, vx, nd, momentum_list, momentum_number);
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[reduce_project_write] Error from contract_vn_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    return( 2 );
+  }
+
+#if defined HAVE_LHPC_AFF
+  /* write to AFF file */
+  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
+#endif
+  if ( exitstatus != 0 ) {
+    fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
+    return( 3 );
+  }
+
+  return ( 0 );
+
+}  /* end of reduce_project_write */
 
 /***************************************************************************
  * helper message
@@ -140,7 +159,7 @@ void usage() {
  ***************************************************************************/
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "njjn_fht";
+  const char outfile_prefix[] = "njjn_w";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
 
@@ -214,8 +233,6 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
-  int read_loop_field    = 0;
-  int write_loop_field   = 0;
   int read_scalar_field  = 0;
   int write_scalar_field = 0;
 
@@ -228,7 +245,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sSrwch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "sSch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -236,12 +253,6 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
-      break;
-    case 'r':
-      read_loop_field = 1;
-      break;
-    case 'w':
-      write_loop_field = 1;
       break;
     case 's':
       read_scalar_field = 1;
@@ -439,17 +450,6 @@ int main(int argc, char **argv) {
   unsigned int const VOL3 = LX * LY * LZ;
   size_t const sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
 
-  double _Complex ** ephase = NULL;
-  if ( g_seq_source_momentum_number > 0 ) {
-    ephase = init_2level_ztable ( g_seq_source_momentum_number, VOL3 );
-    if ( ephase == NULL ) {
-      fprintf ( stderr, "[njjn_w_invert_contract] Error from init_2level_ztable %s %d\n", __FILE__, __LINE__ );
-      EXIT(12);
-    }
-
-    make_phase_field_timeslice ( ephase, g_seq_source_momentum_number, g_seq_source_momentum_list );
-  }  /* end of if g_seq_source_momentum_number > 0 */
-
   /***************************************************************************
    * init rng state
    ***************************************************************************/
@@ -503,7 +503,7 @@ int main(int argc, char **argv) {
           EXIT(12);
         }
       }
-    }  /* end of if write_loop_field */
+    }  /* end of if write_scalar_field */
 
   } else {
     sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
@@ -866,12 +866,8 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * loop on sequential source momenta
      ***************************************************************************/
-    for ( int imom = 0; imom < g_seq_source_momentum_number; imom++ ) {
 
-      int momentum[3] = {
-          g_seq_source_momentum_list[imom][0],
-          g_seq_source_momentum_list[imom][1],
-          g_seq_source_momentum_list[imom][2] };
+      int momentum[3] = { 0, 0, 0 };
 
       if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [njjn_w_invert_contract] start seq source mom %3d %3d %3d  %s %d\n", 
           momentum[0], momentum[1], momentum[2], __FILE__, __LINE__);
@@ -895,15 +891,17 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * loop on sequential source gamma matrices
            ***************************************************************************/
-          for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ ) 
+          /* for ( int igamma = 0; igamma < sequential_gamma_sets; igamma++ )  */
+          for ( int igamma = 0; igamma < 1; igamma++ ) 
           {
           
-            for ( int ig = 0; ig < sequential_gamma_num[igamma]; ig++ ) {
+            for ( int ig = 0; ig < sequential_gamma_num[igamma]; ig++ )
+            {
                 
               /***************************************************************************
                * allocate for sequential propagator and source
                ***************************************************************************/
-              double *** sequential_propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
+              double ***** sequential_propagator = init_5level_dtable ( 2, 3, 3,  12, _GSI( VOLUME ) );
               if( sequential_propagator == NULL ) {
                 fprintf(stderr, "[njjn_w_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
                 EXIT(123);
@@ -916,7 +914,7 @@ int main(int argc, char **argv) {
               }
 
 
-              for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
+              for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
               {
 
                 /***************************************************************************
@@ -931,67 +929,58 @@ int main(int argc, char **argv) {
                  * abuse memory of sequential_propagator[iflavor] which has not yet been
                  * filled, but will be written after seq source construction
                  ***************************************************************************/
-                double ** const sequential_source_accum = sequential_propagator[iflavor];
-                memset ( sequential_source[0], 0, 12 * sizeof_spinor_field );
 
-                for ( int icoh = 0; icoh < g_coherent_source_number; icoh++)
+                for ( int icol1 = 0; icol1 < 3; icol1++ ) 
                 {
-                  exitstatus =  prepare_sequential_fht_twinpeak_source ( sequential_source_accum, propagator[icoh][iflavor], scalar_field[icoh][isample], sequential_gamma_id[igamma][ig], ephase[imom] ) ;
+                for ( int icol2 = 0; icol2 < 3; icol2++ ) 
+                {
+
+                  double ** sequential_source_accum = init_2level_dtable ( 12, _GSI(VOLUME) );
+                  if ( sequential_source_accum == NULL ) {
+                    fprintf(stderr, "[njjn_w_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+                    EXIT(12);
+                  }
+
+                  memset ( sequential_source[0], 0, 12 * sizeof_spinor_field );
+
+                  for ( int icoh = 0; icoh < g_coherent_source_number; icoh++)
+                  {
+                  
+                    memset ( sequential_source_accum[0], 0, 12 * sizeof_spinor_field );
+
+                    exitstatus = prepare_sequential_fht_twinpeak_source_crossed ( sequential_source_accum, propagator[icoh][iflavor], scalar_field[icoh][isample],
+                        sequential_gamma_id[igamma][ig], icol1, icol2 );
+                    if ( exitstatus != 0 ) {
+                      fprintf ( stderr, "[njjn_w_invert_contract] Error from prepare_sequential_fht_twinpeak_source_crossed, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                      EXIT(123);
+                    }
+
+                    spinor_field_pl_eq_spinor_field ( sequential_source[0], sequential_source_accum[0], 12*VOLUME );
+                  }
+
+                  fini_2level_dtable ( &sequential_source_accum );
+
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "njjn_w_invert_contract", "prepare-sequential-fht-w-source", g_cart_id == 0 );
+
+                  /***************************************************************************
+                   * seq. prop. from seq. source
+                   *
+                   * INCLUDING SINK-SMEARING
+                   ***************************************************************************/
+
+                  gettimeofday ( &ta, (struct timezone *)NULL );
+                  exitstatus = prepare_propagator_from_source ( sequential_propagator[iflavor][icol1][icol2], sequential_source, 12, iflavor, 0, 1, gauge_field_smeared,
+                      check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
                   if ( exitstatus != 0 ) {
-                    fprintf ( stderr, "[njjn_w_invert_contract] Error from prepare_sequential_fht_twinpeak_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    fprintf ( stderr, "[njjn_w_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT(123);
                   }
 
-                  spinor_field_pl_eq_spinor_field ( sequential_source[0], sequential_source_accum[0], 12*VOLUME );
-                }
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "njjn_w_invert_contract", "sequential-source-w-invert-check-smear", g_cart_id == 0 );
 
-                if ( g_write_sequential_source ) {
-                  for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d",
-                        flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                        momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
-
-                    if ( ( exitstatus = write_propagator( sequential_source[i], filename, 0, g_propagator_precision) ) != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(2);
-                    }
-                  }
-                }
-	      
-		gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "njjn_w_invert_contract", "prepare-sequential-fht-w-source", g_cart_id == 0 );
-
-                /***************************************************************************
-                 * seq. prop. from seq. source
-                 *
-                 * INCLUDING SINK-SMEARING
-                 ***************************************************************************/
-
-		gettimeofday ( &ta, (struct timezone *)NULL );
-
-                exitstatus = prepare_propagator_from_source ( sequential_propagator[iflavor], sequential_source, 12, iflavor, 0, 1, gauge_field_smeared,
-                    check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
-                if ( exitstatus != 0 ) {
-                  fprintf ( stderr, "[njjn_w_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                  EXIT(123);
-                }
-
-                if ( g_write_sequential_propagator ) {
-                  for ( int i = 0; i < 12; i++ ) {
-                    sprintf ( filename, "sequential_source_%c.%.4d.t%dx%dy%dz%d.px%dpy%dpz%d.%s.type%d.%d.%.5d.inverted",
-                        flavor_tag[iflavor], Nconf, gsx[0], gsx[1], gsx[2], gsx[3],
-                        momentum[0], momentum[1], momentum[2], gamma_id_to_ascii[sequential_gamma_id[igamma][ig]], 2, i, isample );
-
-                    if ( ( exitstatus = write_propagator( sequential_propagator[iflavor][i], filename, 0, g_propagator_precision) ) != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(2);
-                    }
-                  }
-                }
-	
-		gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "njjn_w_invert_contract", "sequential-source-w-invert-check-smear", g_cart_id == 0 );
-
+                }}  /* end of loop on color components */
               }  /* end of loop on quark propagator flavor */
 
               /***************************************************************************
@@ -1002,7 +991,7 @@ int main(int argc, char **argv) {
               char correlator_tag[20] = "N-qbGqqbGq-N";
 
               for ( int icoh = 0; icoh < g_coherent_source_number; icoh++ ) {
-
+ 
                 /***************************************************************************
                  * coherent source
                  ***************************************************************************/
@@ -1015,14 +1004,19 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  *  W for  uu uu type insertion
                  ***************************************************************************/
-                for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
-
-	          gettimeofday ( &ta, (struct timezone *)NULL );
+                for ( int iflavor = 0; iflavor < 1; iflavor++ ) {
+ 
+                  gettimeofday ( &ta, (struct timezone *)NULL );
 
                   /***************************************************************************
                    * vx holds the x-dependent nucleon-nucleon spin propagator,
                    * i.e. a 4x4 complex matrix per space time point
                    ***************************************************************************/
+                  double ** vx_aux = init_2level_dtable ( VOLUME, 32 );
+                  if ( vx_aux == NULL ) {
+                    fprintf(stderr, "[njjn_w_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+                    EXIT(47);
+                  }
                   double ** vx = init_2level_dtable ( VOLUME, 32 );
                   if ( vx == NULL ) {
                     fprintf(stderr, "[njjn_w_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
@@ -1049,19 +1043,14 @@ int main(int argc, char **argv) {
                       isample, 
                       gamma_id_to_ascii[ sequential_gamma_id[igamma][ig] ]);
 
-                  /***************************************************************************
-                   * fp = fwd dn
-                   ***************************************************************************/
-                  assign_fermion_propagator_from_spinor_field ( fp, propagator_snk_smeared[icoh][1-iflavor], VOLUME);
-
-                  /***************************************************************************
-                   * fp2 = seq up-after-up
-                   ***************************************************************************/
-                  assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator[iflavor], VOLUME);
-
                   for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
                   for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
 
+                    /***************************************************************************
+                     * fp = fwd dn
+                     ***************************************************************************/
+                    assign_fermion_propagator_from_spinor_field ( fp, propagator_snk_smeared[icoh][1-iflavor], VOLUME);
+        
                     /***************************************************************************
                      * calculate fp3 <- Gamma[if2] x fwd dn x Gamma[if1]
                      ***************************************************************************/
@@ -1070,172 +1059,107 @@ int main(int argc, char **argv) {
                     fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
     
                     fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
-    
+                    
                     /***************************************************************************
                      * diagram t1
                      ***************************************************************************/
+                    memset ( vx[0], 0, 32*VOLUME *sizeof(double) );
+
+                    for ( int icol1 = 0; icol1 < 3; icol1++ ) 
+                    {
+                    for ( int icol2 = 0; icol2 < 3; icol2++ ) 
+                    {
+ 
+                      /***************************************************************************
+                       * fp2 = seq up-after-up icol1, icol2
+                       ***************************************************************************/
+                      assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator[iflavor][icol1][icol2], VOLUME);
+
+                      /***************************************************************************
+                       * fp = seq up-after-up icol2, icol1
+                       ***************************************************************************/
+                      assign_fermion_propagator_from_spinor_field ( fp,  sequential_propagator[iflavor][icol2][icol1], VOLUME);
+
+                      /* contraction */
+                      exitstatus = contract_v5 ( vx_aux, fp2, fp3, fp, VOLUME );
+                      if ( exitstatus != 0 ) {
+                        fprintf(stderr, "[njjn_w_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                        EXIT( 1 );
+                      }
+
+#pragma omp parallel for
+                      for ( size_t ix = 0; ix < 32*VOLUME; ix++ )
+                      {
+                        vx[0][ix] += vx_aux[0][ix];
+                      }
+
+                    }}
+
                     sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
-    
-                    exitstatus = reduce_project_write ( vx, vp, fp2, fp3, fp2, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+
+                    exitstatus = project_write ( vx, vp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                     if ( exitstatus != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      fprintf(stderr, "[njjn_w_invert_contract] Error from project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(48);
                     }
-    
+ 
                     /***************************************************************************
                      * diagram t2
                      ***************************************************************************/
-                    sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
-    
-                    exitstatus = reduce_project_write ( vx, vp, fp2, fp3, fp2, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
-                    if ( exitstatus != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(48);
-                    }
-    
-                  }} // end of loop on Dirac gamma structures
+                    memset ( vx[0], 0, 32*VOLUME *sizeof(double) );
 
-                  fini_2level_dtable ( &vx );
-                  fini_3level_dtable ( &vp );
-	
-	          gettimeofday ( &tb, (struct timezone *)NULL );
-                  show_time ( &ta, &tb, "njjn_w_invert_contract", "w-uuuu-diagram-reduce-project-write", g_cart_id == 0 );
+                    for ( int icol1 = 0; icol1 < 3; icol1++ )
+                    {
+                    for ( int icol2 = 0; icol2 < 3; icol2++ )
+                    {
+                      /***************************************************************************
+                       * fp2 = seq up-after-up icol1, icol2
+                       ***************************************************************************/
+                      assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator[iflavor][icol1][icol2], VOLUME);
 
-                }  /* end of loop on flavor */
+                      /***************************************************************************
+                       * fp = seq up-after-up icol2, icol1
+                       ***************************************************************************/
+                      assign_fermion_propagator_from_spinor_field ( fp,  sequential_propagator[iflavor][icol2][icol1], VOLUME);
 
-                /***************************************************************************
-                 *  W for  uu dd type insertion
-                 *  4 diagrams
-                 ***************************************************************************/
+                      /* contraction */
+                      exitstatus = contract_v6 ( vx_aux, fp2, fp3, fp, VOLUME );
+                      if ( exitstatus != 0 ) {
+                        fprintf(stderr, "[njjn_w_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                        EXIT( 1 );
+                      }
 
-                for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+#pragma omp parallel for
+                      for ( size_t ix = 0; ix < 32*VOLUME; ix++ )
+                      {
+                        vx[0][ix] += vx_aux[0][ix];
+                      }
 
-                  gettimeofday ( &ta, (struct timezone *)NULL );
+                    }}
 
-                  /***************************************************************************
-                   * vx holds the x-dependent nucleon-nucleon spin propagator,
-                   * i.e. a 4x4 complex matrix per space time point
-                   ***************************************************************************/
-                  double ** vx = init_2level_dtable ( VOLUME, 32 );
-                  if ( vx == NULL ) {
-                    fprintf(stderr, "[njjn_w_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
-                    EXIT(47);
-                  }
-
-                  /***************************************************************************
-                   * vp holds the nucleon-nucleon spin propagator in momentum space,
-                   * i.e. the momentum projected vx
-                   ***************************************************************************/
-                  double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
-                  if ( vp == NULL ) {
-                    fprintf(stderr, "[njjn_w_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
-                    EXIT(47);
-                  }
-
-                  char aff_tag_prefix[200], aff_tag_prefix2[200];
-
-                  sprintf ( aff_tag_prefix, "/%s/w%c%c-w%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
-                      correlator_tag, 
-                      flavor_tag[iflavor], flavor_tag[iflavor], 
-                      flavor_tag[1-iflavor], flavor_tag[1-iflavor],
-                      flavor_tag[iflavor],
-                      csx[0], csx[1], csx[2], csx[3], 
-                      momentum[0], momentum[1], momentum[2],
-                      isample, 
-                      gamma_id_to_ascii[ sequential_gamma_id[igamma][ig] ]);
-
-                  sprintf ( aff_tag_prefix2, "/%s/f%c-w%c%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
-                      correlator_tag, 
-                      flavor_tag[iflavor],
-                      flavor_tag[1-iflavor], flavor_tag[1-iflavor],
-                      flavor_tag[iflavor], flavor_tag[iflavor], 
-                      csx[0], csx[1], csx[2], csx[3], 
-                      momentum[0], momentum[1], momentum[2],
-                      isample, 
-                      gamma_id_to_ascii[ sequential_gamma_id[igamma][ig] ]);
-
-                  /***************************************************************************
-                   * fp = fwd up
-                   ***************************************************************************/
-                  assign_fermion_propagator_from_spinor_field ( fp, propagator_snk_smeared[icoh][iflavor], VOLUME);
-
-                  /***************************************************************************
-                   * fp2 = seq up-after-up
-                   ***************************************************************************/
-                  assign_fermion_propagator_from_spinor_field ( fp2, sequential_propagator[iflavor], VOLUME);
-
-                  for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
-                  for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
-
-                    /***************************************************************************
-                     * calculate fp3 <- Gamma[if2] x seq dn-after-dn x Gamma[if1]
-                     ***************************************************************************/
-                    assign_fermion_propagator_from_spinor_field ( fp3, sequential_propagator[1-iflavor], VOLUME);
-
-                    fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp3, VOLUME );
-    
-                    fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
-    
-                    fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
-    
-                    /***************************************************************************
-                     * diagram t1
-                     ***************************************************************************/
-                    sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
-    
-                    exitstatus = reduce_project_write ( vx, vp, fp2, fp3, fp, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
-                    if ( exitstatus != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(48);
-                    }
-    
-                    /***************************************************************************
-                     * diagram t2
-                     ***************************************************************************/
                     sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
      
-                    exitstatus = reduce_project_write ( vx, vp, fp2, fp3, fp, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
-                    if ( exitstatus != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(48);
-                    }
-
-                    /***************************************************************************
-                     * diagram t1
-                     ***************************************************************************/
-                    sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
-    
-                    exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+                    exitstatus = project_write ( vx, vp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                     if ( exitstatus != 0 ) {
                       fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(48);
                     }
     
-                    /***************************************************************************
-                     * diagram t2
-                     ***************************************************************************/
-                    sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
-    
-                    exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
-                    if ( exitstatus != 0 ) {
-                      fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-                      EXIT(48);
-                    }
-
                   }} // end of loop on Dirac gamma structures
 
+                  fini_2level_dtable ( &vx_aux );
                   fini_2level_dtable ( &vx );
                   fini_3level_dtable ( &vp );
 	
-	          gettimeofday ( &tb, (struct timezone *)NULL );
-                  show_time ( &ta, &tb, "njjn_w_invert_contract", "w-uudd-diagram-reduce-project-write", g_cart_id == 0 );
+                  gettimeofday ( &tb, (struct timezone *)NULL );
+                  show_time ( &ta, &tb, "njjn_w_invert_contract", "w-uuuu-diagram-reduce-project-write", g_cart_id == 0 );
 
                 }  /* end of loop on flavor */
 
               }  /* end of loop on coherent sources */
           
               fini_2level_dtable ( &sequential_source );
-              fini_3level_dtable ( &sequential_propagator );
+              fini_5level_dtable ( &sequential_propagator );
 
             }  /* end of loop on gamma id inside gamma set */
           }  /* end of loop on gamma set */
@@ -1243,7 +1167,6 @@ int main(int argc, char **argv) {
       }  /* end of loop oet samples  */
 
 #endif  /* of _PART_IV  */
-    }  /* loop on sequential source momenta */
 
     /***************************************************************************/
     /***************************************************************************/
@@ -1282,9 +1205,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * free the allocated memory, finalize
   ***************************************************************************/
-  fini_2level_ztable ( &ephase );
 
-  if ( loop         != NULL ) fini_3level_ztable ( &loop );
   if ( scalar_field != NULL ) fini_3level_dtable ( &scalar_field );
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
