@@ -1391,17 +1391,16 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
   memset ( seq_source[0], 0, 12*_GSI(VOLUME)*sizeof(double) );
 
   for ( int isc = 0; isc < 12; isc++ ) {
-//#ifdef HAVE_OPENMP
-//#pragma omp parallel
-//{
-//#endif
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
   double spinor1[24];
 
-//#ifdef HAVE_OPENMP
-//#pragma omp for
-//#endif
-//    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) 
-    unsigned int const ix = g_ipt[T/2][LX/2][LY/2][LZ/2];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) 
     {
       unsigned int const iix = _GSI( ix );
       double * const _p = prop[isc]       + iix;
@@ -1413,9 +1412,9 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
       _fv_eq_fv_ti_d2 ( _s, spinor1, (double*)(ephase + (ix % VOL3)) );
 
     }
-//#ifdef HAVE_OPENMP
-//}  /* end of parallel region */
-//#endif
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
   }
 
   return (0);
@@ -1435,17 +1434,16 @@ int prepare_sequential_fht_twinpeak_source_crossed ( double ** const seq_source,
   memset ( seq_source[0], 0, 12*_GSI(VOLUME)*sizeof(double) );
 
   for ( int isc = 0; isc < 12; isc++ ) {
-//#ifdef HAVE_OPENMP
-//#pragma omp parallel
-//{
-//#endif
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
   double spinor1[24];
 
-//#ifdef HAVE_OPENMP
-//#pragma omp for
-//#endif
-    /*for ( unsigned int ix = 0; ix < VOLUME; ix++ )  */
-  unsigned int const ix = g_ipt[T/2][LX/2][LY/2][LZ/2];
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
     {
       unsigned int const iix = _GSI( ix );
       double * const _p = prop[isc]       + iix;
@@ -1459,9 +1457,9 @@ int prepare_sequential_fht_twinpeak_source_crossed ( double ** const seq_source,
         _s[ 2*(3*mu+c1)+1] = spinor1[2*(3*mu+c2)+1];
       }
     }
-//#ifdef HAVE_OPENMP
-//}  /* end of parallel region */
-//#endif
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
   }
 
   return (0);
