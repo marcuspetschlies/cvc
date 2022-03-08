@@ -16,8 +16,8 @@
 
 #ifdef HAVE_LIBLEMON
 #  ifndef LEMON_OFFSET_TYPE
-/* #    define LEMON_OFFSET_TYPE MPI_Offset */
-#    define LEMON_OFFSET_TYPE uint64_t
+#    define LEMON_OFFSET_TYPE MPI_Offset
+/* #    define LEMON_OFFSET_TYPE uint64_t */
 #  endif
 #endif
 
@@ -250,7 +250,7 @@ EXTERN double g_csw, *g_clover_term;
 #ifdef HAVE_TMLQCD_LIBWRAPPER
 EXTERN tmLQCD_mpi_params g_tmLQCD_mpi;
 EXTERN tmLQCD_lat_params g_tmLQCD_lat;
-EXTERN tmLQCD_deflator_params g_tmLQCD_defl;
+/* EXTERN tmLQCD_deflator_params g_tmLQCD_defl; */
 #endif
 
 EXTERN twopoint_function_type g_twopoint_function_list[MAX_TWOPOINT_FUNCTION_NUM];
