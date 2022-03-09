@@ -67,10 +67,10 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_Ia  1  /* loop calculation */
-#define _PART_IIb 0  /* N1, N2 */
+#define _PART_Ia  0  /* loop calculation */
+#define _PART_IIb 1  /* N1, N2 */
 #define _PART_III 0  /* B/Z and D1c/i sequential diagrams */
-#define _PART_IV  0  /* W type sequential diagrams */
+#define _PART_IV  1  /* W type sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
@@ -780,7 +780,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[njjn_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(12);
   }
+  fini_2level_dtable ( &spinor_work );
 #endif  /* of if _SMEAR_QUDA */
+
+
 
 
   /***********************************************
@@ -804,8 +807,23 @@ int main(int argc, char **argv) {
       }
 #ifndef _SMEAR_QUDA 
     }  /* end of if N_ape > 0 */
+
+    /***********************************************
+     * check plaquette value after APE smearing
+     *
+     * ONLY IF NOT SMEARING ON DEVICE
+     * in case of smearing on device, there is
+     * not any non-NULL smeared gauge field 
+     * pointer on host
+     ***********************************************/
+    exitstatus = plaquetteria( gauge_field_smeared );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
 #endif
   }  /* end of if N_Jacobi > 0 */
+
 
 
   /***************************************************************************
@@ -984,6 +1002,8 @@ int main(int argc, char **argv) {
 
       }  /* end of loop on flavor */
 
+
+
       /***************************************************************************
        ***************************************************************************
        **
@@ -1095,6 +1115,7 @@ int main(int argc, char **argv) {
 #endif  /* end of if _PART_IIb  */
 
     }  /* end of loop on coherent sources */
+
 
     /***************************************************************************
      *
@@ -1909,6 +1930,7 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
   ***************************************************************************/
   fini_2level_ztable ( &ephase );
+
 
   if ( loop         != NULL ) fini_3level_ztable ( &loop );
   if ( scalar_field != NULL ) fini_3level_dtable ( &scalar_field );
