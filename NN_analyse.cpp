@@ -424,10 +424,10 @@ int main(int argc, char **argv) {
       }
 
       /***************************************************************************
-       * NOTE: WE ASSUME ALL 2pt FUNCTION NAMES TO BE SAME
+       *
        ***************************************************************************/
       /* /N-N/T24_X0_Y19_Z30/... */
-      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d", g_twopoint_function_list[0].type, g_twopoint_function_list[0].name, gsx[0], gsx[1], gsx[2], gsx[3] );
+      sprintf ( key, "/%s", g_twopoint_function_list[0].type );
       if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for path1 = %s %s %d\n", key, __FILE__, __LINE__ );
 
       affpath1 = aff_reader_chpath ( affr, affn, key );
@@ -454,7 +454,9 @@ int main(int argc, char **argv) {
         twopoint_function_print ( tp, "tp", stdout );
 
         /* .../Gi_Cg5/Gf_Cg5/... */
-        sprintf ( key, "Gi_%s/Gf_%s", gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_Cg_ascii[tp->gf1[0]] );
+        sprintf ( key, "%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%s", 
+            tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+            gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_Cg_ascii[tp->gf1[0]] );
         if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for path2 = %s %s %d\n", key, __FILE__, __LINE__ );
 
         affpath2 = aff_reader_chpath ( affr, affpath1, key );
@@ -662,7 +664,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * fwd, bwd average
    ***************************************************************************/
-  if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
+
+if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
   for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
     if ( g_twopoint_function_list[i_2pt].T != T_global ) continue;
     for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
@@ -698,8 +701,6 @@ int main(int argc, char **argv) {
     }  /* end of loop on sink momenta */
   }  /* end of loop on 2pts */
 
-
-
   /***************************************************************************
    ***************************************************************************
    **
@@ -713,10 +714,11 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
 
-    if ( num_conf < 6 ) {
+    /*if ( num_conf < 6 ) {
       fprintf ( stderr, "[NN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
       continue;
     }
+    */
 
     twopoint_function_type * const tp = &(g_twopoint_function_list[i_2pt]);
 
@@ -741,10 +743,10 @@ int main(int argc, char **argv) {
       for ( int ireim = 0; ireim < 2; ireim++ )
       {
 
-        if ( num_conf < 6 ) {
+        /* if ( num_conf < 6 ) {
           fprintf ( stderr, "[NN_analyse] Warning, num_conf too small; continue %s %d\n", __FILE__, __LINE__ );
           continue;
-        }
+        } */
 
         double ** data = init_2level_dtable ( num_conf, tp->T );
         if ( data == NULL ) {
@@ -790,30 +792,33 @@ int main(int argc, char **argv) {
           } 
         }  /* end of loop on configs */
         fclose ( ofs );
+ 
+        if (  num_conf >= 6 ) {
+
+          exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
+          if ( exitstatus != 0  ) {
+            fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(16);
+          }
+
+          /***********************************************************
+           * effective mass analysis
+           * only for real part
+           ***********************************************************/
+          if ( ireim == 0 ) {
+            for ( int itau = 1; itau < tp->T/2; itau++ ) {
+  
+              char obs_name2[500];
+              sprintf ( obs_name2,  "%s.log_ratio.tau%d", obs_name, itau );
+  
+              int arg_first[2]  = {0, itau};
+              int arg_stride[2] = {1,1};
       
-        exitstatus = apply_uwerr_real ( data[0], num_conf, tp->T, 0, 1, obs_name );
-        if ( exitstatus != 0  ) {
-          fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(16);
-        }
-
-        /***********************************************************
-         * effective mass analysis
-         * only for real part
-         ***********************************************************/
-        if ( ireim == 0 ) {
-          for ( int itau = 1; itau < tp->T/2; itau++ ) {
-
-            char obs_name2[500];
-            sprintf ( obs_name2,  "%s.log_ratio.tau%d", obs_name, itau );
-
-            int arg_first[2]  = {0, itau};
-            int arg_stride[2] = {1,1};
-      
-            exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
-            if ( exitstatus != 0  ) {
-              fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-              EXIT(16);
+              exitstatus = apply_uwerr_func ( data[0], num_conf, tp->T, tp->T/2-itau, 2, arg_first, arg_stride, obs_name2, log_ratio_1_1, dlog_ratio_1_1 );
+              if ( exitstatus != 0  ) {
+                fprintf ( stderr, "[NN_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                EXIT(16);
+              }
             }
           }
         }
