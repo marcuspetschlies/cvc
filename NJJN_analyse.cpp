@@ -656,6 +656,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * fwd, bwd average
    ***************************************************************************/
+#if 0
   for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
     twopoint_function_type * tp = &( g_twopoint_function_list[i_2pt] );
 
@@ -681,7 +682,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-
+#endif
   /***************************************************************************
    * UWerr analysis
    *
@@ -691,9 +692,9 @@ int main(int argc, char **argv) {
     
     twopoint_function_type * tp = &( g_twopoint_function_list[i_2pt] );
 
-    for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+    /* for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) { */
 
-      int pf[3] = {
+      /* int pf[3] = {
           g_sink_momentum_list[ipf][0],
           g_sink_momentum_list[ipf][1],
           g_sink_momentum_list[ipf][2]
@@ -706,6 +707,15 @@ int main(int argc, char **argv) {
       tp->pi1[0] = -pf[0];
       tp->pi1[1] = -pf[1];
       tp->pi1[2] = -pf[2];
+      */
+
+      tp->pf1[0] =  g_sink_momentum_list[0][0];
+      tp->pf1[1] =  g_sink_momentum_list[0][1];
+      tp->pf1[2] =  g_sink_momentum_list[0][2];
+
+      tp->pi1[0] = -g_sink_momentum_list[0][0];
+      tp->pi1[1] = -g_sink_momentum_list[0][1];
+      tp->pi1[2] = -g_sink_momentum_list[0][2];
 
       char correlator_name[400];
       make_correlator_string ( correlator_name,  tp , NULL );
@@ -729,12 +739,14 @@ int main(int argc, char **argv) {
             for ( int it = 0; it < tp->T; it++ ) {
 
               data[iconf][it] = 0.;
-
-              for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
-                data[iconf][it] += *(((double*)( corr[i_2pt][ipf][iparity][iconf][isrc]+it )) + ireim );
+              for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) 
+              {
+                for( int isrc = 0; isrc < num_src_per_conf; isrc++) 
+                {
+                  data[iconf][it] += *(((double*)( corr[i_2pt][ipf][iparity][iconf][isrc]+it )) + ireim );
+                }
               }
-
-              data[iconf][it] /= (double)num_src_per_conf;
+              data[iconf][it] /= (double)num_src_per_conf * (double)g_sink_momentum_number;
             }
           }
 
@@ -772,7 +784,7 @@ int main(int argc, char **argv) {
         }  /* end of loop on reim */
       }  /* end of loop on parity */
 
-    }
+    /* } */
 
   }  /* end of loop on 2-point functions */
 
