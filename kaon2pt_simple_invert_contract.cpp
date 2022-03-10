@@ -86,8 +86,8 @@ int main(int argc, char **argv) {
   double **smzz[2] = { NULL, NULL }, **smzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL, *gauge_field_smeared = NULL;
   char output_filename[400];
-  int spin_dilution = 4;
-  int color_dilution = 1;
+  int const spin_dilution  = 1;
+  int const color_dilution = 1;
   double g_mus =0.;
 
   char data_tag[400];
@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
 
   /***************************************************************************/
 
-  double * stochastic_source_list = init_1level_dtable ( nelem );
+  double ** stochastic_source_list = init_2level_dtable ( g_nsample_oet, _GSI( VOL3 ) );
   if ( stochastic_source_list == NULL ) {
     fprintf(stderr, "[kaon2pt_simple_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
     EXIT(48);
@@ -378,15 +378,6 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * loop on source timeslices
    ***************************************************************************/
-  exitstatus = prepare_volume_source ( stochastic_source_list, VOLUME );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[kaon2pt_simple_invert_contract] Error from prepare_volume_source %s %d\n", __FILE__, __LINE__ );;
-    EXIT( 50 );
-  }
-
-  /***************************************************************************
-   * loop on source timeslices
-   ***************************************************************************/
   int * source_timeslices = init_1level_itable ( g_nsample_oet );
 
   if ( g_cart_id == 0 ) {
@@ -403,10 +394,12 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * distribute
    ***************************************************************************/
+#ifdef HAVE_MPI
   if (  MPI_Bcast( source_timeslices, g_nsample_oet, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) {
     fprintf ( stderr, "[kaon2pt_simple_invert_contract] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
     EXIT(12);
   }
+#endif
 
   /***************************************************************************
    * zero momentum propagators
@@ -425,14 +418,34 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
+     * loop on source timeslices
+     ***************************************************************************/
+    if ( source_proc_id == g_cart_id ) {
+      exitstatus = prepare_volume_source ( stochastic_source_list[isample], VOL3 );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[kaon2pt_simple_invert_contract] Error from prepare_volume_source %s %d\n", __FILE__, __LINE__ );;
+        EXIT( 50 );
+      }
+    }
+
+    /***************************************************************************
      * 
      ***************************************************************************/
 
     if ( source_proc_id == g_cart_id ) {
       size_t offset = _GSI( source_timeslice * VOL3 );
 
-      memcpy ( spinor_work[0] + offset, stochastic_source_list + offset, sizeof_spinor_field_timeslice );
+      memcpy ( spinor_work[0] + offset, stochastic_source_list[isample] , sizeof_spinor_field_timeslice );
     }
+
+    if ( g_write_source ) {
+      sprintf(filename, "%s.c%d.t%d.s%d", filename_prefix, Nconf, gts, g_sourceid + isample * g_sourceid_step );
+      if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
+        fprintf(stderr, "[kaon2pt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(2);
+      }
+    }
+
 
     if ( N_Jacobi > 0 ) {
       /***************************************************************************
@@ -513,7 +526,8 @@ int main(int argc, char **argv) {
      * 
      ***************************************************************************/
 
-    for ( int imom = 0; imom < g_source_momentum_number; imom++ ) {
+    for ( int imom = 0; imom < g_source_momentum_number; imom++ ) 
+    {
 
       double const p[3] =  {
         2. * M_PI * (double)g_source_momentum_list[imom][0] / (double)LX_global ,
@@ -528,26 +542,34 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * prepare the source
        ***************************************************************************/
+
+      memset ( spinor_work[0], 0, sizeof_spinor_field );
+
       if ( source_proc_id == g_cart_id ) 
       {
-        size_t offset = _GSI( source_timeslice * VOL3 );
+        size_t const offset = _GSI( source_timeslice * VOL3 );
 
-        memcpy ( spinor_work[0] + offset, stochastic_source_list + offset, sizeof_spinor_field_timeslice );
+        memcpy ( spinor_work[0] + offset, stochastic_source_list[isample], sizeof_spinor_field_timeslice );
  
+        double const phase_offset = g_proc_coords[1] * LX * p[0] + g_proc_coords[2] * LY * p[1] + g_proc_coords[3] * LZ * p[2];
+          
         /***************************************************************************
          * multiply momentum phase
          ***************************************************************************/
 #pragma omp parallel for
         for ( unsigned int ix = 0; ix < VOL3; ix++ ) {
 
-          int const x[3] = { g_lexic2coords[ix][1],
-                             g_lexic2coords[ix][2],
-                             g_lexic2coords[ix][3] };
+          unsigned int const iy = source_timeslice * VOL3 + ix;
 
-          double const phase = ( x[0] * p[0] + x[1] * p[1] + x[2] * p[2] );
-          double const _b[2] = { cos(phase), sin( -phase ) };
+          int const x[3] = { g_lexic2coords[iy][1],
+                             g_lexic2coords[iy][2],
+                             g_lexic2coords[iy][3] };
 
-          double * const _s = spinor_work[0] + _GSI ( source_timeslice * VOL3 + ix );
+          double const phase = phase_offset + ( x[0] * p[0] + x[1] * p[1] + x[2] * p[2] );
+
+          double const _b[2] = { cos ( phase ), sin ( phase ) };
+
+          double * const _s = spinor_work[0] + _GSI ( iy );
 
 
           for ( int k = 0; k < 12; k++ ) 
@@ -574,6 +596,8 @@ int main(int argc, char **argv) {
           EXIT(11);
         }
       }
+
+      memset ( spinor_work[1], 0, sizeof_spinor_field );
 
       exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], 0 );
       if(exitstatus < 0) {
@@ -628,14 +652,15 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
     
+
       /***************************************************************************
        *
        ***************************************************************************/
       contract_twopoint_xdep ( contr_x, source_gamma, sink_gamma, 
-          stochastic_propagator_zero_smeared_list[isample], 
-          stochastic_propagator_mom_smeared_list[1],
+          &(stochastic_propagator_zero_smeared_list[isample]), 
+          &(stochastic_propagator_mom_smeared_list[1]),
           spin_dilution, color_dilution, 1, 1., 64 );
-    
+
       /* momentum projection at sink */
       exitstatus = momentum_projection ( contr_x, contr_p, T, 1, &sink_momentum );
       if(exitstatus != 0) {
@@ -666,8 +691,8 @@ int main(int argc, char **argv) {
       memset ( contr_p , 0, 2 * T * sizeof (double ) );
 
       contract_twopoint_xdep ( contr_x, source_gamma, sink_gamma,
-        stochastic_propagator_mom_smeared_list[0],
-        stochastic_propagator_mom_smeared_list[1],
+        &(stochastic_propagator_mom_smeared_list[0]),
+        &(stochastic_propagator_mom_smeared_list[1]),
         spin_dilution, color_dilution, 1, 1., 64 );
 
       /* momentum projection at sink */
@@ -723,7 +748,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   fini_2level_dtable ( &stochastic_propagator_mom_smeared_list );
   fini_2level_dtable ( &stochastic_propagator_zero_smeared_list );
-  fini_1level_dtable ( &stochastic_source_list );
+  fini_2level_dtable ( &stochastic_source_list );
   fini_2level_dtable ( &spinor_work );
 
   /***************************************************************************
