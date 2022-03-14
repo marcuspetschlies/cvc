@@ -914,7 +914,7 @@ int main(int argc, char **argv) {
               }
 
 
-              for ( int iflavor = 0; iflavor < 1; iflavor++ ) 
+              for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
               {
 
                 /***************************************************************************
