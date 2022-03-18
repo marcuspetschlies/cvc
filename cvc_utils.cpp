@@ -599,6 +599,9 @@ void plaquette2(double *pl, double*gfield) {
   double s[18], t[18], u[18], pl_loc;
   complex w;
 
+#ifdef HAVE_MPI
+  xchange_gauge_field ( gfield );
+#endif
   pl_loc=0;
 
   for(ix=0; ix<VOLUME; ix++) {

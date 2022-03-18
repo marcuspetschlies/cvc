@@ -201,6 +201,20 @@ int main(int argc, char **argv) {
   sprintf( output_filename, "%s.%d.h5", g_outfile_prefix, Nconf );
 #endif
 
+  int gsx[4] =  {
+   g_source_coords_list[0][0],
+   g_source_coords_list[0][1],
+   g_source_coords_list[0][2],
+   g_source_coords_list[0][3] };
+
+  int sx[4], source_proc_id = -1;
+
+  exitstatus = get_point_source_info ( gsx, sx, &source_proc_id);
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[stout_smearing_radius] Error from get_point_source_info status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(123);
+  }
+
   /***************************************************************************
    * set a source at link x=0, mu=0
    ***************************************************************************/
@@ -211,12 +225,18 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
 
-  if ( g_cart_id == 0 ) {
+  exitstatus = init_rng_stat_file ( g_seed, NULL );
+  if ( exitstatus != 0 ) {
+    fprintf ( stderr, "[stout_smearing_radius] Error from init_rng_stat_file status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(123);
+  }
+
+  if ( source_proc_id == g_cart_id ) {
     random_gauge_point ( gauge_point, heat);
-    _cm_eq_cm ( g_gauge_field+_GGI(0,0), gauge_point[0] );
-/*    _cm_eq_cm ( g_gauge_field+_GGI(0,1), gauge_point[1] );
-    _cm_eq_cm ( g_gauge_field+_GGI(0,2), gauge_point[2] );
-    _cm_eq_cm ( g_gauge_field+_GGI(0,3), gauge_point[3] );
+    _cm_eq_cm ( g_gauge_field+_GGI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]],0), gauge_point[0] );
+    /* _cm_eq_cm ( g_gauge_field+_GGI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]],1), gauge_point[1] );
+    _cm_eq_cm ( g_gauge_field+_GGI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]],2), gauge_point[2] );
+    _cm_eq_cm ( g_gauge_field+_GGI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]],3), gauge_point[3] ); 
     */
   }
   fini_2level_dtable ( &gauge_point );
@@ -349,39 +369,38 @@ int main(int argc, char **argv) {
      * rms radius
      ***********************************************************/
 
-    /* sprintf ( filename, "ggdens.c%d.s%d", Nconf, stout_level_iter[istout] );
+    sprintf ( filename, "ggdens.p%d.c%d.s%d", g_cart_id, Nconf, stout_level_iter[istout] );
     FILE * ofs = fopen ( filename, "w" );
-    */
+    
 
 
     double pl[2] = { 0.,  0. };
     for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
       int x[4] = { 
-        g_lexic2coords[ix][0] + g_proc_coords[0] * T,
-        g_lexic2coords[ix][1] + g_proc_coords[1] * LX,
-        g_lexic2coords[ix][2] + g_proc_coords[2] * LY,
-        g_lexic2coords[ix][3] + g_proc_coords[3] * LZ };
+        g_lexic2coords[ix][0] + g_proc_coords[0] *  T - gsx[0],
+        g_lexic2coords[ix][1] + g_proc_coords[1] * LX - gsx[1],
+        g_lexic2coords[ix][2] + g_proc_coords[2] * LY - gsx[2],
+        g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsx[3]};
 
       int y[4] = { 
-        x[0] <= T_global/2  ? x[0] : x[0] - T_global,
-        x[1] <= LX_global/2 ? x[1] : x[1] - LX_global,
-        x[2] <= LY_global/2 ? x[2] : x[2] - LY_global,
-        x[3] <= LZ_global/2 ? x[3] : x[3] - LZ_global };
+        ( x[0] >  T_global/2 ) ? ( x[0] -  T_global ) : ( ( x[0] <  -T_global/2 ) ? ( x[0] +  T_global ) : x[0] ),
+        ( x[1] > LX_global/2 ) ? ( x[1] - LX_global ) : ( ( x[1] < -LX_global/2 ) ? ( x[1] + LX_global ) : x[1] ),
+        ( x[2] > LY_global/2 ) ? ( x[2] - LY_global ) : ( ( x[2] < -LY_global/2 ) ? ( x[2] + LY_global ) : x[2] ),
+        ( x[3] > LZ_global/2 ) ? ( x[3] - LZ_global ) : ( ( x[3] < -LZ_global/2 ) ? ( x[3] + LZ_global ) : x[3] ) };
+
 
       pl[0] += ( y[0] * y[0] + y[1] * y[1] + y[2] * y[2] + y[3] * y[3] ) * op[ix];
 
       pl[1] += op[ix];
 
-      /* fprintf ( ofs, "%3d %3d %3d %3d    %3d %3d %3d %3d   %16.7e\n", 
+      fprintf ( ofs, "%3d %3d %3d %3d    %3d %3d %3d %3d   %16.7e\n", 
           x[0], x[1], x[2], x[3],
           y[0], y[1], y[2], y[3],
           op[ix] );
-          */
-
 
     }
     
-    /* fclose ( ofs ); */
+    fclose ( ofs );
 
 #ifdef HAVE_MPI
     double buffer[2] = { pl[0], pl[1] };
@@ -411,7 +430,6 @@ int main(int argc, char **argv) {
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
       exitstatus = write_aff_contraction ( &(pl[1]), affw, NULL, data_tag, 1, "double" );
 #elif ( defined HAVE_HDF5 )
-      int const dims = 1;
       exitstatus = write_h5_contraction ( &(pl[1]), NULL, output_filename, data_tag, "double", 1, &dims );
 #else
       exitstatus = 1;

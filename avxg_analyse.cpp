@@ -45,10 +45,11 @@
 #endif
 
 #define _TWOP_SCATT  0
-#define _TWOP_CYD_H5 1
+#define _TWOP_CYD_H5 0
 #define _TWOP_CYD    0
 #define _TWOP_AFF    0
 #define _TWOP_H5     0
+#define _TWOP_AVGX_H5 1
 
 #define _TWOP_STATS  1
 
@@ -148,6 +149,8 @@ int main(int argc, char **argv) {
 
 #if _TWOP_CYD_H5
   const char flavor_tag[2][3] = { "uu", "dd" };
+#elif _TWOP_AVGX_H5
+  char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
 #else
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 #endif
@@ -184,6 +187,9 @@ int main(int argc, char **argv) {
   double twop_weight[2]   = {0., 0.};
   double fbwd_weight[2]   = {0., 0.};
   double mirror_weight[2] = {0., 0.};
+
+  double g_mus = 0.0186;
+
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -926,6 +932,174 @@ int main(int argc, char **argv) {
   }  /* end of loop on configs */
           
 #endif  /* end of _TWOP_H5 */
+
+
+  /***********************************************************/
+  /***********************************************************/
+
+/**********************************************************/
+#if _TWOP_AVGX_H5
+/**********************************************************/
+  gettimeofday ( &ta, (struct timezone *)NULL );
+
+  /***********************************************************
+   * loop on configs
+   ***********************************************************/
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+
+    double *** buffer = init_3level_dtable ( 2, T_global, 2 );
+
+    /***********************************************************
+     * loop on sources
+     ***********************************************************/
+    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+      /***********************************************************
+       * open AFF reader
+       ***********************************************************/
+      char data_filename[500];
+    
+      sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
+          conf_src_list[iconf][isrc][0],
+          filename_prefix,
+          conf_src_list[iconf][isrc][1],
+          "kaon",
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2],
+          conf_src_list[iconf][isrc][3] );
+
+      /***********************************************************
+       * loop on sink momenta
+       ***********************************************************/
+      for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+
+        int pf[3] = {
+          g_sink_momentum_list[ipf][0],
+          g_sink_momentum_list[ipf][1],
+          g_sink_momentum_list[ipf][2] 
+        };
+
+        int pi[3] = {
+          -pf[0],
+          -pf[1],
+          -pf[2] 
+        };
+
+        char key[400], key2[400];
+
+/*        if ( twop_weight[0] != 0. ) { */
+          /* s-gf-l-gi/mu-0.0186/mu0.0007/t116/s0/gf5/gi5/pix-1piy0piz0/px1py0pz0 */
+          
+          sprintf( key, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+              flavor_tag[0],
+                  -g_mus, g_mu,
+                  conf_src_list[iconf][isrc][2], 
+                  conf_src_list[iconf][isrc][3], 
+                  pi[0], pi[1], pi[2],
+                  pf[0], pf[1], pf[2]);
+
+          sprintf( key2, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+              flavor_tag[0],
+                  -g_mus, g_mu,
+                  conf_src_list[iconf][isrc][2], 
+                  0, 
+                  pi[0], pi[1], pi[2],
+                  pf[0], pf[1], pf[2]);
+
+
+
+          if ( g_verbose > 3 ) fprintf ( stdout, "# [avxg_analyse] key = %s %s %d\n", key, __FILE__, __LINE__  );
+
+          exitstatus = read_from_h5_file ( (void*)(buffer[0][0]), data_filename, key, "double", io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf( stderr, "[avxg_analyse] Error from read_from_h5_file for file %s key %s, status was %d %s %d\n", 
+                data_filename, key, exitstatus, __FILE__, __LINE__ );
+            /* EXIT(1); */
+          
+            if ( g_verbose > 3 ) fprintf ( stdout, "# [avxg_analyse] key2 = %s %s %d\n", key2, __FILE__, __LINE__  );
+
+            exitstatus = read_from_h5_file ( (void*)(buffer[0][0]), data_filename, key2, "double", io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf( stderr, "[avxg_analyse] Error from read_from_h5_file for file %s key %s, status was %d %s %d\n", 
+                  data_filename, key2, exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
+          }
+/*        } */  /* end of twop_weight 0 */
+
+#if 0
+        if ( twop_weight[1] != 0. ) {
+
+          sprintf( key, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+              flavor_type_2pt[flavor_id_2pt],
+                  muval_2pt_list[0], -muval_2pt_list[1],
+                  conf_src_list[iconf][isrc][2], 
+                  conf_src_list[iconf][isrc][3], 
+                  -pi[0], -pi[1], -pi[2],
+                  -pf[0], -pf[1], -pf[2]);
+
+          sprintf( key2, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
+              flavor_type_2pt[flavor_id_2pt],
+                  muval_2pt_list[0], -muval_2pt_list[1],
+                  conf_src_list[iconf][isrc][2],
+                  0,
+                  -pi[0], -pi[1], -pi[2],
+                  -pf[0], -pf[1], -pf[2]);
+
+
+          if ( g_verbose > 3 ) fprintf ( stdout, "# [avxg_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
+
+          exitstatus = read_from_h5_file ( (void*)(buffer[1][0]), data_filename, key, "double", io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf( stderr, "[avxg_analyse] Error from read_from_h5_file for file %s key %s, status was %d %s %d\n",
+                data_filename, key, exitstatus, __FILE__, __LINE__ );
+            /* EXIT(1); */
+
+            if ( g_verbose > 3 ) fprintf ( stdout, "# [avxg_analyse] key2 = %s %s %d\n", key2, __FILE__, __LINE__ );
+
+            exitstatus = read_from_h5_file ( (void*)(buffer[1][0]), data_filename, key2, "double", io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf( stderr, "[avxg_analyse] Error from read_from_h5_file file %s key %s, status was %d %s %d\n",
+                  data_filename, key2, exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
+
+          }
+        }
+#endif  /* fo if 0 */
+
+        /***********************************************************
+         * NOTE: NO SOURCE PHASE NECESSARY
+         * ONLY REORDERING from source
+         ***********************************************************/
+#pragma omp parallel for
+        for ( int it = 0; it < T_global; it++ ) {
+          int const itt = ( it + conf_src_list[iconf][isrc][2] + T_global ) % T_global;
+
+          twop[ipf][iconf][isrc][0][it][0] =  buffer[0][itt][0];
+          twop[ipf][iconf][isrc][0][it][1] =  buffer[0][itt][1];
+
+          twop[ipf][iconf][isrc][1][it][0] =  buffer[0][itt][0];
+          twop[ipf][iconf][isrc][1][it][1] = -buffer[0][itt][1];
+        }
+
+        /***********************************************************
+         * NOTE: opposite parity transformed case is given by 
+         *       ???
+         *       
+         ***********************************************************/
+
+      }  /* end of loop on sink momenta */
+
+    }  /* end of loop on sources */
+
+    fini_3level_dtable ( &buffer );
+  }  /* end of loop on configs */
+          
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "avxg_analyse", "read-twop-avgx-h5", g_cart_id == 0 );
+
+#endif  /* end of if _TWOP_AVGX_H5 */
 
 
   /**********************************************************

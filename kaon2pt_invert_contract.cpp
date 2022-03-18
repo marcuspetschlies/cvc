@@ -759,6 +759,43 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
      
+      /***************************************************************************/
+      /***************************************************************************/
+
+      memset ( contr_x , 0, 2 * VOLUME * sizeof(double) );
+      memset ( contr_p , 0, 2 * T * sizeof (double ) );
+
+      contract_twopoint_xdep ( contr_x, source_gamma, sink_gamma,
+        stochastic_propagator_mom_smeared_list[0],
+        stochastic_propagator_mom_smeared_list[ipi],
+        spin_dilution, color_dilution, 1, 1., 64 );
+
+      /* momentum projection at sink */
+      exitstatus = momentum_projection ( contr_x, contr_p, T, 1, &sink_momentum );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[kaon2pt_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(3);
+      }
+
+     sprintf ( data_tag, "/%s-gf-%s-gi/mu%6.4f/mu%6.4f/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", flavor_tag[1], flavor_tag[0],
+         muval[1], muval[0],
+         gts, isample,
+         sink_gamma, source_gamma,
+         source_momentum[0], source_momentum[1], source_momentum[2] );
+
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+      exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
+#elif ( defined HAVE_HDF5 )
+      exitstatus = contract_write_to_h5_file ( &contr_p, output_filename, data_tag, &sink_momentum, 1, io_proc );
+#endif
+      if(exitstatus != 0) {
+        fprintf(stderr, "[kaon2pt_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(3);
+      }
+
+      /***************************************************************************/
+      /***************************************************************************/
+
       /* deallocate the contraction fields */       
       fini_1level_dtable ( &contr_x );
       fini_1level_dtable ( &contr_p );
