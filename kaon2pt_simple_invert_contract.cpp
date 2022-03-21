@@ -429,7 +429,13 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
-     * 
+     * initialize both spinor work 0 , 1 to zero
+     ***************************************************************************/
+    memset ( spinor_work[0] , 0, sizeof_spinor_field );
+    memset ( spinor_work[1] , 0, sizeof_spinor_field );
+
+    /***************************************************************************
+     *  process with source timeslice copy their part of source
      ***************************************************************************/
 
     if ( source_proc_id == g_cart_id ) {
