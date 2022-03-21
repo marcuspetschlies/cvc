@@ -809,11 +809,12 @@ int init_clover_eo_sequential_source ( double * const s_even, double * const s_o
  *************************************************************************/
 int init_sequential_source ( double * const s, double * const p, int const tseq, int const pseq[3], int const gseq) {
 
-  const double px = 2. * M_PI * pseq[0] / (double)LX_global;
-  const double py = 2. * M_PI * pseq[1] / (double)LY_global;
-  const double pz = 2. * M_PI * pseq[2] / (double)LZ_global;
-  const double phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
-  const size_t sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+  double const px = 2. * M_PI * pseq[0] / (double)LX_global;
+  double const py = 2. * M_PI * pseq[1] / (double)LY_global;
+  double const pz = 2. * M_PI * pseq[2] / (double)LZ_global;
+  double const phase_offset =  g_proc_coords[1]*LX * px + g_proc_coords[2]*LY * py + g_proc_coords[3]*LZ * pz;
+  size_t const sizeof_spinor_field = _GSI(VOLUME) * sizeof(double);
+  unsigned int const VOL3 = LX * LY * LZ;
 
   int have_source=0, lts=-1;
 
@@ -837,34 +838,40 @@ int init_sequential_source ( double * const s, double * const p, int const tseq,
     have_source = 0;
     lts = -1;
   }
-  if(have_source) {
-    fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
-    fprintf(stdout, "# [init_sequential_source] t = %2d gamma id = %d p = (%d, %d, %d)\n", tseq, gseq, pseq[0], pseq[1], pseq[2]);
-  }
 
   /* (1) multiply with phase and Gamma structure */
   if(have_source) {
+    if ( g_verbose > 2 ) {
+      fprintf(stdout, "# [init_sequential_source] process %d has source\n", g_cart_id);
+      fprintf(stdout, "# [init_sequential_source] t = %2d gamma id = %d p = (%d, %d, %d)\n", tseq, gseq, pseq[0], pseq[1], pseq[2]);
+    }
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
 #endif
     double spinor1[24], phase;
-    unsigned int ix;
-    int x1, x2, x3;
     complex w;
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(x1=0;x1<LX;x1++) {
-    for(x2=0;x2<LY;x2++) {
-    for(x3=0;x3<LZ;x3++) {
-      ix = _GSI(g_ipt[lts][x1][x2][x3]);
-      phase = phase_offset + x1 * px + x2 * py + x3 * pz;
+    for ( unsigned int iy = 0; iy < VOL3; iy++ ) 
+    {
+      /* 4-dim lexic index in lts source timeslice */
+      unsigned int iiy = lts * VOL3 + iy;
+
+      unsigned int const ix = _GSI( iiy );
+
+      double * const _p = p + ix;
+      double * const _s = s + ix;
+
+      phase = phase_offset + g_lexic2coords[iiy][1] * px + g_lexic2coords[iiy][2] * py + g_lexic2coords[iiy][3] * pz;
+      
       w.re =  cos(phase);
       w.im =  sin(phase);
-      _fv_eq_gamma_ti_fv(spinor1, gseq, p + ix);
-      _fv_eq_fv_ti_co(s + ix, spinor1, &w);
-    }}}
+
+      _fv_eq_gamma_ti_fv(spinor1, gseq, _p );
+      _fv_eq_fv_ti_co( _s, spinor1, &w);
+    }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
@@ -874,6 +881,8 @@ int init_sequential_source ( double * const s, double * const p, int const tseq,
   return(0);
 }  /* end of function init_sequential_source */
 
+/*************************************************************************/
+/*************************************************************************/
 
 /*************************************************************************
  * prepare a coherent sequential source

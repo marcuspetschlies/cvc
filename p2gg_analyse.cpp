@@ -43,7 +43,30 @@
 #include "table_init_i.h"
 #include "uwerr.h"
 
+#define _CVC_AFF 0
+#define _CVC_H5  1
+
 using namespace cvc;
+
+inline int get_momentum_id ( int const q[3], int ** const p, int const n ) 
+{
+  int id = -1;
+  for ( int i = 0; i < n; i++ ) {
+    if ( ( q[0] == p[i][0] ) && ( q[1] == p[i][1] ) && ( q[2] == p[i][2] )  )
+    {
+      id = i;
+      break;
+    }
+  }
+  
+  if ( id == -1 ) {
+    fprintf(stderr, "[get_momentum_id] Error, momentum %3d %3d %3d not found   %d %s\n", q[0], q[1], q[2], __FILE__, __LINE__);
+  } else if (g_verbose > 4 ) {
+    fprintf( stdout, "# [get_momentum_id] momentum %3d %3d %3d id %2d    %s %d\n", q[0], q[1], q[2], id, __FILE__, __LINE__);
+  }
+
+  return(id);
+}
 
 void usage() {
   fprintf(stdout, "Code to analyse P-J-J correlator contractions\n");
@@ -69,10 +92,10 @@ int main(int argc, char **argv) {
   int const gamma_a_list[4] = {    6,   7,   8,   9 };
 
   /* vector, axial vector */
-  int const gamma_va_list[8] = { 0,  1,  2,  3,  6,   7,   8,   9 };
+  /* int const gamma_va_list[8] = { 0,  1,  2,  3,  6,   7,   8,   9 }; */
 
   /*                             id  g5 */
-  int const gamma_sp_list[2] = { 4  , 5 };
+  /* int const gamma_sp_list[2] = { 4  , 5 }; */
 
 
 
@@ -96,7 +119,7 @@ int main(int argc, char **argv) {
   int check_momentum_space_WI = 0;
   int exitstatus;
   int io_proc = -1;
-  char filename[100];
+  char filename[500];
   int num_src_per_conf = 0;
   int num_conf = 0;
   char ensemble_name[100] = "cA211a.30.32";
@@ -104,10 +127,10 @@ int main(int argc, char **argv) {
   int operator_type = -1;
   int write_data = 0;
   int charged_ps=0;
-
-#ifdef HAVE_LHPC_AFF
-  struct AffReader_s *affr = NULL;
   char key[400];
+
+#if (defined HAVE_LHPC_AFF ) && _CVC_AFF
+  struct AffReader_s *affr = NULL;
 #endif
 
 #ifdef HAVE_MPI
@@ -344,6 +367,8 @@ int main(int argc, char **argv) {
                 conf_src_list[iconf][isrc][4],
                 conf_src_list[iconf][isrc][5] };
       
+#if _CVC_AFF
+
 #ifdef HAVE_LHPC_AFF
             /***********************************************
              * reader for aff input file
@@ -353,8 +378,8 @@ int main(int argc, char **argv) {
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
             /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-             sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
-            /* sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); *(
+            /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
             affr = aff_reader ( filename );
@@ -927,6 +952,409 @@ int main(int argc, char **argv) {
             aff_reader_close ( affr );
 #endif  /* of ifdef HAVE_LHPC_AFF */
       
+#endif  /* end of if _CVC_AFF */
+
+#if _CVC_H5
+
+            /***********************************************
+             * reader for aff input file
+             ***********************************************/
+            sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.h5", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+
+            fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
+
+            char momentum_tag[12] = "/mom_snk";
+            int * momentum_buffer = NULL;
+            size_t * momentum_cdim = NULL, momentum_ncdim = 0;
+
+            exitstatus = read_from_h5_file_varsize ( (void**)&momentum_buffer, filename, momentum_tag,  "int", &momentum_ncdim, &momentum_cdim,  io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file_varsize for file %s key %s   %s %d\n", filename, momentum_tag, __FILE__, __LINE__);
+              EXIT(15);
+            }
+
+            if ( momentum_ncdim != 2 || momentum_cdim[1] != 3 ) {
+              fprintf ( stderr, "[] Error from read_from_h5_file_varsize for file data %s %d\n", __FILE__, __LINE__ );
+              EXIT(129);
+            }
+
+            int const momentum_number = (int)(momentum_cdim[0]);
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse] read %d momenta %s %d\n", momentum_number, __FILE__, __LINE__ );
+            int ** momentum_list = init_2level_itable ( momentum_number, 3 );
+            memcpy ( momentum_list[0], momentum_buffer, momentum_number * 3 * sizeof ( int ) );
+            free ( momentum_buffer );
+            free ( momentum_cdim );
+
+
+            double ****** buffer = init_6level_dtable( 2, 2, T, 4, 4, 2 * momentum_number );
+            if( buffer == NULL ) {
+              fprintf(stderr, "[p2gg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+              EXIT(15);
+            }
+ 
+            if ( charged_ps == 0 )
+            {
+              gettimeofday ( &ta, (struct timezone *)NULL );
+
+              /**********************************************************
+               * neutral case
+               **********************************************************/
+              for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
+              {
+                sprintf ( key , "/%s/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d", pgg_operator_type_tag[operator_type],
+                    seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                    sequential_source_gamma_id, sequential_source_timeslice,
+                    iflavor );
+
+                exitstatus = read_from_h5_file (  buffer[0][iflavor][0][0][0], filename, key,  "double", io_proc );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file %s %d\n", __FILE__, __LINE__);
+                  EXIT(15);
+                }
+              }
+              
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-flavor-tensor-components-neutral-h5", g_cart_id == 0 );
+
+            } else {
+              /**********************************************************
+               * charged case
+               **********************************************************/
+              gettimeofday ( &ta, (struct timezone *)NULL );
+
+              for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
+              {
+
+                /**********************************************************
+                 * G_a Xbar-X G_v X , G_a at sink, G_v at source
+                 *
+                 * C^udu_cfi
+                 **********************************************************/
+                sprintf ( key , "/%s/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d", pgg_operator_type_tag[operator_type],
+                          seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                          sequential_source_gamma_id, sequential_source_timeslice,
+                          1-iflavor, iflavor, iflavor );
+
+                exitstatus = read_from_h5_file (  buffer[0][iflavor][0][0][0], filename, key,  "double", io_proc );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file %s %d\n", __FILE__, __LINE__);
+                  EXIT(15);
+                }
+
+                /**********************************************************
+                 * G_v X-Xbar G_a X , G_v at sink, G_a at source
+                 *
+                 * C^uud_cfi
+                 **********************************************************/
+                sprintf ( key , "/%s/qx%.2dqy%.2dqz%.2d/gseq%.2d/tseq%.2d/fl%d-%d_%d", pgg_operator_type_tag[operator_type],
+                          seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                          sequential_source_gamma_id, sequential_source_timeslice,
+                          iflavor, 1-iflavor, iflavor );
+
+                exitstatus = read_from_h5_file (  buffer[1][iflavor][0][0][0], filename, key,  "double", io_proc );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file %s %d\n", __FILE__, __LINE__);
+                  EXIT(15);
+                }
+
+              }
+            
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-flavor-tensor-components-charged-h5", g_cart_id == 0 );
+
+            }  /* end of if charged_ps == 0 */
+                    
+            /**********************************************************
+             * show all data before flavor combination
+             **********************************************************/
+            if ( g_verbose > 5 ) {
+              gettimeofday ( &ta, (struct timezone *)NULL );
+              for ( int isink_momentum = 0; isink_momentum < sink_momentum_number; isink_momentum++ ) 
+              {
+                int const sink_momentum[3] = {
+                  sink_momentum_list[isink_momentum][0],
+                  sink_momentum_list[isink_momentum][1],
+                  sink_momentum_list[isink_momentum][2] };
+
+                int const msink_momentum[3] = {
+                  -sink_momentum_list[isink_momentum][0],
+                  -sink_momentum_list[isink_momentum][1],
+                  -sink_momentum_list[isink_momentum][2] };
+
+                int const pid = get_momentum_id (  sink_momentum, momentum_list, momentum_number );
+                int const mid = get_momentum_id ( msink_momentum, momentum_list, momentum_number );
+                if ( pid == -1 || mid == -1 ) EXIT(126);
+
+
+                for ( int iflavor = 0; iflavor < 4; iflavor++ ) {
+                  fprintf ( stdout , "# /%s/stream_%c/c%d/t%dx%dy%dz%d/qx%dqy%dqz%d/gseq%d/tseq%d/fl%d/px%dpy%dpz%d\n", pgg_operator_type_tag[operator_type],
+                      conf_src_list[iconf][isrc][0],
+                      conf_src_list[iconf][isrc][1],
+                      conf_src_list[iconf][isrc][2],
+                      conf_src_list[iconf][isrc][3],
+                      conf_src_list[iconf][isrc][4],
+                      conf_src_list[iconf][isrc][5],
+                      seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2],
+                      sequential_source_gamma_id, sequential_source_timeslice, iflavor,
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+                  for ( int mu = 0; mu < 4; mu++ ) {
+                  for ( int nu = 0; nu < 4; nu++ ) {
+                    for ( int it = 0; it < T; it++ ) {
+                      fprintf ( stdout, "r %d %d    %3d    %25.16e %25.16e    %25.16e %25.16e\n", 
+                          mu, nu, it, 
+                          buffer[iflavor/2][iflavor%2][it][mu][nu][2*pid], buffer[iflavor/2][iflavor%2][it][mu][nu][2*pid+1],
+                          buffer[iflavor/2][iflavor%2][it][mu][nu][2*mid], buffer[iflavor/2][iflavor%2][it][mu][nu][2*mid+1] );
+                    }
+                  }}
+                }
+              }
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "p2gg_analyse", "show-all-raw-data", g_cart_id == 0 );
+            }
+
+            /**********************************************************
+             * loop on momenta
+             **********************************************************/
+            for ( int isink_momentum = 0; isink_momentum < sink_momentum_number; isink_momentum++ ) {
+
+              int const sink_momentum[3] = {
+                  sink_momentum_list[isink_momentum][0],
+                  sink_momentum_list[isink_momentum][1],
+                  sink_momentum_list[isink_momentum][2] };
+
+              int const msink_momentum[3] = {
+                  -sink_momentum_list[isink_momentum][0],
+                  -sink_momentum_list[isink_momentum][1],
+                  -sink_momentum_list[isink_momentum][2] };
+
+              int const  sink_momentum_id = get_momentum_id (  sink_momentum, momentum_list, momentum_number );
+              int const msink_momentum_id = get_momentum_id ( msink_momentum, momentum_list, momentum_number );
+
+              if ( sink_momentum_id == -1 || msink_momentum_id == -1 ) EXIT(127);
+
+              /**********************************************************
+               * loop on shifts in directions mu, nu
+               **********************************************************/
+              for( int mu = 0; mu < 4; mu++) {
+                for( int nu = 0; nu < 4; nu++) {
+      
+                  /**********************************************************
+                   * signs for g5-hermiticity and parity for current and source
+                   **********************************************************/
+                  int s5d_sign[2] = { 0, 0 };
+                  int st_sign[2]  = { 0, 0 };
+                  if ( charged_ps == 0 ) {
+                    s5d_sign[0] = 
+                         sigma_g5d[ sequential_source_gamma_id ]
+                       * sigma_g5d[ gamma_v_list[mu] ]
+                       * sigma_g5d[ gamma_v_list[nu] ];
+                    s5d_sign[1] = s5d_sign[0];
+
+                    st_sign[0] = 
+                         sigma_t[ sequential_source_gamma_id ]
+                       * sigma_t[ gamma_v_list[mu] ]
+                       * sigma_t[ gamma_v_list[nu] ];
+                    st_sign[1] = st_sign[0];
+
+                  } else if ( charged_ps == 1 ) {
+                    s5d_sign[0] =
+                         sigma_g5d[ sequential_source_gamma_id ]
+                       * sigma_g5d[ gamma_a_list[mu] ]
+                       * sigma_g5d[ gamma_v_list[nu] ];
+
+                    s5d_sign[1] =
+                         sigma_g5d[ sequential_source_gamma_id ]
+                       * sigma_g5d[ gamma_v_list[mu] ]
+                       * sigma_g5d[ gamma_a_list[nu] ];
+
+                    st_sign[0] = 
+                         sigma_t[ sequential_source_gamma_id ]
+                       * sigma_t[ gamma_a_list[mu] ]
+                       * sigma_t[ gamma_v_list[nu] ];
+
+                    st_sign[1] = 
+                         sigma_t[ sequential_source_gamma_id ]
+                       * sigma_t[ gamma_v_list[mu] ]
+                       * sigma_t[ gamma_a_list[nu] ];
+                  }
+
+                  if ( g_verbose > 5 ) fprintf (stdout, "# [p2gg_analyse] charged_ps %d mu %d nu %d   s5d %2d  %2d    st %2d  %2d\n", charged_ps, mu, nu, 
+                      s5d_sign[0], s5d_sign[1], st_sign[0], st_sign[1] );
+
+              /**********************************************************
+               * current vertex momentum 4-vector; 0th component stays zero
+               **********************************************************/
+                double const p[4] = { 0., 
+                    TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+                    TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+                    TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+
+                if (g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse] p = %25.16e %25.16e %25.16e %25.16e\n", p[0], p[1], p[2], p[3] ); 
+
+              /**********************************************************
+               * final vertex momentum 4-vector; 0th component stays zero
+               **********************************************************/
+                double const q[4] = { 0., 
+                    TWO_MPI * (double)seq_source_momentum[0] / (double)LX_global,
+                    TWO_MPI * (double)seq_source_momentum[1] / (double)LY_global,
+                    TWO_MPI * (double)seq_source_momentum[2] / (double)LZ_global };
+                
+                if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse] q = %25.16e %25.16e %25.16e %25.16e\n", q[0], q[1], q[2], q[3] ); 
+      
+                double p_phase = 0., q_phase = 0.;
+
+                if ( operator_type == 0 ) {
+                  /*                     p_src^nu x_src^nu                                                   + 1/2 p_snk^mu - 1/2 p_snk^nu */
+                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] - p[nu] );
+                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] ) + 0.5 * (       - q[nu] );
+                } else if ( operator_type == 1 ) {
+                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
+
+                } else if ( operator_type == 2 ) {
+                  p_phase = -( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] ) + 0.5 * ( p[mu] );
+                  q_phase = -( q[0] * gsx[0] + q[1] * gsx[1] + q[2] * gsx[2] + q[3] * gsx[3] );
+                }
+
+                double _Complex const p_ephase  = cexp ( p_phase * I );
+                double _Complex const pm_ephase = conj ( p_ephase ); 
+
+                double _Complex const q_ephase  = cexp ( q_phase * I );
+                double _Complex const qm_ephase = conj ( q_ephase );
+      
+                if ( g_verbose > 4 ) {
+                  fprintf ( stdout, "# [p2gg_analyse] p %3d %3d %3d x %3d %3d %3d %3d p_phase %25.16e   p_ephase %25.16e %25.16e     mp_ephase %25.16e %25.16e\n",
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2], 
+                      gsx[0], gsx[1], gsx[2], gsx[3], p_phase, creal( p_ephase ), cimag( p_ephase ), creal( pm_ephase ), cimag( pm_ephase ) );
+                  
+                  fprintf ( stdout, "# [p2gg_analyse] q %3d %3d %3d x %3d %3d %3d %3d q_phase %25.16e   q_ephase %25.16e %25.16e     qm_ephase %25.16e %25.16e\n",
+                      sink_momentum[0], sink_momentum[1], sink_momentum[2], 
+                      gsx[0], gsx[1], gsx[2], gsx[3], q_phase, creal( q_ephase ), cimag( q_ephase ), creal( qm_ephase ), cimag( qm_ephase ) );
+                }
+      
+                /**********************************************************
+                 * sort data from buffer into pgg,
+                 * multiply source phase
+                 **********************************************************/
+                if ( charged_ps == 0 ) {
+#pragma omp parallel for
+                  for ( int it = 0; it < T; it++ ) {
+
+                    /**********************************************************
+                     * order from source time
+                     **********************************************************/
+                    int const tt = ( it - gsx[0] + T_global ) % T_global; 
+      
+                    /**********************************************************
+                     * add the two flavor components
+                     **********************************************************/
+                    /* double _Complex ztmp = ( 
+                          -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
+                          +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I ) 
+                          + s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
+                          - s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I ) 
+                        ) * p_ephase;
+                        */
+
+                    double _Complex ztmp = ( 
+                          -               ( buffer[0][0][it][mu][nu][2 *  sink_momentum_id] +  buffer[0][0][it][mu][nu][2 *  sink_momentum_id+1] * I )
+                          +               ( buffer[0][1][it][mu][nu][2 *  sink_momentum_id] +  buffer[0][1][it][mu][nu][2 *  sink_momentum_id+1] * I ) 
+                          + s5d_sign[0] * ( buffer[0][0][it][mu][nu][2 * msink_momentum_id] -  buffer[0][0][it][mu][nu][2 * msink_momentum_id+1] * I )
+                          - s5d_sign[0] * ( buffer[0][1][it][mu][nu][2 * msink_momentum_id] -  buffer[0][1][it][mu][nu][2 * msink_momentum_id+1] * I ) 
+                        ) * p_ephase;
+
+                    /**********************************************************
+                     * multiply source phase from pion momentum
+                     **********************************************************/
+                    ztmp *= q_ephase;
+
+                    /**********************************************************
+                     * add up original and Parity-flavor transformed
+                     **********************************************************/
+                    ztmp += st_sign[0] * conj ( ztmp );
+
+                    /**********************************************************
+                     * write into pgg
+                     **********************************************************/
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                  }  /* end of loop on timeslices */
+
+                } else if ( charged_ps == 1 ) {
+
+#pragma omp parallel for
+                  for ( int it = 0; it < T; it++ ) {
+
+                    /**********************************************************
+                     * order from source time
+                     **********************************************************/
+                    int const tt = ( it - gsx[0] + T_global ) % T_global;
+
+                    /**********************************************************
+                     * add the two flavor components
+                     **********************************************************/
+                    /* double _Complex ztmp1 = (
+                          -               ( buffer[0][0][mu][nu][2*it] +  buffer[0][0][mu][nu][2*it+1] * I )
+                          - s5d_sign[0] * ( buffer[0][1][mu][nu][2*it] -  buffer[0][1][mu][nu][2*it+1] * I )
+                          +               ( buffer[1][0][mu][nu][2*it] +  buffer[1][0][mu][nu][2*it+1] * I )
+                          + s5d_sign[0] * ( buffer[1][1][mu][nu][2*it] -  buffer[1][1][mu][nu][2*it+1] * I )
+
+                        ) * p_ephase * q_ephase;
+                        */
+
+                    double _Complex ztmp1 = (
+                          -               ( buffer[0][0][it][mu][nu][2 *  sink_momentum_id] +  buffer[0][0][it][mu][nu][2 *  sink_momentum_id+1] * I )
+                          - s5d_sign[0] * ( buffer[0][0][it][mu][nu][2 * msink_momentum_id] -  buffer[0][0][it][mu][nu][2 * msink_momentum_id+1] * I )
+                          +               ( buffer[0][1][it][mu][nu][2 *  sink_momentum_id] +  buffer[0][1][it][mu][nu][2 *  sink_momentum_id+1] * I )
+                          + s5d_sign[0] * ( buffer[0][1][it][mu][nu][2 * msink_momentum_id] -  buffer[0][1][it][mu][nu][2 * msink_momentum_id+1] * I )
+
+                        ) * p_ephase * q_ephase;
+
+                    /* double _Complex ztmp2 = (
+                          +               ( buffer[2][0][mu][nu][2*it] +  buffer[2][0][mu][nu][2*it+1] * I )
+                          + s5d_sign[1] * ( buffer[2][1][mu][nu][2*it] -  buffer[2][1][mu][nu][2*it+1] * I )
+                          -               ( buffer[3][0][mu][nu][2*it] +  buffer[3][0][mu][nu][2*it+1] * I )
+                          - s5d_sign[1] * ( buffer[3][1][mu][nu][2*it] -  buffer[3][1][mu][nu][2*it+1] * I )
+                        ) * p_ephase * q_ephase;
+                        */
+
+
+                    double _Complex ztmp2 = (
+                          +               ( buffer[1][0][it][mu][nu][2 *  sink_momentum_id] +  buffer[1][0][it][mu][nu][2 *  sink_momentum_id+1] * I )
+                          + s5d_sign[1] * ( buffer[1][0][it][mu][nu][2 * msink_momentum_id] -  buffer[1][0][it][mu][nu][2 * msink_momentum_id+1] * I )
+                          -               ( buffer[1][1][it][mu][nu][2 *  sink_momentum_id] +  buffer[1][1][it][mu][nu][2 *  sink_momentum_id+1] * I )
+                          - s5d_sign[1] * ( buffer[1][1][it][mu][nu][2 * msink_momentum_id] -  buffer[1][1][it][mu][nu][2 * msink_momentum_id+1] * I )
+                        ) * p_ephase * q_ephase;
+
+                    /**********************************************************
+                     * add up original and Parity-flavor transformed
+                     **********************************************************/
+                    double _Complex ztmp = 0.5 * ( 
+                          ( ztmp1 + st_sign[0] * conj ( ztmp1 ) ) + ( ztmp2 + st_sign[1] * conj ( ztmp2 ) )
+                        );
+
+                    /**********************************************************
+                     * write into pgg
+                     **********************************************************/
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                  }  /* end of loop on timeslices */
+
+                }  /* end of charged_ps == 1 case */
+      
+              }  /* end of loop on direction nu */
+              }  /* end of loop on direction mu */
+      
+      
+            }  /* end of loop on sink momenta */
+
+            fini_2level_itable ( &momentum_list );
+
+            fini_6level_dtable( &buffer );
+
+#endif  /* end of if _CVC_H5 */
+
           }  /* end of loop on source locations */
       
         }   /* end of loop on configurations */
