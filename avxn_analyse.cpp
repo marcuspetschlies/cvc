@@ -1083,7 +1083,7 @@ int main(int argc, char **argv) {
 
           }
         }
-#endif  /* fo if 0 */
+#endif  /* of if 0 */
 
         /***********************************************************
          * NOTE: NO SOURCE PHASE NECESSARY
