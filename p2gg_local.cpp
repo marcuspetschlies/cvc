@@ -128,6 +128,7 @@ extern "C"
 #  define _S_S_N 1
 #endif
 
+#if 0
 /* SAN = pan */
 #ifndef _S_A_N 
 #  define _S_A_N 1
@@ -141,6 +142,7 @@ extern "C"
 /* AAN = aan */
 #ifndef _A_A_N
 #  define _A_A_N 1
+#endif
 #endif
 
 /****************************************************
@@ -167,6 +169,7 @@ extern "C"
 #  define _P_P_C 1
 #endif
 
+#if 0
 /* VVC = aac  */
 #ifndef _V_V_C
 #  define _V_V_C 1
@@ -180,6 +183,7 @@ extern "C"
 /* PVC = PAC */
 #ifndef _P_V_C
 #  define _P_V_C 1
+#endif
 #endif
 
 using namespace cvc;
@@ -274,7 +278,7 @@ int contract_local_local_2pt ( double ** const chi, double ** const phi,
   if ( io_proc == 2 ) {
 
     int const ncdim = 4;
-    int const cdim[4] = { T_global, gamma_src_num, gamma_snk_num, 2*momentum_num };
+    int const cdim[4] = { T_global, gamma_snk_num, gamma_src_num, 2*momentum_num };
 
     exitstatus = write_h5_contraction ( write_buffer, NULL, filename, data_tag, "double", ncdim, cdim );
 
@@ -911,6 +915,7 @@ int main(int argc, char **argv) {
     }
 #endif  /* of if _P_P_C */
 
+#if 0
     /***************************************************************************
      * different set of momenta here
      ***************************************************************************/
@@ -965,6 +970,8 @@ int main(int argc, char **argv) {
       EXIT(1);
     }
 #endif  /* of if _P_V_C */
+
+#endif
 
     /***************************************************************************/
     /***************************************************************************/
@@ -1045,6 +1052,7 @@ int main(int argc, char **argv) {
     }
 #endif  /* of if _P_P_C */
 
+#if 0
     /***************************************************************************
      * different set of momenta here
      ***************************************************************************/
@@ -1100,6 +1108,8 @@ int main(int argc, char **argv) {
     }
 #endif  /* of if _P_V_C */
 
+#endif
+    
     /***************************************************************************/
     /***************************************************************************/
 
