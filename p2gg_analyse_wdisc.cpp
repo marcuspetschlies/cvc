@@ -44,8 +44,9 @@
 #include "contract_loop_inline.h"
 
 #define _TWOP_COMPACT_AFF 0
-#define _TWOP_COMPACT_H5  1
+#define _TWOP_COMPACT_H5  0
 #define _TWOP_PERCONF     0
+#define _CVC_H5           1
 
 #define LOOP_READ_H5    0
 #define LOOP_READ_ASCII 1
@@ -53,6 +54,26 @@
 #define _USE_SUBTRACTED 0
 
 using namespace cvc;
+
+inline int get_momentum_id ( int const q[3], int ** const p, int const n )
+{
+  int id = -1;
+  for ( int i = 0; i < n; i++ ) {
+    if ( ( q[0] == p[i][0] ) && ( q[1] == p[i][1] ) && ( q[2] == p[i][2] )  )
+    {
+      id = i;
+      break;
+    }
+  }
+
+  if ( id == -1 ) {
+    fprintf(stderr, "[get_momentum_id] Error, momentum %3d %3d %3d not found   %s %d\n", q[0], q[1], q[2], __FILE__, __LINE__);
+  } else if (g_verbose > 4 ) {
+    fprintf( stdout, "# [get_momentum_id] momentum %3d %3d %3d id %2d    %s %d\n", q[0], q[1], q[2], id, __FILE__, __LINE__);
+  }
+
+  return(id);
+}
 
 void usage() {
   fprintf(stdout, "Code to analyse P-J-J correlator contractions\n");
@@ -770,6 +791,137 @@ int main(int argc, char **argv) {
 
 #endif  /* end of if for twop reading mode */
 
+
+#if _CVC_H5
+
+  /***********************************************
+   * reader for aff input file
+   ***********************************************/
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+
+      int const gsx[4] = {
+              conf_src_list[iconf][isrc][2],
+              conf_src_list[iconf][isrc][3],
+              conf_src_list[iconf][isrc][4],
+              conf_src_list[iconf][isrc][5] };
+
+
+      sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.h5", 
+          conf_src_list[iconf][isrc][0],
+          filename_prefix, 
+          conf_src_list[iconf][isrc][1],
+          filename_prefix2,
+          conf_src_list[iconf][isrc][1], gsx[0], gsx[1], gsx[2], gsx[3] );
+
+      fprintf(stdout, "# [p2gg_analyse_wdisc] reading data from file %s\n", filename);
+
+      char momentum_tag[12] = "/mom_snk";
+      int * momentum_buffer = NULL;
+      size_t * momentum_cdim = NULL, momentum_ncdim = 0;
+
+      exitstatus = read_from_h5_file_varsize ( (void**)&momentum_buffer, filename, momentum_tag,  "int", &momentum_ncdim, &momentum_cdim,  io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file_varsize for file %s key %s   %s %d\n", filename, momentum_tag, __FILE__, __LINE__);
+        EXIT(15);
+      }
+
+      if ( momentum_ncdim != 2 || momentum_cdim[1] != 3 ) {
+        fprintf ( stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file_varsize for file data %s %d\n", __FILE__, __LINE__ );
+        EXIT(129);
+      }
+
+      int const momentum_number = (int)(momentum_cdim[0]);
+      if ( g_verbose > 4 ) fprintf ( stdout, "# [p2gg_analyse] read %d momenta %s %d\n", momentum_number, __FILE__, __LINE__ );
+      int ** momentum_list = init_2level_itable ( momentum_number, 3 );
+      memcpy ( momentum_list[0], momentum_buffer, momentum_number * 3 * sizeof ( int ) );
+      free ( momentum_buffer );
+      free ( momentum_cdim );
+
+
+      double **** buffer = init_4level_dtable( T, 4, 4, 2 * momentum_number );
+      if( buffer == NULL ) {
+        fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(15);
+      }
+ 
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
+      /**********************************************************
+       * neutral case
+       **********************************************************/
+      sprintf ( key , "/local-local/u-v-u-v" );
+
+      exitstatus = read_from_h5_file (  buffer[0][0][0], filename, key,  "double", io_proc );
+      if ( exitstatus != 0 ) {
+        fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file for file %s key %s    %s %d\n",
+           filename, key, __FILE__, __LINE__);
+        EXIT(15);
+      }
+              
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "p2gg_analyse", "read-pgg-flavor-tensor-components-neutral-h5", g_cart_id == 0 );
+      
+      /**********************************************************
+       * loop on momenta
+       **********************************************************/
+      for ( int isink_momentum = 0; isink_momentum < sink_momentum_number; isink_momentum++ ) {
+
+        int const sink_momentum[3] = {
+                  sink_momentum_list[isink_momentum][0],
+                  sink_momentum_list[isink_momentum][1],
+                  sink_momentum_list[isink_momentum][2] };
+
+        int const msink_momentum[3] = {
+                  -sink_momentum_list[isink_momentum][0],
+                  -sink_momentum_list[isink_momentum][1],
+                  -sink_momentum_list[isink_momentum][2] };
+
+        int const  sink_momentum_id = get_momentum_id (  sink_momentum, momentum_list, momentum_number );
+        int const msink_momentum_id = get_momentum_id ( msink_momentum, momentum_list, momentum_number );
+
+        if ( sink_momentum_id == -1 || msink_momentum_id == -1 ) EXIT(127);
+
+        double const p[4] = {
+            0.,
+            TWO_MPI * (double)sink_momentum[0] / (double)LX_global,
+            TWO_MPI * (double)sink_momentum[1] / (double)LY_global,
+            TWO_MPI * (double)sink_momentum[2] / (double)LZ_global };
+
+        double const phase =  - ( p[0] * gsx[0] + p[1] * gsx[1] + p[2] * gsx[2] + p[3] * gsx[3] );
+        double _Complex const ephase = cexp ( phase * I );
+
+#pragma omp parallel for
+        for ( int it = 0; it < T_global; it++ ) {
+          int const tt = ( it + gsx[0] + T_global ) % T_global;
+        
+          for( int mu = 0; mu < 4; mu++) {
+          for( int nu = 0; nu < 4; nu++) {
+
+            double _Complex const ztmp  = ( buffer[tt][mu][nu][2 *  sink_momentum_id] + buffer[tt][mu][nu][2 *  sink_momentum_id+1] * I ) * ephase;
+            double _Complex const ztmp2 = ( buffer[tt][mu][nu][2 * msink_momentum_id] + buffer[tt][mu][nu][2 * msink_momentum_id+1] * I ) * conj (ephase );
+
+            hvp[iconf][isrc][isink_momentum][0][mu][nu][2*it  ] = creal( ztmp  );
+            hvp[iconf][isrc][isink_momentum][0][mu][nu][2*it+1] = cimag( ztmp  );
+
+            hvp[iconf][isrc][isink_momentum][1][mu][nu][2*it  ] = creal( ztmp2 );
+            hvp[iconf][isrc][isink_momentum][1][mu][nu][2*it+1] = cimag( ztmp2 );
+
+          }}
+        }
+      
+      }
+ 
+      fini_2level_itable ( &momentum_list );
+
+      fini_4level_dtable( &buffer );
+
+    }  /* end of loop on source */
+  }
+
+#endif  /* end of if _CVC_H5 */
+
+
   /****************************************
    * show all data
    ****************************************/
@@ -945,7 +1097,10 @@ int main(int argc, char **argv) {
           conf_src_list[iconf][0][1],
           conf_src_list[iconf][0][1], loop_type_tag[loop_type], seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
       } else {
-        sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d.avg", conf_src_list[iconf][0][0], filename_prefix3,
+        /* sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d.avg", conf_src_list[iconf][0][0], filename_prefix3,
+            conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
+            */
+        sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3,
             conf_src_list[iconf][0][1], loop_type_tag[loop_type], loop_nev, seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2] );
       }
 
