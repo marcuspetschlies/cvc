@@ -379,17 +379,30 @@ int main(int argc, char **argv) {
    ***********************************************/
   if( N_Jacobi > 0 ) {
 
+#ifndef _SMEAR_QUDA 
+
     alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
 
     memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
 
     if ( N_ape > 0 ) {
+#endif
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
         fprintf(stderr, "[avgx_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
         EXIT(47);
       }
+#ifndef _SMEAR_QUDA
     }  /* end of if N_aoe > 0 */
+
+    exitstatus = plaquetteria( gauge_field_smeared );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[njjn_fht_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+#endif
+
   }  /* end of if N_Jacobi > 0 */
 
   /***************************************************************************
@@ -892,6 +905,249 @@ int main(int argc, char **argv) {
               int sink_gamma   = ( iflavor == iflavor2 ) ? 4 : 5;
               int source_gamma = sink_gamma;
   
+                /*****************************************************************
+                 *****************************************************************
+                 **
+                 ** LIGHT-AFTER-LIGHT
+                 **
+                 *****************************************************************
+                 *****************************************************************/
+
+                /*****************************************************************
+                 * invert for sequential timeslice propagator
+                 *****************************************************************/
+                for ( int i = 0; i < spin_color_dilution; i++ ) {
+
+                  if ( g_cart_id == 0 && g_verbose > 2 ) {
+                    fprintf ( stdout, "# [avgx_invert_contract] start LIGHT-AFTER-LIGHT with tseq = %d, pf = %3d %3d %3d, pi = %3d %3d %3d, sc = %d  %s %d\n",
+                        gtseq,
+                        sink_momentum[0], sink_momentum[1], sink_momentum[2],
+                        source_momentum[0], source_momentum[1], source_momentum[2],
+                        i,
+                        __FILE__, __LINE__ );
+                  }
+
+  
+                  /*****************************************************************
+                   * prepare sequential timeslice source 
+                   *
+                   * THROUGH THE SINK, so use the SINK SMEARED stochastic zero momentum propagator
+                   *****************************************************************/
+       
+                  /*****************************************************************
+                   * LIGHT-AFTER-LIGHT
+                   *
+                   * seq source from light propagator including momentum phase at source
+                   * the seq source momentum is the one at sink
+                   *****************************************************************/
+                  exitstatus = init_sequential_source ( spinor_work[0], stochastic_propagator_mom_smeared_list[iflavor][i], gtseq, sink_momentum, sink_gamma );
+                  if( exitstatus != 0 ) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from init_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(64);
+                  }
+  
+                  if ( N_Jacobi > 0 ) {
+                    /***************************************************************************
+                     * SINK SMEARING THE SEQUENTIAL SOURCE
+                     ***************************************************************************/
+                    exitstatus = Jacobi_Smearing ( gauge_field_smeared, spinor_work[0], N_Jacobi, kappa_Jacobi);
+                    if(exitstatus != 0) {
+                      fprintf(stderr, "[avgx_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                      return(11);
+                    }
+                  }
+
+                  if ( g_write_sequential_source ) {
+              
+                    sprintf(filename, "seq-%s.f%d.c%d.t%d.s%d.tseq%d.px%dpy%dpz%d.sc%d", filename_prefix, iflavor, Nconf, gts, isample, 
+                        g_sequential_source_timeslice_list[iseq_timeslice], 
+                        sink_momentum[0], sink_momentum[1], sink_momentum[2], i);
+ 
+                    if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
+                      fprintf(stderr, "[avgx_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                      EXIT(2);
+                    }
+                  }
+
+ 
+                  memset ( spinor_work[1], 0, sizeof_spinor_field );
+  
+                  exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor2 );
+                  if(exitstatus < 0) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT(44);
+                  }
+  
+                  if ( check_propagator_residual ) {
+                    check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor2], mzzinv[iflavor2], 1 );
+                  }
+  
+                  /***************************************************************************
+                   * NO SMEARING AT THIS END OF THE PRPOAGATOR
+                   *
+                   * this end runs to the insertion
+                   ***************************************************************************/
+  
+                  memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
+                }  /* end of loop on oet spin components */
+  
+                /*****************************************************************/
+                /*****************************************************************/
+  
+                /*****************************************************************
+                 * contractions for current insertion
+                 *
+                 * sequential_propagator_list is strange-after-light type
+                 * (sequential through the sink)
+                 *
+                 *                 /  \
+                 *                /    \
+                 * l^+ = lbar    /      \ l (d / iflavor2 )
+                 * d^+ = u      /        \
+                 *             /  ________\
+                 *                   l (u / iflavor )
+                 *****************************************************************/
+  
+                for ( int icurrent_gamma = 0; icurrent_gamma < gamma_t_number; icurrent_gamma++ )
+                {
+
+                  int current_gamma = gamma_t_list[icurrent_gamma];
+
+                  double * contr_p = init_1level_dtable (  2*T );
+                  if ( contr_p == NULL ) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                    EXIT(47);
+                  }
+
+                  /*****************************************************************
+                   * Sbar(0)^+ g5 Gc [ D SSL ] Gi g5
+                   * Gc = current_gamma
+                   * Gi = source_gamma
+                   *
+                   * SSL was produced for flavor iflavor
+                   *
+                   * Sbar: mapping of iflavor2 with 3 - iflavor2
+                   * 0 -> 3 ( dn-type strange)
+                   * 1 -> 2 ( up-type strange)
+                   *****************************************************************/
+
+                  contract_twopoint_snk_momentum ( contr_p, source_gamma,  current_gamma,
+                      stochastic_propagator_zero_list[ 1 - iflavor2 ],
+                      sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
+
+
+                  sprintf ( data_tag, "/%s-g-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/gi%d/pix%dpiy%dpiz%d/",
+                      flavor_tag[iflavor2],
+                      flavor_tag[iflavor2], flavor_tag[iflavor],
+                      muval[iflavor2], muval[iflavor2], muval[iflavor],
+                      gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                      sink_gamma, current_gamma, source_gamma,
+                      source_momentum[0], source_momentum[1], source_momentum[2] );
+
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
+#elif ( defined HAVE_HDF5 )
+                  exitstatus = contract_write_to_h5_file ( &contr_p, output_filename, data_tag, &sink_momentum, 1, io_proc );
+#endif
+                  if(exitstatus != 0) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                    EXIT(3);
+                  }
+
+                  fini_1level_dtable ( &contr_p );
+
+                }  /* end of loop on current gamma */
+
+                /*****************************************************************/
+                /*****************************************************************/
+
+                /*****************************************************************
+                 * contractions for covariant displacement insertion
+                 *****************************************************************/
+  
+                /*****************************************************************
+                 * loop on fbwd for covariant displacement
+                 *****************************************************************/
+                for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ ) {
+  
+                  double ** sequential_propagator_displ_list     = init_2level_dtable ( spin_color_dilution, _GSI(VOLUME) );
+                  if ( sequential_propagator_displ_list == NULL ) {
+                    fprintf(stderr, "[avgx_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+                    EXIT(33);
+                  }
+                
+                  /*****************************************************************
+                   * loop on directions for covariant displacement
+                   *****************************************************************/
+                  for ( int mu = 0; mu < 4; mu++ ) {
+  
+                    for ( int i = 0; i < spin_color_dilution; i++ ) {
+                      exitstatus = spinor_field_eq_cov_displ_spinor_field ( sequential_propagator_displ_list[i], sequential_propagator_list[i], mu, ifbwd, gauge_field_with_phase );
+                      if ( exitstatus != 0 ) {
+                        fprintf(stderr, "[avgx_invert_contract] Error from spinor_field_eq_cov_displ_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        EXIT(33);
+                      }
+                    }
+  
+
+                    for ( int icurrent_gamma = 0; icurrent_gamma < gamma_v_number; icurrent_gamma++ )
+	            {
+                 
+                      int current_gamma = gamma_v_list[icurrent_gamma];
+
+                      double * contr_p = init_1level_dtable (  2*T );
+                      if ( contr_p == NULL ) {
+                        fprintf(stderr, "[avgx_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+                        EXIT(47);
+                      }
+                  
+                      /*****************************************************************
+                       * Sbar(0)^+ g5 Gc [ D SSL ] Gi g5
+                       * Gc = current_gamma
+                       * Gi = source_gamma
+                       *
+                       * SSL was produced for flavor iflavor
+                       *
+                       * Sbar: mapping of iflavor2 with 3 - iflavor2
+                       * 0 -> 3 ( dn-type strange)
+                       * 1 -> 2 ( up-type strange)
+                       *****************************************************************/
+
+                      contract_twopoint_snk_momentum ( contr_p, source_gamma,  current_gamma, 
+                            stochastic_propagator_zero_list[ 1 - iflavor2 ], 
+                            sequential_propagator_displ_list, spin_dilution, color_dilution, current_momentum, 1);
+
+  
+                      sprintf ( data_tag, "/%s-gd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/gi%d/pix%dpiy%dpiz%d/", 
+                          flavor_tag[iflavor2],
+                          flavor_tag[iflavor2], flavor_tag[iflavor],
+                          muval[iflavor2], muval[iflavor2], muval[iflavor],
+                          gts, isample, g_sequential_source_timeslice_list[iseq_timeslice],
+                          sink_gamma, current_gamma, mu, fbwd_str[ifbwd], source_gamma,
+                          source_momentum[0], source_momentum[1], source_momentum[2] );
+  
+#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
+                      exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
+#elif ( defined HAVE_HDF5 )
+                      exitstatus = contract_write_to_h5_file ( &contr_p, output_filename, data_tag, &sink_momentum, 1, io_proc );
+#endif
+                      if(exitstatus != 0) {
+                        fprintf(stderr, "[avgx_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                        EXIT(3);
+                      }
+                
+                      fini_1level_dtable ( &contr_p );
+                      
+                    }  /* end of loop on current gamma */
+  
+                  }  /* end of loop on mu */
+
+                  fini_2level_dtable ( &sequential_propagator_displ_list );
+                }  /* end of loop on fbwd */
+
+                /*****************************************************************/
+                /*****************************************************************/
+
 
                 /*****************************************************************
                  *****************************************************************
@@ -1408,8 +1664,8 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***************************************************************************/
 
-  free( gauge_field_with_phase );
-  free( gauge_field_smeared );
+  if ( gauge_field_with_phase != NULL ) free( gauge_field_with_phase );
+  if ( gauge_field_smeared    != NULL ) free( gauge_field_smeared );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
