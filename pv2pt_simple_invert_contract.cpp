@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "kaon";
 
-  const char flavor_tag[4][2] =  { "l", "l", "s", "s" };
+  const char flavor_tag[2][2] =  { "l", "l" };
 
   int c;
   int filename_set = 0;
@@ -355,19 +355,9 @@ int main(int argc, char **argv) {
   }
  
   /***************************************************************************
-   * distribute
-   ***************************************************************************/
-#ifdef HAVE_MPI
-  if (  MPI_Bcast( source_timeslices, g_nsample_oet, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) {
-    fprintf ( stderr, "[pv2pt_simple_invert_contract] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
-    EXIT(12);
-  }
-#endif
-
-  /***************************************************************************
    * zero momentum propagators
    ***************************************************************************/
-  for ( int isample = 0; isample < T_global; isample++ ) 
+  for ( int isample = 0; isample < T_global; isample++ )
   {
 
     int const gts = isample;
@@ -396,6 +386,9 @@ int main(int argc, char **argv) {
      * 
      ***************************************************************************/
 
+    memset ( spinor_work[0], 0, sizeof_spinor_field );
+
+
     if ( source_proc_id == g_cart_id ) {
       size_t offset = _GSI( source_timeslice * VOL3 );
 
@@ -403,9 +396,9 @@ int main(int argc, char **argv) {
     }
 
     if ( g_write_source ) {
-      sprintf(filename, "%s.c%d.t%d.s%d", filename_prefix, Nconf, gts, g_sourceid + isample * g_sourceid_step );
+      sprintf(filename, "%s.c%d.t%d", filename_prefix, Nconf, gts );
       if ( ( exitstatus = write_propagator( spinor_work[0], filename, 0, g_propagator_precision) ) != 0 ) {
-        fprintf(stderr, "[kaon2pt_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        fprintf(stderr, "[pv2pt_simple_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(2);
       }
     }
@@ -448,7 +441,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * output filename
      ***************************************************************************/
-    sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, isample );
+    sprintf ( output_filename, "%s.%.4d.t%d.h5", g_outfile_prefix, Nconf, gts );
 
     if(io_proc == 2 && g_verbose > 1 ) { 
       fprintf(stdout, "# [pv2pt_simple_invert_contract] writing data to file %s\n", output_filename);
@@ -460,7 +453,6 @@ int main(int argc, char **argv) {
      * loop on Gamma strcutures
      ***************************************************************************/
     int const source_gamma = 5;
-    int const source_momentum[3] = { 0, 0, 0 };
     /* int sink_gamma   = source_gamma; */
     for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ )
     {
@@ -479,7 +471,6 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
     
-
       /***************************************************************************
        *
        ***************************************************************************/
@@ -495,11 +486,7 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
     
-      sprintf ( data_tag, "/%s-gf-%s-gi/mu%6.4f/mu%6.4f/t%d/s%d/gf%d/gi%d/pix%dpiy%dpiz%d", flavor_tag[3], flavor_tag[0],
-         muval[1], muval[0],
-         gts, isample,
-         sink_gamma, source_gamma,
-         source_momentum[0], source_momentum[1], source_momentum[2] );
+      sprintf ( data_tag, "/%s-gf-%s-gi/mu%6.4f/mu%6.4f/gf%d", flavor_tag[1], flavor_tag[0], muval[1], muval[0], sink_gamma );
     
       exitstatus = contract_write_to_h5_file ( &(contr_p[0]), output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if(exitstatus != 0) {
@@ -507,6 +494,9 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
      
+      fini_1level_dtable ( &contr_x );
+      fini_2level_dtable ( &contr_p );
+
     }  /* end of loop on sink gamma ids */
 
   }  /* end of loop on samples */
