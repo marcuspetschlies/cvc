@@ -8,6 +8,8 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
+
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -113,6 +115,9 @@ int main(int argc, char **argv) {
   struct AffWriter_s *affw = NULL;
 #endif
 
+
+  struct timeval ta, tb, start_time, end_time;
+
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
@@ -143,7 +148,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  g_the_time = time(NULL);
+  gettimeofday ( &start_time, (struct timezone *)NULL );
 
   /* set the default values */
   if(filename_set==0) sprintf ( filename, "%s.input", outfile_prefix );
@@ -573,9 +578,11 @@ int main(int argc, char **argv) {
       }
 
       if ( N_Jacobi > 0 ) {
+        gettimeofday ( &ta, (struct timezone *)NULL );
         /***************************************************************************
          * SOURCE SMEARING
          ***************************************************************************/
+
         for( int i = 0; i < spin_color_dilution; i++) {
           exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_source_list[i], N_Jacobi, kappa_Jacobi);
           if(exitstatus != 0) {
@@ -583,6 +590,8 @@ int main(int argc, char **argv) {
             return(11);
           }
         }
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-diluted-stochastic-source", g_cart_id == 0 );
       }
 
       /***************************************************************************
@@ -622,6 +631,8 @@ int main(int argc, char **argv) {
           memcpy( stochastic_propagator_zero_smeared_list[iflavor][i], spinor_work[1], sizeof_spinor_field);
  
           if ( N_Jacobi > 0 ) {
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
             /***************************************************************************
              * SOURCE SMEARING
              ***************************************************************************/
@@ -630,6 +641,8 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[avgx_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               return(11);
             }
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-sequential-propagator", g_cart_id == 0 );
           }
 
         }  /* end of loop on spin color dilution indices */
@@ -670,6 +683,8 @@ int main(int argc, char **argv) {
          * source-smearing
          ***************************************************************************/
         if ( N_Jacobi > 0 ) {
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
           for( int i = 0; i < spin_color_dilution; i++) {
             exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_source_list[i], N_Jacobi, kappa_Jacobi);
             if(exitstatus != 0) {
@@ -677,6 +692,8 @@ int main(int argc, char **argv) {
               return(11);
             }
           }
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-diluted-stochastic-source", g_cart_id == 0 );
         }
 
         /***************************************************************************
@@ -722,6 +739,8 @@ int main(int argc, char **argv) {
         if ( N_Jacobi > 0 ) {
  
           for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
             for( int i = 0; i < spin_color_dilution; i++) {
 
               exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_propagator_mom_smeared_list[iflavor][i], N_Jacobi, kappa_Jacobi);
@@ -730,9 +749,12 @@ int main(int argc, char **argv) {
                 return(11);
               }
             }
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-diluted-stochastic-propagator", g_cart_id == 0 );
           }
         }
  
+        gettimeofday ( &ta, (struct timezone *)NULL );
         /***************************************************************************
          * loop on quark flavors
          *
@@ -837,6 +859,9 @@ int main(int argc, char **argv) {
           }  /* end of loop on flavor at sink */
         }  /* end of loop on flavor at source */
   
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-twop", g_cart_id == 0 );
+
         /*****************************************************************/
         /*****************************************************************/
 
@@ -947,6 +972,8 @@ int main(int argc, char **argv) {
                   }
   
                   if ( N_Jacobi > 0 ) {
+                    gettimeofday ( &ta, (struct timezone *)NULL );
+
                     /***************************************************************************
                      * SINK SMEARING THE SEQUENTIAL SOURCE
                      ***************************************************************************/
@@ -954,7 +981,9 @@ int main(int argc, char **argv) {
                     if(exitstatus != 0) {
                       fprintf(stderr, "[avgx_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                       return(11);
-                    }
+                    } 
+                    gettimeofday ( &tb, (struct timezone *)NULL );
+                    show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-sequential-source", g_cart_id == 0 );
                   }
 
                   if ( g_write_sequential_source ) {
@@ -994,6 +1023,7 @@ int main(int argc, char **argv) {
                 /*****************************************************************/
                 /*****************************************************************/
   
+                gettimeofday ( &ta, (struct timezone *)NULL );
                 /*****************************************************************
                  * contractions for current insertion
                  *
@@ -1058,8 +1088,13 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on current gamma */
 
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-local-threep", g_cart_id == 0 );
+
                 /*****************************************************************/
                 /*****************************************************************/
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
 
                 /*****************************************************************
                  * contractions for covariant displacement insertion
@@ -1145,6 +1180,9 @@ int main(int argc, char **argv) {
                   fini_2level_dtable ( &sequential_propagator_displ_list );
                 }  /* end of loop on fbwd */
 
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-deriv-threep", g_cart_id == 0 );
+
                 /*****************************************************************/
                 /*****************************************************************/
 
@@ -1191,6 +1229,8 @@ int main(int argc, char **argv) {
                   }
   
                   if ( N_Jacobi > 0 ) {
+                    gettimeofday ( &ta, (struct timezone *)NULL );
+
                     /***************************************************************************
                      * SINK SMEARING THE SEQUENTIAL SOURCE
                      ***************************************************************************/
@@ -1199,6 +1239,8 @@ int main(int argc, char **argv) {
                       fprintf(stderr, "[avgx_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                       return(11);
                     }
+                    gettimeofday ( &tb, (struct timezone *)NULL );
+                    show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-sequential-source", g_cart_id == 0 );
                   }
 
                   if ( g_write_sequential_source ) {
@@ -1237,7 +1279,9 @@ int main(int argc, char **argv) {
   
                 /*****************************************************************/
                 /*****************************************************************/
-  
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 /*****************************************************************
                  * contractions for current insertion
                  *
@@ -1302,8 +1346,13 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on current gamma */
 
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-local-threep", g_cart_id == 0 );
+
                 /*****************************************************************/
                 /*****************************************************************/
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
 
                 /*****************************************************************
                  * contractions for covariant displacement insertion
@@ -1389,6 +1438,9 @@ int main(int argc, char **argv) {
                   fini_2level_dtable ( &sequential_propagator_displ_list );
                 }  /* end of loop on fbwd */
 
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-deriv-threep", g_cart_id == 0 );
+
                 /*****************************************************************/
                 /*****************************************************************/
 
@@ -1434,6 +1486,8 @@ int main(int argc, char **argv) {
                   }
   
                   if ( N_Jacobi > 0 ) {
+                    gettimeofday ( &ta, (struct timezone *)NULL );
+
                     /***************************************************************************
                      * SINK SMEARING THE SEQUENTIAL SOURCE
                      ***************************************************************************/
@@ -1442,6 +1496,8 @@ int main(int argc, char **argv) {
                       fprintf(stderr, "[avgx_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                       return(11);
                     }
+                    gettimeofday ( &tb, (struct timezone *)NULL );
+                    show_time ( &ta, &tb, "avgx_invert_contract", "Jacobi_Smearing-sequential-source", g_cart_id == 0 );
                   }
  
                   memset ( spinor_work[1], 0, sizeof_spinor_field );
@@ -1467,7 +1523,9 @@ int main(int argc, char **argv) {
   
                 /*****************************************************************/
                 /*****************************************************************/
-  
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
+
                 /*****************************************************************
                  * contractions for local current insertion
                  *
@@ -1529,8 +1587,13 @@ int main(int argc, char **argv) {
                       
                 }  /* end of loop on current gamma */
 
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-local-threep", g_cart_id == 0 );
+
                 /*****************************************************************/
                 /*****************************************************************/
+
+                gettimeofday ( &ta, (struct timezone *)NULL );
 
                 /*****************************************************************
                  * contractions for covariant displacement insertion
@@ -1613,6 +1676,8 @@ int main(int argc, char **argv) {
                   fini_2level_dtable ( &sequential_propagator_displ_list );
                 }  /* end of loop on fbwd */
 
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "avgx_invert_contract", "contract-io-deriv-threep", g_cart_id == 0 );
 
               /*****************************************************************/
               /*****************************************************************/
@@ -1690,11 +1755,9 @@ int main(int argc, char **argv) {
   MPI_Finalize();
 #endif
 
-  if(g_cart_id==0) {
-    g_the_time = time(NULL);
-    fprintf(stdout, "# [avgx_invert_contract] %s# [avgx_invert_contract] end of run\n", ctime(&g_the_time));
-    fprintf(stderr, "# [avgx_invert_contract] %s# [avgx_invert_contract] end of run\n", ctime(&g_the_time));
-  }
+
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "avgx_invert_contract", "runtime", g_cart_id == 0 );
 
   return(0);
 
