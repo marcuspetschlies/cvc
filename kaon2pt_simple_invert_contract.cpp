@@ -352,17 +352,28 @@ int main(int argc, char **argv) {
    ***********************************************/
   if( N_Jacobi > 0 ) {
 
+#ifndef _SMEAR_QUDA
     alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
 
     memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
 
     if ( N_ape > 0 ) {
+#endif
       exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
       if(exitstatus != 0) {
         fprintf(stderr, "[kaon2pt_simple_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
         EXIT(47);
       }
+#ifndef _SMEAR_QUDA
+
+      exitstatus = plaquetteria ( gauge_field_smeared );
+      if(exitstatus != 0) {
+        fprintf(stderr, "[kaon2pt_simple_invert_contract] Error from plaquetteria, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(38);
+      }
     }  /* end of if N_aoe > 0 */
+#endif
+
   }  /* end of if N_Jacobi > 0 */
 
   /***************************************************************************
@@ -429,7 +440,13 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
-     * 
+     * initialize both spinor work 0 , 1 to zero
+     ***************************************************************************/
+    memset ( spinor_work[0] , 0, sizeof_spinor_field );
+    memset ( spinor_work[1] , 0, sizeof_spinor_field );
+
+    /***************************************************************************
+     *  process with source timeslice copy their part of source
      ***************************************************************************/
 
     if ( source_proc_id == g_cart_id ) {
@@ -516,7 +533,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #elif ( defined HAVE_HDF5 )
-    sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, isample );
+    sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, g_sourceid + isample * g_sourceid_step );
 #endif
     if(io_proc == 2 && g_verbose > 1 ) { 
       fprintf(stdout, "# [kaon2pt_simple_invert_contract] writing data to file %s\n", output_filename);
