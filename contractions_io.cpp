@@ -1247,6 +1247,8 @@ int write_h5_attribute ( const char * filename, const char * attr_name, const ch
 
 int write_h5_contraction ( void * const contr, void * const awriter, void * const afilename, char * tag, const char * data_type, int const ncdim, const int * const cdim ) {
 
+  int return_value = 0;
+
   char * filename = (char *)afilename;
   if ( filename == NULL ) {
     fprintf( stderr, "[write_h5_contraction] Error, need filename %s %d\n", __FILE__, __LINE__ );
@@ -1451,14 +1453,11 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
        */
   /* hid_t dataset_id = H5Dcreate (       loc_id,             tag,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id ); */
   hid_t dataset_id = H5Dcreate (       loc_id,         dataset_name,       dtype_id,       space_id,       lcpl_id,       dcpl_id,       dapl_id );
-  if ( dataset_id < 0 ) {
-    fprintf(stderr, "[write_h5_contraction] Error from H5Dcreate %s %d\n", __FILE__, __LINE__);
-    return(19);
-  }
+  if ( dataset_id >= 0 ) {
 
-  /***************************************************************************
-   * write the current data set
-   ***************************************************************************/
+    /***************************************************************************
+     * write the current data set
+     ***************************************************************************/
       /*
                hid_t dataset_id           IN: Identifier of the dataset to write to.
                hid_t mem_type_id          IN: Identifier of the memory datatype.
@@ -1468,20 +1467,25 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
                const void * buf           IN: Buffer with data to be written to the file.
         herr_t H5Dwrite ( hid_t dataset_id, hid_t mem_type_id, hid_t mem_space_id, hid_t file_space_id, hid_t xfer_plist_id, const void * buf )
        */
-  status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    contr );
+    status = H5Dwrite (       dataset_id,       mem_type_id,       mem_space_id,       file_space_id,        xfer_plit_id,    contr );
 
-  if( status < 0 ) {
-    fprintf(stderr, "[write_h5_contraction] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
-    return(8);
-  }
+    if( status < 0 ) {
+      fprintf(stderr, "[write_h5_contraction] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(8);
+    }
 
-  /***************************************************************************
-   * close the current data set
-   ***************************************************************************/
-  status = H5Dclose ( dataset_id );
-  if( status < 0 ) {
-    fprintf(stderr, "[write_h5_contraction] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
-    return(9);
+    /***************************************************************************
+     * close the current data set
+     ***************************************************************************/
+    status = H5Dclose ( dataset_id );
+    if( status < 0 ) {
+      fprintf(stderr, "[write_h5_contraction] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+      return(9);
+    }
+
+  } else {
+    fprintf(stderr, "[write_h5_contraction] Error from H5Dcreate %s %d\n", __FILE__, __LINE__);
+    return_value = 19;
   }
 
   /***************************************************************************
@@ -1526,7 +1530,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
     return(13);
   } 
   
-  return(0);
+  return( return_value );
 
 }  /* end of write_h5_contraction */
 
