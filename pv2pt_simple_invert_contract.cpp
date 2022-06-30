@@ -8,6 +8,8 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <sys/time.h>
+
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -87,6 +89,8 @@ int main(int argc, char **argv) {
   char output_filename[400];
   int const spin_dilution  = 1;
   int const color_dilution = 1;
+
+  struct timeval ta, tb;
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -357,8 +361,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * zero momentum propagators
    ***************************************************************************/
-  /* for ( int isample = 0; isample < T_global; isample++ )  */
-  for ( int isample = 1; isample < 3; isample++ ) 
+  for ( int isample = 0; isample < T_global; isample++ )
   {
 
     int const gts = isample;
@@ -472,6 +475,7 @@ int main(int argc, char **argv) {
         EXIT(3);
       }
     
+      gettimeofday ( &ta, (struct timezone *)NULL );
       /***************************************************************************
        *
        ***************************************************************************/
@@ -480,20 +484,32 @@ int main(int argc, char **argv) {
           &(stochastic_propagator_zero_smeared),
           spin_dilution, color_dilution, 1, 1., 64 );
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "pv2pt_simple_invert_contract", "contract_twopoint_xdep", io_proc==2 );
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
       /* momentum projection at sink */
       exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
       if(exitstatus != 0) {
         fprintf(stderr, "[pv2pt_simple_invert_contract] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(3);
       }
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "pv2pt_simple_invert_contract", "momentum_projection", io_proc==2 );
     
       sprintf ( data_tag, "/%s-gf-%s-gi/mu%6.4f/mu%6.4f/gf%d", flavor_tag[1], flavor_tag[0], muval[1], muval[0], sink_gamma );
     
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       exitstatus = contract_write_to_h5_file ( &(contr_p[0]), output_filename, data_tag, g_sink_momentum_list, g_sink_momentum_number, io_proc );
       if(exitstatus != 0) {
         fprintf(stderr, "[pv2pt_simple_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(3);
       }
+
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "pv2pt_simple_invert_contract", "contract_write_to_h5_file", io_proc==2 );
      
       fini_1level_dtable ( &contr_x );
       fini_2level_dtable ( &contr_p );
