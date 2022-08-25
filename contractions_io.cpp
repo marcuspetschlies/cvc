@@ -1534,6 +1534,300 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 
 }  /* end of write_h5_contraction */
 
+
+
+
+/***************************************************************************/
+/***************************************************************************/
+
+
+
+#ifdef HAVE_MPI
+/***************************************************************************
+ * parallel write contraction data to file
+ *
+ ***************************************************************************/
+int write_h5_contraction_parallel ( void * const contr, char * const afilename, char * const tag, char * const data_type, int const ncdim, const int * const cdim, MPI_Comm comm )
+
+{
+
+  int return_value = 0;
+
+  MPI_Info info  = MPI_INFO_NULL;
+
+
+  char * filename = (char *)afilename;
+  if ( filename == NULL ) {
+    fprintf( stderr, "[write_h5_contraction_parallel] Error, need filename %s %d\n", __FILE__, __LINE__ );
+    return(1);
+  }
+
+  /***************************************************************************
+   * turn off automatic error writings
+   ***************************************************************************/
+  // H5Eset_auto (H5E_DEFAULT, NULL, NULL);
+
+  /***************************************************************************
+  * creates a file access property
+   ***************************************************************************/
+  hid_t plist_id = H5Pcreate ( H5P_FILE_ACCESS );
+  H5Pset_fapl_mpio ( plist_id, comm, info );
+
+
+  /***************************************************************************
+   * create or open file
+   ***************************************************************************/
+  herr_t  status;
+
+  struct stat fileStat;
+  if ( stat( filename, &fileStat) >= 0 ) 
+  {
+    fprintf ( stderr, "[write_h5_contraction_parallel] file %s exists  %s %d\n", filename, __FILE__, __LINE__ );
+    return ( 1 );
+  }
+   
+  /* creat a new file */
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction_parallel] create new file\n" );
+
+  unsigned flags = H5F_ACC_TRUNC;
+
+  hid_t fcpl_id = H5P_DEFAULT;
+                                 
+  hid_t fapl_id = H5P_DEFAULT;
+   
+  /***************************************************************************
+   * Create a new file collectively and release property list identifier
+   ***************************************************************************/
+  hid_t file_id = H5Fcreate ( filename, flags, fcpl_id, plist_id);
+  if ( file_id < 0 )
+  {
+    fprintf ( stderr, "[write_h5_contraction_parallel] Error from H5Fcreate %s %d\n", __FILE__, __LINE__ );
+    return ( 1 );
+  }
+
+
+  status = H5Pclose(plist_id);
+  if ( status  < 0 )
+  {
+    fprintf ( stderr, "[write_h5_contraction_parallel] Error from H5Pclose  %s %d\n", __FILE__, __LINE__ );
+    return ( 2 );
+  }
+
+
+  if ( g_verbose > 2 ) fprintf ( stdout, "# [write_h5_contraction_parallel] file_id = %ld\n", file_id );
+
+  /***************************************************************************
+   * some default settings for H5Dwrite
+   ***************************************************************************/
+  hid_t dtype_id;
+  hid_t mem_type_id;
+  if ( strcmp( data_type , "double" ) == 0 ) {
+    dtype_id = H5Tcopy( H5T_NATIVE_DOUBLE );
+    mem_type_id   = H5T_NATIVE_DOUBLE;
+  } else if ( strcmp( data_type , "int" ) == 0 ) {
+    dtype_id = H5Tcopy( H5T_NATIVE_INT );
+    mem_type_id   = H5T_NATIVE_INT;
+  } else if ( strcmp( data_type , "char" ) == 0 ) {
+    dtype_id = H5Tcopy( H5T_NATIVE_CHAR );
+    mem_type_id   = H5T_NATIVE_CHAR;
+  } else {
+    fprintf ( stderr, "[write_h5_contraction_parallel] Error, unrecognized data_type %s %s %d\n", data_type, __FILE__, __LINE__ );
+    return ( 8 );
+  }
+    
+  hid_t mem_space_id  = H5S_ALL;
+  hid_t file_space_id = H5S_ALL;
+  hid_t xfer_plit_id  = H5P_DEFAULT;
+  hid_t lcpl_id       = H5P_DEFAULT;
+  hid_t dcpl_id       = H5P_DEFAULT;
+  hid_t dapl_id       = H5P_DEFAULT;
+  hid_t gcpl_id       = H5P_DEFAULT;
+  hid_t gapl_id       = H5P_DEFAULT;
+  /* size_t size_hint    = 0; */
+
+  /***************************************************************************
+   * H5 data space and data type
+   ***************************************************************************/
+  status = H5Tset_order ( dtype_id, H5T_ORDER_LE );
+  /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
+
+  /* hsize_t dims[1];
+  dims[0] = nc;*/    /* number of double elements */
+
+  hsize_t * dims = (hsize_t*) malloc ( ncdim * sizeof ( hsize_t ) );
+  for( int i=0; i<ncdim;i++ ) {
+    dims[i] = cdim[i];
+  }
+
+  /***************************************************************************
+   * create data space for data set
+   ***************************************************************************/
+  hid_t space_id = H5Screate_simple ( ncdim, dims, NULL);
+
+  /***************************************************************************
+   * Each process defines dataset in memory and writes it to the hyperslab
+   * in the file.
+   ***************************************************************************/
+  hid_t dataset_id = H5Dcreate ( file_id, tag, dtype_id, space_id,       lcpl_id,       dcpl_id,       dapl_id );
+  if ( dataset_id < 0 ) 
+  {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Dcreate %s %d\n", __FILE__, __LINE__);
+    return (19 );
+  }
+
+  /***************************************************************************
+   * close the data space
+   ***************************************************************************/
+  status = H5Sclose ( space_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Sclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(10);
+  }
+
+
+  /***************************************************************************
+   * define CONTIGUOUS HYPERSLABS
+   ***************************************************************************/
+  int mpi_size, mpi_rank;
+  MPI_Comm_size(comm, &mpi_size);
+  MPI_Comm_rank(comm, &mpi_rank);
+
+  hsize_t * count  = (hsize_t*)malloc ( ncdim * sizeof ( hsize_t ) );
+  hsize_t * start  = (hsize_t*)malloc ( ncdim * sizeof ( hsize_t ) );
+  hsize_t * block  = (hsize_t*)malloc ( ncdim * sizeof ( hsize_t ) );
+  hsize_t * stride = (hsize_t*)malloc ( ncdim * sizeof ( hsize_t ) );
+
+  /*
+  memcpy ( count, dims, ncdim * sizeof( hsize_t ) );
+  count[0] = dims[0]/mpi_size;
+
+  memset ( start, 0, ncdim * sizeof( hsize_t ) );
+  start[0] = mpi_rank * count[0];
+*/
+
+  for ( int i = 0; i < ncdim; i++ ) {
+    block[i] = 1;
+  }
+  block[ncdim-1] = dims[ncdim-1] / mpi_size;
+
+  for ( int i = 0; i < ncdim; i++ ) {
+    count[i] = dims[i];
+  }
+  count[ncdim-1] = mpi_size;
+
+  // memset( start, 0, ncdim * sizeof ( hsize_t ) );
+  for ( int i = 0; i < ncdim; i++ ) {
+    start[i] = 0;
+  }
+  start[ncdim-1] = mpi_rank * ( dims[ncdim-1] / mpi_size );
+
+  for ( int i = 0; i < ncdim; i++ ) {
+    stride[i] = 1;
+  }
+  stride[ncdim-1] = dims[ncdim-1] / mpi_size;
+
+
+
+  if ( g_verbose > 2 ) {
+    for ( int i = 0; i < ncdim; i++ ) fprintf ( stdout, "proc%.4d  %3d  count %4ld start %4ld stride %4ld block %4ld\n",
+        g_cart_id, i,  count[i], start[i], stride[i], block[i] );
+  }
+
+  /***************************************************************************
+   * new data set, hyperslab per process
+   ***************************************************************************/
+  hid_t memspace = H5Screate_simple ( ncdim, count, NULL);
+
+  /***************************************************************************
+   * Select hyperslab in the file.
+   ***************************************************************************/
+  hid_t filespace = H5Dget_space(dataset_id);
+  // H5Sselect_hyperslab ( filespace, H5S_SELECT_SET, offset, NULL, count, NULL);
+  H5Sselect_hyperslab ( filespace, H5S_SELECT_SET, start, stride, count, block);
+
+  /***************************************************************************
+   * Create property list for collective dataset write
+   ***************************************************************************/
+  plist_id = H5Pcreate(H5P_DATASET_XFER);
+  H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+
+  /***************************************************************************
+   * write the current data set
+   ***************************************************************************/
+  status = H5Dwrite ( dataset_id, mem_type_id, memspace, filespace, plist_id, contr );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Dwrite, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(8);
+  }
+
+
+  free ( dims   );
+  free ( start  );
+  free ( count  );
+  free ( block  );
+  free ( stride );
+
+  /***************************************************************************
+   * close the current data set
+   ***************************************************************************/
+  status = H5Dclose ( dataset_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Dclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(9);
+  }
+
+  /***************************************************************************
+   * close the current file space
+   ***************************************************************************/
+  status = H5Sclose ( filespace );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Sclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(9);
+  }
+
+  /***************************************************************************
+   * close the current file space
+   ***************************************************************************/
+  status = H5Sclose ( memspace );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Sclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(9);
+  }
+ 
+  /***************************************************************************
+   * close the 
+   ***************************************************************************/
+  status = H5Pclose ( plist_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel] Error from H5Plose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(9);
+  }
+
+  /***************************************************************************
+   * close the data type
+   ***************************************************************************/
+  status = H5Tclose ( dtype_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel ] Error from H5Tclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(12);
+  }
+
+  /***************************************************************************
+   * close the file
+   ***************************************************************************/
+  status = H5Fclose ( file_id );
+  if( status < 0 ) {
+    fprintf(stderr, "[write_h5_contraction_parallel ] Error from H5Fclose, status was %d %s %d\n", status, __FILE__, __LINE__);
+    return(13);
+  } 
+  
+  return( return_value );
+
+}  /* end of write_h5_contraction_parallel */
+
+#endif
+
+
 #endif  /* if def HAVE_HDF5 */
 
 /***************************************************************************/
