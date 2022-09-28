@@ -150,7 +150,8 @@ int main(int argc, char **argv) {
 #if _TWOP_CYD_H5
   const char flavor_tag[2][3] = { "uu", "dd" };
 #elif _TWOP_AVGX_H5
-  char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
+  // char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
+  char const flavor_tag[2][20]        = { "l-gf-l-gi" , "l-gf-l-gi" };
 #else
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 #endif
@@ -188,7 +189,8 @@ int main(int argc, char **argv) {
   double fbwd_weight[2]   = {0., 0.};
   double mirror_weight[2] = {0., 0.};
 
-  double g_mus = 0.0186;
+  // double g_mus = 0.01615;
+  double g_mus = 0.0006;
 
 
 #ifdef HAVE_MPI
@@ -963,7 +965,7 @@ int main(int argc, char **argv) {
           conf_src_list[iconf][isrc][0],
           filename_prefix,
           conf_src_list[iconf][isrc][1],
-          "kaon",
+          filename_prefix2,
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3] );
@@ -1453,15 +1455,35 @@ int main(int argc, char **argv) {
 
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
+        // sprintf ( filename, "stream_%c/%s/%d/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
+    //    filename_prefix3, conf_src_list[iconf][0][1] );
+    sprintf ( filename, "stream_%c/xg/%s.%d.aff", conf_src_list[iconf][0][0],
+        filename_prefix3, conf_src_list[iconf][0][1] );
+
+    if ( g_verbose > 2 ) fprintf( stdout, "# [avxg_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
+
+
+    double ** buffer = init_2level_dtable ( T_global, 21 );
+    if ( buffer == NULL ) {
+      fprintf( stderr, "[avxg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    char key[400];
+    sprintf ( key, "/StoutN%d/StoutRho%6.4f/%s/GG/", stout_level_iter, stout_level_rho, loop_type );
+
+/*
+    exitstatus = read_from_h5_file ( buffer[0], filename, key, "double", io_proc );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[avxg_analyse] Error from read_from_h5_file for key \"%s\", status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__);
+      EXIT( 105 );
+    }
+*/
+
     struct AffReader_s *affr = NULL;
     struct AffNode_s *affn = NULL;
     struct AffNode_s *affdir = NULL;
 
-    sprintf ( filename, "stream_%c/%s/%d/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix2, conf_src_list[iconf][0][1],
-        filename_prefix3, conf_src_list[iconf][0][1] );
-
-    if ( g_verbose > 2 ) fprintf( stdout, "# [avxg_analyse] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
-    
     affr = aff_reader (filename);
     if( const char * aff_status_str = aff_reader_errstr(affr) ) {
       fprintf(stderr, "[avxg_analyse] Error from aff_reader for file %s, status was %s %s %d\n", filename, aff_status_str, __FILE__, __LINE__);
@@ -1472,15 +1494,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[avxg_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
       EXIT( 2 );
     }
-
-    double ** buffer = init_2level_dtable ( T_global, 21 ); 
-    if ( buffer == NULL ) {
-      fprintf( stderr, "[avxg_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT(1);
-    }
-
-    char key[400];
-    sprintf ( key, "/StoutN%d/StoutRho%6.4f/clover/GG/", stout_level_iter, stout_level_rho );
 
     affdir = aff_reader_chpath ( affr, affn, key );
     if ( affdir == NULL ) {
@@ -1498,6 +1511,7 @@ int main(int argc, char **argv) {
       aff_reader_errstr ( affr ), __FILE__, __LINE__);
       EXIT( 105 );
     }
+
 
     aff_reader_close ( affr );
 
@@ -2231,8 +2245,8 @@ int main(int argc, char **argv) {
        **********************************************************/
       for ( int k = 0; k < 3; k++ ) {
         for ( int ireim = 0; ireim < 1; ireim++ ) {
-          sprintf ( filename, "threep.orbit.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
-              loop_tag, threep_tag[k],
+          sprintf ( filename, "threep.orbit.%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
+              loop_type, loop_tag, threep_tag[k],
               g_sequential_source_timeslice_list[idt],
               g_sink_momentum_list[0][0],
               g_sink_momentum_list[0][1],
@@ -2282,8 +2296,8 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[400];
-        sprintf ( obs_name, "threep.orbit.src.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-            loop_tag, threep_tag[k],
+        sprintf ( obs_name, "threep.orbit.src.%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+            loop_type, loop_tag, threep_tag[k],
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
@@ -2352,8 +2366,8 @@ int main(int argc, char **argv) {
           data[iconf][nT] = dtmp / (double)num_src_per_conf / ( 1. + abs( twop_fold_propagator ) ) ;
         }
 
-        sprintf ( obs_name, "ratio.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag, threep_tag[k],
+        sprintf ( obs_name, "ratio.%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag, threep_tag[k],
           g_sequential_source_timeslice_list[idt],
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -2430,8 +2444,8 @@ int main(int argc, char **argv) {
           data[iconf][nT+1] = loop_sub_tavg[0][iconf][k];
         }
 
-        sprintf ( obs_name, "ratio.sub.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
-            loop_tag, threep_tag[k],
+        sprintf ( obs_name, "ratio.sub.%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
+            loop_type, loop_tag, threep_tag[k],
             g_sequential_source_timeslice_list[idt],
             g_sink_momentum_list[0][0],
             g_sink_momentum_list[0][1],
@@ -2631,8 +2645,8 @@ int main(int argc, char **argv) {
       int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
       int nT = Thp1 - 2 * itau;
 
-      sprintf ( obs_name, "threep.fht.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
+      sprintf ( obs_name, "threep.fht.%s.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag,
           itau,
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -2663,8 +2677,8 @@ int main(int argc, char **argv) {
       int nT = Thp1 - 2 * itau;
 
       char obs_name[400];
-      sprintf ( obs_name, "threep.fht.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
+      sprintf ( obs_name, "threep.fht.%s.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag,
           itau,
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -2695,8 +2709,8 @@ int main(int argc, char **argv) {
       int nT = Thp1 - 2 * itau;
 
       char obs_name[400];
-      sprintf ( obs_name, "threep.fht.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
+      sprintf ( obs_name, "threep.fht.%s.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag,
           itau,
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -2913,8 +2927,8 @@ int main(int argc, char **argv) {
       int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
       int nT = Thp1 - 2 * itau;
 
-      sprintf ( obs_name, "threep.fht.accum.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
+      sprintf ( obs_name, "threep.fht.accum.%s.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag,
           itau,
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -2958,8 +2972,8 @@ int main(int argc, char **argv) {
       int nT = Thp1 - 2 * itau;
 
       char obs_name[400];
-      sprintf ( obs_name, "threep.fht.accum.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
+      sprintf ( obs_name, "threep.fht.accum.%s.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag,
           itau,
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
@@ -3003,8 +3017,8 @@ int main(int argc, char **argv) {
       int nT = Thp1 - 2 * itau;
 
       char obs_name[400];
-      sprintf ( obs_name, "threep.fht.accum.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
+      sprintf ( obs_name, "threep.fht.accum.%s.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+          loop_type, loop_tag,
           itau,
           g_sink_momentum_list[0][0],
           g_sink_momentum_list[0][1],
