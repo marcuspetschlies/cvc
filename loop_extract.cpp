@@ -635,8 +635,10 @@ int main(int argc, char **argv) {
       } 
 
       if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
-#if 0
-      FILE * ofs = fopen ( filename, "w" );
+
+      FILE * ofs = NULL;
+
+      ofs = fopen ( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename , __FILE__, __LINE__ );
         EXIT(1);
@@ -653,9 +655,9 @@ int main(int argc, char **argv) {
       }  /* end of loop on samples */
 
       fclose ( ofs );
-#endif
+
       strcat ( filename, ".avg" );
-      FILE * ofs = fopen ( filename, "w" );
+      ofs = fopen ( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename , __FILE__, __LINE__ );
         EXIT(1);
