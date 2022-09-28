@@ -76,9 +76,10 @@ void usage() {
 #define _TWOP_AFF_SINGLE 0
 #define _TWOP_AFF_MULT   0
 #define _TWOP_H5_SINGLE  0
-#define _TWOP_H5_BLOCK   0
+#define _TWOP_H5_BLOCK   1
 #define _TWOP_AFF_OET    0
-#define _CVC_H5          1
+#define _CVC_H5          0
+#define _TWOP_H5_OET     0
 
 int main(int argc, char **argv) {
   
@@ -88,7 +89,11 @@ int main(int argc, char **argv) {
 
   char const twop_correlator_prefix[1][20] = { "local-local" };
 
+#if _TWOP_H5_OET
+  char const twop_flavor_tag[2][20]        = { "d+-g-u-g" , "u+-g-u-g" };
+#else
   char const twop_flavor_tag[5][20]        = { "u-gf-u-gi" , "d-gf-u-gi" , "u-gf-d-gi" , "d-gf-d-gi" , "u-v-u-v" };
+#endif
 
   char const gamma_id_to_ascii[16][10] = {
     "gt",
@@ -985,28 +990,76 @@ int main(int argc, char **argv) {
 
 #endif  /* of TWOP_AFF_OET */
 
-#if TWOP_H5_OET
-  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+  /***********************************************************/
+  /***********************************************************/
 
-    sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.h5",
-        conf_src_list[iconf][0][0], 
-        filename_prefix,
-        conf_src_list[iconf][0][1], 
-        filename_prefix2,
-        conf_src_list[iconf][0][1] );
-    if ( g_verbose > 1 ) fprintf( stdout, "# [twop_analyse] filename %s %s %d\n", filename, __FILE__, __LINE__ );
 
-    for ( int isrc = 0; isrc < T_global; isrc++ ) {
+#if _TWOP_H5_OET
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) 
+  {
 
-      char key[500];
-      sprintf( key, "%s/t%d/s0/gf%d/gi%dpix%dpiy%dpiz%d/px%dpy%dpz%d", twop_flavor_tag[1], isrc, 
+    for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) 
+    {
+
+
+      sprintf ( filename, "stream_%c/%s/%s.%.4d.t%d.h5",
+          conf_src_list[iconf][isrc][0], 
+          filename_prefix,
+          filename_prefix2,
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2] );
+
+      double * buffer = init_1level_dtable ( 2 * T_global );
+
+
+      if ( g_verbose > 1 ) fprintf( stdout, "# [twop_analyse] filename %s %s %d\n", filename, __FILE__, __LINE__ );
+
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) 
+      {
+        for ( int igf = 0; igf < g_sink_gamma_id_number; igf++ ) 
+        {
+          for ( int igi = 0; igi < g_source_gamma_id_number; igi++ ) 
+          {
+
+            char key[500];
+            /* /d+-g-u-g/t7/gf4/pfx0pfy0pfz0/gi4//pix0piy0piz0 */
+            sprintf( key, "%s/t%d/gf%d/pfx%dpfy%dpfz%d/gi%d/pix%dpiy%dpiz%d", twop_flavor_tag[flavor_type], conf_src_list[iconf][isrc][2],
+                g_sink_gamma_id_list[igf], 
+                g_sink_momentum_list[imom][0],
+                g_sink_momentum_list[imom][1],
+                g_sink_momentum_list[imom][2],
+                g_source_gamma_id_list[igi],
+                -g_sink_momentum_list[imom][0],
+                -g_sink_momentum_list[imom][1],
+                -g_sink_momentum_list[imom][2] );
+
+            fprintf( stdout, "# [twop_analyse] using key %s   %s %d\n", key, __FILE__, __LINE__ );
+
+            exitstatus = read_from_h5_file ( buffer, filename, key, "double", io_proc );
+            if ( exitstatus != 0 )
+            {
+              fprintf ( stderr, "[twop_analyse] Error for file %s key %s   %s %d\n", filename, key, __FILE__, __LINE__ );
+              EXIT(12);
+            }
+            for ( int it = 0; it < T_global; it++ ) 
+            {
+              int const itt = ( it + conf_src_list[iconf][isrc][2] ) % T_global;
+              corr[iconf][isrc][imom][igf][igi][2*it  ] = buffer[2*itt  ];
+              corr[iconf][isrc][imom][igf][igi][2*it+1] = buffer[2*itt+1];
+            }
+
+          }  /* gamma_i */
+        }  /* gamma_f */
       
+      }  /* end of loop on momenta  */
 
+      fini_1level_dtable ( &buffer );
 
-    }
-  }
+    }  /* end of loop on source timeslices */
 
-#endif  /* of TWOP_H5_OET */
+  }  /* end of loop on configs */
+
+#endif  /* of _TWOP_H5_OET */
 
   /***********************************************************/
   /***********************************************************/
@@ -1097,7 +1150,7 @@ int main(int argc, char **argv) {
             double const parity_nu_sign = ( nu == 0 ) ? +1. : -1.;
 
             double const parity_sign = parity_mu_sign * parity_nu_sign;
-            if ( g_verbose > 4 ) fprintf ( stdout, "# [] mu %d nu %d  parity_sign %e\n", mu, nu, parity_sign );
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [twop_analyse] mu %d nu %d  parity_sign %e\n", mu, nu, parity_sign );
 
             double _Complex const ztmp  = ( buffer[tt][mu][nu][2 *  sink_momentum_id] + buffer[tt][mu][nu][2 *  sink_momentum_id+1] * I ) * ephase;
             double _Complex const ztmp2 = ( buffer[tt][mu][nu][2 * msink_momentum_id] + buffer[tt][mu][nu][2 * msink_momentum_id+1] * I ) * conj (ephase );
