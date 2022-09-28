@@ -279,6 +279,93 @@ int da_mi_b_ti_c ( void *param , void *v_in, double *v_out) {
   return(0);
 }  /* end of da_mi_b_ti_c */
 
+
+/********************************************************/
+/********************************************************/
+
+/********************************************************
+ *
+ ********************************************************/
+int a_mi_w_ti_z_dag_re ( void * param , void * v_in, double * v_out) {
+  int * const trange = (int*)v_in;
+  int const idx_a  = trange[0];
+  int const idx_wr = trange[1];
+  int const idx_wi = trange[2];
+  int const idx_zr = trange[3];
+  int const idx_zi = trange[4];
+
+  *v_out = ((double*)param)[idx_a] - ( ((double*)param)[idx_wr] * ((double*)param)[idx_zr] + ((double*)param)[idx_wi] * ((double*)param)[idx_zi] );
+
+  return(0);
+}  /* a_mi_w_ti_z_dag_re */
+
+/********************************************************
+ *
+ ********************************************************/
+int da_mi_w_ti_z_dag_re ( void * param , void * v_in, double * v_out) {
+  int * const trange = (int*)v_in;
+  int const idx_a  = trange[0];
+  int const idx_wr = trange[1];
+  int const idx_wi = trange[2];
+  int const idx_zr = trange[3];
+  int const idx_zi = trange[4];
+
+  /* derivative w.r.t. a */
+  v_out[idx_a] = 1.;
+
+  /* derivative w.r.t. wr */
+  v_out[idx_wr] = -((double*)param)[idx_zr];
+
+  /* derivative w.r.t. wi */
+  v_out[idx_wi] = -((double*)param)[idx_zi];
+
+  /* derivative w.r.t. zr */
+  v_out[idx_zr] = -((double*)param)[idx_wr];
+
+  /* derivative w.r.t. zi */
+  v_out[idx_zi] = -((double*)param)[idx_wi];
+
+  return(0);
+}  /* end of da_mi_w_ti_z_dag_re */
+
+
+/********************************************************/
+/********************************************************/
+
+
+
+/********************************************************
+ *
+ ********************************************************/
+int a_mi_b  ( void * param , void * v_in, double * v_out) {
+  int * const trange = (int*)v_in;
+  int const idx_a = trange[0];
+  int const idx_b = trange[1];
+
+  *v_out = ((double*)param)[idx_a] - ((double*)param)[idx_b] ;
+  return(0);
+}  /* end of a_mi_b */
+
+/********************************************************
+ *
+ ********************************************************/
+int da_mi_b ( void *param , void *v_in, double *v_out) {
+  int * const trange = (int*)v_in;
+  int const idx_a = trange[0];
+  int const idx_b = trange[1];
+
+  /* derivative w.r.t. a */
+  v_out[idx_a] =  1.;
+
+  /* derivative w.r.t. b */
+  v_out[idx_b] = -1.;
+
+  return(0);
+}  /* end of da_mi_b */
+
+/********************************************************/
+/********************************************************/
+
 /********************************************************
  * 1st cumulant
  * < x >
