@@ -39,8 +39,8 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
-#define _INPUT_AFF  0
-#define _INPUT_H5   1
+#define _INPUT_AFF  1
+#define _INPUT_H5   0
 
 #define _OUTPUT_H5  1
 
@@ -277,22 +277,22 @@ int main(int argc, char **argv) {
         char key[400];
         char data_filename[500];
 
-#if 0
+
         sprintf( data_filename, "%s/stream_%c/%s/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
             filename_prefix,
             conf_src_list[iconf][isrc][0], 
             filename_prefix2,
             filename_prefix3,
             conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
-#endif
 
+#if 0
         sprintf( data_filename, "%s/stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
               filename_prefix,
               conf_src_list[iconf][isrc][0], 
               conf_src_list[iconf][isrc][1], 
               filename_prefix3,
               conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
-
+#endif
         if ( g_verbose > 2 ) fprintf(stdout, "# [compact-block] reading data from file %s\n", data_filename);
         affr = aff_reader ( data_filename );
         const char * aff_status_str = aff_reader_errstr ( affr );

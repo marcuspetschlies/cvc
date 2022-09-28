@@ -110,7 +110,7 @@ void gamma_matrix_set ( gamma_matrix_type *g, int id, double s ) {
 /********************************************************************************/
 /********************************************************************************/
 
-void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs) {
+void gamma_matrix_printf (gamma_matrix_type *g, const char * name, FILE*ofs) {
 
   fprintf(ofs, "# [gamma_matrix_printf] %s id %2d sign %16.7e\n", name, g->id, g->s);
   fprintf(ofs, "%s <- array(dim=c(4,4))\n", name);

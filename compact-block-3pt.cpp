@@ -263,7 +263,8 @@ int main(int argc, char **argv) {
 #if 0
         sprintf( data_filename, "%s/stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff",
             filename_prefix,
-            conf_src_list[iconf][isrc][0], 
+            conf_src_list[iconf][isrc][0],
+            conf_src_list[iconf][isrc][1],
             filename_prefix3,
             conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
 #endif

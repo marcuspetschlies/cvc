@@ -53,10 +53,10 @@
 
 #define _TWOP_STATS  1
 
-#define _LOOP_ANALYSIS 1
+#define _LOOP_ANALYSIS 0
 
-#define _RAT_METHOD       1
-#define _RAT_SUB_METHOD   1
+#define _RAT_METHOD       0
+#define _RAT_SUB_METHOD   0
 #define _FHT_METHOD_ALLT  0
 #define _FHT_METHOD_ACCUM 0
 
@@ -177,9 +177,9 @@ int main(int argc, char **argv) {
   double loop_norm = 1.;
   int operator_type = 0;
 
-  char loop_type[10] = "LpsDw";
+  char loop_type[10] = "NA";
   char oet_type[10] = "NA";
-  int loop_transpose = 1;
+  int loop_transpose = 0;
 
   struct timeval ta, tb, start_time, end_time;
 
@@ -1394,6 +1394,10 @@ int main(int argc, char **argv) {
       for ( int iconf = 0; iconf < num_conf; iconf++ ) {
         for ( int idir = 0; idir < 4; idir++ ) {
   
+          char stream_tag;
+          if      ( conf_src_list[iconf][0][0] == 'a' ) stream_tag='0';
+          else if ( conf_src_list[iconf][0][0] == 'b' ) stream_tag='1';
+
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
   
           char stream_tag;
@@ -1403,6 +1407,7 @@ int main(int argc, char **argv) {
 
           /* sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
               loop_type,
+              oet_type,
               loop_num_evecs,
               loop_nstoch_max,
               idir,

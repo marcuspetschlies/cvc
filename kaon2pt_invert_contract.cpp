@@ -413,10 +413,14 @@ int main(int argc, char **argv) {
     ranlxd ( &dts , 1 );
     int gts = (int)(dts * T_global);
 
+    if ( g_cart_id == 0 ) fprintf ( stdout, "# [] gts = %d %s %d\n", gts, __FILE__, __LINE__ );
+
+#ifdef HAVE_MPI
     if (  MPI_Bcast( &gts, 1, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) {
       fprintf ( stderr, "[kaon2pt_invert_contract] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
     }
+#endif
 
     /***************************************************************************
      * local source timeslice and source process ids
@@ -481,13 +485,13 @@ int main(int argc, char **argv) {
      * read stochastic oet source from file
      ***************************************************************************/
     if ( g_read_source ) {
-      for ( int i = 0; i < spin_color_dilution; i++ ) {
-        sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, i, isample);
-        if ( ( exitstatus = read_lime_spinor( stochastic_source_list[i], filename, 0) ) != 0 ) {
+      /* for ( int i = 0; i < spin_color_dilution; i++ ) { */
+        sprintf ( filename, "%s.c%d.t%d.s%d", filename_prefix, Nconf, gts, isample);
+        if ( ( exitstatus = read_lime_spinor( stochastic_source_list[0], filename, 0) ) != 0 ) {
           fprintf(stderr, "[kaon2pt_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
           EXIT(2);
         }
-      }
+      /* } */
       /* recover the ran field */
       exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, spin_dilution, color_dilution,  -1 );
       if( exitstatus != 0 ) {

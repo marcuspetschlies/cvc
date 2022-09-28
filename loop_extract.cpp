@@ -46,8 +46,8 @@ using namespace cvc;
 #define _STOCHASTIC_HP     0
 #define _STOCHASTIC_VOLSRC 1
 
-#define _PLEGMA_CONVENTION 0
-#define _CVC_CONVENTION 1
+#define _PLEGMA_CONVENTION 1
+#define _CVC_CONVENTION 0
 
 void usage() {
   fprintf(stdout, "Code to extract loop data\n");
@@ -537,7 +537,7 @@ int main(int argc, char **argv) {
   char data_filename[400];
 
 #if _PLEGMA_CONVENTION
-  /* sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
+  sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
   /* sprintf ( data_filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
 #elif _CVC_CONVENTION
   // sprintf ( data_filename, "%s/%d/%s.%.4d.h5", filename_prefix, confid, filename_prefix2, confid );
@@ -595,15 +595,11 @@ int main(int argc, char **argv) {
           for ( int ia = 0; ia < 4; ia++ ) {
           for ( int ib = 0; ib < 4; ib++ ) {
             zloop_stoch[isample][imom][it][ia][ib] = ( loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)] + loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)+1] * I ) * loop_norm;
-            zloop_stoch_avg[imom][it][ia][ib] += zloop_stoch[isample][imom][it][ia][ib];
+            /* zloop_stoch_avg[imom][it][ia][ib] += zloop_stoch[isample][imom][it][ia][ib]; */
           }}
         }
       }  /* end of loop on momenta */
     }  /* end of loop on samples */
-
-    for ( int i = 0; i< g_sink_momentum_number * T * 16; i++ ) {
-      zloop_stoch_avg[0][0][0][i] /= (double)nsample;
-    }
 
     /***************************************************************************
      * undo accumulation, backwards in sample id
@@ -616,6 +612,26 @@ int main(int argc, char **argv) {
         }
       }
     }
+
+
+    for ( int isample = 0; isample < nsample; isample++ )
+    {
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+#pragma omp parallel for
+        for ( int it = 0; it < T; it++ ) {
+          /* transpose and normalize */
+          for ( int ia = 0; ia < 4; ia++ ) {
+          for ( int ib = 0; ib < 4; ib++ ) {
+            zloop_stoch_avg[imom][it][ia][ib] += zloop_stoch[isample][imom][it][ia][ib];
+          }}
+        }
+      }  /* end of loop on momenta */
+    }  /* end of loop on samples */
+
+    for ( int i = 0; i< g_sink_momentum_number * T * 16; i++ ) {
+      zloop_stoch_avg[0][0][0][i] /= (double)nsample;
+    }
+
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
@@ -666,11 +682,11 @@ int main(int argc, char **argv) {
       for ( int it = 0; it < T; it++ ) {
         for ( int ia = 0; ia < 4; ia++ ) {
         for ( int ib = 0; ib < 4; ib++ ) {
-          fprintf ( ofs, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
+          fprintf ( ofs2, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
         }}
       }
 
-      fclose ( ofs );
+      fclose ( ofs2 );
 
 
       for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {

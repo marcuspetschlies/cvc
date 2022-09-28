@@ -533,7 +533,7 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #elif ( defined HAVE_HDF5 )
-    sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, isample );
+    sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, g_sourceid + isample * g_sourceid_step );
 #endif
     if(io_proc == 2 && g_verbose > 1 ) { 
       fprintf(stdout, "# [kaon2pt_simple_invert_contract] writing data to file %s\n", output_filename);
