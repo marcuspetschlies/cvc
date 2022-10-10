@@ -13,6 +13,8 @@
 #include <time.h>
 #include <complex.h>
 #include <sys/time.h>
+#include <unistd.h>
+
 #ifdef HAVE_MPI
 #  include <mpi.h>
 #endif
@@ -43,7 +45,7 @@
 #include "table_init_i.h"
 #include "uwerr.h"
 
-#define _CVC_AFF 0
+#define _CVC_AFF 1
 #define _CVC_H5  1
 
 using namespace cvc;
@@ -366,7 +368,27 @@ int main(int argc, char **argv) {
                 conf_src_list[iconf][isrc][3],
                 conf_src_list[iconf][isrc][4],
                 conf_src_list[iconf][isrc][5] };
-      
+     
+            char filename_aff[500], filename_h5[500];
+            
+            sprintf ( filename_aff, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", 
+                conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+
+            sprintf ( filename_h5, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.h5", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], 
+                g_outfile_prefix, conf_src_list[iconf][isrc][1], gsx[0], gsx[1], gsx[2], gsx[3] );
+
+            int const f_aff =  access( filename_aff, F_OK ) == 0 ;
+            int const f_h5  =  access( filename_h5,  F_OK ) == 0 ;
+
+            if ( f_aff && f_h5 ) {
+
+              fprintf ( stderr, "# [p2gg_analyse] Error, found both %s and %s  %s %d\n", filename_aff, filename_h5, __FILE__, __LINE__ );
+              EXIT(14);
+
+            } else if ( f_aff ) {
+
+              double const threep_sign = +1.;
+
 #if _CVC_AFF
 
 #ifdef HAVE_LHPC_AFF
@@ -379,10 +401,10 @@ int main(int argc, char **argv) {
       
             /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-            sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+            /* sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */ 
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-            fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
-            affr = aff_reader ( filename );
+            fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename_aff );
+            affr = aff_reader ( filename_aff );
             const char * aff_status_str = aff_reader_errstr ( affr );
             if( aff_status_str != NULL ) {
               fprintf(stderr, "[p2gg_analyse] Error from aff_reader, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
@@ -893,8 +915,8 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * write into pgg
                      **********************************************************/
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = threep_sign * creal( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = threep_sign * cimag( ztmp );
                   }  /* end of loop on timeslices */
 
                 } else if ( charged_ps == 1 ) {
@@ -928,7 +950,7 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * add up original and Parity-flavor transformed
                      **********************************************************/
-                    double _Complex ztmp = 0.5 * ( 
+                    double _Complex ztmp = threep_sign * 0.5 * ( 
                           ( ztmp1 + st_sign[0] * conj ( ztmp1 ) ) + ( ztmp2 + st_sign[1] * conj ( ztmp2 ) )
                         );
 
@@ -953,23 +975,28 @@ int main(int argc, char **argv) {
 #endif  /* of ifdef HAVE_LHPC_AFF */
       
 #endif  /* end of if _CVC_AFF */
+            } else if ( f_h5 ) {
 
+              double const threep_sign = -1.;
 #if _CVC_H5
 
             /***********************************************
              * reader for aff input file
              ***********************************************/
-            sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.h5", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+            /* sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.h5", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+ 
+            /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.h5", conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], 
+                g_outfile_prefix, conf_src_list[iconf][isrc][1], gsx[0], gsx[1], gsx[2], gsx[3] ); */
 
-            fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
+            fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename_h5);
 
             char momentum_tag[12] = "/mom_snk";
             int * momentum_buffer = NULL;
             size_t * momentum_cdim = NULL, momentum_ncdim = 0;
 
-            exitstatus = read_from_h5_file_varsize ( (void**)&momentum_buffer, filename, momentum_tag,  "int", &momentum_ncdim, &momentum_cdim,  io_proc );
+            exitstatus = read_from_h5_file_varsize ( (void**)&momentum_buffer, filename_h5, momentum_tag,  "int", &momentum_ncdim, &momentum_cdim,  io_proc );
             if ( exitstatus != 0 ) {
-              fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file_varsize for file %s key %s   %s %d\n", filename, momentum_tag, __FILE__, __LINE__);
+              fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file_varsize for file %s key %s   %s %d\n", filename_h5, momentum_tag, __FILE__, __LINE__);
               EXIT(15);
             }
 
@@ -1006,7 +1033,7 @@ int main(int argc, char **argv) {
                     sequential_source_gamma_id, sequential_source_timeslice,
                     iflavor );
 
-                exitstatus = read_from_h5_file (  buffer[0][iflavor][0][0][0], filename, key,  "double", io_proc );
+                exitstatus = read_from_h5_file (  buffer[0][iflavor][0][0][0], filename_h5, key,  "double", io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file %s %d\n", __FILE__, __LINE__);
                   EXIT(15);
@@ -1035,7 +1062,7 @@ int main(int argc, char **argv) {
                           sequential_source_gamma_id, sequential_source_timeslice,
                           1-iflavor, iflavor, iflavor );
 
-                exitstatus = read_from_h5_file (  buffer[0][iflavor][0][0][0], filename, key,  "double", io_proc );
+                exitstatus = read_from_h5_file (  buffer[0][iflavor][0][0][0], filename_h5, key,  "double", io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file %s %d\n", __FILE__, __LINE__);
                   EXIT(15);
@@ -1051,7 +1078,7 @@ int main(int argc, char **argv) {
                           sequential_source_gamma_id, sequential_source_timeslice,
                           iflavor, 1-iflavor, iflavor );
 
-                exitstatus = read_from_h5_file (  buffer[1][iflavor][0][0][0], filename, key,  "double", io_proc );
+                exitstatus = read_from_h5_file (  buffer[1][iflavor][0][0][0], filename_h5, key,  "double", io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[p2gg_analyse] Error from read_from_h5_file %s %d\n", __FILE__, __LINE__);
                   EXIT(15);
@@ -1277,8 +1304,8 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * write into pgg
                      **********************************************************/
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = threep_sign * creal( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = threep_sign * cimag( ztmp );
                   }  /* end of loop on timeslices */
 
                 } else if ( charged_ps == 1 ) {
@@ -1337,8 +1364,8 @@ int main(int argc, char **argv) {
                     /**********************************************************
                      * write into pgg
                      **********************************************************/
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = creal( ztmp );
-                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = cimag( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt  ] = threep_sign * creal( ztmp );
+                    pgg[iconf][isrc][isink_momentum][mu][nu][2*tt+1] = threep_sign * cimag( ztmp );
                   }  /* end of loop on timeslices */
 
                 }  /* end of charged_ps == 1 case */
@@ -1354,6 +1381,11 @@ int main(int argc, char **argv) {
             fini_6level_dtable( &buffer );
 
 #endif  /* end of if _CVC_H5 */
+            
+            } else {
+              fprintf ( stderr, "[] Error, found neither %s nor %s   %s %d\n", filename_aff, filename_h5, __FILE__, __LINE__ );
+              EXIT(12);
+            }
 
           }  /* end of loop on source locations */
       
@@ -1448,7 +1480,8 @@ int main(int argc, char **argv) {
          * ASSUMES MOMENTUM LIST IS AN ORBIT AND
          * SEQUENTIAL MOMENTUM IS ZERO
          ****************************************/
-        for ( int ireim = 0; ireim < 2; ireim++ ) {
+        for ( int ireim = 0; ireim < 1; ireim++ ) 
+        {
 
           double ** data = init_2level_dtable ( num_conf, T_global );
  
@@ -1460,11 +1493,14 @@ int main(int argc, char **argv) {
               seq_source_momentum[0], seq_source_momentum[1], seq_source_momentum[2], sequential_source_gamma_id, sequential_source_timeslice,
                 sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
-          /* apply UWerr analysis */
-          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-          if ( exitstatus != 0 ) {
-            fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-            EXIT(1);
+          if ( num_conf >= 6 )
+          {
+            /* apply UWerr analysis */
+            exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
           }
 
           if ( write_data == 1 ) {
@@ -1525,11 +1561,14 @@ int main(int argc, char **argv) {
                   sequential_source_gamma_id, sequential_source_timeslice,
                   momentum[0], momentum[1], momentum[2], reim_str[ireim] );
 
-              /* apply UWerr analysis */
-              exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-              if ( exitstatus != 0 ) {
-                fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(1);
+              if ( num_conf >= 6 )
+              {
+                /* apply UWerr analysis */
+                exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+                if ( exitstatus != 0 ) {
+                  fprintf ( stderr, "[p2gg_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                  EXIT(1);
+                }
               }
 
               fini_2level_dtable ( &data );

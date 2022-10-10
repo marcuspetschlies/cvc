@@ -716,7 +716,7 @@ int main(int argc, char **argv) {
               flavor_type_2pt[flavor_id_2pt],
                   -muval_2pt_list[0], muval_2pt_list[1],
                   conf_src_list[iconf][isrc][2], 
-                  conf_src_list[iconf][isrc][3], 
+                  conf_src_list[iconf][isrc][4], 
                   pi[0], pi[1], pi[2],
                   pf[0], pf[1], pf[2]);
 
@@ -755,7 +755,7 @@ int main(int argc, char **argv) {
               flavor_type_2pt[flavor_id_2pt],
                   muval_2pt_list[0], -muval_2pt_list[1],
                   conf_src_list[iconf][isrc][2], 
-                  conf_src_list[iconf][isrc][3], 
+                  conf_src_list[iconf][isrc][4], 
                   -pi[0], -pi[1], -pi[2],
                   -pf[0], -pf[1], -pf[2]);
 
@@ -1420,7 +1420,7 @@ int main(int argc, char **argv) {
                     flavor_type_3pt[flavor_id_3pt],
                     -muval_3pt_list[0], -muval_3pt_list[1], muval_3pt_list[2],
                     conf_src_list[iconf][isrc][2],
-                    conf_src_list[iconf][isrc][3],
+                    conf_src_list[iconf][isrc][4],
                     g_sequential_source_timeslice_list[idt],
                     igc, idim, fbwd_str[idir],
                     pi[0], pi[1], pi[2],
@@ -1465,7 +1465,7 @@ int main(int argc, char **argv) {
                     flavor_type_3pt[flavor_id_3pt],
                     muval_3pt_list[0], muval_3pt_list[1], -muval_3pt_list[2],
                     conf_src_list[iconf][isrc][2], 
-                    conf_src_list[iconf][isrc][3], 
+                    conf_src_list[iconf][isrc][4], 
                     g_sequential_source_timeslice_list[idt],
                     igc, idim, fbwd_str[idir],
                     -pi[0], -pi[1], -pi[2],

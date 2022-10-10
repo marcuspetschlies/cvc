@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
   char const flavor_tag[3][3] = { "uu", "dd" , "ud" };
   char const flavor_output_tag[3][3] = { "ud", "du" , "uu" };
 
-  double const TWO_MPI = 2. * M_PI;
+  /* double const TWO_MPI = 2. * M_PI; */
 
   int c;
   int filename_set = 0;
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
   char const gamma_tag[10][6]    = {     "gx",     "gy",     "gz",    "gt", "gxg5", "gyg5", "gzg5", "gtg5", "g5", "id" };
   int const gamma_id[10]         = {       14,       13,       11,       7,      1,      2,      4,      8,    0,   15 };
 
-  int const gamma_binary_id[10]  = {        1,        2,        4,       8,     14,     13,     11,      7,   15,    0 };
+  /* int const gamma_binary_id[10]  = {        1,        2,        4,       8,     14,     13,     11,      7,   15,    0 }; */
 
   /*                               5x = yzt  5y = xzt  z5 = xyt 5t = xyz       x       y       z       t    id     5 */
   int const gamma_sign_snk[10] = {       -1,       +1,       -1,      +1,     -1,     -1,     -1,     -1,   +1,   +1 };
@@ -389,30 +389,31 @@ int main(int argc, char **argv) {
   /***********************************************************/
 
 #if _TWOP_CYD_H5
-  double _Complex ***** twop = init_5level_ztable ( T, 4, 4, 4, 4 );
-  if( twop == NULL ) {
-    fprintf ( stderr, "[piq_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT (24);
-  }
-
-  double _Complex * twop_gamma = init_1level_ztable ( gamma_num );
-  if( twop_gamma == NULL ) {
-    fprintf ( stderr, "[piq_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT (24);
-  }
-
-  for ( int iconf = 0; iconf < num_conf; iconf++ ) {
-
-    if ( muval_set )  {
-      sprintf( filename, "%s/%.4d_r%c_%s.h5", filename_prefix, conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] , muval_tag );
-    } else {
-      sprintf( filename, "%s/%.4d_r%c.h5", filename_prefix, conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
+  for ( int iconf = 0; iconf < num_conf; iconf++ ) 
+  {
+    double _Complex ***** twop = init_5level_ztable ( T_global, 4, 4, 4, 4 );
+    if( twop == NULL ) {
+      fprintf ( stderr, "[piq_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT (24);
     }
+
+    /* double _Complex * twop_gamma = init_1level_ztable ( gamma_num );
+    if( twop_gamma == NULL ) {
+      fprintf ( stderr, "[piq_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT (24);
+    } */
+
+
+    //if ( muval_set )  {
+    //  sprintf( filename, "%s/%.4d_r%c_%s.h5", filename_prefix, conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] , muval_tag );
+    //} else {
+      sprintf( filename, "%s/%.4d_r%c.h5", filename_prefix, conf_src_list[iconf][0][1], conf_src_list[iconf][0][0] );
+    //}
     if ( g_verbose > 4 ) fprintf ( stdout, "# [piq_analyse] filename = %s  %s %d\n", filename, __FILE__, __LINE__ );
     
     char h5_tag[200];
 
-    double ******* buffer = init_7level_dtable ( T, 1, 4, 4, 4, 4, 2 );
+    double ******* buffer = init_7level_dtable ( T_global, 1, 4, 4, 4, 4, 2 );
     if ( buffer == NULL ) {
       fprintf ( stderr, "[] Error from init_Xlevel_dtable   %s %d\n", __FILE__, __LINE__ );
       EXIT(1);
@@ -434,18 +435,19 @@ int main(int argc, char **argv) {
         EXIT(2);
       }
 #pragma omp parallel for
-      for ( int it = 0; it < T; it++ ) 
+      for ( int it = 0; it < T_global; it++ ) 
       {
-        int const offset = it *  4*4*4*4;
+        /* int const offset = it *  4*4*4*4; */
 
         for ( int ix = 0; ix < 4*4*4*4; ix++ ) 
         {
           /* ordered from source ? */
-          // twop[it][0][0][0][ix] += buffer[it][0][0][0][0][0][2*ix] + buffer[it][0][0][0][0][0][2*ix+1] * I;
+          twop[it][0][0][0][ix] += buffer[it][0][0][0][0][0][2*ix] + buffer[it][0][0][0][0][0][2*ix+1] * I;
 
-          twop[0][0][0][0][offset + ix] += buffer[0][0][0][0][0][0][2*(offset+ix)] + buffer[0][0][0][0][0][0][2*(offset+ix)+1] * I;
+          /* twop[0][0][0][0][offset + ix] += buffer[0][0][0][0][0][0][2*(offset+ix)] + buffer[0][0][0][0][0][0][2*(offset+ix)+1] * I; */
         }  /* end of loop on ix */
 
+#if  0
         /* TEST */
         if( it == 0 ) 
         {
@@ -474,7 +476,7 @@ int main(int argc, char **argv) {
           }
         }
         /* END TEST */
-        
+#endif 
 
       }  /* end of loop on timeslices */
 
@@ -491,8 +493,7 @@ int main(int argc, char **argv) {
     for ( int it = 0; it < T; it++ ) 
     {
 
-      // for ( int imu = 0; imu < gamma_num; imu++ ) 
-      for ( int imu = 0; imu < 1; imu++ ) 
+      for ( int imu = 0; imu < gamma_num; imu++ ) 
       {
         double _Complex ztmp = 0;
         for ( int i1 = 0; i1 < 4; i1++ ) {
@@ -505,20 +506,19 @@ int main(int argc, char **argv) {
         // twop_proj[iconf][it][imu] = ztmp * gamma_sign[imu];
         twop_proj[iconf][it][imu] = ztmp * gamma_sign_snk[imu] * gamma_sign_src[imu];
 
-        if ( it == 0 ) {
+        /* if ( it == 0 ) {
           fprintf ( stdout, "a %6s %c %6d %25.16e %25.16e\n", gamma_tag[imu],
                   conf_src_list[iconf][0][0], conf_src_list[iconf][0][1],
                   creal ( twop_proj[iconf][it][imu] ), cimag (  twop_proj[iconf][it][imu] ) );
-        }
-
+        } */
 
 
       }  /* end of loop on gf-gi */
     }  /* end of loop on timeslices */
-  }  /* end of loop on configurations */
 
-  fini_5level_ztable ( &twop );
-  fini_1level_ztable ( &twop_gamma );
+    fini_5level_ztable ( &twop );
+    /* fini_1level_ztable ( &twop_gamma ); */
+  }  /* end of loop on configurations */
 
 #endif  /* end of _TWOP_CYD_H5 */
 
@@ -608,11 +608,11 @@ int main(int argc, char **argv) {
 
           int const itt = ( T_global - it ) % T_global;
 
-          double const a[2] = { creal ( twop_proj[iconf][ it][ig] ), cimag ( twop_proj[iconf][ it][ig] )  };
+          /* double const a[2] = { creal ( twop_proj[iconf][ it][ig] ), cimag ( twop_proj[iconf][ it][ig] )  };
           double const b[2] = { creal ( twop_proj[iconf][itt][ig] ), cimag ( twop_proj[iconf][itt][ig] )  };
+          data[iconf][it] = 0.5 * ( a[ireim] + b[ireim] ); */
 
-          // data[iconf][it] = 0.5 * ( ((double*)&(twop_proj[iconf][it][ig]))[ireim] + ((double*)&(twop_proj[iconf][itt][ig]))[ireim] );
-          data[iconf][it] = 0.5 * ( a[ireim] + b[ireim] );
+          data[iconf][it] = 0.5 * ( ((double*)&(twop_proj[iconf][it][ig]))[ireim] + ((double*)&(twop_proj[iconf][itt][ig]))[ireim] );
         }
       }
 
