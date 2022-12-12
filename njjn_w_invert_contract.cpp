@@ -1002,9 +1002,11 @@ int main(int argc, char **argv) {
                   ( gsx[3] + icoh * LZ_global / 2 ) % LZ_global };
 
                 /***************************************************************************
-                 *  W for  uu uu type insertion
+                 *  W for  uu uu type insertion into proton and
+                 *    for  dd dd type insertion into neutron 
                  ***************************************************************************/
-                for ( int iflavor = 0; iflavor < 1; iflavor++ ) {
+                for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
+                {
  
                   gettimeofday ( &ta, (struct timezone *)NULL );
 
