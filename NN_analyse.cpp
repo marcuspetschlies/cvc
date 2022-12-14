@@ -806,7 +806,7 @@ if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
            * only for real part
            ***********************************************************/
           if ( ireim == 0 ) {
-            for ( int itau = 1; itau < tp->T/2; itau++ ) {
+            for ( int itau = 1; itau < tp->T/4; itau++ ) {
   
               char obs_name2[500];
               sprintf ( obs_name2,  "%s.log_ratio.tau%d", obs_name, itau );
