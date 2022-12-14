@@ -175,8 +175,8 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
 
     sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
         tp->pf2[0], tp->pf2[1], tp->pf2[2],
-        /* gamma_id_to_ascii[tp->gf2], */
-        gamma_id_to_group[tp->gf2],
+        gamma_id_to_ascii[tp->gf2],
+        /* gamma_id_to_group[tp->gf2], */
         gamma_id_to_Cg_ascii[tp->gf1[0]],
         gamma_id_to_Cg_ascii[tp->gi1[0]],
         tp->pf1[0], tp->pf1[1], tp->pf1[2] );
@@ -541,9 +541,15 @@ int main(int argc, char **argv) {
 
             }  /* end of loop on samples */
 
-            /* normalize sample average */
+            /* normalize sample average 
+             * = 1 / number of samples
+             */
+            double const sample_norm = 1. / ( (double)( g_sourceid2 - g_sourceid ) / (double)g_sourceid_step + 1. );
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [NJJN_analyse] sample_norm set to %e    %s %d\n", sample_norm, __FILE__, __LINE__ );
+#pragma omp parallel for
             for ( int i = 0; i < tp->d*tp->d*tp->T ; i++ ) {
-              tp->c[i_diag][0][0][i] /= (double)g_nsample;
+              /* tp->c[i_diag][0][0][i] /= (double)g_nsample; */
+              tp->c[i_diag][0][0][i] *= sample_norm;
             }
 
             fini_3level_ztable ( &zbuffer );
@@ -717,8 +723,10 @@ int main(int argc, char **argv) {
       tp->pi1[1] = -g_sink_momentum_list[0][1];
       tp->pi1[2] = -g_sink_momentum_list[0][2];
 
-      char correlator_name[400];
+      char correlator_name[400], diagram_name[100];
       make_correlator_string ( correlator_name,  tp , NULL );
+
+      make_diagram_list_string ( diagram_name, tp );
 
 
       for ( int iparity = 0; iparity < 2; iparity++ ) {
@@ -752,7 +760,7 @@ int main(int argc, char **argv) {
 
           char obs_name[500];
         
-          sprintf ( obs_name,  "%s.parity%d.%s", correlator_name, -2*iparity+1, reim_str[ireim] );
+          sprintf ( obs_name,  "%s.%s.parity%d.%s", correlator_name, diagram_name, -2*iparity+1, reim_str[ireim] );
 
           if ( num_conf < 6 ) {
             fprintf ( stderr, "[NJJN_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
