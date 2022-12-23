@@ -347,7 +347,7 @@ int main(int argc, char **argv) {
 
 #if 0
   /***********************************************************
-   * test teh QED Kernel package linking 
+   * test the QED Kernel package linking 
    ***********************************************************/
   struct QED_kernel_temps kqed_t ;
 
@@ -595,6 +595,23 @@ int main(int argc, char **argv) {
           /***********************************************************
            * forward proapgators from y
            ***********************************************************/
+          double Tuuy0[6 * 12 *24];
+          if ( source_proc_id == g_cart_id )
+          {
+
+            for(int ia = 0; ia < 12; ia++ )
+            {
+              for(int ib = 0; ib < 12; ib++ )
+              {
+                Tuuy0[ia][2*ib] = seq_0[iflavor][]
+                  seq_src[iflavor][k][i]
+              }
+            }
+          }
+ 
+          /***********************************************************
+           * forward proapgators from y
+           ***********************************************************/
   
           for ( int i = 0; i < 12; i++ ) 
           {
@@ -634,7 +651,8 @@ int main(int argc, char **argv) {
             }
             
           }  /* end of loop on spin-color components */
-      
+    
+
           /***********************************************************
            * seq_y
            ***********************************************************/
@@ -696,7 +714,45 @@ int main(int argc, char **argv) {
               }
           
             }  /* end of loop on spin-color components */
-    
+
+            /***********************************************************
+             ***********************************************************
+             **
+             **
+             ** contractions
+             **
+             **
+             ***********************************************************
+             ***********************************************************/
+            double corr[6][6][4][4][8];
+
+#pragma omp parallel for
+            for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+            {
+              double _du[12][24];
+              double _spinor1[24];
+              for ( int mu = 0; mu < 4; mu++ )
+              {
+                for ( int ia = 0; ia < 12; ia++) 
+                {
+                  for ( int ib = 0; ib < 12; ib++) 
+                  {
+                      fwd_0[iflavor][ia]+_GSI(ix)
+                  }
+                }
+
+              }
+            }
+
+            /***********************************************************
+             ***********************************************************
+             **
+             ** end of of contractions
+             **
+             ***********************************************************
+             ***********************************************************/
+
+
           }  /* end of loop on antisymmetric index combinations */
 
 
