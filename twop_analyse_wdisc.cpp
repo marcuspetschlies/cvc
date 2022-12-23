@@ -656,6 +656,7 @@ int main(int argc, char **argv) {
           for ( int it1 = 0; it1 < T_global; it1++ ) {
             int const idt = ( it1 - it0 + T_global ) % T_global;
  
+            /*
             corr[iconf][isink_momentum][2*idt  ] += 0.5 * ( 
                     loops_snk[0][2*it1] * loops_src[0][2*it0] - loops_snk[0][2*it1+1] * loops_src[0][2*it0+1] 
                   + loops_snk[1][2*it1] * loops_src[1][2*it0] - loops_snk[1][2*it1+1] * loops_src[1][2*it0+1] 
@@ -665,7 +666,18 @@ int main(int argc, char **argv) {
                     loops_snk[0][2*it1] * loops_src[0][2*it0+1] + loops_snk[0][2*it1+1] * loops_src[0][2*it0] 
                   + loops_snk[1][2*it1] * loops_src[1][2*it0+1] + loops_snk[1][2*it1+1] * loops_src[1][2*it0] 
                   );
+            */
 
+            /* loop times complex conjugate */
+            corr[iconf][isink_momentum][2*idt  ] += 0.5 * ( 
+                    loops_snk[0][2*it1] * loops_src[0][2*it0] + loops_snk[0][2*it1+1] * loops_src[0][2*it0+1] 
+                  + loops_snk[1][2*it1] * loops_src[1][2*it0] + loops_snk[1][2*it1+1] * loops_src[1][2*it0+1] 
+                  );
+
+            corr[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
+                  - loops_snk[0][2*it1] * loops_src[0][2*it0+1] + loops_snk[0][2*it1+1] * loops_src[0][2*it0] 
+                  - loops_snk[1][2*it1] * loops_src[1][2*it0+1] + loops_snk[1][2*it1+1] * loops_src[1][2*it0] 
+                  );
           }}
       
 
@@ -687,6 +699,7 @@ int main(int argc, char **argv) {
 
                 int const idt = ( it1 - it0 + T_global ) % T_global;
 
+                /*
                 corr_bias[iconf][isink_momentum][2*idt] += 0.5 * ( 
                       dsnk[0][0] * dsrc[0][0] - dsnk[0][1] * dsrc[0][1] 
                     + dsnk[1][0] * dsrc[1][0] - dsnk[1][1] * dsrc[1][1]  );
@@ -694,6 +707,16 @@ int main(int argc, char **argv) {
                 corr_bias[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
                       dsnk[0][0] * dsrc[0][1] + dsnk[0][1] * dsrc[0][0] 
                     + dsnk[1][0] * dsrc[1][1] + dsnk[1][1] * dsrc[1][0]  );
+                */
+
+                /* snk loop times complex conjugate src loop */
+                corr_bias[iconf][isink_momentum][2*idt] += 0.5 * ( 
+                      dsnk[0][0] * dsrc[0][0] + dsnk[0][1] * dsrc[0][1] 
+                    + dsnk[1][0] * dsrc[1][0] + dsnk[1][1] * dsrc[1][1]  );
+
+                corr_bias[iconf][isink_momentum][2*idt+1] += 0.5 * ( 
+                    - dsnk[0][0] * dsrc[0][1] + dsnk[0][1] * dsrc[0][0] 
+                    - dsnk[1][0] * dsrc[1][1] + dsnk[1][1] * dsrc[1][0]  );
 
               }
             }
@@ -765,10 +788,12 @@ int main(int argc, char **argv) {
             sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) {
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
         if ( write_data == 1 ) {
@@ -777,8 +802,8 @@ int main(int argc, char **argv) {
 
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int it = 0; it < T_global; it++ ) {
-              /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
-              fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
+              fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+              /* fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step ); */
             }
           }
 
@@ -831,10 +856,12 @@ int main(int argc, char **argv) {
             sink_momentum_list[0][0], sink_momentum_list[0][1], sink_momentum_list[0][2], reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) {
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
         if ( write_data == 1 ) {
@@ -843,8 +870,8 @@ int main(int argc, char **argv) {
 
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
             for ( int it = 0; it < T_global; it++ ) {
-              /* fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] ); */
-              fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step );
+              fprintf ( fs, "%3d %25.16e %c %6d\n", it, data[iconf][it], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+              /* fprintf ( fs, "%3d %25.16e %6d\n", it, data[iconf][it], iconf * g_gauge_step ); */
             }
           }
 
