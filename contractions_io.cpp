@@ -1548,7 +1548,6 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
  *
  ***************************************************************************/
 int write_h5_contraction_parallel ( void * const contr, char * const afilename, char * const tag, char * const data_type, int const ncdim, const int * const cdim, MPI_Comm comm )
-
 {
 
   int return_value = 0;
@@ -1593,7 +1592,7 @@ int write_h5_contraction_parallel ( void * const contr, char * const afilename, 
 
   hid_t fcpl_id = H5P_DEFAULT;
                                  
-  hid_t fapl_id = H5P_DEFAULT;
+  // hid_t fapl_id = H5P_DEFAULT;
    
   /***************************************************************************
    * Create a new file collectively and release property list identifier
