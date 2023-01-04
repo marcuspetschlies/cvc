@@ -77,12 +77,8 @@ void usage() {
 
 int main(int argc, char **argv) {
 
-  /*                            gt  gx  gy  gz */
-  int const gamma_v_list[4] = {  0,  1,  2,  3 };
-  int const gamma_v_num = 4;
-
   int const ymax = 2;
-  int const ysign_num = 2;
+  int const ysign_num = 1;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
     { 1, 1, 1,-1},
@@ -112,23 +108,14 @@ int main(int argc, char **argv) {
 
   int c;
   int filename_set = 0;
-  int gsx[4];
   int exitstatus;
   int io_proc = -1;
   int check_propagator_residual = 0;
-  unsigned int Vhalf;
   char filename[400];
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
-  int check_position_space_WI = 0;
   int first_solve_dummy = 1;
   struct timeval start_time, end_time;
-
-
-#ifdef HAVE_LHPC_AFF
-  struct AffWriter_s *affw = NULL;
-  char aff_tag[400];
-#endif
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -218,9 +205,7 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
 
-  Vhalf                  = VOLUME / 2;
   size_t sizeof_spinor_field    = _GSI(VOLUME) * sizeof(double);
-  size_t sizeof_eo_spinor_field = _GSI(Vhalf) * sizeof(double);
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
@@ -526,8 +511,9 @@ int main(int argc, char **argv) {
             _fv_eq_gamma_ti_fv ( sp,  idx_comb[k][0], _r );
             _fv_eq_gamma_ti_fv ( sp2, idx_comb[k][1], _r );
 
-            _fv_ti_eq_re ( sp,   z[idx_comb[k][1]] );
-            _fv_ti_eq_re ( sp2, -z[idx_comb[k][0]] );
+            _fv_ti_eq_re ( sp,  -z[idx_comb[k][1]] );
+            _fv_ti_eq_re ( sp2,  z[idx_comb[k][0]] );
+            // _fv_eq_zero ( sp2 );
 
             _fv_eq_fv_pl_fv ( _s, sp, sp2 );
           }
@@ -564,50 +550,41 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on flavor */
 
-    for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
+    /***********************************************************
+     * loop on y = iy ( 1,1,1,1)
+     ***********************************************************/
+    for ( int iy = 1; iy <= ymax; iy++ )
     {
- 
+
       /***********************************************************
-       * loop on y = iy ( 1,1,1,1)
+       * loop on directions in 4-space
        ***********************************************************/
-      for ( int iy = 1; iy <= ymax; iy++ )
+      for ( int isign = 0; isign < ysign_num; isign++ )
       {
 
-        /***********************************************************
-         * loop on directions in 4-space
-         ***********************************************************/
-        for ( int isign = 0; isign < ysign_num; isign++ )
+        sprintf ( filename, "pi-tensor.y%d.st%dsx%dsy%dsz%d", iy, 
+            ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3] );
+
+        FILE *cfs = fopen ( filename, "w" );
+
+        int gsy[4], sy[4];
+        gsy[0] = ( iy * ysign_comb[isign][0] + g_source_coords_list[isrc][0] +  T_global ) %  T_global;
+        gsy[1] = ( iy * ysign_comb[isign][1] + g_source_coords_list[isrc][1] + LX_global ) % LX_global;
+        gsy[2] = ( iy * ysign_comb[isign][2] + g_source_coords_list[isrc][2] + LY_global ) % LY_global;
+        gsy[3] = ( iy * ysign_comb[isign][3] + g_source_coords_list[isrc][3] + LZ_global ) % LZ_global;
+
+        int source_proc_id_y = -1;
+        exitstatus = get_point_source_info (gsy, sy, &source_proc_id_y);
+        if( exitstatus != 0 ) {
+          fprintf(stderr, "[p2gg_invert_contract_local] Error from get_point_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(123);
+        }
+
+        /***********************************************************/
+        /***********************************************************/
+
+        for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
         {
-
-          int gsx[4], sx[4];
-          gsx[0] = ( iy * ysign_comb[isign][0] + g_source_coords_list[isrc][0] +  T_global ) %  T_global;
-          gsx[1] = ( iy * ysign_comb[isign][1] + g_source_coords_list[isrc][1] + LX_global ) % LX_global;
-          gsx[2] = ( iy * ysign_comb[isign][2] + g_source_coords_list[isrc][2] + LY_global ) % LY_global;
-          gsx[3] = ( iy * ysign_comb[isign][3] + g_source_coords_list[isrc][3] + LZ_global ) % LZ_global;
-
-          int source_proc_id = -1;
-          exitstatus = get_point_source_info (gsx, sx, &source_proc_id);
-          if( exitstatus != 0 ) {
-            fprintf(stderr, "[p2gg_invert_contract_local] Error from get_point_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(123);
-          }
-
-          /***********************************************************
-           * forward proapgators from y
-           ***********************************************************/
-          double Tuuy0[6 * 12 *24];
-          if ( source_proc_id == g_cart_id )
-          {
-
-            for(int ia = 0; ia < 12; ia++ )
-            {
-              for(int ib = 0; ib < 12; ib++ )
-              {
-                Tuuy0[ia][2*ib] = seq_0[iflavor][]
-                  seq_src[iflavor][k][i]
-              }
-            }
-          }
  
           /***********************************************************
            * forward proapgators from y
@@ -618,9 +595,9 @@ int main(int argc, char **argv) {
             memset ( spinor_work[0], 0, sizeof_spinor_field );
             memset ( spinor_work[1], 0, sizeof_spinor_field );
       
-            if ( source_proc_id == g_cart_id ) 
+            if ( source_proc_id_y == g_cart_id ) 
             {
-              spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) + 2*i ] = 1.;
+              spinor_work[0][_GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) + 2*i ] = 1.;
             }
       
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor );
@@ -641,7 +618,7 @@ int main(int argc, char **argv) {
            
             if ( g_write_propagator ) 
             {
-              sprintf ( filename, "fwd_y.f%d.t%dx%dy%dz%d.y%d.st%dsx%dsy%dsz%d.sc%d.lime", iflavor, gsx[0] , gsx[1] ,gsx[2] , gsx[3], iy,
+              sprintf ( filename, "fwd_y.f%d.t%dx%dy%dz%d.y%d.st%dsx%dsy%dsz%d.sc%d.lime", iflavor, gsy[0] , gsy[1] ,gsy[2] , gsy[3], iy,
                 ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3], i );
     
               if ( ( exitstatus = write_propagator( spinor_work[1], filename, 0, g_propagator_precision) ) != 0 ) {
@@ -651,7 +628,375 @@ int main(int argc, char **argv) {
             }
             
           }  /* end of loop on spin-color components */
-    
+        }
+
+        /***********************************************************/
+        /***********************************************************/
+
+        for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
+        {
+
+          /***********************************************************
+           * broadcast T^{uu}_k(y,0)_{ib,ia}
+           ***********************************************************/
+          double *** Tuuy0 = init_3level_dtable( 6 , 12 , 24 );
+          if ( source_proc_id_y == g_cart_id )
+          {
+            unsigned int const y = g_ipt[sy[0]][sy[1]][sy[2]][sy[3]];
+            size_t const yoffset = _GSI ( y );
+
+            for ( int k = 0; k < 6; k++ )
+            {
+              for(int ia = 0; ia < 12; ia++ )
+              {
+                double * const _seq_src =  seq_src[iflavor][k][ia] + yoffset;
+                for(int ib = 0; ib < 12; ib++ )
+                {
+                  /* index triple (k,ib,ia)  */
+                  Tuuy0[k][ia][ 2 * ib     ] = _seq_src[2*ib  ];
+                  Tuuy0[k][ia][ 2 * ib + 1 ] = _seq_src[2*ib+1];
+
+                }  /* of ib = sink side */
+
+              }  /* of ia = source side */
+            }  /* of k = [\rho, sigma] */
+          }
+
+#ifdef HAVE_MPI
+          if( MPI_Bcast( Tuuy0[0][0],  (6*12*24), MPI_DOUBLE, source_proc_id_y, g_cart_grid ) != MPI_SUCCESS )
+          {
+            fprintf(stderr, "[p2gg_invert_contract_local] Error from MPI_Bcast  %s %d\n", __FILE__, __LINE__);
+            EXIT(123);
+          }
+#endif
+          double **** gnu_Tuuy0 = init_4level_dtable( 4, 6 , 12 , 24 );
+          for ( int nu = 0; nu < 4; nu++ )
+          {
+            for( int k = 0; k < 6; k++ )
+            {
+              for( int ia = 0; ia < 12; ia++ )
+              {
+                _fv_eq_gamma_ti_fv ( gnu_Tuuy0[nu][k][ia], nu, Tuuy0[k][ia] );
+              }
+            }
+          }
+
+
+
+          /***********************************************************
+           * broadcast D(0,y)_{ib,ia}
+           ***********************************************************/
+          double ** D0y = init_2level_dtable( 12 , 24 );
+          if ( source_proc_id == g_cart_id )
+          {
+            unsigned int const x = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
+            size_t const xoffset = _GSI ( x );
+
+            for(int ia = 0; ia < 12; ia++ )
+            {
+                double * const _fwd_y = fwd_y[1-iflavor][ia] + xoffset;
+                for(int ib = 0; ib < 12; ib++ )
+                {
+                  /* index pair  (ib,ia)  */ 
+                  D0y[ia][ 2 * ib     ] = _fwd_y[2*ib  ];
+                  D0y[ia][ 2 * ib + 1 ] = _fwd_y[2*ib+1];
+
+                }  /* of ib = sink side */
+
+            }  /* of ia = source side */
+          }
+#ifdef HAVE_MPI
+          if( MPI_Bcast( D0y[0],  (12*24), MPI_DOUBLE, source_proc_id, g_cart_grid ) != MPI_SUCCESS )
+          { 
+            fprintf(stderr, "[p2gg_invert_contract_local] Error from MPI_Bcast  %s %d\n", __FILE__, __LINE__);
+            EXIT(123);
+          }
+#endif
+
+          double *** glambda_D0y = init_3level_dtable( 4, 12 , 24 );
+          for ( int mu = 0; mu < 4; mu++ )
+          {
+            for(int ia = 0; ia < 12; ia++ )
+            {
+              _fv_eq_gamma_ti_fv ( glambda_D0y[mu][ia], mu, D0y[ia] );
+            }
+          }
+
+          /***********************************************************
+           * broadcast U(0,y)_{ib,ia}
+           *
+           * EVALUATE AT SOURCE POINT GSX = SX
+           ***********************************************************/
+          double ** U0y = init_2level_dtable( 12 , 24 );
+          if ( source_proc_id == g_cart_id )
+          {
+            unsigned int const x = g_ipt[sx[0]][sx[1]][sx[2]][sx[3]];
+            size_t const xoffset = _GSI ( x );
+
+            for(int ia = 0; ia < 12; ia++ )
+            {
+                double * const _fwd_y = fwd_y[iflavor][ia] + xoffset;
+                for(int ib = 0; ib < 12; ib++ )
+                {
+                  /* index pair  (ib,ia)  */ 
+                  U0y[ia][ 2 * ib     ] = _fwd_y[2*ib  ];
+                  U0y[ia][ 2 * ib + 1 ] = _fwd_y[2*ib+1];
+
+                }  /* of ib = sink side */
+
+            }  /* of ia = source side */
+          }
+#ifdef HAVE_MPI
+          if( MPI_Bcast( U0y[0],  (12*24), MPI_DOUBLE, source_proc_id, g_cart_grid ) != MPI_SUCCESS )
+          { 
+            fprintf(stderr, "[p2gg_invert_contract_local] Error from MPI_Bcast  %s %d\n", __FILE__, __LINE__);
+            EXIT(123);
+          }
+#endif
+
+          double *** glambda_U0y = init_3level_dtable( 4, 12 , 24 );
+          for ( int mu = 0; mu < 4; mu++ )
+          {
+            for(int ia = 0; ia < 12; ia++ )
+            {
+              _fv_eq_gamma_ti_fv ( glambda_U0y[mu][ia], mu, U0y[ia] );
+            }
+          }
+
+          /***********************************************************/
+          /***********************************************************/
+ 
+          /***********************************************************
+           * contractions for term I
+           ***********************************************************/
+
+#pragma omp parallel for shared(cfs)
+          for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+          {
+
+            double **** corr_I = init_4level_dtable( 6, 4, 4, 8 );
+
+            double *** d_g5mu_u = init_3level_dtable ( 4, 12, 24 );
+            double spinor1[24];
+            for ( int ib = 0; ib < 12; ib++) 
+            {
+              double * const _u = fwd_y[iflavor][ib] + _GSI(ix);
+
+              for ( int mu = 0; mu < 4; mu++ )
+              {
+
+                _fv_eq_gamma_ti_fv (spinor1, mu, _u );
+                _fv_ti_eq_g5( spinor1 );
+
+                for ( int ia = 0; ia < 12; ia++) 
+                {
+                
+                  double * const _d = fwd_src[1-iflavor][ia] + _GSI(ix);
+                  complex w;
+
+                  _co_eq_fv_dag_ti_fv ( &w ,_d, spinor1 );
+
+                  d_g5mu_u[mu][ib][2*ia  ] = w.re;
+                  d_g5mu_u[mu][ib][2*ia+1] = w.im;
+
+                }
+              }
+            }  /* end of loop on gamma_mu */
+
+
+            for ( int mu = 0; mu < 4; mu++ )
+            {
+              for ( int lambda = 0; lambda < 4; lambda++ )
+              {
+                double spinor1[24];
+                double ** glambda5_d_g5mu_u = init_2level_dtable ( 12, 24 );
+
+                for ( int ib = 0; ib < 12; ib++)
+                {
+                  _fv_eq_gamma_ti_fv ( spinor1, 5, d_g5mu_u[mu][ib] );
+                  _fv_eq_gamma_ti_fv ( glambda5_d_g5mu_u[ib], lambda, spinor1 );
+                }
+
+                for( int k = 0; k < 6; k++ )
+                {
+
+                  for ( int nu = 0; nu < 4; nu++ ) 
+                  {
+                    double dtmp[2] = {0., 0.};
+                    for ( int ia = 0; ia < 12; ia++)
+                    {
+                      for ( int ib = 0; ib < 12; ib++)
+                      // for ( int ib = ia; ib <= ia; ib++)
+                      {
+                        /*              [ glambda g5 D^+ g5 gmu U ]_{ib,ia}  */
+                        double u[2] = { glambda5_d_g5mu_u[ia][2*ib], glambda5_d_g5mu_u[ia][2*ib+1] };
+                        // double u[2] = {1., 0.};
+                        /*              [ gnu T^uu_k ]_{ia,ib}  */
+                        double v[2] = { gnu_Tuuy0[nu][k][ib][2*ia],  gnu_Tuuy0[nu][k][ib][2*ia+1] };
+
+                        dtmp[0] += u[0] * v[0] - u[1] * v[1];
+                        dtmp[1] += u[0] * v[1] + u[1] * v[0];
+                      }
+                    }
+                    corr_I[k][mu][nu][2*lambda  ] = -dtmp[0];
+                    corr_I[k][mu][nu][2*lambda+1] = -dtmp[1];
+                  }  /* end of nu */
+
+                }  /* end of k */
+
+                fini_2level_dtable ( &glambda5_d_g5mu_u );
+              }  /* end of lambda */
+            }  /* end of mu */
+
+            fini_3level_dtable ( &d_g5mu_u );
+
+#ifndef HAVE_MPI
+#pragma omp critical
+{
+            for ( int mu = 0; mu < 4; mu++ )
+            {
+              for ( int nu = 0; nu < 4; nu++ )
+              {
+                for ( int lambda = 0; lambda < 4; lambda++ )
+                {
+                  for( int k = 0; k < 6; k++ )
+                  {
+                    fprintf ( cfs, "%d-I   x %3d %3d %3d %3d    i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", iflavor,
+                        g_lexic2coords[ix][0] + g_proc_coords[0]*T,
+                        g_lexic2coords[ix][1] + g_proc_coords[1]*LX,
+                        g_lexic2coords[ix][2] + g_proc_coords[2]*LY,
+                        g_lexic2coords[ix][3] + g_proc_coords[3]*LZ,
+                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
+                        corr_I[k][mu][nu][2*lambda  ], corr_I[k][mu][nu][2*lambda+1] );
+                  }
+                }
+              }
+            }
+}
+#endif
+            fini_4level_dtable( &corr_I );
+          }  /* end of loop on ix */
+
+          /***********************************************************
+           * end of contractions for term I
+           ***********************************************************/
+
+          /***********************************************************/
+          /***********************************************************/
+
+          /***********************************************************
+           * contractions for term III
+           ***********************************************************/
+
+#pragma omp parallel for shared(cfs)
+          for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+          {
+          
+            double corr_III[6][4][4][8];
+
+            for ( int k = 0; k < 6; k++ )
+            {
+
+              double *** d_g5mu_tuu = init_3level_dtable ( 4, 12, 24 );
+              double spinor1[24];
+
+
+              for ( int ib = 0; ib < 12; ib++) 
+              {
+                double * const _tuu = seq_src[iflavor][k][ib] + _GSI(ix);
+
+                for ( int mu = 0; mu < 4; mu++ )
+                {
+                  _fv_eq_gamma_ti_fv (spinor1, mu, _tuu );
+                  _fv_ti_eq_g5( spinor1 );
+
+                  for ( int ia = 0; ia < 12; ia++) 
+                  {
+                    double * const _d = fwd_y[1-iflavor][ia] + _GSI(ix);
+
+                    complex w;
+
+                    _co_eq_fv_dag_ti_fv ( &w ,_d, spinor1 );
+
+                    d_g5mu_tuu[mu][ib][2*ia  ] = w.re;
+                    d_g5mu_tuu[mu][ib][2*ia+1] = w.im;
+
+                  }
+                }  /* end of loop on gamma_mu */
+              }  
+
+              for ( int mu = 0; mu < 4; mu++ )
+              {
+                for ( int nu = 0; nu < 4; nu++ )
+                {
+                  double spinor1[24];
+                  double ** gnu5_d_g5mu_tuu = init_2level_dtable ( 12, 24 );
+
+                  for ( int ib = 0; ib < 12; ib++)
+                  {
+                    _fv_eq_gamma_ti_fv ( spinor1, 5, d_g5mu_tuu[mu][ib] );
+                    _fv_eq_gamma_ti_fv ( gnu5_d_g5mu_tuu[ib], nu, spinor1 );
+                  }
+
+                  for ( int lambda = 0; lambda < 4; lambda++ ) 
+                  {
+                    double dtmp[2] = {0., 0.};
+                    for ( int ia = 0; ia < 12; ia++)
+                    {
+                      for ( int ib = 0; ib < 12; ib++)
+                      {
+                        /*              [ gnu g5 D^+ g5 gmu Tuu ]_{ib,ia}  */
+                        double u[2] = { gnu5_d_g5mu_tuu[ia][2*ib], gnu5_d_g5mu_tuu[ia][2*ib+1] };
+                        /*              [ glambda U ]_{ia,ib}  */
+                        double v[2] = { glambda_U0y[lambda][ib][2*ia],  glambda_U0y[lambda][ib][2*ia+1] };
+
+                        dtmp[0] += u[0] * v[0] - u[1] * v[1];
+                        dtmp[1] += u[0] * v[1] + u[1] * v[0];
+                      }
+                    }
+                    corr_III[k][mu][nu][2*lambda  ] = -dtmp[0];
+                    corr_III[k][mu][nu][2*lambda+1] = -dtmp[1];
+                  }  /* end of nu */
+
+                  fini_2level_dtable ( &gnu5_d_g5mu_tuu );
+                }  /* end of lambda */
+              }  /* end of mu */
+
+              fini_3level_dtable ( &d_g5mu_tuu );
+            }  /* end of k */
+
+#ifndef HAVE_MPI
+#pragma omp critical
+{
+            for ( int mu = 0; mu < 4; mu++ )
+            {
+              for ( int nu = 0; nu < 4; nu++ )
+              {
+                for( int k = 0; k < 6; k++ )
+                {
+                  for ( int lambda = 0; lambda < 4; lambda++ )
+                  {
+                    fprintf ( cfs, "%d-III x %3d %3d %3d %3d    i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", iflavor,
+                        g_lexic2coords[ix][0] + g_proc_coords[0]*T,
+                        g_lexic2coords[ix][1] + g_proc_coords[1]*LX,
+                        g_lexic2coords[ix][2] + g_proc_coords[2]*LY,
+                        g_lexic2coords[ix][3] + g_proc_coords[3]*LZ,
+                        mu, nu,  lambda, idx_comb[k][0], idx_comb[k][1],
+                        corr_III[k][mu][nu][2*lambda  ], corr_III[k][mu][nu][2*lambda+1] );
+                  }
+                }
+              }
+            }
+}
+#endif
+          }  /* end of loop on ix */
+
+          /***********************************************************
+           * end of contractions for term III
+           ***********************************************************/
+
+           /***********************************************************/
+           /***********************************************************/
 
           /***********************************************************
            * seq_y
@@ -680,8 +1025,8 @@ int main(int argc, char **argv) {
                 _fv_eq_gamma_ti_fv ( sp,  idx_comb[k][0], _r );
                 _fv_eq_gamma_ti_fv ( sp2, idx_comb[k][1], _r );
     
-                _fv_ti_eq_re ( sp,   z[idx_comb[k][1]] );
-                _fv_ti_eq_re ( sp2, -z[idx_comb[k][0]] );
+                _fv_ti_eq_re ( sp,  -z[idx_comb[k][1]] );
+                _fv_ti_eq_re ( sp2,  z[idx_comb[k][0]] );
     
                 _fv_eq_fv_pl_fv ( _s, sp, sp2 );
               }
@@ -704,7 +1049,7 @@ int main(int argc, char **argv) {
          
               if ( g_write_propagator ) 
               {
-                sprintf ( filename, "seq_y.f%d.t%dx%dy%dz%d.z%d.g%d.y%d.st%dsx%dsy%dsz%d.sc%d.lime", iflavor, gsx[0] , gsx[1] ,gsx[2] , gsx[3], idx_comb[k][0], idx_comb[k][1],
+                sprintf ( filename, "seq_y.f%d.t%dx%dy%dz%d.z%d.g%d.y%d.st%dsx%dsy%dsz%d.sc%d.lime", iflavor, gsy[0] , gsy[1] ,gsy[2] , gsy[3], idx_comb[k][0], idx_comb[k][1],
                    iy, ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3], i );
     
                 if ( ( exitstatus = write_propagator( spinor_work[1], filename, 0, g_propagator_precision) ) != 0 ) {
@@ -715,34 +1060,115 @@ int main(int argc, char **argv) {
           
             }  /* end of loop on spin-color components */
 
+            /***********************************************************/
+            /***********************************************************/
+
             /***********************************************************
              ***********************************************************
              **
              **
-             ** contractions
+             ** contractions for part II-b
              **
              **
              ***********************************************************
              ***********************************************************/
-            double corr[6][6][4][4][8];
 
-#pragma omp parallel for
+#pragma omp parallel for shared(cfs)
             for ( unsigned int ix = 0; ix < VOLUME; ix++ )
             {
-              double _du[12][24];
-              double _spinor1[24];
+          
+              double corr_II[6][4][4][8];
+
+              double *** tuu_g5mu_d = init_3level_dtable ( 4, 12, 24 );
+              double spinor1[24];
+
+
+              for ( int ib = 0; ib < 12; ib++) 
+              {
+                double * const _d = fwd_src[1-iflavor][ib] + _GSI(ix);
+
+                for ( int mu = 0; mu < 4; mu++ )
+                {
+                  _fv_eq_gamma_ti_fv (spinor1, mu, _d );
+                  _fv_ti_eq_g5( spinor1 );
+
+                  for ( int ia = 0; ia < 12; ia++) 
+                  {
+                    double * const _tuu = seq_y[k][ia] + _GSI(ix);
+
+                    complex w;
+
+                    _co_eq_fv_dag_ti_fv ( &w ,_tuu, spinor1 );
+
+                    tuu_g5mu_d[mu][ib][2*ia  ] = w.re;
+                    tuu_g5mu_d[mu][ib][2*ia+1] = w.im;
+
+                  }
+                }  /* end of loop on gamma_mu */
+              }  
+
               for ( int mu = 0; mu < 4; mu++ )
               {
-                for ( int ia = 0; ia < 12; ia++) 
+                for ( int nu = 0; nu < 4; nu++ )
                 {
-                  for ( int ib = 0; ib < 12; ib++) 
+                  double spinor1[24];
+                  double ** gnu5_tuu_g5mu_d = init_2level_dtable ( 12, 24 );
+
+                  for ( int ib = 0; ib < 12; ib++)
                   {
-                      fwd_0[iflavor][ia]+_GSI(ix)
+                    _fv_eq_gamma_ti_fv ( spinor1, 5, tuu_g5mu_d[mu][ib] );
+                    _fv_eq_gamma_ti_fv ( gnu5_tuu_g5mu_d[ib], nu, spinor1 );
+                  }
+
+                  for ( int lambda = 0; lambda < 4; lambda++ ) 
+                  {
+                    double dtmp[2] = {0., 0.};
+                    for ( int ia = 0; ia < 12; ia++)
+                    {
+                      for ( int ib = 0; ib < 12; ib++)
+                      {
+                        /*              [ gnu g5 D^+ g5 gmu Tuu ]_{ib,ia}  */
+                        double u[2] = { gnu5_tuu_g5mu_d[ia][2*ib], gnu5_tuu_g5mu_d[ia][2*ib+1] };
+                        /*              [ glambda U ]_{ia,ib}  */
+                        double v[2] = { glambda_D0y[lambda][ib][2*ia],  glambda_D0y[lambda][ib][2*ia+1] };
+
+                        dtmp[0] += u[0] * v[0] - u[1] * v[1];
+                        dtmp[1] += u[0] * v[1] + u[1] * v[0];
+                      }
+                    }
+                    /* + Tr{} */
+                    corr_II[k][mu][nu][2*lambda  ] = dtmp[0];
+                    corr_II[k][mu][nu][2*lambda+1] = dtmp[1];
+                  }  /* end of nu */
+
+                  fini_2level_dtable ( &gnu5_tuu_g5mu_d );
+                }  /* end of lambda */
+              }  /* end of mu */
+
+              fini_3level_dtable ( &tuu_g5mu_d );
+
+#ifndef HAVE_MPI
+#pragma omp critical
+{
+              for ( int mu = 0; mu < 4; mu++ )
+              {
+                for ( int nu = 0; nu < 4; nu++ )
+                {
+                  for ( int lambda = 0; lambda < 4; lambda++ )
+                  {
+                    fprintf (cfs, "%d-II  x %3d %3d %3d %3d    i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 1-iflavor,
+                        g_lexic2coords[ix][0] + g_proc_coords[0]*T,
+                        g_lexic2coords[ix][1] + g_proc_coords[1]*LX,
+                        g_lexic2coords[ix][2] + g_proc_coords[2]*LY,
+                        g_lexic2coords[ix][3] + g_proc_coords[3]*LZ,
+                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1], 
+                        corr_II[k][mu][nu][2*lambda  ], corr_II[k][mu][nu][2*lambda+1] );
                   }
                 }
-
               }
-            }
+}
+#endif
+            }  /* end of loop on ix */
 
             /***********************************************************
              ***********************************************************
@@ -751,16 +1177,28 @@ int main(int argc, char **argv) {
              **
              ***********************************************************
              ***********************************************************/
-
-
           }  /* end of loop on antisymmetric index combinations */
 
 
-        }  /* end of loop on signs */
 
-      }  /* end of loop on |y| */
+          fini_2level_dtable ( &U0y );
+          fini_3level_dtable ( &glambda_U0y );
 
-    }  /* end of loop on flavor */
+          fini_2level_dtable ( &D0y );
+          fini_3level_dtable ( &glambda_D0y );
+
+
+          fini_3level_dtable ( &Tuuy0 );
+          fini_4level_dtable ( &gnu_Tuuy0 );
+
+    
+        }  /* end of loop on flavor */
+
+        fclose ( cfs );
+
+      }  /* end of loop on signs */
+
+    }  /* end of loop on |y| */
 
   }  /* end of loop on source locations */
 
