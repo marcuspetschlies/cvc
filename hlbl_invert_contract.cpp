@@ -503,10 +503,10 @@ int main(int argc, char **argv) {
             double sp[24], sp2[24];
 
             int const z[4] = {
-              g_lexic2coords[ix][0] + g_proc_coords[0] * T,
-              g_lexic2coords[ix][1] + g_proc_coords[1] * LX,
-              g_lexic2coords[ix][2] + g_proc_coords[2] * LY,
-              g_lexic2coords[ix][3] + g_proc_coords[3] * LZ };
+              ( g_lexic2coords[ix][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
+              ( g_lexic2coords[ix][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
+              ( g_lexic2coords[ix][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
+              ( g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
             _fv_eq_gamma_ti_fv ( sp,  idx_comb[k][0], _r );
             _fv_eq_gamma_ti_fv ( sp2, idx_comb[k][1], _r );
@@ -1017,10 +1017,10 @@ int main(int argc, char **argv) {
                 double sp[24], sp2[24];
     
                 int const z[4] = {
-                  g_lexic2coords[ix][0] + g_proc_coords[0] * T,
-                  g_lexic2coords[ix][1] + g_proc_coords[1] * LX,
-                  g_lexic2coords[ix][2] + g_proc_coords[2] * LY,
-                  g_lexic2coords[ix][3] + g_proc_coords[3] * LZ };
+                  ( g_lexic2coords[ix][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
+                  ( g_lexic2coords[ix][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
+                  ( g_lexic2coords[ix][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
+                  ( g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
     
                 _fv_eq_gamma_ti_fv ( sp,  idx_comb[k][0], _r );
                 _fv_eq_gamma_ti_fv ( sp2, idx_comb[k][1], _r );
