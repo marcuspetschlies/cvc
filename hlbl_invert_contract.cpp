@@ -562,7 +562,7 @@ int main(int argc, char **argv) {
       for ( int isign = 0; isign < ysign_num; isign++ )
       {
 
-        sprintf ( filename, "pi-tensor.y%d.st%dsx%dsy%dsz%d", iy, 
+        sprintf ( filename, "pi-tensor-mI.y%d.st%dsx%dsy%dsz%d", iy, 
             ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3] );
 
         FILE *cfs = fopen ( filename, "w" );
@@ -770,9 +770,16 @@ int main(int argc, char **argv) {
            * contractions for term I
            ***********************************************************/
 
+          DML_Checksum ans;
+          DML_SiteRank rank;
+          DML_checksum_init ( &ans );
+
 #pragma omp parallel for shared(cfs)
           for ( unsigned int ix = 0; ix < VOLUME; ix++ )
           {
+            rank = (DML_SiteRank) ((((g_proc_coords[0]*T + g_lexic2coords[ix][0])*LX_global + g_proc_coords[1]*LX + g_lexic2coords[ix][1]) * LY_global \
+                + g_proc_coords[2] * LY + g_lexic2coords[ix][2] ) * LZ_global + g_proc_coords[3]*LZ + g_lexic2coords[ix][3]);
+
 
             double **** corr_I = init_4level_dtable( 6, 4, 4, 8 );
 
@@ -850,6 +857,11 @@ int main(int argc, char **argv) {
 
             fini_3level_dtable ( &d_g5mu_u );
 
+#pragma omp critical
+{
+            DML_checksum_accum ( &ans, rank, (char*) corr_I[0][0][0], 768*sizeof(double) );
+}
+
 #ifndef HAVE_MPI
 #pragma omp critical
 {
@@ -876,6 +888,14 @@ int main(int argc, char **argv) {
 #endif
             fini_4level_dtable( &corr_I );
           }  /* end of loop on ix */
+
+#ifdef HAVE_MPI
+          DML_checksum_combine( &ans );
+#endif
+
+          if(g_cart_id == 0) fprintf( stdout, "# [hlbl_invert_contract.cpp] src %3d %3d %3d %3d |y| %2d s %2d fl %d checksum %#lx %#lx\n",
+              gsx[0], gsx[1], gsx[2], gsx[3], iy, isign, iflavor,
+              ans.suma, ans.sumb);
 
           /***********************************************************
            * end of contractions for term I
@@ -972,9 +992,9 @@ int main(int argc, char **argv) {
             {
               for ( int nu = 0; nu < 4; nu++ )
               {
-                for( int k = 0; k < 6; k++ )
+                for ( int lambda = 0; lambda < 4; lambda++ )
                 {
-                  for ( int lambda = 0; lambda < 4; lambda++ )
+                  for( int k = 0; k < 6; k++ )
                   {
                     fprintf ( cfs, "%d-III x %3d %3d %3d %3d    i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", iflavor,
                         g_lexic2coords[ix][0] + g_proc_coords[0]*T,
