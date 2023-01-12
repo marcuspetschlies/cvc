@@ -75,6 +75,10 @@ void usage() {
 
 int main(int argc, char **argv) {
 
+  double const mmuon = 105.6583745 /* MeV */  / 197.3269804 /* MeV fm */;
+  double const alat[2] = { 0.07957, 0.00013 };
+
+
   int const ymax = 2;
   int const ysign_num = 1;
   int const ysign_comb[16][4] = {
@@ -358,6 +362,7 @@ int main(int argc, char **argv) {
     EXIT(19);
   }
   double kerv[6][4][4][4] KQED_ALIGN ;
+  double const xunit[2] = { mmuon * alat[0], mmuon * alat[1] };
 
 
 
@@ -544,6 +549,11 @@ int main(int argc, char **argv) {
            * D_y^+ z g5 gsigma U_src
            ***********************************************************/
           double *** dzu = init_3level_dtable ( 6, 12, 24 );
+          if ( dzu == NULL )
+          {
+            fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
 
           for(int ia = 0; ia < 12; ia++ )
           {
@@ -596,6 +606,11 @@ int main(int argc, char **argv) {
           }  /* of ia */
 
           double **** g_dzu  = init_4level_dtable ( 6, 4, 12, 24 );
+          if ( g_dzu == NULL )
+          {
+            fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
 
 #pragma omp parallel for
           for ( int k = 0; k < 6; k++ )
@@ -619,15 +634,23 @@ int main(int argc, char **argv) {
            * contractions for term I
            ***********************************************************/
  
-          DML_Checksum ans;
-          DML_checksum_init ( &ans );
+//          DML_Checksum ans;
+//          DML_checksum_init ( &ans );
 
 #pragma omp parallel shared(cfs)
 {
-          DML_SiteRank rank;
+//          DML_SiteRank rank;
+          unsigned int rank;          
           double **** corr_I = init_4level_dtable ( 6, 4, 4, 8 );
           double ***  dxu    = init_3level_dtable ( 4, 12, 24 );
           double **** g_dxu  = init_4level_dtable ( 4, 4, 12, 24 );
+
+          if ( corr_I == NULL || dxu == NULL || g_dxu == NULL )
+          {
+            fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
+
           double spinor1[24];
 
 #pragma omp for
@@ -638,7 +661,8 @@ int main(int argc, char **argv) {
                          g_proc_coords[2]*LY + g_lexic2coords[ix][2],
                          g_proc_coords[3]*LZ + g_lexic2coords[ix][3] };
             
-            rank = (DML_SiteRank) ( ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3] );
+//            rank = (DML_SiteRank) ( ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3] );
+            rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
 
             x[0] -= gsx[0];
             x[1] -= gsx[1];
@@ -717,10 +741,10 @@ int main(int argc, char **argv) {
               }
             }
 
-#pragma omp critical
-{
-            DML_checksum_accum ( &ans, rank, (char*) corr_I[0][0][0], 768*sizeof(double) );
-}
+//#pragma omp critical
+//{
+//            DML_checksum_accum ( &ans, rank, (char*) corr_I[0][0][0], 768*sizeof(double) );
+//}
 
 #pragma omp critical
 {
@@ -732,7 +756,7 @@ int main(int argc, char **argv) {
                 {
                   for( int k = 0; k < 6; k++ )
                   {
-                    fprintf ( cfs, "y %2d s %d %d %d %d fl %d  x %6lu  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 
+                    fprintf ( cfs, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 
                         iy,
                         ysign_comb[isign][0],
                         ysign_comb[isign][1],
@@ -756,13 +780,13 @@ int main(int argc, char **argv) {
 
 }  /* end of parallel region */
 
-#ifdef HAVE_MPI
-          DML_checksum_combine( &ans );
-#endif
- 
-          if(g_cart_id == 0) fprintf( stdout, "# [hlbl_mII_invert_contract.cpp] src %3d %3d %3d %3d |y| %2d s %2d fl %d checksum %#lx %#lx\n", 
-              gsx[0], gsx[1], gsx[2], gsx[3], iy, isign, iflavor,
-              ans.suma, ans.sumb);
+//#ifdef HAVE_MPI
+//          DML_checksum_combine( &ans );
+//#endif
+// 
+//          if(g_cart_id == 0) fprintf( stdout, "# [hlbl_mII_invert_contract.cpp] src %3d %3d %3d %3d |y| %2d s %2d fl %d checksum %#lx %#lx\n", 
+//              gsx[0], gsx[1], gsx[2], gsx[3], iy, isign, iflavor,
+//              ans.suma, ans.sumb);
 
           /***********************************************************
            * end of contractions for term I
