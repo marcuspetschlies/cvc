@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
   double loop_norm = 1.;
   int operator_type = 0;
   char loop_type[10] = "Clv";
+  char fbwd_type[6]="NA";
 
   int stout_level_iter = 0;
   double stout_level_rho = 0.0;
@@ -118,12 +119,13 @@ int main(int argc, char **argv) {
   /**********************************************************
    * cC211.06.80
    **********************************************************/
+  double g_mus = 0.0006;
   /* double g_mus = 0.01615; */
 
   /**********************************************************
    * cD211.054.96
    **********************************************************/
-  double g_mus = 0.00054;
+  /* double g_mus = 0.00054; */
   /* double g_mus = 0.0136; */
 
 
@@ -174,8 +176,9 @@ int main(int argc, char **argv) {
       fprintf ( stdout, "# [avxg_analyse_simple] twop_weight set to %25.16e / %25.16e\n", twop_weight[0], twop_weight[1] );
       break;
     case 'B':
-      sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 );
-      fprintf ( stdout, "# [avxg_analyse_simple] fbwd_weight set to %25.16e / %25.16e\n", fbwd_weight[0], fbwd_weight[1] );
+      strcpy ( fbwd_type, optarg );
+      /* sscanf( optarg, "%lf,%lf", fbwd_weight, fbwd_weight+1 ); */
+      fprintf ( stdout, "# [avxg_analyse_simple] fbwd_type set to %s\n", fbwd_type );
       break;
     case 'M':
       sscanf( optarg, "%lf,%lf", mirror_weight, mirror_weight+1 );
@@ -307,6 +310,22 @@ int main(int argc, char **argv) {
       }
     }
   }
+
+  if ( strcmp( fbwd_type, "fwd" ) == 0 )
+  {
+    fbwd_weight[0] = 1.0;
+    fbwd_weight[1] = 0.0;
+  } else if ( strcmp( fbwd_type, "bwd" ) == 0 )
+  {
+    fbwd_weight[0] = 0.0;
+    fbwd_weight[1] = 1.0;
+  } else if ( strcmp( fbwd_type, "fbwd" ) == 0 )
+  {
+    fbwd_weight[0] = 1.0;
+    fbwd_weight[1] = 1.0;
+  }
+  fprintf ( stdout, "# [] fbwd_weight set to %e   %e   %s %d\n", fbwd_weight[0], fbwd_weight[1], __FILE__, __LINE__ );
+
 
   /**********************************************************
    **********************************************************
@@ -1154,19 +1173,20 @@ int main(int argc, char **argv) {
 
   for ( int iconf = 0; iconf < num_conf; iconf++ ) {
 
+    double ** buffer = init_2level_dtable ( T_global, 21 );
+    if ( buffer == NULL ) {
+      fprintf( stderr, "[avxg_analyse_simple] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+    char key[400];
+
+#if 0
     sprintf ( filename, "stream_%c/%s.%d.h5", conf_src_list[iconf][0][0],
         filename_prefix3, conf_src_list[iconf][0][1] );
 
     if ( g_verbose > 2 ) fprintf( stdout, "# [avxg_analyse_simple] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
 
 
-    double ** buffer = init_2level_dtable ( T_global, 21 );
-    if ( buffer == NULL ) {
-      fprintf( stderr, "[avxg_analyse_simple] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-      EXIT(1);
-    }
-
-    char key[400];
     sprintf ( key, "/StoutN%d/StoutRho%6.4f/%s/GG/", stout_level_iter, stout_level_rho, loop_type );
 
 
@@ -1175,9 +1195,12 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[avxg_analyse_simple] Error from read_from_h5_file for key \"%s\", status was %d %s %d\n", key, exitstatus, __FILE__, __LINE__);
       EXIT( 105 );
     }
+#endif
 
+    sprintf ( filename, "stream_%c/%s.%d.aff", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1] );
 
-#if 0
+    if ( g_verbose > 2 ) fprintf( stdout, "# [avxg_analyse_simple] reading data from file %s %s %d\n", filename, __FILE__, __LINE__ );
+
     struct AffReader_s *affr = NULL;
     struct AffNode_s *affn = NULL;
     struct AffNode_s *affdir = NULL;
@@ -1192,6 +1215,8 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[avxg_analyse_simple] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
       EXIT( 2 );
     }
+
+    sprintf ( key, "/StoutN%d/StoutRho%6.4f/%s/GG/", stout_level_iter, stout_level_rho, loop_type );
 
     affdir = aff_reader_chpath ( affr, affn, key );
     if ( affdir == NULL ) {
@@ -1218,7 +1243,7 @@ int main(int argc, char **argv) {
       fprintf( stderr, "[avxg_analyse_simple] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(1);
     } */
-#endif
+
 
     for ( int it = 0; it < T_global; it++ ) {
       int const imom = 0;
@@ -1683,12 +1708,12 @@ int main(int argc, char **argv) {
     {
       for ( int imom = 0; imom < g_sink_momentum_number; imom++ )
       {
-        sprintf ( filename, "threep.%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.corr",
+        sprintf ( filename, "threep.%s.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
               loop_type, loop_tag, threep_tag[k],
               g_sequential_source_timeslice_list[idt],
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
-              g_sink_momentum_list[imom][2] );
+              g_sink_momentum_list[imom][2], fbwd_type );
 
         FILE * fs = fopen ( filename, "w" );
 
