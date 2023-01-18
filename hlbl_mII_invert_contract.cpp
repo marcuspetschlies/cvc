@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
 
 
   int const ymax = 2;
-  int const ysign_num = 1;
+  int const ysign_num = 2;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
     { 1, 1, 1,-1},
@@ -352,20 +352,19 @@ int main(int argc, char **argv) {
 
 
   /***********************************************************
-   * set up QED Kernel package
+   * unit for x, y
    ***********************************************************/
-  struct QED_kernel_temps kqed_t ;
-
-  if( initialise( &kqed_t ) )
-  {
-    fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(19);
-  }
-  double kerv[6][4][4][4] KQED_ALIGN ;
   double const xunit[2] = { mmuon * alat[0], mmuon * alat[1] };
 
+  /***********************************************************
+   * output filename
+   ***********************************************************/
+  char output_filename[400];
+  sprintf ( output_filename, "%s.h5", g_outfile_prefix );
 
-
+  /***********************************************************
+   * loop on source positions
+   ***********************************************************/
   for ( int isrc = 0; isrc < g_source_location_number; isrc++ )
   {
     /***********************************************************
@@ -382,6 +381,17 @@ int main(int argc, char **argv) {
     if( exitstatus != 0 ) {
       fprintf(stderr, "[p2gg_invert_contract_local] Error from get_point_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(123);
+    }
+
+
+    /***********************************************************
+     * local kernel sum
+     ***********************************************************/
+    double ** kernel_sum = init_2level_dtable ( ymax + 1, 4 );
+    if ( kernel_sum == NULL ) 
+    {
+      fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(19);
     }
 
    /***********************************************************
@@ -483,10 +493,11 @@ int main(int argc, char **argv) {
           EXIT(123);
         }
 
-        int const yv[4] = { iy * ysign_comb[isign][0],
-                           iy * ysign_comb[isign][1],
-                           iy * ysign_comb[isign][2],
-                           iy * ysign_comb[isign][3] };
+        int const yv[4] = {
+            iy * ysign_comb[isign][0],
+            iy * ysign_comb[isign][1],
+            iy * ysign_comb[isign][2],
+            iy * ysign_comb[isign][3] };
 
 
         /***********************************************************/
@@ -563,7 +574,9 @@ int main(int argc, char **argv) {
               int const sigma = idx_comb[k][1];
               int const rho   = idx_comb[k][0];
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
               for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
               {
                 double * const _u = g_fwd_src[iflavor][sigma][ia] + _GSI(iz);
@@ -578,7 +591,9 @@ int main(int argc, char **argv) {
                 _fv_eq_fv_ti_re ( _s, _u,  z[rho  ] );
               }
             
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
               for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
               {
                 double * const _u = g_fwd_src[iflavor][rho  ][ia] + _GSI(iz);
@@ -612,7 +627,9 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel for
+#endif
           for ( int k = 0; k < 6; k++ )
           {
             double spinor1[24];
@@ -637,8 +654,10 @@ int main(int argc, char **argv) {
 //          DML_Checksum ans;
 //          DML_checksum_init ( &ans );
 
+#ifdef HAVE_OPENMP
 #pragma omp parallel shared(cfs)
 {
+#endif
 //          DML_SiteRank rank;
           unsigned int rank;          
           double **** corr_I = init_4level_dtable ( 6, 4, 4, 8 );
@@ -653,7 +672,32 @@ int main(int argc, char **argv) {
 
           double spinor1[24];
 
+          double kerv[6][4][4][4] KQED_ALIGN ;
+          double kerv1[6][4][4][4] KQED_ALIGN ;
+
+          double kernel_sum_thread[4] = { 0., 0., 0., 0. };
+
+          /***********************************************************
+           * set up QED Kernel package
+           ***********************************************************/
+          struct QED_kernel_temps kqed_t ;
+
+          if( initialise( &kqed_t ) )
+          {
+            fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(19);
+          }
+
+          struct QED_kernel_temps kqed_t1 ;
+          if( initialise( &kqed_t1 ) )
+          {
+            fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(19);
+          }
+
+#ifdef HAVE_OPENMP
 #pragma omp for
+#endif
           for ( unsigned int ix = 0; ix < VOLUME; ix++ )
           {
             int x[4] = { g_proc_coords[0]*T  + g_lexic2coords[ix][0],
@@ -746,6 +790,60 @@ int main(int argc, char **argv) {
 //            DML_checksum_accum ( &ans, rank, (char*) corr_I[0][0][0], 768*sizeof(double) );
 //}
 
+            /***********************************************************
+             * summation with QED kernel
+             ***********************************************************/
+            double const xm[4] = {
+              xv[0] * xunit[0],
+              xv[1] * xunit[0],
+              xv[2] * xunit[0],
+              xv[3] * xunit[0] };
+
+            double const ym[4] = {
+              yv[0] * xunit[0],
+              yv[1] * xunit[0],
+              yv[2] * xunit[0],
+              yv[3] * xunit[0] };
+
+
+            double * const _kerv   = (double * const )kerv;
+            double * const _kerv1  = (double * const )kerv1;
+            double * const _corr_I = corr_I[0][0][0];
+
+            QED_kernel_L0( xm, ym, kqed_t, kerv );
+            double dtmp = 0.;
+            for( int idx = 0 ; idx < 384 ; idx++ )
+            {
+              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+            }
+            kernel_sum_thread[0] += dtmp;
+
+            QED_kernel_L1( xm, ym, kqed_t1, kerv1 );
+            dtmp = 0.;
+            for( int idx = 0 ; idx < 384 ; idx++ )
+            {
+              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+            }
+            kernel_sum_thread[1] += dtmp;
+#if 0
+            QED_kernel_L2( xm, ym, kqed_t, kerv );
+            dtmp = 0.;
+            for( int idx = 0 ; idx < 384 ; idx++ )
+            {
+              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+            }
+            kernel_sum_thread[2] += dtmp;
+
+            QED_kernel_L3( xm, ym, kqed_t, kerv );
+            dtmp = 0.;
+            for( int idx = 0 ; idx < 384 ; idx++ )
+            {
+              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+            }
+            kernel_sum_thread[3] += dtmp;
+#endif
+
+#if 0
 #pragma omp critical
 {
             for ( int mu = 0; mu < 4; mu++ )
@@ -771,14 +869,39 @@ int main(int argc, char **argv) {
               }
             }
 }  /* end of critical region */
-
+#endif
           }  /* end of loop on ix */
-            
+
+          /***********************************************************
+           * summation with QED kernel
+           ***********************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp critical
+{
+#endif
+          kernel_sum[iy][0] += kernel_sum_thread[0];
+          kernel_sum[iy][1] += kernel_sum_thread[1];
+          kernel_sum[iy][2] += kernel_sum_thread[2];
+          kernel_sum[iy][3] += kernel_sum_thread[3];
+
+#ifdef HAVE_OPENMP
+   /***********************************************************/
+}  /* end of critical region */
+   /***********************************************************/
+#endif
+          free_QED_temps( &kqed_t  );
+          free_QED_temps( &kqed_t1 );
+
+
           fini_4level_dtable ( &corr_I );
           fini_4level_dtable ( &g_dxu  );
           fini_3level_dtable ( &dxu    );
 
+#ifdef HAVE_OPENMP
+   /***********************************************************/
 }  /* end of parallel region */
+   /***********************************************************/
+#endif
 
 //#ifdef HAVE_MPI
 //          DML_checksum_combine( &ans );
@@ -806,13 +929,47 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on |y| */
 
-  }  /* end of loop on source locations */
+#ifdef HAVE_MPI
+    /***********************************************************
+     * sum over MPI processes
+     ***********************************************************/
+    double * mbuffer = init_1level_dtable ( 4 * ( ymax + 1 ) );
 
+    memcpy ( mbuffer, kernel_sum[0], 4 * ( ymax + 1 ) * sizeof ( double ) );
+
+    if ( MPI_Reduce ( mbuffer, kernel_sum, 4 * ( ymax + 1 ), MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
+    {
+      fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+
+    fini_1level_dtable ( &mbuffer );
+
+#endif  /* end of ifdef HAVE_MPI */
+
+    if ( io_proc == 2 )
+    {
+      int ncdim = 2;
+      int cdim[2] = { ymax+1, 4 };
+      char key[100];
+      sprintf (key, "t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
+
+      exitstatus = write_h5_contraction ( kernel_sum[0], NULL, output_filename, key, "double", ncdim, cdim );
+      if ( exitstatus != 0 )
+      {
+        fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
+        EXIT(12);
+      }
+    }
+
+    fini_2level_dtable ( &kernel_sum );
+
+  }  /* end of loop on source locations */
 
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
- 
+
   fini_3level_dtable ( &fwd_src );
   fini_3level_dtable ( &fwd_y );
   fini_4level_dtable ( &g_fwd_src );
