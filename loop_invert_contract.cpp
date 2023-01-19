@@ -62,6 +62,7 @@ extern "C"
 #include "clover.h"
 #include "contract_loop.h"
 #include "ranlxd.h"
+#include "smearing_techniques.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -77,7 +78,7 @@ void usage() {
   EXIT(0);
 }
 
-#define _USE_TIME_DILUTION 1
+#define _USE_TIME_DILUTION 0
 
 #define _FIRST_DERIV_CONTRACTION 0
 #define _SECOND_DERIV_CONTRACTION 0
@@ -97,7 +98,7 @@ int main(int argc, char **argv) {
 
   double **mzz[2]    = { NULL, NULL }, **mzzinv[2]    = { NULL, NULL };
   double **DW_mzz[2] = { NULL, NULL }, **DW_mzzinv[2] = { NULL, NULL };
-  double *gauge_field_with_phase = NULL;
+  double *gauge_field_with_phase = NULL, * gauge_field_smeared = NULL;
   int op_id_up = -1;
   int op_id_dn = -1;
   char output_filename[400];
@@ -297,16 +298,58 @@ int main(int argc, char **argv) {
      EXIT(1);
    }
 
+  double ** spinor_work  = init_2level_dtable ( 3, _GSI( VOLUME+RAND ) );
+  if ( spinor_work == NULL ) {
+    fprintf(stderr, "[loop_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(1);
+  }
+
+#ifdef _SMEAR_QUDA
+  /***************************************************************************
+   * dummy solve, just to have original gauge field up on device,
+   * for subsequent APE smearing
+   ***************************************************************************/
+  memset(spinor_work[1], 0, sizeof_spinor_field);
+  memset(spinor_work[0], 0, sizeof_spinor_field);
+  if ( g_cart_id == 0 ) spinor_work[0][0] = 1.;
+  exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], 0 );
+#  if ( defined GPU_DIRECT_SOLVER )
+  if(exitstatus < 0)
+#  else
+  if(exitstatus != 0)
+#  endif
+  {
+    fprintf(stderr, "[njjn_fht_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(12);
+  }
+#endif
+
+  /***************************************************************************
+   * if we want to use Jacobi smearing on host, we need the
+   * smeared gauge field
+   ***************************************************************************/
+  if( N_Jacobi > 0 ) {
+
+#ifndef _SMEAR_QUDA
+    alloc_gauge_field ( &gauge_field_smeared, VOLUMEPLUSRAND);
+
+    memcpy ( gauge_field_smeared, g_gauge_field, 72*VOLUME*sizeof(double));
+#endif  /* of if _SMEAR_QUDA */
+
+    if ( N_ape > 0 ) {
+      exitstatus = APE_Smearing(gauge_field_smeared, alpha_ape, N_ape);
+      if(exitstatus != 0) {
+        fprintf(stderr, "[eta_invert_contract] Error from APE_Smearing, status was %d\n", exitstatus);
+        EXIT(47);
+      }
+    }  /* end of if N_aoe > 0 */
+  }  /* end of if N_Jacobi > 0 */
+
   /***************************************************************************
    * allocate memory for full-VOLUME spinor fields 
    * WITH HALO
    ***************************************************************************/
   size_t nelem = _GSI( VOLUME+RAND );
-  double ** spinor_work  = init_2level_dtable ( 3, nelem );
-  if ( spinor_work == NULL ) {
-    fprintf(stderr, "[loop_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(1);
-  }
 
   /***************************************************************************
    * half-VOLUME spinor fields
@@ -334,6 +377,12 @@ int main(int argc, char **argv) {
 
   double * stochastic_propagator_g5 = init_1level_dtable ( nelem );
   if ( stochastic_propagator_g5 == NULL ) {
+    fprintf(stderr, "[loop_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(48);
+  }
+
+  double * stochastic_propagator_smeared = init_1level_dtable ( nelem );
+  if ( stochastic_propagator_smeared == NULL ) {
     fprintf(stderr, "[loop_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
     EXIT(48);
   }
@@ -482,6 +531,21 @@ int main(int argc, char **argv) {
           EXIT(2);
         }
       }
+
+#if 0
+      /* NO SOURCE SMEARING WITH OET */
+      if ( N_Jacobi > 0 ) {
+        /***************************************************************************
+         * SOURCE SMEARING
+         ***************************************************************************/
+        exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_source, N_Jacobi, kappa_Jacobi);
+        if(exitstatus != 0) {
+          fprintf(stderr, "[loop_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(11);
+        }
+      }
+#endif
+
     }  /* end of if read stochastic source - else */
 
     /***************************************************************************
@@ -567,10 +631,25 @@ int main(int argc, char **argv) {
     spinor_field_ti_eq_re ( stochastic_propagator, 1./(2.*g_kappa ), VOLUME );
 
     /***************************************************************************
+     * SINK SMEARING
+     ***************************************************************************/
+    memcpy ( stochastic_propagator_smeared, stochastic_propagator, sizeof_spinor_field );
+
+    if ( N_Jacobi > 0 )
+    {
+      exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_propagator_smeared, N_Jacobi, kappa_Jacobi);
+      if(exitstatus != 0)
+      {
+        fprintf(stderr, "[loop_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(11);
+      }
+    }
+
+    /***************************************************************************
      * multiply stochastic propagator with g5 for oet,
      * used for both std and gen oet
      ***************************************************************************/
-    memcpy ( stochastic_propagator_g5, stochastic_propagator, sizeof_spinor_field );
+    memcpy ( stochastic_propagator_g5, stochastic_propagator_smeared, sizeof_spinor_field );
     g5_phi ( stochastic_propagator_g5, VOLUME );
 
     /***************************************************************************
@@ -587,7 +666,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * loop contractions
      ***************************************************************************/
-    exitstatus = contract_local_loop_stochastic ( loop, stochastic_propagator_g5, stochastic_propagator, g_sink_momentum_number, g_sink_momentum_list );
+    exitstatus = contract_local_loop_stochastic ( loop, stochastic_propagator_g5, stochastic_propagator_smeared, g_sink_momentum_number, g_sink_momentum_list );
     if(exitstatus != 0) {
       fprintf(stderr, "[loop_invert_contract] Error from contract_local_loop_stochastic, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(44);
@@ -640,6 +719,23 @@ int main(int argc, char **argv) {
     gettimeofday ( &tb, (struct timezone *)NULL );
 
     show_time ( &ta, &tb, "loop_invert_contract", "DW", io_proc == 2 );
+
+
+    /***************************************************************************
+     * SINK SMEARING
+     * of g5-DW-stochastic_propagator
+     ***************************************************************************/
+    if ( N_Jacobi > 0 )
+    {
+      exitstatus = Jacobi_Smearing ( gauge_field_smeared, DW_stochastic_propagator, N_Jacobi, kappa_Jacobi);
+      if(exitstatus != 0)
+      {
+        fprintf(stderr, "[loop_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(11);
+      }
+    }
+
+
  
     /***************************************************************************
      * group name for contraction
@@ -857,6 +953,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   fini_1level_dtable ( &stochastic_propagator        );
   fini_1level_dtable ( &stochastic_propagator_g5     );
+  fini_1level_dtable ( &stochastic_propagator_smeared);
   fini_1level_dtable ( &DW_stochastic_propagator     );
   fini_1level_dtable ( &stochastic_propagator_disp   );
   fini_1level_dtable ( &stochastic_propagator_DWdisp );
