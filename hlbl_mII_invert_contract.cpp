@@ -79,7 +79,6 @@ int main(int argc, char **argv) {
   double const alat[2] = { 0.07957, 0.00013 };
 
 
-  int const ymax = 2;
   int const ysign_num = 2;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
@@ -118,12 +117,13 @@ int main(int argc, char **argv) {
   double *gauge_field_with_phase = NULL;
   int first_solve_dummy = 1;
   struct timeval start_time, end_time;
+  int ymax = 0;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?f:y:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -131,6 +131,9 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
+      break;
+    case 'y':
+      ymax = atoi ( optarg );
       break;
     case 'h':
     case '?':
@@ -325,7 +328,15 @@ int main(int argc, char **argv) {
     }
 
     /* check residuum */
-    exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[0], mzzinv[0], 1);
+    if ( check_propagator_residual )
+    {
+      exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[0], mzzinv[0], 1);
+      if( exitstatus != 0 )
+      {
+        fprintf(stderr, "[hlbl_mII_invert_contract] Error from check_residual_clover   %s %d\n", __FILE__, __LINE__);
+        EXIT(123);
+      }
+    }
 
     fini_2level_dtable ( &spinor_work );
     fini_2level_dtable ( &spinor_field );
@@ -361,6 +372,19 @@ int main(int argc, char **argv) {
    ***********************************************************/
   char output_filename[400];
   sprintf ( output_filename, "%s.h5", g_outfile_prefix );
+
+  /***********************************************************
+   * set up QED Kernel package
+   ***********************************************************/
+  struct QED_kernel_temps kqed_t ;
+
+  if( initialise( &kqed_t ) )
+  {
+    fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(19);
+  }
+
+
 
   /***********************************************************
    * loop on source positions
@@ -418,10 +442,13 @@ int main(int argc, char **argv) {
         }
  
         /* check residuum */
-        exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[hlbl_mII_invert_contract] Error from check_residual_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-          EXIT(19);
+        if ( check_propagator_residual )
+        {
+          exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[hlbl_mII_invert_contract] Error from check_residual_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(19);
+          }
         }
 
         memcpy ( fwd_src[iflavor][i], spinor_work[1], sizeof_spinor_field );
@@ -462,6 +489,7 @@ int main(int argc, char **argv) {
     /***********************************************************/
     /***********************************************************/
 
+
     /***********************************************************
      * loop on y = iy ( 1,1,1,1)
      ***********************************************************/
@@ -477,14 +505,11 @@ int main(int argc, char **argv) {
         sprintf ( filename, "pi-tensor-mII.y%d.st%dsx%dsy%dsz%d", iy, 
             ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3] );
 
-        /* FILE *cfs = fopen ( filename, "w" ); */
-        FILE *cfs = stdout;
-
         int gsy[4], sy[4];
-        gsy[0] = ( iy * ysign_comb[isign][0] + g_source_coords_list[isrc][0] +  T_global ) %  T_global;
-        gsy[1] = ( iy * ysign_comb[isign][1] + g_source_coords_list[isrc][1] + LX_global ) % LX_global;
-        gsy[2] = ( iy * ysign_comb[isign][2] + g_source_coords_list[isrc][2] + LY_global ) % LY_global;
-        gsy[3] = ( iy * ysign_comb[isign][3] + g_source_coords_list[isrc][3] + LZ_global ) % LZ_global;
+        gsy[0] = ( iy * ysign_comb[isign][0] + gsx[0] +  T_global ) %  T_global;
+        gsy[1] = ( iy * ysign_comb[isign][1] + gsx[1] + LX_global ) % LX_global;
+        gsy[2] = ( iy * ysign_comb[isign][2] + gsx[2] + LY_global ) % LY_global;
+        gsy[3] = ( iy * ysign_comb[isign][3] + gsx[3] + LZ_global ) % LZ_global;
 
         int source_proc_id_y = -1;
         exitstatus = get_point_source_info (gsy, sy, &source_proc_id_y);
@@ -528,10 +553,13 @@ int main(int argc, char **argv) {
             }
        
             /* check residuum */
-            exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1);
-            if(exitstatus != 0) {
-              fprintf(stderr, "[hlbl_mII_invert_contract] Error from check_residual_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(19);
+            if ( check_propagator_residual ) 
+            {
+              exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1);
+              if(exitstatus != 0) {
+                fprintf(stderr, "[hlbl_mII_invert_contract] Error from check_residual_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(19);
+              }
             }
       
             memcpy ( fwd_y[iflavor][i], spinor_work[1], sizeof_spinor_field );
@@ -552,6 +580,7 @@ int main(int argc, char **argv) {
 
         /***********************************************************/
         /***********************************************************/
+
 
         for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
         {
@@ -646,19 +675,15 @@ int main(int argc, char **argv) {
 
           /***********************************************************/
           /***********************************************************/
- 
+
           /***********************************************************
            * contractions for term I
            ***********************************************************/
  
-//          DML_Checksum ans;
-//          DML_checksum_init ( &ans );
-
 #ifdef HAVE_OPENMP
-#pragma omp parallel shared(cfs)
+#pragma omp parallel
 {
 #endif
-//          DML_SiteRank rank;
           unsigned int rank;          
           double **** corr_I = init_4level_dtable ( 6, 4, 4, 8 );
           double ***  dxu    = init_3level_dtable ( 4, 12, 24 );
@@ -673,28 +698,16 @@ int main(int argc, char **argv) {
           double spinor1[24];
 
           double kerv[6][4][4][4] KQED_ALIGN ;
-          double kerv1[6][4][4][4] KQED_ALIGN ;
 
           double kernel_sum_thread[4] = { 0., 0., 0., 0. };
 
           /***********************************************************
-           * set up QED Kernel package
+           ***********************************************************
+           **
+           ** loop on volume
+           **
+           ***********************************************************
            ***********************************************************/
-          struct QED_kernel_temps kqed_t ;
-
-          if( initialise( &kqed_t ) )
-          {
-            fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(19);
-          }
-
-          struct QED_kernel_temps kqed_t1 ;
-          if( initialise( &kqed_t1 ) )
-          {
-            fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(19);
-          }
-
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
@@ -705,7 +718,6 @@ int main(int argc, char **argv) {
                          g_proc_coords[2]*LY + g_lexic2coords[ix][2],
                          g_proc_coords[3]*LZ + g_lexic2coords[ix][3] };
             
-//            rank = (DML_SiteRank) ( ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3] );
             rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
 
             x[0] -= gsx[0];
@@ -741,7 +753,8 @@ int main(int argc, char **argv) {
                 }
               } /* end of loop on gamma_mu */
             }
-            
+
+
             for ( int mu = 0; mu < 4; mu++ )
             {
               for ( int ib = 0; ib < 12; ib++)
@@ -785,10 +798,6 @@ int main(int argc, char **argv) {
               }
             }
 
-//#pragma omp critical
-//{
-//            DML_checksum_accum ( &ans, rank, (char*) corr_I[0][0][0], 768*sizeof(double) );
-//}
 
             /***********************************************************
              * summation with QED kernel
@@ -807,41 +816,40 @@ int main(int argc, char **argv) {
 
 
             double * const _kerv   = (double * const )kerv;
-            double * const _kerv1  = (double * const )kerv1;
+
             double * const _corr_I = corr_I[0][0][0];
 
             QED_kernel_L0( xm, ym, kqed_t, kerv );
             double dtmp = 0.;
-            for( int idx = 0 ; idx < 384 ; idx++ )
+            for( int i = 0 ; i < 384 ; i++ )
             {
-              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+              dtmp +=  _kerv[i] * _corr_I[2*i];
             }
             kernel_sum_thread[0] += dtmp;
 
-            QED_kernel_L1( xm, ym, kqed_t1, kerv1 );
+            QED_kernel_L1( xm, ym, kqed_t, kerv );
             dtmp = 0.;
-            for( int idx = 0 ; idx < 384 ; idx++ )
+            for( int i = 0 ; i < 384 ; i++ )
             {
-              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+              dtmp +=  _kerv[i] * _corr_I[2*i];
             }
             kernel_sum_thread[1] += dtmp;
-#if 0
+
             QED_kernel_L2( xm, ym, kqed_t, kerv );
             dtmp = 0.;
-            for( int idx = 0 ; idx < 384 ; idx++ )
+            for( int i = 0 ; i < 384 ; i++ )
             {
-              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+              dtmp +=  _kerv[i] * _corr_I[2*i];
             }
             kernel_sum_thread[2] += dtmp;
 
             QED_kernel_L3( xm, ym, kqed_t, kerv );
             dtmp = 0.;
-            for( int idx = 0 ; idx < 384 ; idx++ )
+            for( int i = 0 ; i < 384 ; i++ )
             {
-              dtmp +=  _kerv[idx] * _corr_I[2*idx];
+              dtmp +=  _kerv[i] * _corr_I[2*i];
             }
             kernel_sum_thread[3] += dtmp;
-#endif
 
 #if 0
 #pragma omp critical
@@ -854,7 +862,7 @@ int main(int argc, char **argv) {
                 {
                   for( int k = 0; k < 6; k++ )
                   {
-                    fprintf ( cfs, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 
+                    fprintf ( stdout, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 
                         iy,
                         ysign_comb[isign][0],
                         ysign_comb[isign][1],
@@ -889,9 +897,6 @@ int main(int argc, char **argv) {
 }  /* end of critical region */
    /***********************************************************/
 #endif
-          free_QED_temps( &kqed_t  );
-          free_QED_temps( &kqed_t1 );
-
 
           fini_4level_dtable ( &corr_I );
           fini_4level_dtable ( &g_dxu  );
@@ -902,14 +907,6 @@ int main(int argc, char **argv) {
 }  /* end of parallel region */
    /***********************************************************/
 #endif
-
-//#ifdef HAVE_MPI
-//          DML_checksum_combine( &ans );
-//#endif
-// 
-//          if(g_cart_id == 0) fprintf( stdout, "# [hlbl_mII_invert_contract.cpp] src %3d %3d %3d %3d |y| %2d s %2d fl %d checksum %#lx %#lx\n", 
-//              gsx[0], gsx[1], gsx[2], gsx[3], iy, isign, iflavor,
-//              ans.suma, ans.sumb);
 
           /***********************************************************
            * end of contractions for term I
@@ -923,11 +920,12 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on flavor */
 
-        /* fclose ( cfs ); */
 
       }  /* end of loop on signs */
 
     }  /* end of loop on |y| */
+
+
 
 #ifdef HAVE_MPI
     /***********************************************************
@@ -937,7 +935,7 @@ int main(int argc, char **argv) {
 
     memcpy ( mbuffer, kernel_sum[0], 4 * ( ymax + 1 ) * sizeof ( double ) );
 
-    if ( MPI_Reduce ( mbuffer, kernel_sum, 4 * ( ymax + 1 ), MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
+    if ( MPI_Reduce ( mbuffer, kernel_sum[0], 4 * ( ymax + 1 ), MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
     {
       fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
@@ -946,6 +944,7 @@ int main(int argc, char **argv) {
     fini_1level_dtable ( &mbuffer );
 
 #endif  /* end of ifdef HAVE_MPI */
+
 
     if ( io_proc == 2 )
     {
@@ -969,6 +968,8 @@ int main(int argc, char **argv) {
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
+          
+  free_QED_temps( &kqed_t  );
 
   fini_3level_dtable ( &fwd_src );
   fini_3level_dtable ( &fwd_y );
