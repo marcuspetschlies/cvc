@@ -52,10 +52,10 @@ void usage() {
   EXIT(0);
 }
 
-#define _LOOP_H5 0
-#define _LOOP_ASCII 1
+#define _LOOP_H5 1
+#define _LOOP_ASCII 0
 
-#define _PLEGMA_CONVENTION 1
+#define _PLEGMA_CONVENTION 0
 
 int main(int argc, char **argv) {
   
@@ -576,6 +576,10 @@ int main(int argc, char **argv) {
 
 #endif  /* end of if _LOOP_ASCII */
 
+
+  /****************************************************/
+  /****************************************************/
+
 #if _LOOP_H5
   double ****** loops_matrix = init_6level_dtable ( g_sink_momentum_number, num_conf, loop_nsample, T_global, 4, 8 );
   if ( loops_matrix == NULL ) {
@@ -608,7 +612,7 @@ int main(int argc, char **argv) {
   for ( int iconf = 0; iconf < num_conf; iconf++ )
   {
 
-    sprintf ( filename, "stream_%c/%s/%s.%.4d.h5", conf_src_list[iconf][0][0], filename_prefix, filename_prefix2, conf_src_list[iconf][0][1] );
+    sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.h5", conf_src_list[iconf][0][0], filename_prefix, conf_src_list[iconf][0][1], filename_prefix2, conf_src_list[iconf][0][1] );
 
     size_t ncdim = 0, *cdim = NULL;
     int *ibuffer = NULL;
@@ -716,8 +720,12 @@ int main(int argc, char **argv) {
        * project loop matrices to spin structure
        **********************************************************/
       gamma_matrix_type gf;
-      gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[ gamma_id] );
-      if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
+      /* gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[ gamma_id] );
+      if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout ); */
+
+      gamma_matrix_set ( &gf, gamma_id, 1.0 );
+      if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "g_cvc", stdout );
+
 
       if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
       project_loop ( loops_proj_sink[isink_momentum][isink_gamma][0][0], gf.m, loops_matrix[isink_momentum][0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
@@ -766,8 +774,13 @@ int main(int argc, char **argv) {
        * project loop matrices to spin structure
        **********************************************************/
       gamma_matrix_type gf;
-      gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[ gamma_id] );
-      if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "gseq_ukqcd", stdout );
+      /* gamma_matrix_ukqcd_binary ( &gf, gamma_tmlqcd_to_binary[ gamma_id] );
+      if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "g_ukqcd", stdout ); */
+
+      gamma_matrix_set ( &gf, gamma_id, 1.0 );
+      if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "g_cvc", stdout );
+
+
 
       if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
       project_loop ( loops_proj_source[isink_momentum][isource_gamma][0][0], gf.m, loops_matrix[isink_momentum][0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
@@ -894,7 +907,8 @@ int main(int argc, char **argv) {
       /**********************************************************
        * loop on sink momenta
        **********************************************************/
-      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ ) {
+      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ )
+      {
         /* the rest is all per config */
 
 #ifdef HAVE_OPENMP
@@ -1010,10 +1024,43 @@ int main(int argc, char **argv) {
 
       }  /* of loop on sink momenta */
 
-      /****************************************
+      /**********************************************************
+       * write to lfile
+       **********************************************************/
+      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ )
+      {
+        char filename[100];
+        sprintf ( filename, "%s.%s-%s.%s.%s.gf%d.gi%d.px%d_py%d_pz%d.corr", g_outfile_prefix,
+            flavor_tag[0], flavor_tag[1],
+            oet_type_tag[oet_type], loop_type_tag[loop_type],
+            g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
+            g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2]);
+
+        FILE * fs = fopen( filename, "w" );
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf ( fs, "%3d %25.16e %25.16e  %c %6d\n", it, corr_sub[iconf][isink_momentum][2*it+0], corr_sub[iconf][isink_momentum][2*it+1],
+                conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          }
+
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][0][0], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][0][1], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][1][0], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][1][1], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+        }
+
+        fclose( fs );
+
+      }  /* of loop on sink momenta */
+
+      /**********************************************************/
+      /**********************************************************/
+
+      /**********************************************************
        * STATISTICAL ANALYSIS
        * for corr
-       ****************************************/
+       **********************************************************/
 
       for ( int ireim = 0; ireim <=1; ireim++ ) 
       {
@@ -1046,7 +1093,9 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1059,6 +1108,8 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
+
 #if 0
       /****************************************
        * STATISTICAL ANALYSIS of effective
@@ -1112,7 +1163,9 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 ) 
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1125,6 +1178,7 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
 
         /****************************************
          * STATISTICAL ANALYSIS
@@ -1156,7 +1210,9 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1169,6 +1225,7 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
 
         fini_2level_dtable ( &data );
 
@@ -1217,7 +1274,9 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1234,6 +1293,7 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
 
         fini_2level_dtable ( &data );
       }
