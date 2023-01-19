@@ -1087,10 +1087,12 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) {
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
 #if 0
@@ -1157,10 +1159,12 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) {
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
 #if 0
