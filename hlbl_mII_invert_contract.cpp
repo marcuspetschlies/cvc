@@ -62,6 +62,9 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#define _WITH_TIMER 1
+
+
 using namespace cvc;
 
 /***********************************************************
@@ -139,6 +142,8 @@ int main(int argc, char **argv) {
   int first_solve_dummy = 1;
   struct timeval start_time, end_time;
   int ymax = 0;
+
+  struct timeval ta, tb;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -617,6 +622,9 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
 
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
           for(int ia = 0; ia < 12; ia++ )
           {
 
@@ -690,6 +698,12 @@ int main(int argc, char **argv) {
 
           }  /* of ia */
 
+#if _WITH_TIMER
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hlbl_mII_invert_contract", "dzu-dzsu", io_proc == 2 );
+#endif
+
+
           double **** g_dzu  = init_4level_dtable ( 6, 4, 12, 24 );
           double **** g_dzsu = init_4level_dtable ( 4, 4, 12, 24 );
           if ( g_dzu == NULL || g_dzsu == NULL )
@@ -697,6 +711,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
+
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -732,6 +750,10 @@ int main(int argc, char **argv) {
             }
           }
 
+#if _WITH_TIMER
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hlbl_mII_invert_contract", "g_dzu-g_dzsu", io_proc == 2 );
+#endif
           /***********************************************************/
           /***********************************************************/
 
@@ -739,6 +761,10 @@ int main(int argc, char **argv) {
            * contractions for term I and II
            ***********************************************************/
  
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
@@ -1023,6 +1049,7 @@ int main(int argc, char **argv) {
    /***********************************************************/
 #endif
 
+
           fini_4level_dtable ( &corr_I  );
           fini_4level_dtable ( &corr_II );
           fini_4level_dtable ( &g_dxu   );
@@ -1032,6 +1059,11 @@ int main(int argc, char **argv) {
    /***********************************************************/
 }  /* end of parallel region */
    /***********************************************************/
+#endif
+
+#if _WITH_TIMER
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hlbl_mII_invert_contract", "kernel-sum", io_proc == 2 );
 #endif
 
           /***********************************************************
