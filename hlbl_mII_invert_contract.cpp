@@ -62,8 +62,32 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
+#define _WITH_TIMER 1
+
 
 using namespace cvc;
+
+/***********************************************************
+ * KQED kernel function pointer
+ ***********************************************************/
+/* void QED_kernel_L0( const double xv[4] , const double yv[4] , const struct QED_kernel_temps t , double kerv[6][4][4][4] ) ; */
+typedef void (*QED_kernel_LX_ptr)( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] );
+
+/***********************************************************
+ * x must be in { 0, ..., L-1 }
+ ***********************************************************/
+inline void site_map (int xv[4], int const x[4] )
+{
+  xv[0] = ( x[0] > T_global   / 2 ) ? x[0] - T_global   : (  ( x[0] < T_global   / 2 ) ? x[0] : 0 );
+  xv[1] = ( x[1] > LX_global  / 2 ) ? x[1] - LX_global  : (  ( x[1] < LX_global  / 2 ) ? x[1] : 0 );
+  xv[2] = ( x[2] > LY_global  / 2 ) ? x[2] - LY_global  : (  ( x[2] < LY_global  / 2 ) ? x[2] : 0 );
+  xv[3] = ( x[3] > LZ_global  / 2 ) ? x[3] - LZ_global  : (  ( x[3] < LZ_global  / 2 ) ? x[3] : 0 );
+
+  return;
+}
+
+/***********************************************************/
+/***********************************************************/
 
 void usage() {
   fprintf(stdout, "Code to perform contractions for hlbl tensor\n");
@@ -118,6 +142,8 @@ int main(int argc, char **argv) {
   int first_solve_dummy = 1;
   struct timeval start_time, end_time;
   int ymax = 0;
+
+  struct timeval ta, tb;
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
@@ -589,12 +615,16 @@ int main(int argc, char **argv) {
            * D_y^+ z g5 gsigma U_src
            ***********************************************************/
           double *** dzu = init_3level_dtable ( 6, 12, 24 );
-          if ( dzu == NULL )
+          double *** dzsu = init_3level_dtable ( 4, 12, 24 );
+          if ( dzu == NULL || dzsu == NULL )
           {
             fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
 
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
           for(int ia = 0; ia < 12; ia++ )
           {
 
@@ -617,7 +647,10 @@ int main(int argc, char **argv) {
                     ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
                     ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
-                _fv_eq_fv_ti_re ( _s, _u,  z[rho  ] );
+                int zv[4];
+                site_map ( zv, z );
+
+                _fv_eq_fv_ti_re ( _s, _u,  zv[rho  ] );
               }
             
 #ifdef HAVE_OPENMP
@@ -634,7 +667,10 @@ int main(int argc, char **argv) {
                     ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
                     ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
-                _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -z[sigma] );
+                int zv[4];
+                site_map ( zv, z );
+
+                _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -zv[sigma] );
               }
 
               for(int ib = 0; ib < 12; ib++ )
@@ -647,14 +683,38 @@ int main(int argc, char **argv) {
 
               }  /* of ib */
             }  /* of index combinations */
+
+            for ( int sigma = 0; sigma < 4; sigma++ )
+            {
+              complex w = { 0., 0. };
+
+              for(int ib = 0; ib < 12; ib++ )
+              {
+                spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], g_fwd_src[iflavor][sigma][ia], VOLUME );
+                dzsu[sigma][ia][2*ib  ] = w.re;
+                dzsu[sigma][ia][2*ib+1] = w.im;
+              }
+            }
+
           }  /* of ia */
 
+#if _WITH_TIMER
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hlbl_mII_invert_contract", "dzu-dzsu", io_proc == 2 );
+#endif
+
+
           double **** g_dzu  = init_4level_dtable ( 6, 4, 12, 24 );
-          if ( g_dzu == NULL )
+          double **** g_dzsu = init_4level_dtable ( 4, 4, 12, 24 );
+          if ( g_dzu == NULL || g_dzsu == NULL )
           {
             fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
           }
+
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
@@ -673,23 +733,49 @@ int main(int argc, char **argv) {
             }
           }
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+          for ( int k = 0; k < 4; k++ )
+          {
+            double spinor1[24];
+            for(int ia = 0; ia < 12; ia++ )
+            {
+              _fv_eq_gamma_ti_fv ( spinor1, 5, dzsu[k][ia] );
+
+              for ( int mu = 0; mu < 4; mu++ )
+              {
+                _fv_eq_gamma_ti_fv ( g_dzsu[k][mu][ia], mu, spinor1 );
+              }
+            }
+          }
+
+#if _WITH_TIMER
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hlbl_mII_invert_contract", "g_dzu-g_dzsu", io_proc == 2 );
+#endif
           /***********************************************************/
           /***********************************************************/
 
           /***********************************************************
-           * contractions for term I
+           * contractions for term I and II
            ***********************************************************/
  
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
 #endif
           unsigned int rank;          
-          double **** corr_I = init_4level_dtable ( 6, 4, 4, 8 );
-          double ***  dxu    = init_3level_dtable ( 4, 12, 24 );
-          double **** g_dxu  = init_4level_dtable ( 4, 4, 12, 24 );
+          double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
+          double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
+          double ***  dxu     = init_3level_dtable ( 4, 12, 24 );
+          double **** g_dxu   = init_4level_dtable ( 4, 4, 12, 24 );
 
-          if ( corr_I == NULL || dxu == NULL || g_dxu == NULL )
+          if ( corr_I == NULL || corr_II == NULL || dxu == NULL || g_dxu == NULL )
           {
             fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
             EXIT(12);
@@ -697,9 +783,17 @@ int main(int argc, char **argv) {
 
           double spinor1[24];
 
-          double kerv[6][4][4][4] KQED_ALIGN ;
+          double kerv1[6][4][4][4] KQED_ALIGN ;
+          double kerv2[6][4][4][4] KQED_ALIGN ;
+          double kerv3[6][4][4][4] KQED_ALIGN ;
 
           double kernel_sum_thread[4] = { 0., 0., 0., 0. };
+
+          QED_kernel_LX_ptr KQED_LX[4] = {
+            QED_kernel_L0,
+            QED_kernel_L1,
+            QED_kernel_L2,
+            QED_kernel_L3 };
 
           /***********************************************************
            ***********************************************************
@@ -720,17 +814,13 @@ int main(int argc, char **argv) {
             
             rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
 
-            x[0] -= gsx[0];
-            x[1] -= gsx[1];
-            x[2] -= gsx[2];
-            x[3] -= gsx[3];
+            x[0] = ( x[0] - gsx[0] + T_global  ) % T_global;
+            x[1] = ( x[1] - gsx[1] + LX_global ) % LX_global;
+            x[2] = ( x[2] - gsx[2] + LY_global ) % LY_global;
+            x[3] = ( x[3] - gsx[3] + LZ_global ) % LZ_global;
 
-            int const xv[4] = {
-              ( x[0] > T_global  / 2 ) ? x[0] - T_global  : (  ( x[0] < -T_global  / 2 ) ? x[0] + T_global  : x[0] ),
-              ( x[1] > LX_global / 2 ) ? x[1] - LX_global : (  ( x[1] < -LX_global / 2 ) ? x[1] + LX_global : x[1] ),
-              ( x[2] > LY_global / 2 ) ? x[2] - LY_global : (  ( x[2] < -LY_global / 2 ) ? x[2] + LY_global : x[2] ),
-              ( x[3] > LZ_global / 2 ) ? x[3] - LZ_global : (  ( x[3] < -LZ_global / 2 ) ? x[3] + LZ_global : x[3] )
-            };
+            int xv[4];
+            site_map ( xv, x );
 
             for ( int ib = 0; ib < 12; ib++) 
             {
@@ -767,7 +857,9 @@ int main(int argc, char **argv) {
               }
             }
 
-
+            /***********************************************************
+             * combine g_dxu and g_dzu
+             ***********************************************************/
             for ( int mu = 0; mu < 4; mu++ )
             {
               for ( int nu = 0; nu < 4; nu++ ) 
@@ -798,6 +890,47 @@ int main(int argc, char **argv) {
               }
             }
 
+            /***********************************************************/
+            /***********************************************************/
+
+            /***********************************************************
+             * combine g_dxu and g_dzsu
+             ***********************************************************/
+            for ( int mu = 0; mu < 4; mu++ )
+            {
+              for ( int nu = 0; nu < 4; nu++ ) 
+              {
+                for ( int lambda = 0; lambda < 4; lambda++ )
+                {
+                  for( int k = 0; k < 6; k++ )
+                  {
+                    int const sigma = idx_comb[k][1];
+                    int const rho   = idx_comb[k][0];
+
+                    double dtmp[2] = {0., 0.};
+                    for ( int ia = 0; ia < 12; ia++)
+                    {
+                      for ( int ib = 0; ib < 12; ib++)
+                      {
+
+                        double u[2] = { g_dxu[lambda][mu][ia][2*ib], g_dxu[lambda][mu][ia][2*ib+1] };
+
+                        double v[2] = { xv[rho] * g_dzsu[sigma][nu][ib][2*ia  ] - xv[sigma] * g_dzsu[rho][nu][ib][2*ia  ],
+                                        xv[rho] * g_dzsu[sigma][nu][ib][2*ia+1] - xv[sigma] * g_dzsu[rho][nu][ib][2*ia+1] };
+
+                        dtmp[0] += u[0] * v[0] - u[1] * v[1];
+                        dtmp[1] += u[0] * v[1] + u[1] * v[0];
+                      }
+                    }
+                    corr_II[k][mu][nu][2*lambda  ] = -dtmp[0];
+                    corr_II[k][mu][nu][2*lambda+1] = -dtmp[1];
+                  }
+                }
+              }
+            }
+
+            /***********************************************************/
+            /***********************************************************/
 
             /***********************************************************
              * summation with QED kernel
@@ -815,18 +948,35 @@ int main(int argc, char **argv) {
               yv[3] * xunit[0] };
 
 
-            double * const _kerv   = (double * const )kerv;
+            double * const _kerv1   = (double * const )kerv1;
+            double * const _kerv2   = (double * const )kerv2;
+            double * const _kerv3   = (double * const )kerv3;
 
-            double * const _corr_I = corr_I[0][0][0];
+            double * const _corr_I  = corr_I[0][0][0];
+            double * const _corr_II = corr_II[0][0][0];
 
-            QED_kernel_L0( xm, ym, kqed_t, kerv );
-            double dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
+            double const xm_mi_ym[4] = {
+              xm[0] - ym[0],
+              xm[1] - ym[1],
+              xm[2] - ym[2],
+              xm[3] - ym[3] };
+
+            for ( int ikernel = 0; ikernel < 4; ikernel++ )
             {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[0] += dtmp;
 
+              /* QED_kernel_L0( xm, ym, kqed_t, kerv );*/
+              KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
+              KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
+              KQED_LX[ikernel]( xm, xm_mi_ym, kqed_t, kerv3 );
+              double dtmp = 0.;
+              for( int i = 0 ; i < 384 ; i++ )
+              {
+                dtmp += ( _kerv1[i] + _kerv2[i] - _kerv3[i] ) * _corr_I[2*i] + _kerv3[i] * _corr_II[2*i];
+              }
+              kernel_sum_thread[ikernel] += dtmp;
+            }
+
+#if 0
             QED_kernel_L1( xm, ym, kqed_t, kerv );
             dtmp = 0.;
             for( int i = 0 ; i < 384 ; i++ )
@@ -850,6 +1000,7 @@ int main(int argc, char **argv) {
               dtmp +=  _kerv[i] * _corr_I[2*i];
             }
             kernel_sum_thread[3] += dtmp;
+#endif
 
 #if 0
 #pragma omp critical
@@ -898,9 +1049,11 @@ int main(int argc, char **argv) {
    /***********************************************************/
 #endif
 
-          fini_4level_dtable ( &corr_I );
-          fini_4level_dtable ( &g_dxu  );
-          fini_3level_dtable ( &dxu    );
+
+          fini_4level_dtable ( &corr_I  );
+          fini_4level_dtable ( &corr_II );
+          fini_4level_dtable ( &g_dxu   );
+          fini_3level_dtable ( &dxu     );
 
 #ifdef HAVE_OPENMP
    /***********************************************************/
@@ -908,15 +1061,22 @@ int main(int argc, char **argv) {
    /***********************************************************/
 #endif
 
+#if _WITH_TIMER
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "hlbl_mII_invert_contract", "kernel-sum", io_proc == 2 );
+#endif
+
           /***********************************************************
-           * end of contractions for term I
+           * end of contractions for term I and II
            ***********************************************************/
 
           /***********************************************************/
           /***********************************************************/
 
-          fini_3level_dtable ( &dzu );
-          fini_4level_dtable ( &g_dzu );
+          fini_3level_dtable ( &dzu    );
+          fini_3level_dtable ( &dzsu   );
+          fini_4level_dtable ( &g_dzu  );
+          fini_4level_dtable ( &g_dzsu );
 
         }  /* end of loop on flavor */
 
