@@ -100,7 +100,7 @@ void usage() {
 int main(int argc, char **argv) {
 
   double const mmuon = 105.6583745 /* MeV */  / 197.3269804 /* MeV fm */;
-  double const alat[2] = { 0.07957, 0.00013 };
+  double const alat[2] = { 0.07957, 0.00013 };  /* fm */
 
 
   int const ysign_num = 2;
@@ -969,11 +969,52 @@ int main(int argc, char **argv) {
               KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
               KQED_LX[ikernel]( xm, xm_mi_ym, kqed_t, kerv3 );
               double dtmp = 0.;
-              for( int i = 0 ; i < 384 ; i++ )
+              int i = 0;
+              for( int k = 0; k < 6; k++ )
               {
-                dtmp += ( _kerv1[i] + _kerv2[i] - _kerv3[i] ) * _corr_I[2*i] + _kerv3[i] * _corr_II[2*i];
+                for ( int mu = 0; mu < 4; mu++ )
+                {
+                  for ( int nu = 0; nu < 4; nu++ )
+                  {
+                    for ( int lambda = 0; lambda < 4; lambda++ )
+                    {
+                      dtmp += ( kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda] - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i] 
+                              + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
+
+                      i++;
+                    }
+                  }
+                }
               }
               kernel_sum_thread[ikernel] += dtmp;
+#if 0
+#pragma omp critical
+{
+            for ( int mu = 0; mu < 4; mu++ )
+            {
+              for ( int nu = 0; nu < 4; nu++ )
+              {
+                for ( int lambda = 0; lambda < 4; lambda++ )
+                {
+                  for( int k = 0; k < 6; k++ )
+                  {
+                    fprintf ( stdout, "xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
+                        xv[0], xv[1], xv[2], xv[3],
+                        yv[0], yv[1], yv[2], yv[3],
+                        iflavor,
+                        ikernel,
+                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
+                        kerv1[k][mu][nu][lambda],
+                        kerv2[k][mu][nu][lambda],
+                        kerv3[k][mu][nu][lambda],
+                        corr_I[k][mu][nu][2*lambda],
+                        corr_II[k][mu][nu][2*lambda] );
+                  }
+                }
+              }
+            }
+}  /* end of critical region */
+#endif
             }
 
 #if 0
