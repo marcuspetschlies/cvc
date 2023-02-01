@@ -998,7 +998,8 @@ int main(int argc, char **argv) {
                 {
                   for( int k = 0; k < 6; k++ )
                   {
-                    fprintf ( stdout, "xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
+                    fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
+                        rank,
                         xv[0], xv[1], xv[2], xv[3],
                         yv[0], yv[1], yv[2], yv[3],
                         iflavor,
