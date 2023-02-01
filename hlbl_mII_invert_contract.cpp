@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
   double const alat[2] = { 0.07957, 0.00013 };  /* fm */
 
 
-  int const ysign_num = 2;
+  int const ysign_num = 1;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
     { 1, 1, 1,-1},
@@ -437,7 +437,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * local kernel sum
      ***********************************************************/
-    double ** kernel_sum = init_2level_dtable ( ymax + 1, 4 );
+    double **** kernel_sum = init_4level_dtable ( 2, ymax + 1, ysign_num, 4 );
     if ( kernel_sum == NULL ) 
     {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1079,10 +1079,10 @@ int main(int argc, char **argv) {
 #pragma omp critical
 {
 #endif
-          kernel_sum[iy][0] += kernel_sum_thread[0];
-          kernel_sum[iy][1] += kernel_sum_thread[1];
-          kernel_sum[iy][2] += kernel_sum_thread[2];
-          kernel_sum[iy][3] += kernel_sum_thread[3];
+          kernel_sum[iflavor][iy][isign][0] += kernel_sum_thread[0];
+          kernel_sum[iflavor][iy][isign][1] += kernel_sum_thread[1];
+          kernel_sum[iflavor][iy][isign][2] += kernel_sum_thread[2];
+          kernel_sum[iflavor][iy][isign][3] += kernel_sum_thread[3];
 
 #ifdef HAVE_OPENMP
    /***********************************************************/
@@ -1132,11 +1132,12 @@ int main(int argc, char **argv) {
     /***********************************************************
      * sum over MPI processes
      ***********************************************************/
-    double * mbuffer = init_1level_dtable ( 4 * ( ymax + 1 ) );
+    int const nitem = 2 * 4 * ( ymax + 1 ) * ysign_num;
+    double * mbuffer = init_1level_dtable ( nitem );
 
-    memcpy ( mbuffer, kernel_sum[0], 4 * ( ymax + 1 ) * sizeof ( double ) );
+    memcpy ( mbuffer, kernel_sum[0][0][0], nitem * sizeof ( double ) );
 
-    if ( MPI_Reduce ( mbuffer, kernel_sum[0], 4 * ( ymax + 1 ), MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
+    if ( MPI_Reduce ( mbuffer, kernel_sum[0][0][0], nitem, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
     {
       fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
@@ -1149,8 +1150,8 @@ int main(int argc, char **argv) {
 
     if ( io_proc == 2 )
     {
-      int ncdim = 2;
-      int cdim[2] = { ymax+1, 4 };
+      int ncdim = 4;
+      int cdim[4] = { 2, ymax+1, ysign_num, 4 };
       char key[100];
       sprintf (key, "t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
@@ -1162,7 +1163,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    fini_2level_dtable ( &kernel_sum );
+    fini_4level_dtable ( &kernel_sum );
 
   }  /* end of loop on source locations */
 
