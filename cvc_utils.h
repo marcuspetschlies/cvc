@@ -252,22 +252,6 @@ inline void set_omp_number_threads (void) {
 #endif
 }  /* end of set_omp_number_threads */
 
-/***************************************************************************
- * calculate elapsed wall-time
- ***************************************************************************/
-inline void show_time ( struct timeval * const ta, struct timeval * const tb, char * tag, char * timer, int const io ) {
-
-  long int seconds =  tb->tv_sec  - ta->tv_sec;
-  long int useconds = tb->tv_usec - ta->tv_usec;
-  if ( useconds < 0 ) {
-    useconds += 1000000;
-    seconds--;
-  }
-  /* if ( io ) fprintf ( stdout, "# [%s] time for %s %ld sec %ld usec\n", tag, timer, seconds, useconds ); */
-  if ( io ) fprintf ( stdout, "# [%s] time for %s %e sec\n", tag, timer, (double)seconds + (double)useconds/1000000.0 );
-
-}  /* end of show_time */
-
 int check_momentum_space_wi_tpvec ( double *** const hvp , int const pvec[3] );
 
 int hvp_ft ( double *** const hvp, int const type );
