@@ -88,29 +88,31 @@ int dratio_1_1_sub ( void *param , void *v_in, double *v_out) {
 /********************************************************
  *
  ********************************************************/
-int log_ratio_1_1 ( void * param , void * v_in, double * v_out) {
+int log_ratio_1_1 ( void * const param , void * const v_in, double * const v_out) {
 
-  int * trange = (int*)v_in;
-  int zaehler = trange[0];
-  int nenner  = trange[1];
+  int * const trange = (int*)v_in;
+  int const zaehler = trange[0];
+  int const nenner  = trange[1];
+  int const tau = nenner - zaehler;
 
-  *v_out = log ( ((double*)param)[zaehler] / ((double*)param)[nenner] );
+  *v_out = log ( ((double*)param)[zaehler] / ((double*)param)[nenner] ) / (double)tau;
   return(0);
 }  /* end of log_ratio_1_1 */
 
 /********************************************************
  *
  ********************************************************/
-int dlog_ratio_1_1(void *param , void *v_in, double *v_out) {
+int dlog_ratio_1_1(void * const param , void * const v_in, double * const v_out) {
 
-  int *trange = (int*)v_in;
-  int zaehler = trange[0];
-  int nenner  = trange[1];
+  int * const trange = (int*)v_in;
+  int const zaehler = trange[0];
+  int const nenner  = trange[1];
+  int const tau = nenner - zaehler;
 
   /* derivative w.r.t. zaehler */
-  v_out[zaehler] =  1. / ((double*)param)[zaehler];
+  v_out[zaehler] =  1. / ((double*)param)[zaehler] / (double)tau;
   /* derivative w.r.t. nenner */
-  v_out[nenner]  = -1. / ((double*)param)[nenner];
+  v_out[nenner]  = -1. / ((double*)param)[nenner]  / (double)tau;
 
   return(0);
 }  /* end of dlog_ratio_1_1 */

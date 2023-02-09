@@ -1420,4 +1420,49 @@ int prepare_sequential_fht_twinpeak_source ( double ** const seq_source, double 
 /**********************************************************/
 /**********************************************************/
 
+/**********************************************************
+ * prepare sequential FHT source with loop
+ *
+ * scalar_field is a complex = 2 x double per site field
+ * here only the real part is used
+ **********************************************************/
+int prepare_sequential_fht_twinpeak_source_crossed ( double ** const seq_source, double ** const prop, double * const scalar_field, int const gamma_id, int const c1, int const c2 ) {
+
+  memset ( seq_source[0], 0, 12*_GSI(VOLUME)*sizeof(double) );
+
+  for ( int isc = 0; isc < 12; isc++ ) {
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+  {
+#endif
+    double spinor1[24];
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    {
+      unsigned int const iix = _GSI( ix );
+      double * const _p = prop[isc]       + iix;
+      double * const _s = seq_source[isc] + iix;
+
+      _fv_eq_gamma_ti_fv ( spinor1, gamma_id, _p );
+      _fv_ti_eq_re ( spinor1, scalar_field[2*ix] );
+
+      for ( int mu = 0; mu < 4; mu++ ) {
+        _s[ 2*(3*mu+c1)  ] = spinor1[2*(3*mu+c2)  ];
+        _s[ 2*(3*mu+c1)+1] = spinor1[2*(3*mu+c2)+1];
+      }
+    }
+#ifdef HAVE_OPENMP
+  }  /* end of parallel region */
+#endif
+}
+
+  return (0);
+}  /* end of prepare_sequential_fht_twinpeak_source_crossed */
+
+/**********************************************************/
+/**********************************************************/
+
 }  /* end of namespace cvc */

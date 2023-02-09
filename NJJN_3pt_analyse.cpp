@@ -142,9 +142,14 @@ void make_key_string ( char * key, twopoint_function_type *tp, const char * type
 /***************************************************************************
  *
  ***************************************************************************/
-void make_correlator_string ( char * name , twopoint_function_type * tp , const char * type, int const tseq ) {
+void make_correlator_string ( char * name , twopoint_function_type * tp , const char * type, int * const ptseq ) {
 
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
+
+  char tseq_str[8] = "";
+  if ( ptseq != NULL ) {
+    sprintf ( tseq_str, "tseq%d.", *ptseq );
+  }
 
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
 
@@ -153,9 +158,9 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
          || strcmp ( tp->name, "p-dbGddbGd-p") == 0
          || strcmp ( tp->name, "n-ubGuubGu-n") == 0 ) {
 
-      sprintf ( name, "%s.Gc_%s.tseq%d.Gf_%s.Gi_%s", tp->name,
+      sprintf ( name, "%s.Gc_%s.%sGf_%s.Gi_%s", tp->name,
           gamma_id_to_group[tp->gf2],
-          tseq,
+          tseq_str,
           gamma_id_to_Cg_ascii[tp->gf1[0]],
           gamma_id_to_Cg_ascii[tp->gi1[0]]);
     }
@@ -689,7 +694,7 @@ int main(int argc, char **argv) {
     for ( int itseq = 0; itseq < g_sequential_source_timeslice_number; itseq++ ) {
 
       char correlator_name[400];
-      make_correlator_string ( correlator_name,  tp , NULL , g_sequential_source_timeslice_list[itseq] );
+      make_correlator_string ( correlator_name,  tp , NULL , &(g_sequential_source_timeslice_list[itseq]) );
 
       char diagram_name[100];
       make_diagram_list_string ( diagram_name, tp );
@@ -757,6 +762,113 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on 2-point functions */
 
+  /***************************************************************************
+   * UWerr analysis
+   *
+   *   for sum of correlator corr
+   ***************************************************************************/
+  for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
+    
+    twopoint_function_type * tp = &( g_twopoint_function_list[i_2pt] );
+
+      char correlator_name[400];
+      make_correlator_string ( correlator_name,  tp , NULL , NULL );
+
+      char diagram_name[100];
+      make_diagram_list_string ( diagram_name, tp );
+
+
+      for ( int ireim = 0; ireim <= 1; ireim++ ) 
+      {
+
+          double *** data = init_3level_dtable ( 2, num_conf, g_sequential_source_timeslice_number );
+          if ( data == NULL ) {
+            fprintf ( stderr, "[NJJN_3pt_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(16);
+          }
+
+          /* block data over sources */
+#pragma omp parallel for
+          for( int iconf = 0; iconf < num_conf; iconf++ ) {
+            
+            for ( int itseq = 0; itseq < g_sequential_source_timeslice_number; itseq++ ) {
+              data[0][iconf][itseq] = 0.;
+
+              for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+                for ( int it = 0; it < tp->T; it++ ) {
+                  data[0][iconf][itseq] += *(((double*)( corr[i_2pt][itseq][iconf][isrc]+it )) + ireim );
+                }
+              }
+              data[0][iconf][itseq] /= (double)num_src_per_conf;
+
+              data[1][iconf][itseq] = 0.;
+
+              for( int isrc = 0; isrc < num_src_per_conf; isrc++) {
+                for ( int it = 0; it <= g_sequential_source_timeslice_list[itseq]; it++ ) {
+                  data[1][iconf][itseq] += *(((double*)( corr[i_2pt][itseq][iconf][isrc]+it )) + ireim );
+                }
+              }
+              data[1][iconf][itseq] /= (double)num_src_per_conf;
+            }
+          }
+
+          if ( num_conf < 6 ) {
+            fprintf ( stderr, "[NJJN_3pt_analyse] number of observations too small, continue %s %d\n", __FILE__, __LINE__ );
+          } else {
+          
+            char obs_name[500];
+            sprintf ( obs_name,  "%s.%s.parity%d.tsum.%s", correlator_name, diagram_name, +1, reim_str[ireim] );
+
+            exitstatus = apply_uwerr_real ( data[0][0], num_conf, g_sequential_source_timeslice_number, 0, 1, obs_name );
+            if ( exitstatus != 0  ) {
+              fprintf ( stderr, "[NJJN_3pt_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(16);
+            }
+
+            sprintf ( obs_name,  "%s.%s.parity%d.rsum.%s", correlator_name, diagram_name, +1, reim_str[ireim] );
+
+            exitstatus = apply_uwerr_real ( data[1][0], num_conf, g_sequential_source_timeslice_number, 0, 1, obs_name );
+            if ( exitstatus != 0  ) {
+              fprintf ( stderr, "[NJJN_3pt_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(16);
+            }
+
+          }
+
+          /***************************************************************************
+           * write data
+           ***************************************************************************/
+          {
+            char data_filename[600];
+            sprintf ( data_filename, "%s.%s.parity%d.tsum.%s.corr", correlator_name, diagram_name, +1, reim_str[ireim] );
+            FILE * dfs = fopen( data_filename, "w" );
+
+            for( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int it = 0; it < g_sequential_source_timeslice_number; it++ ) {
+                fprintf( dfs, "%4d %25.16e    %c %6d\n", it, data[0][iconf][it], conf_src_list.stream[iconf], conf_src_list.conf [iconf] );
+              }
+            }
+
+            fclose ( dfs );
+
+            sprintf ( data_filename, "%s.%s.parity%d.rsum.%s.corr", correlator_name, diagram_name, +1, reim_str[ireim] );
+            dfs = fopen( data_filename, "w" );
+
+            for( int iconf = 0; iconf < num_conf; iconf++ ) {
+              for ( int it = 0; it < g_sequential_source_timeslice_number; it++ ) {
+                fprintf( dfs, "%4d %25.16e    %c %6d\n", it, data[1][iconf][it], conf_src_list.stream[iconf], conf_src_list.conf [iconf] );
+              }
+            }
+
+            fclose ( dfs );
+          
+          }
+
+          fini_3level_dtable ( &data );
+ 
+      }  /* end of loop on reim */
+
+  }  /* end of loop on 2-point functions */
 
   /***************************************************************************
    * free the allocated memory, finalize
