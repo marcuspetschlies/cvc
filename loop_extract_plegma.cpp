@@ -96,7 +96,6 @@ int main(int argc, char **argv) {
   int exitstatus;
   int io_proc = -1;
   char filename[100];
-  int Qsq = -1;
   int stream = -1;
   int confid = -1;
   int exdef_nev = 0;
@@ -118,44 +117,51 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:L:Q:C:S:V:H:O:R:T:P:F:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:L:C:S:V:H:O:R:T:P:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
       break;
-    case 'Q':
-      Qsq = atoi ( optarg );
-      break;
     case 'C':
       confid = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] confid set to %d \n", confid);
       break;
     case 'S':
       stream = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] stream set to %d \n",  stream );
       break;
     case 'V':
       exdef_nev = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] exdef_nev set to %d \n", exdef_nev );
       break;
     case 'H':
       hier_prob_D = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] hier_prob_D set to %d \n", hier_prob_D );
       break;
     case 'O':
       strcpy ( oet_type, optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] oet_type set to %s \n", oet_type );
       break;
     case 'L':
       strcpy ( loop_type, optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] loop_type set to %s \n", loop_type );
       break;
     case 'R':
       nsample = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] nsample set to %d \n", nsample );
       break;
     case 'T':
       nstep = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] nstep set to %d \n", nstep );
       break;
     case 'P':
       sink_momentum_number = atoi ( optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] sink_momentum_number set to %d \n", sink_momentum_number );
       break;
     case 'F':
       strcpy ( flavor, optarg );
+      fprintf ( stdout, "# [loop_extract_plegma] flavor set to %s \n", flavor );
       break;
     case 'h':
     case '?':

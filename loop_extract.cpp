@@ -43,8 +43,8 @@
 using namespace cvc;
 
 #define _EXDEFL_LOOP       0
-#define _STOCHASTIC_HP     0
-#define _STOCHASTIC_VOLSRC 1
+#define _STOCHASTIC_HP     1
+#define _STOCHASTIC_VOLSRC 0
 
 #define _PLEGMA_CONVENTION 1
 #define _CVC_CONVENTION 0
@@ -110,6 +110,7 @@ int main(int argc, char **argv) {
   int nstep = 0;
   int sink_momentum_number = 0;
   char gamma_basis_str[10] = "NA";
+  char flavor[20] = "NA";
 
   struct timeval ta, tb;
 
@@ -122,7 +123,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:Q:C:S:V:H:O:R:T:P:A:G:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:Q:C:S:V:H:O:R:T:P:A:G:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -160,6 +161,10 @@ int main(int argc, char **argv) {
       break;
     case 'G':
       strcpy ( gamma_basis_str, optarg );
+      break;
+    case 'F':
+      strcpy ( flavor, optarg );
+      fprintf ( stdout, "# [loop_extract] flavor set to %s \n", flavor );
       break;
     case 'h':
     case '?':
@@ -233,7 +238,7 @@ int main(int argc, char **argv) {
   sprintf ( filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid );
 #  endif
 #else
-  sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+  sprintf ( filename, "%s_S1/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", flavor, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
 #endif
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
@@ -426,8 +431,8 @@ int main(int argc, char **argv) {
   }
 
   char data_filename[400];
-  sprintf ( data_filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
-  if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
+  // sprintf ( data_filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
+  // if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
 
 
   double _Complex **** zloop_stoch = init_4level_ztable ( g_sink_momentum_number, T, 4, 4 );
@@ -447,6 +452,11 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   for ( unsigned int Nstoch = nstep; Nstoch <= nsample; Nstoch += nstep )
   {
+
+    sprintf ( data_filename, "%s_S%d/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+        flavor, Nstoch, confid, stream,
+        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
     
     double _Complex const norm = loop_norm / Nstoch / ( hier_prob_D * hier_prob_D * hier_prob_D  );
     if ( g_verbose > 0 ) fprintf ( stdout, "# [loop_extract] norm Nstoch %4d %25.16e %26.16e\n", Nstoch, creal( norm ), cimag ( norm ) );
@@ -463,7 +473,7 @@ int main(int argc, char **argv) {
 
       if ( g_verbose > 2 ) fprintf( stdout, "# [loop_extract] data_tag = %s\n", data_tag);
 
-      // exitstatus = loop_read_from_h5_file ( loop_stoch, data_filename, data_tag, sink_momentum_number, 16, io_proc );
+      exitstatus = loop_read_from_h5_file ( loop_stoch, data_filename, data_tag, sink_momentum_number, 16, io_proc );
       if ( exitstatus != 0 ) {
         fprintf ( stderr, "[loop_extract] Error from loop_read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(1);
@@ -480,12 +490,12 @@ int main(int argc, char **argv) {
         }
 
         if ( have_deriv ) {
-          sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, Nstoch, idir,
+          sprintf ( filename, "loop.%.4d_r%d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, exdef_nev, Nstoch, idir,
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
         } else {
-          sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, Nstoch,
+          sprintf ( filename, "loop.%.4d_r%d.stoch.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, exdef_nev, Nstoch,
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
@@ -527,7 +537,7 @@ int main(int argc, char **argv) {
    * MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5/conf_1016/nstoch_0114/Scalar/loop
    * loop                     Dataset {128, 461, 16, 2}
    ***************************************************************************/
-#ifdef _STOCHASTIC_VOLSRC
+#if _STOCHASTIC_VOLSRC
   double *** loop_stoch = init_3level_dtable ( T, sink_momentum_number, 32 );
   if ( loop_stoch == NULL ) {
     fprintf(stderr, "[loop_extract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );;
