@@ -150,14 +150,26 @@ void make_key_string ( char * key, twopoint_function_type *tp, const char * type
           tp->pf1[0], tp->pf1[1], tp->pf1[2] );
 
     } else {
-      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
-          tp->pf2[0], tp->pf2[1], tp->pf2[2],
-          isample,
-          gamma_id_to_ascii[tp->gf2],
-          gamma_id_to_Cg_ascii[tp->gf1[0]],
-          gamma_id_to_Cg_ascii[tp->gi1[0]],
-          diagram_name,
-          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+      if ( tp->gi2 == -1 ) {
+        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+            tp->pf2[0], tp->pf2[1], tp->pf2[2],
+            isample,
+            gamma_id_to_ascii[tp->gf2],
+            gamma_id_to_Cg_ascii[tp->gf1[0]],
+            gamma_id_to_Cg_ascii[tp->gi1[0]],
+            diagram_name,
+            tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+      } else {
+        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s-%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+            tp->pf2[0], tp->pf2[1], tp->pf2[2],
+            isample,
+            gamma_id_to_ascii[tp->gf2],
+            gamma_id_to_ascii[tp->gi2],
+            gamma_id_to_Cg_ascii[tp->gf1[0]],
+            gamma_id_to_Cg_ascii[tp->gi1[0]],
+            diagram_name,
+            tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+      }
     }
   }
 
@@ -173,13 +185,26 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
 
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
 
-    sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
-        tp->pf2[0], tp->pf2[1], tp->pf2[2],
-        gamma_id_to_ascii[tp->gf2],
-        /* gamma_id_to_group[tp->gf2], */
-        gamma_id_to_Cg_ascii[tp->gf1[0]],
-        gamma_id_to_Cg_ascii[tp->gi1[0]],
-        tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+    if ( tp->gi2 == -1 ) {
+      sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
+          tp->pf2[0], tp->pf2[1], tp->pf2[2],
+          gamma_id_to_ascii[tp->gf2],
+          /* gamma_id_to_group[tp->gf2], */
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+    } else {
+      sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s-%s.Gf_%s-%s.Gi_%s-%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
+          tp->pf2[0], tp->pf2[1], tp->pf2[2],
+          gamma_id_to_ascii[tp->gf2],
+          gamma_id_to_ascii[tp->gi2],
+          /* gamma_id_to_group[tp->gf2], */
+          gamma_id_to_Cg_ascii[tp->gf1[0]],
+          gamma_id_to_ascii[tp->gf1[1]],
+          gamma_id_to_Cg_ascii[tp->gi1[0]],
+          gamma_id_to_ascii[tp->gi1[1]],
+          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+    }
   }
 
 }  /* end of make_correlator_string */
@@ -435,9 +460,9 @@ int main(int argc, char **argv) {
 
       char data_filename[500];
             
-      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
-          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
-      /* sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      /* sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
+          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
+      sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [NJJN_analyse] data_filename   = %s\n", data_filename );
       }
