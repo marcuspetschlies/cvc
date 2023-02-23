@@ -397,7 +397,7 @@ int main(int argc, char **argv) {
    * output filename
    ***********************************************************/
   char output_filename[400];
-  sprintf ( output_filename, "%s.h5", g_outfile_prefix );
+  sprintf ( output_filename, "%s.%d.h5", g_outfile_prefix, Nconf );
 
   /***********************************************************
    * set up QED Kernel package
@@ -1155,7 +1155,7 @@ int main(int argc, char **argv) {
       char key[100];
       sprintf (key, "t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
-      exitstatus = write_h5_contraction ( kernel_sum[0], NULL, output_filename, key, "double", ncdim, cdim );
+      exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
       if ( exitstatus != 0 )
       {
         fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
