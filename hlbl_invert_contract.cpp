@@ -67,6 +67,22 @@ extern "C"
 
 using namespace cvc;
 
+/***********************************************************
+ * x must be in { 0, ..., L-1 }
+ ***********************************************************/
+inline void site_map (int xv[4], int const x[4] )
+{
+  xv[0] = ( x[0] > T_global   / 2 ) ? x[0] - T_global   : (  ( x[0] < T_global   / 2 ) ? x[0] : 0 );
+  xv[1] = ( x[1] > LX_global  / 2 ) ? x[1] - LX_global  : (  ( x[1] < LX_global  / 2 ) ? x[1] : 0 );
+  xv[2] = ( x[2] > LY_global  / 2 ) ? x[2] - LY_global  : (  ( x[2] < LY_global  / 2 ) ? x[2] : 0 );
+  xv[3] = ( x[3] > LZ_global  / 2 ) ? x[3] - LZ_global  : (  ( x[3] < LZ_global  / 2 ) ? x[3] : 0 );
+
+  return;
+}
+
+/***********************************************************/
+/***********************************************************/
+
 void usage() {
   fprintf(stdout, "Code to perform contractions for hlbl tensor\n");
   fprintf(stdout, "Usage:    [options]\n");
@@ -74,6 +90,9 @@ void usage() {
   fprintf(stdout, "          -c                  : check propagator residual [default false]\n");
   EXIT(0);
 }
+
+/***********************************************************/
+/***********************************************************/
 
 int main(int argc, char **argv) {
 
@@ -508,11 +527,15 @@ int main(int argc, char **argv) {
               ( g_lexic2coords[ix][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
               ( g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
+            int zv[4];
+            site_map ( zv, z );
+
+
             _fv_eq_gamma_ti_fv ( sp,  idx_comb[k][0], _r );
             _fv_eq_gamma_ti_fv ( sp2, idx_comb[k][1], _r );
 
-            _fv_ti_eq_re ( sp,  -z[idx_comb[k][1]] );
-            _fv_ti_eq_re ( sp2,  z[idx_comb[k][0]] );
+            _fv_ti_eq_re ( sp,  -zv[idx_comb[k][1]] );
+            _fv_ti_eq_re ( sp2,  zv[idx_comb[k][0]] );
             // _fv_eq_zero ( sp2 );
 
             _fv_eq_fv_pl_fv ( _s, sp, sp2 );
@@ -1042,11 +1065,14 @@ int main(int argc, char **argv) {
                   ( g_lexic2coords[ix][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
                   ( g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
     
+                int zv[4];
+                site_map ( zv, z );
+
                 _fv_eq_gamma_ti_fv ( sp,  idx_comb[k][0], _r );
                 _fv_eq_gamma_ti_fv ( sp2, idx_comb[k][1], _r );
     
-                _fv_ti_eq_re ( sp,  -z[idx_comb[k][1]] );
-                _fv_ti_eq_re ( sp2,  z[idx_comb[k][0]] );
+                _fv_ti_eq_re ( sp,  -zv[idx_comb[k][1]] );
+                _fv_ti_eq_re ( sp2,  zv[idx_comb[k][0]] );
     
                 _fv_eq_fv_pl_fv ( _s, sp, sp2 );
               }

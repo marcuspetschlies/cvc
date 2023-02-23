@@ -56,8 +56,6 @@ int write_h5_attribute ( const char * filename, const char * attr_name, const ch
 int write_h5_contraction_parallel ( void * const contr, char * const afilename, char * const tag, char * const  data_type, int const ncdim, const int * const cdim, MPI_Comm comm );
 #endif
 
-#endif
-
 int write_vdag_gloc_v_to_file ( double _Complex ***** vv, int const nv, int const momentum_number, int  (* const momentum_list)[3] , int const gamma_id_number, int * const gamma_id_list, void * writer, void * file, char * tag , int const io_proc );
 
 }
