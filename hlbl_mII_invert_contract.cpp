@@ -397,7 +397,7 @@ int main(int argc, char **argv) {
    * output filename
    ***********************************************************/
   char output_filename[400];
-  sprintf ( output_filename, "%s.h5", g_outfile_prefix );
+  sprintf ( output_filename, "%s.%d.h5", g_outfile_prefix, Nconf );
 
   /***********************************************************
    * set up QED Kernel package
