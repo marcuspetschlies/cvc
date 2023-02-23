@@ -682,8 +682,9 @@ int main(int argc, char **argv) {
                 dzu[k][ia][2*ib+1] = w.im;
 
               }  /* of ib */
-            }  /* of index combinations */
+            }  /* of index combinations k --- rho, sigma */
 
+        
             for ( int sigma = 0; sigma < 4; sigma++ )
             {
               complex w = { 0., 0. };
@@ -697,6 +698,26 @@ int main(int argc, char **argv) {
             }
 
           }  /* of ia */
+
+          /***********************************************************
+           * TEST WRITE dzu
+           ***********************************************************/
+          for ( int k = 0; k < 6; k++ )
+          {
+            for ( int ia = 0; ia < 12; ia++ )
+            {
+            for ( int ib = 0; ib < 12; ib++ )
+            {
+              double const g5sign = 1. - 2. * ( (ib/3) > 1 );
+
+              fprintf ( stdout, "seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
+                  iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia, 
+                  g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );
+            }}
+          }
+          /***********************************************************
+           * END OF TEST
+           ***********************************************************/
 
 #if _WITH_TIMER
           gettimeofday ( &tb, (struct timezone *)NULL );
