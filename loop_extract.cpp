@@ -46,8 +46,8 @@ using namespace cvc;
 #define _STOCHASTIC_HP     0
 #define _STOCHASTIC_VOLSRC 1
 
-#define _PLEGMA_CONVENTION 1
-#define _CVC_CONVENTION 0
+#define _PLEGMA_CONVENTION 0
+#define _CVC_CONVENTION 1
 
 void usage() {
   fprintf(stdout, "Code to extract loop data\n");
@@ -682,11 +682,11 @@ int main(int argc, char **argv) {
       for ( int it = 0; it < T; it++ ) {
         for ( int ia = 0; ia < 4; ia++ ) {
         for ( int ib = 0; ib < 4; ib++ ) {
-          fprintf ( ofs2, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
+          fprintf ( ofs, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
         }}
       }
 
-      fclose ( ofs2 );
+      fclose ( ofs );
 
 
       for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {
