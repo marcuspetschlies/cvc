@@ -80,8 +80,8 @@ int main(int argc, char **argv) {
 #if _TWOP_CYD_H5
   const char flavor_tag[2][3] = { "uu", "dd" };
 #elif _TWOP_AVGX_H5
-  /* char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" }; */
-  char const flavor_tag[2][20]        = { "l-gf-l-gi" , "l-gf-l-gi" };
+  char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
+  /* char const flavor_tag[2][20]        = { "l-gf-l-gi" , "l-gf-l-gi" }; */
 #else
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 #endif
@@ -100,7 +100,6 @@ int main(int argc, char **argv) {
   char ensemble_name[100] = "NA";
   /* int use_disc = 0;
   int use_conn = 1; */
-  int twop_fold_propagator = 0;
   int write_data = 0;
   double loop_norm = 1.;
   int operator_type = 0;
@@ -117,9 +116,15 @@ int main(int argc, char **argv) {
   double mirror_weight[2] = {0., 0.};
 
   /**********************************************************
+   * cB211.072.64
+   **********************************************************/
+  /* double g_mus = 0.00072; */
+  double g_mus = 0.0186;
+
+  /**********************************************************
    * cC211.06.80
    **********************************************************/
-  double g_mus = 0.0006;
+  /* double g_mus = 0.0006; */
   /* double g_mus = 0.01615; */
 
   /**********************************************************
@@ -133,7 +138,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:E:w:m:l:O:T:B:M:s:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:E:w:m:l:O:T:B:M:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -146,10 +151,6 @@ int main(int argc, char **argv) {
     case 'S':
       num_src_per_conf = atoi ( optarg );
       fprintf ( stdout, "# [avxg_analyse_simple] number of sources per config = %d\n", num_src_per_conf );
-      break;
-    case 'F':
-      twop_fold_propagator = atoi ( optarg );
-      fprintf ( stdout, "# [avxg_analyse_simple] twop fold_propagator set to %d\n", twop_fold_propagator );
       break;
     case 'E':
       strcpy ( ensemble_name, optarg );
@@ -872,21 +873,20 @@ int main(int argc, char **argv) {
        ***********************************************************/
       char data_filename[500];
     
-      /* sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
+      sprintf( data_filename, "stream_%c/%s/%s.%.4d.t%d.s%d.h5",
           conf_src_list[iconf][isrc][0],
           filename_prefix,
-          conf_src_list[iconf][isrc][1],
-          filename_prefix2,
-          conf_src_list[iconf][isrc][1],
-          conf_src_list[iconf][isrc][2],
-          conf_src_list[iconf][isrc][3] ); */
-
-      sprintf( data_filename, "stream_%c/%s.%.4d.t%d.s%d.h5",
-          conf_src_list[iconf][isrc][0],
           filename_prefix2,
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3] );
+
+      /* sprintf( data_filename, "stream_%c/%s.%.4d.t%d.s%d.h5",
+          conf_src_list[iconf][isrc][0],
+          filename_prefix2,
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2],
+          conf_src_list[iconf][isrc][3] ); */
 
 
       /***********************************************************
