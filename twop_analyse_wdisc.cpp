@@ -353,6 +353,8 @@ int main(int argc, char **argv) {
         {
           case 'a': replica = 0; break;
           case 'b': replica = 1; break;
+          case 'c': replica = 2; break;
+          case 'd': replica = 3; break;
         }
 
 
@@ -477,6 +479,8 @@ int main(int argc, char **argv) {
         {
           case 'a': replica = 0; break;
           case 'b': replica = 1; break;
+          case 'c': replica = 2; break;
+          case 'd': replica = 3; break;
         }
 
         if ( loop_nev < 0 ) {
