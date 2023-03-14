@@ -102,13 +102,7 @@ int main(int argc, char **argv) {
   int color_dilution = 1;
   double g_mus =0.;
 
-  int const gamma_v_number = 8;
-  int gamma_v_list[8] = { 0, 1, 2, 3, 6, 7, 8, 9 };
-  /* int const gamma_v_number = 4;
-  int gamma_v_list[4] = { 0, 1, 2, 3  }; */
-
-  int const gamma_t_number = 6;
-  int gamma_t_list[6] = { 10 , 11 , 12 , 13 , 14 , 15 };
+  int gamma_v_list[4] = { 0, 1, 2, 3  };
 
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
@@ -1161,7 +1155,7 @@ int main(int argc, char **argv) {
                               stochastic_propagator_zero_displ_list[ifbwd2][nu][ 1 - iflavor2 ], 
                               sequential_propagator_displ_list[ifbwd][mu], spin_dilution, color_dilution, current_momentum, 1);
 
-
+#if 0
                         sprintf ( data_tag, "/%s-gDd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/d%d/%s/gi%d/pix%dpiy%dpiz%d/", 
                             flavor_tag[iflavor2],
                             flavor_tag[iflavor2], flavor_tag[iflavor],
@@ -1171,6 +1165,15 @@ int main(int argc, char **argv) {
                             nu, fbwd_str[ifbwd2], 
                             mu, fbwd_str[ifbwd], 
                             source_gamma, source_momentum[0], source_momentum[1], source_momentum[2] );
+#endif
+                        sprintf ( data_tag, "/%s-gDd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s/", 
+                            flavor_tag[iflavor2],
+                            flavor_tag[iflavor2], flavor_tag[iflavor],
+                            muval[iflavor2], muval[iflavor2], muval[iflavor],
+                            g_sequential_source_timeslice_list[iseq_timeslice],
+                            current_gamma, 
+                            nu, fbwd_str[ifbwd2], 
+                            mu, fbwd_str[ifbwd] );
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                         exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
@@ -1260,7 +1263,7 @@ int main(int argc, char **argv) {
                                 stochastic_propagator_zero_displ_list[ifbwd3][lambda][ 1 - iflavor2 ],
                                 sequential_propagator_ddispl_list[ifbwd2][ifbwd], spin_dilution, color_dilution, current_momentum, 1);
 
-
+#if 0
                             sprintf ( data_tag, "/%s-gDdd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/d%d/%s/d%d/%s/gi%d/pix%dpiy%dpiz%d/",
                                 flavor_tag[iflavor2],
                                 flavor_tag[iflavor2], flavor_tag[iflavor],
@@ -1271,6 +1274,17 @@ int main(int argc, char **argv) {
                                 nu, fbwd_str[ifbwd2],
                                 mu, fbwd_str[ifbwd],
                                 source_gamma, source_momentum[0], source_momentum[1], source_momentum[2] );
+#endif
+                            sprintf ( data_tag, "/%s-gDdd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s_d%d_%s/",
+                                flavor_tag[iflavor2],
+                                flavor_tag[iflavor2], flavor_tag[iflavor],
+                                muval[iflavor2], muval[iflavor2], muval[iflavor],
+                                g_sequential_source_timeslice_list[iseq_timeslice],
+                                current_gamma,
+                                lambda, fbwd_str[ifbwd3],
+                                nu, fbwd_str[ifbwd2],
+                                mu, fbwd_str[ifbwd] );
+
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                             exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
@@ -1469,6 +1483,7 @@ int main(int argc, char **argv) {
                               stochastic_propagator_zero_displ_list[ifbwd2][nu][ 3 - iflavor2 ], 
                               sequential_propagator_displ_list[ifbwd][mu], spin_dilution, color_dilution, current_momentum, 1);
 
+#if 0
                         sprintf ( data_tag, "/%s-gDd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/d%d/%s/gi%d/pix%dpiy%dpiz%d/", 
                             flavor_tag[2+iflavor2],
                             flavor_tag[2+iflavor2], flavor_tag[iflavor],
@@ -1478,6 +1493,16 @@ int main(int argc, char **argv) {
                             nu, fbwd_str[ifbwd2], 
                             mu, fbwd_str[ifbwd], 
                             source_gamma, source_momentum[0], source_momentum[1], source_momentum[2] );
+#endif
+
+                        sprintf ( data_tag, "/%s-gDd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s/", 
+                            flavor_tag[2+iflavor2],
+                            flavor_tag[2+iflavor2], flavor_tag[iflavor],
+                            muval[2+iflavor2], muval[2+iflavor2], muval[iflavor],
+                            g_sequential_source_timeslice_list[iseq_timeslice],
+                            current_gamma, 
+                            nu, fbwd_str[ifbwd2], 
+                            mu, fbwd_str[ifbwd] );
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                         exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
@@ -1559,7 +1584,7 @@ int main(int argc, char **argv) {
                                 stochastic_propagator_zero_displ_list[ifbwd3][lambda][ 3 - iflavor2 ],
                                 sequential_propagator_ddispl_list[ifbwd2][ifbwd], spin_dilution, color_dilution, current_momentum, 1);
 
-
+#if 0
                             sprintf ( data_tag, "/%s-gDdd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/d%d/%s/d%d/%s/gi%d/pix%dpiy%dpiz%d/",
                                 flavor_tag[2+iflavor2],
                                 flavor_tag[2+iflavor2], flavor_tag[iflavor],
@@ -1570,6 +1595,17 @@ int main(int argc, char **argv) {
                                 nu, fbwd_str[ifbwd2],
                                 mu, fbwd_str[ifbwd],
                                 source_gamma, source_momentum[0], source_momentum[1], source_momentum[2] );
+#endif
+
+                            sprintf ( data_tag, "/%s-gDdd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s_d%d_%s/",
+                                flavor_tag[2+iflavor2],
+                                flavor_tag[2+iflavor2], flavor_tag[iflavor],
+                                muval[2+iflavor2], muval[2+iflavor2], muval[iflavor],
+                                g_sequential_source_timeslice_list[iseq_timeslice],
+                                current_gamma,
+                                lambda, fbwd_str[ifbwd3],
+                                nu, fbwd_str[ifbwd2],
+                                mu, fbwd_str[ifbwd] );
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                             exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
@@ -1745,7 +1781,7 @@ int main(int argc, char **argv) {
                               stochastic_propagator_zero_displ_list[ifbwd2][nu][ 1 - iflavor2 ], 
                               sequential_propagator_displ_list[ifbwd][mu], spin_dilution, color_dilution, current_momentum, 1);
 
-
+#if 0
                         sprintf ( data_tag, "/%s-gDd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/d%d/%s/gi%d/pix%dpiy%dpiz%d/", 
                             flavor_tag[iflavor2],
                             flavor_tag[iflavor2], flavor_tag[2+iflavor],
@@ -1755,6 +1791,17 @@ int main(int argc, char **argv) {
                             nu, fbwd_str[ifbwd2], 
                             mu, fbwd_str[ifbwd], 
                             source_gamma, source_momentum[0], source_momentum[1], source_momentum[2] );
+#endif
+
+                        sprintf ( data_tag, "/%s-gDd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s/", 
+                            flavor_tag[iflavor2],
+                            flavor_tag[iflavor2], flavor_tag[2+iflavor],
+                            muval[iflavor2], muval[iflavor2], muval[2+iflavor],
+                            g_sequential_source_timeslice_list[iseq_timeslice],
+                            current_gamma, 
+                            nu, fbwd_str[ifbwd2], 
+                            mu, fbwd_str[ifbwd] );
+                            
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                         exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &msink_momentum, 1, io_proc );
@@ -1834,7 +1881,7 @@ int main(int argc, char **argv) {
                                 stochastic_propagator_zero_displ_list[ifbwd3][lambda][ 1 - iflavor2 ],
                                 sequential_propagator_ddispl_list[ifbwd2][ifbwd], spin_dilution, color_dilution, current_momentum, 1);
 
-
+#if 0
                             sprintf ( data_tag, "/%s-gDdd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/t%d/s%d/dt%d/gf%d/gc%d/d%d/%s/d%d/%s/d%d/%s/gi%d/pix%dpiy%dpiz%d/",
                                 flavor_tag[iflavor2],
                                 flavor_tag[iflavor2], flavor_tag[2+iflavor],
@@ -1845,6 +1892,17 @@ int main(int argc, char **argv) {
                                 nu, fbwd_str[ifbwd2],
                                 mu, fbwd_str[ifbwd],
                                 source_gamma, source_momentum[0], source_momentum[1], source_momentum[2] );
+#endif
+
+                            sprintf ( data_tag, "/%s-gDdd-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s_d%d_%s/",
+                                flavor_tag[iflavor2],
+                                flavor_tag[iflavor2], flavor_tag[2+iflavor],
+                                muval[iflavor2], muval[iflavor2], muval[2+iflavor],
+                                g_sequential_source_timeslice_list[iseq_timeslice],
+                                current_gamma,
+                                lambda, fbwd_str[ifbwd3],
+                                nu, fbwd_str[ifbwd2],
+                                mu, fbwd_str[ifbwd] );
 
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                             exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
