@@ -992,7 +992,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
       if ( stat( filename, &fileStat) < 0 ) {
         /* creat a new file */
   
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] create new file\n" );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] create new file\n" );
   
         unsigned flags = H5F_ACC_TRUNC; /* IN: File access flags. Allowable values are:
                                            H5F_ACC_TRUNC --- Truncate file, if it already exists, erasing all data previously stored in the file.
@@ -1013,7 +1013,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
   
       } else {
         /* open an existing file. */
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] open existing file\n" );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] open existing file\n" );
   
         unsigned flags = H5F_ACC_RDWR;  /* IN: File access flags. Allowable values are:
                                            H5F_ACC_RDWR   --- Allow read and write access to file.
@@ -1028,7 +1028,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
         file_id = H5Fopen (         filename,         flags,        fapl_id );
       }
   
-      if ( g_verbose > 0 ) fprintf ( stdout, "# [contract_write_to_h5_file] file_id = %ld\n", file_id );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] file_id = %ld\n", file_id );
   
       /***************************************************************************
        * H5 data space and data type
@@ -1073,13 +1073,13 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
       char grp_sep[] = "/";
       strcpy ( grp_name, tag );
       strcpy ( grp_name_tmp, grp_name );
-      if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] full grp_name = %s\n", grp_name );
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] full grp_name = %s\n", grp_name );
       grp_ptr = strtok ( grp_name_tmp, grp_sep );
   
       while ( grp_ptr != NULL ) {
         hid_t grp;
         hid_t loc_id = ( grp_list_nmem == 0 ) ? file_id : grp_list[grp_list_nmem-1];
-        if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] grp_ptr = %s\n", grp_ptr );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] grp_ptr = %s\n", grp_ptr );
   
         grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
         if ( grp < 0 ) {
@@ -1089,10 +1089,10 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
             fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
             return ( 6 );
           } else {
-            if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+            if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] created group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
           }
         } else {
-          if ( g_verbose > 1 ) fprintf ( stdout, "# [contract_write_to_h5_file] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] opened group %s %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
         }
         grp_ptr = strtok(NULL, grp_sep );
   
@@ -1126,7 +1126,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
         char name[100];
   
         sprintf ( name, "px%dpy%dpz%d", momentum_list[i][0], momentum_list[i][1], momentum_list[i][2] );
-        fprintf ( stdout, "# [contract_write_to_h5_file] data set %2d loc_id = %ld %s %d\n", i, loc_id , __FILE__, __LINE__ );
+        if ( g_verbose > 2 ) fprintf ( stdout, "# [contract_write_to_h5_file] data set %2d loc_id = %ld %s %d\n", i, loc_id , __FILE__, __LINE__ );
   
         /***************************************************************************
          * create a data set
@@ -1195,7 +1195,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
           fprintf(stderr, "[contract_write_to_h5_file] Error from H5Gclose, status was %d %s %d\n", status, __FILE__, __LINE__);
           return(11);
         } else {
-          if ( g_verbose > 1 ) fprintf(stdout, "# [contract_write_to_h5_file] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
+          if ( g_verbose > 2 ) fprintf(stdout, "# [contract_write_to_h5_file] closed group %ld %s %d\n", grp_list[i], __FILE__, __LINE__);
         }
       }
   
