@@ -102,8 +102,6 @@ int main(int argc, char **argv) {
   int color_dilution = 1;
   double g_mus =0.;
 
-  int gamma_v_list[4] = { 0, 1, 2, 3  };
-
   char data_tag[400];
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
   struct AffWriter_s *affw = NULL;
@@ -147,7 +145,7 @@ int main(int argc, char **argv) {
     {3,0,2},
     {3,1,0},
     {3,1,2},
-    {3,2,0} 
+    {3,2,0},
     {3,2,1} 
   };
 
@@ -604,7 +602,8 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * loop on quark flavor
      *
-     * this flavor is used for dd and ddd
+     * this flavor is used to apply dd and ddd to
+     * runs over all flavors u, d, s+, s-
      ***************************************************************************/
     for ( int iflavor = 0; iflavor < 4; iflavor++ )
     {
@@ -736,7 +735,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * invert for stochastic timeslice propagator at source momenta
        *
-       * ONLY FOR FLAVOR LIGHT = UP, DN
+       * ONLY FOR FLAVORS iflavor2, see below
        ***************************************************************************/
       for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) 
       {
@@ -748,11 +747,6 @@ int main(int argc, char **argv) {
             g_source_momentum_list[isrc_mom][0],
             g_source_momentum_list[isrc_mom][1],
             g_source_momentum_list[isrc_mom][2] };
-
-        int msource_momentum[3] = {
-          -source_momentum[0],
-          -source_momentum[1],
-          -source_momentum[2] };
 
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
@@ -781,8 +775,29 @@ int main(int argc, char **argv) {
         }
 
         /***************************************************************************
-         * invert for flavors 
+         * invert for flavors iflavor2, which takes values
          *   iflavor and 2 * ( 1 - ( iflavor / 2) ) + ( iflavor % 2 )
+         *
+         * general layout of 3-point function is as follows:
+         *
+         *
+         *           /\                      /\
+         *          /  \                    /  \
+         *         /    \_               _ /    \_
+         *  X    |/_    |\  X   => Xbar   /|    |\  X
+         *       /        \              /        \
+         *      /____\ ____\            /____\_____\
+         *           /                       /
+         *      
+         *           Y                       Y
+         *
+         *  X and Y must have OPPOSITE SIGN of twisted quark mass
+         *  or
+         *  Xbar and Y must have SAME SIGN of twisted quark mass, so
+         *
+         *        iflavor  = Xbar =   u      ,   d      ,   s+,    ,   s-
+         *        iflavor2 = Y    = { u, s+ }, { d, s- }, { s+, u }, { s-, d }
+         *
          ***************************************************************************/
         int const flavor_seqsrc_list[2] = { iflavor, 2 * ( 1 - ( iflavor / 2) ) + ( iflavor % 2 ) };
 
@@ -790,6 +805,8 @@ int main(int argc, char **argv) {
         {
 
           int const iflavor2 = flavor_seqsrc_list[ifl2];
+
+          if ( ( iflavor / 2 == 1 ) && ( iflavor2 / 2 == 1 ) ) continue; /* skip quark flow with only strange flavor propagators */
       
           for( int i = 0; i < spin_color_dilution; i++) 
           {
@@ -884,12 +901,6 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * Xbar(0)^+ g5 Gf Y(p) Gi g5
            *
-           * mapping of iflavor to have Xbar for given X
-           * 2*(iflavor/2) + 1-(iflavor%2): 
-           * 0 -> 1
-           * 1 -> 0
-           * 2 -> 3
-           * 3 -> 2
            ***************************************************************************/
           contract_twopoint_xdep ( contr_x, source_gamma, sink_gamma, 
               stochastic_propagator_zero_smeared_list, 
@@ -971,15 +982,12 @@ int main(int argc, char **argv) {
                 -( current_momentum[1] + source_momentum[1] ),
                 -( current_momentum[2] + source_momentum[2] ) };
 
-            int msink_momentum[3] = {
-                -( current_momentum[0] + msource_momentum[0] ),
-                -( current_momentum[1] + msource_momentum[1] ),
-                -( current_momentum[2] + msource_momentum[2] ) };
-
             /*****************************************************************
              *****************************************************************
              **
              ** iflavor3 - after - iflavor2
+             **
+             ** iflavor3 is opposite tm sign compared to iflavor
              **
              ** SEQ SOURCE FROM LIGHT PROPAGATOR INCLUDING MOMENTUM PHASE AT SOURCE
              **
@@ -1065,20 +1073,6 @@ int main(int argc, char **argv) {
             /*****************************************************************/
             /*****************************************************************/
 
-            /*****************************************************************
-             * contractions for current insertion
-             *
-             * sequential_propagator_list is strange-after-light type
-             * (sequential through the sink)
-             *
-             *                 /  \
-             *                /    \
-             * l^+ = lbar    /      \ l (d / iflavor2 )
-             * d^+ = u      /        \
-             *             /  ________\
-             *                   l (u / iflavor )
-             *****************************************************************/
-
             gettimeofday ( &ta, (struct timezone *)NULL );
 
             /*****************************************************************
@@ -1093,15 +1087,15 @@ int main(int argc, char **argv) {
                 
 
             /*****************************************************************
-             * loop on directions for covariant displacements, and gamma
+             * loop on directions for 2 covariant displacements
              *****************************************************************/
-            for ( int k = 0; k < 12; mu++ ) 
+            for ( int k = 0; k < 12; k++ ) 
             {
               int const mu = idx_map_dd[k][0];
               int const nu = idx_map_dd[k][1];
                     
               /*****************************************************************
-               * loop on fbwd for covariant displacement
+               * loop on fbwd for covariant displacements
                *****************************************************************/
               for ( int ifbwd = 0; ifbwd <= 1; ifbwd++ )
               {
@@ -1123,7 +1117,7 @@ int main(int argc, char **argv) {
                      * seq was produced for flavor iflavor3 - after - iflavor2
                      *
                      *****************************************************************/
-                    contract_twopoint_snk_momentum ( contr_p, source_gamma,  current_gamma, 
+                    contract_twopoint_snk_momentum ( contr_p, source_gamma, kappa,
                           stochastic_propagator_zero_ddispl_list[k][ifbwd2][ifbwd], 
                           sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
 
@@ -1159,7 +1153,11 @@ int main(int argc, char **argv) {
                    *****************************************************************/
                   for ( int ilda = 0; ilda < 2; ilda++ )
                   {
-                    int const lambda = idx_map_ddd[2*k+ilda];
+
+                    /* skip any momentum vector, which has at least one component equal to zero */
+                    if ( ( source_momentum[0] == 0 ) || ( source_momentum[1] == 0 ) || ( source_momentum[2] == 0 ) ) continue;
+
+                    int const lambda = idx_map_ddd[2*k+ilda][2];
 
                     for ( int ifbwd3 = 0; ifbwd3 < 2; ifbwd3++ )
                     {
@@ -1170,7 +1168,7 @@ int main(int argc, char **argv) {
 
                         memset ( contr_p, 0, 2 * T * sizeof ( double ) );
 
-                        contract_twopoint_snk_momentum ( contr_p, source_gamma,  current_gamma, 
+                        contract_twopoint_snk_momentum ( contr_p, source_gamma, kappa, 
                            stochastic_propagator_zero_dddispl_list[2*k+ilda][ifbwd3][ifbwd2][ifbwd], 
                            sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
 
