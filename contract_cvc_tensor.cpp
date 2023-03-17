@@ -1083,7 +1083,7 @@ int contract_write_to_h5_file (double ** const c_tp, void * file, char*tag, cons
   
         grp = H5Gopen2( loc_id, grp_ptr, gapl_id );
         if ( grp < 0 ) {
-          fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
+          if ( g_verbose > 2 ) fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gopen2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
           grp = H5Gcreate2 (       loc_id,         grp_ptr,       lcpl_id,       gcpl_id,       gapl_id );
           if ( grp < 0 ) {
             fprintf ( stderr, "[contract_write_to_h5_file] Error from H5Gcreate2 for group %s, status was %ld %s %d\n", grp_ptr, grp, __FILE__, __LINE__ );
