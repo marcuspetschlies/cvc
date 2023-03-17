@@ -42,7 +42,7 @@
 
 using namespace cvc;
 
-#define _EXDEFL_LOOP
+// #define _EXDEFL_LOOP
 #define _STOCHASTIC_HP
 
 void usage() {
@@ -106,20 +106,19 @@ int main(int argc, char **argv) {
   unsigned int nsample = 0;
   int nstep = 0;
   int sink_momentum_number = 0;
-  char gamma_basis_str[10] = "NA";
 
   struct timeval ta, tb;
 
-  int cumulative = -1;
-
   char data_tag_prefix[300];
   char data_tag[400];
+
+  char flavor[20] = "NA";
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:L:Q:C:S:V:H:O:R:T:P:A:G:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:L:Q:C:S:V:H:O:R:T:P:F:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -155,11 +154,8 @@ int main(int argc, char **argv) {
     case 'P':
       sink_momentum_number = atoi ( optarg );
       break;
-    case 'A':
-      cumulative = atoi ( optarg );
-      break;
-    case 'G':
-      strcpy ( gamma_basis_str, optarg );
+    case 'F':
+      strcpy ( flavor, optarg );
       break;
     case 'h':
     case '?':
@@ -222,7 +218,8 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * loop data filename
    ***************************************************************************/
-  sprintf ( filename, "s1/%.4d_r%d/stoch_part_std.h5", confid, stream );
+  sprintf ( filename, "%s_S1/%.4d_r%d/stoch_part_%s.h5", flavor, confid, stream, oet_type );
+  // sprintf ( filename, "%.4d_r%d/exact_part_%s.h5", confid, stream, oet_type );
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", filename );
 
@@ -239,30 +236,18 @@ int main(int argc, char **argv) {
 	  fprintf ( stdout, "# [loop_extract_plegma] oet_type %s loop_norm = %25.6e  %26.16e\n", oet_type, creal ( loop_norm ), cimag ( loop_norm ) );
 
   /***************************************************************************
-   * count momenta and build momentum list
+   * potential directions
    ***************************************************************************/
-#if 0
-  unsigned int sink_momentum_number = 0;
-  for( int x1 = -LX_global/2+1; x1 < LX_global/2; x1++ ) {
-  for( int x2 = -LY_global/2+1; x2 < LY_global/2; x2++ ) {
-  for( int x3 = -LZ_global/2+1; x3 < LZ_global/2; x3++ ) {
-    int const qq = x1*x1 + x2*x2 + x3*x3;
-    if ( qq <= Qsq ) {
-      sink_momentum_number++;
-    }
-  }}}
-  if ( sink_momentum_number == 0 ) {
-    fprintf ( stderr, "[loop_extract_plegma] Error, momentum list is empty %s %d\n", __FILE__, __LINE__ );
-    EXIT(1);
-  } else {
-    if (io_proc == 2 && g_verbose > 1 ) fprintf ( stdout, "# [loop_extract_plegma] number of momenta <= %3d is %3d\n", Qsq, sink_momentum_number );
-  }
+  int const have_deriv = (
+    strcmp( loop_type, "oneD"  ) == 0 ||
+    strcmp( loop_type, "oneDC" ) == 0 );
 
+  int const num_dir = have_deriv ? 4 : 1;
+  if ( g_verbose > 4 ) fprintf ( stdout, "# [loop_extract_plegma] have_deriv %d num_dir %d\n", have_deriv, num_dir );
 
-#endif  /* of if 0 */
-
-  if (io_proc == 2 && g_verbose > 1 ) fprintf ( stdout, "# [loop_extract_plegma] number of momenta <= %3d is %3d\n", Qsq, sink_momentum_number );
-
+  /***************************************************************************
+   *
+   ***************************************************************************/
   int ** sink_momentum_list = init_2level_itable ( sink_momentum_number, 3 );
   if ( sink_momentum_list == NULL ) {
     fprintf(stderr, "[loop_extract_plegma] Error from init_2level_itable %s %d\n", __FILE__, __LINE__);
@@ -270,10 +255,16 @@ int main(int argc, char **argv) {
   }
 
   char key[500];
-  sprintf ( key, "Conf%.4d_r%d/Ns%d/localLoops/mvec", confid, stream, 0, loop_type );
+  if ( have_deriv ) {
+    sprintf ( key, "Conf%.4d_r%d/Ns%d/%s/dir0/mvec", confid, stream, 0, loop_type );
+  } else {
+    sprintf ( key, "Conf%.4d_r%d/Ns%d/%s/mvec", confid, stream, 0, loop_type );
+    // sprintf ( key, "Conf%.4d_r%d/%s/mvec", confid, stream, loop_type );
+  }
   exitstatus = read_from_h5_file ( (void*)(sink_momentum_list[0]), filename, key,  "int", io_proc );
   if ( exitstatus != 0 ) {
-    fprintf ( stderr, "[loop_extract_plegma] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    fprintf ( stderr, "[loop_extract_plegma] Error from read_from_h5_file for %s %s, status was %d %s %d\n", filename, key,
+        exitstatus, __FILE__, __LINE__ );
     EXIT(1);
   }
 
@@ -309,16 +300,6 @@ int main(int argc, char **argv) {
   }
 
   /***************************************************************************
-   * potential directions
-   ***************************************************************************/
-  int const have_deriv = (
-    strcmp( loop_type, "oneD"  ) == 0 ||
-    strcmp( loop_type, "oneDC" ) == 0 );
-
-  int const num_dir = have_deriv ? 4 : 1;
-  if ( g_verbose > 4 ) fprintf ( stdout, "# [loop_extract_plegma] have_deriv %d num_dir %d\n", have_deriv, num_dir );
-
-  /***************************************************************************
    * exact part
    ***************************************************************************/
 #ifdef _EXDEFL_LOOP
@@ -331,7 +312,8 @@ int main(int argc, char **argv) {
     }
 
     char data_filename[400];
-    sprintf ( data_filename, "s1/%.4d_r%d/exact_part_%s.h5", confid, stream, oet_type );
+    // sprintf ( data_filename, "s1/%.4d_r%d/exact_part_%s.h5", confid, stream, oet_type );
+    sprintf ( data_filename, "%.4d_r%d/exact_part_%s.h5", confid, stream, oet_type );
     if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", data_filename );
 
     sprintf ( data_tag_prefix, "/Conf%.4d_r%d/%s" , confid, stream, loop_type );
@@ -371,12 +353,12 @@ int main(int argc, char **argv) {
         }
  
         if ( have_deriv ) {
-          sprintf ( filename, "loop.%.4d.exact.%s.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, loop_type, exdef_nev, idir, 
+          sprintf ( filename, "loop.%.4d_r%d.exact.%s.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, loop_type, exdef_nev, idir, 
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
         } else  {
-          sprintf ( filename, "loop.%.4d.exact.%s.%s.nev%d.PX%d_PY%d_PZ%d", confid, oet_type, loop_type, exdef_nev,
+          sprintf ( filename, "loop.%.4d_r%d.exact.%s.%s.nev%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, loop_type, exdef_nev,
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
@@ -435,7 +417,7 @@ int main(int argc, char **argv) {
     unsigned int const Nstoch = ( isample + 1 ) * nstep;
   
     char data_filename[400];
-    sprintf ( data_filename, "s%d/%.4d_r%d/stoch_part_%s.h5", Nstoch, confid, stream, oet_type );
+    sprintf ( data_filename, "%s_S%d/%.4d_r%d/stoch_part_%s.h5", flavor, Nstoch, confid, stream, oet_type );
     if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", data_filename );
 
     sprintf ( data_tag_prefix, "/Conf%.4d_r%d/Ns%d/%s" , confid, stream, 0, loop_type );
@@ -473,6 +455,26 @@ int main(int argc, char **argv) {
     }  /* end of loop on directions */
   }  /* end of loop on samples */
 
+  /***************************************************************************
+   * accumulate
+   ***************************************************************************/
+  double _Complex ***** zloop_stoch_accum = init_5level_ztable ( num_dir, g_sink_momentum_number, T, 4, 4 );
+  if ( zloop_stoch_accum == NULL ) {
+    fprintf(stderr, "[loop_extract_plegma] Error from init_Xlevel_Ytable %s %d\n", __FILE__, __LINE__ );;
+    EXIT(48);
+  }
+
+#pragma omp parallel for
+  for ( unsigned int ix = 0; ix < num_dir * g_sink_momentum_number * T * 16; ix++ )
+  {
+    zloop_stoch_accum[0][0][0][0][ix] = 0.;
+    for ( unsigned int isample = 0; isample < nsample/nstep; isample ++ )
+    {
+      zloop_stoch_accum[0][0][0][0][ix] += zloop_stoch[isample][0][0][0][0][ix];
+    }
+    zloop_stoch_accum[0][0][0][0][ix] /= (double)(nsample);
+  }
+
 
   /***************************************************************************
    * write to file
@@ -481,20 +483,23 @@ int main(int argc, char **argv) {
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
       if ( have_deriv ) {
-        sprintf ( filename, "loop.%.4d.stoch.%s.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, loop_type, exdef_nev, nsample, idir,
+        sprintf ( filename, "loop.%.4d_r%d.stoch.%s.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, loop_type, exdef_nev, nsample, idir,
             g_sink_momentum_list[imom][0],
             g_sink_momentum_list[imom][1],
             g_sink_momentum_list[imom][2] );
       } else {
-        sprintf ( filename, "loop.%.4d.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d", confid, oet_type, loop_type, exdef_nev, nsample,
+        sprintf ( filename, "loop.%.4d_r%d.stoch.%s.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, loop_type, exdef_nev, nsample,
             g_sink_momentum_list[imom][0],
             g_sink_momentum_list[imom][1],
             g_sink_momentum_list[imom][2] );
       } 
 
+
+      FILE * ofs = NULL;
+
       if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", filename );
 
-      FILE * ofs = fopen ( filename, "w" );
+      ofs = fopen ( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loop_extract_plegma] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
         EXIT(23);
@@ -515,7 +520,27 @@ int main(int argc, char **argv) {
       }  /* end of loop on samples */
 
       fclose ( ofs );
+#if 0
+      strcat ( filename, ".avg" );
+      ofs = fopen ( filename, "w" );
+      if ( ofs == NULL ) {
+        fprintf ( stderr, "[loop_extract_plegma] Error from fopen for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+        EXIT(23);
+      }
 
+      if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", filename );
+
+      for ( int it = 0; it < T; it++ ) {
+        for ( int ia = 0; ia < 4; ia++ ) {
+        for ( int ib = 0; ib < 4; ib++ ) {
+          fprintf ( ofs, "%3d %d %d %25.16e %25.16e\n", it, ia, ib,
+                          creal ( zloop_stoch_accum[idir][imom][it][ia][ib] ),
+                          cimag ( zloop_stoch_accum[idir][imom][it][ia][ib] ) );
+        }}
+      }
+
+      fclose ( ofs );
+#endif
     }  /* end of loop on momenta */
   }  /* end of loop on directions */
 

@@ -2080,4 +2080,50 @@ int gluonic_operators_gg_from_fst_projected ( double ** op, double *** const G, 
 
 }  /* end of gluonic_operators_gg_from_fst_projected */
 
+/****************************************************************************/
+/****************************************************************************/
+
+
+/****************************************************************************
+ * action density
+ *
+ * G_{mu,nu}^a G_{mu,nu}^a
+ ****************************************************************************/
+int gluonic_operators_gg_density ( double * const op, double *** const G, int const traceless ) {
+
+  unsigned int const VOL3 = LX * LY * LZ;
+
+  if ( traceless ) {
+#pragma omp parallel for
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ ) {
+
+      double dtmp = 0.;
+      for ( int ia =  0; ia < 6; ia++ ) {
+        for ( int k = 1; k < 9; k++ ) {
+          dtmp += G[ix][ia][k] * G[ix][ia][k];
+        }
+      }
+      op[ix] = dtmp;
+    }  /* end of loop on ix */
+  } else {
+
+#pragma omp parallel for
+    for ( unsigned int ix = 0; ix < VOLUME; ix++) {
+
+      double dtmp = 0.;
+      for ( int ia = 0; ia < 6; ia++ ) {
+        for ( int k = 0; k < 9; k++ ) {
+          dtmp += G[ix][ia][k] * G[ix][ia][k];
+        }
+      }
+      op[ix] = dtmp;
+
+    }  /* end of loop on ix  */
+    
+  }  /* end of if on traceless */
+
+  return( 0 );
+
+}  /* end of gluonic_operators_gg_from_fst_projected */
+
 }  /* end of namespace cvc */

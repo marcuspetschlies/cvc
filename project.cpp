@@ -506,15 +506,9 @@ int project_expand_to_propagator_field(double *s, double *p, double *V, int num1
  **************************************************************************************************************/
 int momentum_projection (double*V, double *W, unsigned int nv, int momentum_number, int (*momentum_list)[3]) {
 
-  typedef struct {
-    int x[3];
-  } point;
-
   const double MPI2 = M_PI * 2.;
   const unsigned int VOL3 = LX*LY*LZ;
 
-  int x1, x2, x3;
-  unsigned int i, ix;
   double _Complex **zphase = NULL;
 
   char BLAS_TRANSA, BLAS_TRANSB;
@@ -525,22 +519,8 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 
   init_2level_buffer( (double***)(&zphase), momentum_number, 2*VOL3 );
 
-  point *lexic_coords = (point*)malloc(VOL3*sizeof(point));
-  if(lexic_coords == NULL) {
-    fprintf(stderr, "[momentum_projection] Error from malloc\n");
-    EXIT(1);
-  }
-  for(x1=0; x1<LX; x1++) {
-  for(x2=0; x2<LY; x2++) {
-  for(x3=0; x3<LZ; x3++) {
-    ix = g_ipt[0][x1][x2][x3];
-    lexic_coords[ix].x[0] = x1;
-    lexic_coords[ix].x[1] = x2;
-    lexic_coords[ix].x[2] = x3;
-  }}}
-
   /* loop on sink momenta */
-  for(i=0; i < momentum_number; i++) {
+  for( int i = 0; i < momentum_number; i++) {
     /* phase field */
 #ifdef HAVE_OPENMP
 #pragma omp parallel
@@ -555,19 +535,17 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0; ix<VOL3; ix++) {
+    for ( unsigned int ix=0; ix<VOL3; ix++) {
       q_phase = q_offset \
-        + lexic_coords[ix].x[0] * q[0] \
-        + lexic_coords[ix].x[1] * q[1] \
-        + lexic_coords[ix].x[2] * q[2];
+        + g_lexic2coords[ix][1] * q[0] \
+        + g_lexic2coords[ix][2] * q[1] \
+        + g_lexic2coords[ix][3] * q[2];
       zphase[i][ix] = cos(q_phase) + I*sin(q_phase);
     }
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
   }  /* end of loop on sink momenta */
-
-  free( lexic_coords );
 
   BLAS_TRANSA = 'T';
   BLAS_TRANSB = 'N';
@@ -587,7 +565,7 @@ int momentum_projection (double*V, double *W, unsigned int nv, int momentum_numb
 
 #ifdef HAVE_MPI
 #  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
-  i = 2 * nv * momentum_number;
+  int i = 2 * nv * momentum_number;
   void *buffer = malloc(i * sizeof(double));
   if(buffer == NULL) {
     return(1);

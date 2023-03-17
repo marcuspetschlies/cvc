@@ -47,7 +47,7 @@ using namespace cvc;
 #define _STOCHASTIC_VOLSRC 1
 
 #define _PLEGMA_CONVENTION 0
-#define _CVC_CONVENTION 1
+#define _CVC_CONVENTION    1
 
 void usage() {
   fprintf(stdout, "Code to extract loop data\n");
@@ -229,7 +229,10 @@ int main(int argc, char **argv) {
   /* MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5 */
   sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
 #  elif _CVC_CONVENTION
-  sprintf ( filename, "%s/%d/%s.%.4d.h5", filename_prefix, confid, filename_prefix2, confid );
+  char cstream = (stream == 0) ? 'a' : 'b';
+
+  sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.h5", cstream, filename_prefix, confid, filename_prefix2, confid );
+  /* sprintf ( filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid ); */
 #  endif
 #else
   sprintf ( filename, "loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
@@ -536,10 +539,11 @@ int main(int argc, char **argv) {
   char data_filename[400];
 
 #if _PLEGMA_CONVENTION
-  /* sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq ); */
+  sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
   /* sprintf ( data_filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
 #elif _CVC_CONVENTION
-  sprintf ( data_filename, "%s/%d/%s.%.4d.h5", filename_prefix, confid, filename_prefix2, confid );
+  sprintf ( data_filename, "stream_%c/%s/%d/%s.%.4d.h5", cstream, filename_prefix, confid, filename_prefix2, confid );
+  /* sprintf ( data_filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid ); */
 #endif
   if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
@@ -551,6 +555,12 @@ int main(int argc, char **argv) {
 
   for ( int idir = 0; idir < num_dir; idir++ )
   {
+
+    double _Complex **** zloop_stoch_avg = init_4level_ztable ( g_sink_momentum_number, T, 4, 4 );
+    if ( zloop_stoch == NULL ) {
+      fprintf(stderr, "[loop_extract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );;
+      EXIT(48);
+    }
 
     for ( int isample = 0; isample < nsample; isample++ )
     {
@@ -587,6 +597,7 @@ int main(int argc, char **argv) {
           for ( int ia = 0; ia < 4; ia++ ) {
           for ( int ib = 0; ib < 4; ib++ ) {
             zloop_stoch[isample][imom][it][ia][ib] = ( loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)] + loop_stoch[it][sink_momentum_matchid[imom]][2*(4*ib + ia)+1] * I ) * loop_norm;
+            /* zloop_stoch_avg[imom][it][ia][ib] += zloop_stoch[isample][imom][it][ia][ib]; */
           }}
         }
       }  /* end of loop on momenta */
@@ -603,6 +614,26 @@ int main(int argc, char **argv) {
         }
       }
     }
+
+
+    for ( int isample = 0; isample < nsample; isample++ )
+    {
+      for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
+#pragma omp parallel for
+        for ( int it = 0; it < T; it++ ) {
+          /* transpose and normalize */
+          for ( int ia = 0; ia < 4; ia++ ) {
+          for ( int ib = 0; ib < 4; ib++ ) {
+            zloop_stoch_avg[imom][it][ia][ib] += zloop_stoch[isample][imom][it][ia][ib];
+          }}
+        }
+      }  /* end of loop on momenta */
+    }  /* end of loop on samples */
+
+    for ( int i = 0; i< g_sink_momentum_number * T * 16; i++ ) {
+      zloop_stoch_avg[0][0][0][i] /= (double)nsample;
+    }
+
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
 
@@ -623,7 +654,9 @@ int main(int argc, char **argv) {
 
       if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
-      FILE * ofs = fopen ( filename, "w" );
+      FILE * ofs = NULL;
+
+      ofs = fopen ( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename , __FILE__, __LINE__ );
         EXIT(1);
@@ -640,6 +673,24 @@ int main(int argc, char **argv) {
       }  /* end of loop on samples */
 
       fclose ( ofs );
+
+      char filename2[400];
+      sprintf ( filename2, "%s.avg", filename );
+      ofs = fopen ( filename2, "w" );
+      if ( ofs == NULL ) {
+        fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename2 , __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      for ( int it = 0; it < T; it++ ) {
+        for ( int ia = 0; ia < 4; ia++ ) {
+        for ( int ib = 0; ib < 4; ib++ ) {
+          fprintf ( ofs, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
+        }}
+      }
+
+      fclose ( ofs );
+
 
       for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {
         gamma_matrix_type gf;
@@ -675,6 +726,8 @@ int main(int argc, char **argv) {
       }  /* end of loop on gamma ids */
 
     }  /* end of loop on sink momenta */
+
+    fini_4level_ztable ( &zloop_stoch_avg );
 
   }  /* end of loop on directions */
 

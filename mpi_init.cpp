@@ -1004,6 +1004,7 @@ void mpi_init(int argc,char *argv[]) {
 
 void mpi_init_xchange_eo_spinor(void) {
 
+  int exitstatus;
 #ifdef HAVE_MPI
 
 
@@ -1014,6 +1015,7 @@ void mpi_init_xchange_eo_spinor(void) {
   MPI_Aint *displacements = NULL;
   MPI_Datatype *datatypes = NULL;
   MPI_Aint size_of_spinor_point;
+  MPI_Aint lb_of_spinor_point;
   char errorString[400];
   int errorStringLength;
 #endif
@@ -1064,21 +1066,13 @@ void mpi_init_xchange_eo_spinor(void) {
   MPI_Type_vector( LY/2, 1, LZ, spinor_point, &eo_spinor_z_subslice_cont );
   MPI_Type_commit(&eo_spinor_z_subslice_cont);
 
-/*
-  MPI_Type_vector(T*LX/2, 1, LY*LZ, eo_spinor_z_subslice_cont, &eo_spinor_z_slice_vector);
-  MPI_Type_commit(&eo_spinor_z_slice_vector);
-*/
-/*
-  int MPI_Type_struct(int count, 
-                      const int *array_of_blocklengths,
-                      const MPI_Aint *array_of_displacements,
-                      const MPI_Datatype *array_of_types,
-                      MPI_Datatype *newtype)
-*/
-
-
   count = T * LX * LY / 2;
-  MPI_Type_extent(spinor_point, &size_of_spinor_point);
+  exitstatus = MPI_Type_get_extent ( spinor_point, &lb_of_spinor_point,  &size_of_spinor_point );
+  if ( exitstatus != MPI_SUCCESS ) {
+    fprintf ( stderr, "[mpi_init] Error from MPI_Type_get_extent, status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(12);
+  }
+
   if(g_cart_id == 0) fprintf(stdout, "# [mpi_init] size_of_spinor_point = %lu\n", size_of_spinor_point);
 
   if( (blocklengths = (int*)malloc(count*sizeof(int)) ) == NULL ) {
@@ -1127,10 +1121,10 @@ void mpi_init_xchange_eo_spinor(void) {
 */
 
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_spinor_z_odd_bwd_slice_struct );
+  i = MPI_Type_create_struct ( count, blocklengths, displacements, datatypes, &eo_spinor_z_odd_bwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(15);
   }
   i = MPI_Type_commit(&eo_spinor_z_odd_bwd_slice_struct);
@@ -1158,10 +1152,10 @@ void mpi_init_xchange_eo_spinor(void) {
     i++;
   }}}
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_spinor_z_even_bwd_slice_struct );
+  i = MPI_Type_create_struct ( count, blocklengths, displacements, datatypes, &eo_spinor_z_even_bwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(16);
   }
   i = MPI_Type_commit(&eo_spinor_z_even_bwd_slice_struct);
@@ -1190,10 +1184,10 @@ void mpi_init_xchange_eo_spinor(void) {
     i++;
   }}}
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_spinor_z_odd_fwd_slice_struct );
+  i = MPI_Type_create_struct ( count, blocklengths, displacements, datatypes, &eo_spinor_z_odd_fwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(18);
   }
   
@@ -1224,10 +1218,10 @@ void mpi_init_xchange_eo_spinor(void) {
     i++;
   }}}
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_spinor_z_even_fwd_slice_struct );
+  i = MPI_Type_create_struct ( count, blocklengths, displacements, datatypes, &eo_spinor_z_even_fwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(20);
   }
 
@@ -1281,6 +1275,8 @@ void mpi_fini_xchange_eo_spinor (void) {
    ******************************************************************************/
 void mpi_init_xchange_eo_propagator(void) {
 
+  int exitstatus;
+
 #ifdef HAVE_MPI
 
 #if (defined PARALLELTX || defined PARALLELTXY || defined PARALLELTXYZ)
@@ -1290,6 +1286,7 @@ void mpi_init_xchange_eo_propagator(void) {
   MPI_Aint *displacements = NULL;
   MPI_Datatype *datatypes = NULL;
   MPI_Aint size_of_propagator_point;
+  MPI_Aint lb_of_propagator_point;
   char errorString[400];
   int errorStringLength;
 #endif
@@ -1332,7 +1329,14 @@ void mpi_init_xchange_eo_propagator(void) {
 
 
   count = T * LX * LY / 2;
-  MPI_Type_extent(propagator_point, &size_of_propagator_point);
+  exitstatus = MPI_Type_get_extent ( propagator_point, &lb_of_propagator_point, &size_of_propagator_point);
+  if ( exitstatus != MPI_SUCCESS ) {
+    fprintf ( stderr, "[mpi_init] Error from MPI_Type_get_extent, status %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(12);
+  }
+
+  
+
   if(g_cart_id == 0) fprintf(stdout, "# [mpi_init] size_of_propagator_point = %lu\n", size_of_propagator_point);
 
   if( (blocklengths = (int*)malloc(count*sizeof(int)) ) == NULL ) {
@@ -1370,10 +1374,10 @@ void mpi_init_xchange_eo_propagator(void) {
     }
   }
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_odd_bwd_slice_struct );
+  i = MPI_Type_create_struct (count, blocklengths, displacements, datatypes, &eo_propagator_z_odd_bwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(15);
   }
   i = MPI_Type_commit(&eo_propagator_z_odd_bwd_slice_struct);
@@ -1401,10 +1405,10 @@ void mpi_init_xchange_eo_propagator(void) {
     i++;
   }}}
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_even_bwd_slice_struct );
+  i = MPI_Type_create_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_even_bwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(16);
   }
   i = MPI_Type_commit(&eo_propagator_z_even_bwd_slice_struct);
@@ -1433,10 +1437,10 @@ void mpi_init_xchange_eo_propagator(void) {
     i++;
   }}}
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_odd_fwd_slice_struct );
+  i = MPI_Type_create_struct ( count, blocklengths, displacements, datatypes, &eo_propagator_z_odd_fwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(18);
   }
   
@@ -1467,10 +1471,10 @@ void mpi_init_xchange_eo_propagator(void) {
     i++;
   }}}
 
-  i = MPI_Type_struct(count, blocklengths, displacements, datatypes, &eo_propagator_z_even_fwd_slice_struct );
+  i = MPI_Type_create_struct ( count, blocklengths, displacements, datatypes, &eo_propagator_z_even_fwd_slice_struct );
   if(i != MPI_SUCCESS ) {
     MPI_Error_string(i, errorString, &errorStringLength);
-    fprintf(stderr, "[mpi_init] Error from MPI_Type_struct, status was %s\n", errorString);
+    fprintf(stderr, "[mpi_init] Error from MPI_Type_create_struct, status was %s\n", errorString);
     EXIT(20);
   }
 

@@ -32,6 +32,9 @@ int a_mi_b_ti_c ( void * param , void * v_in, double * v_out);
 
 int da_mi_b_ti_c ( void * param , void * v_in, double * v_out);
 
+int a_mi_b  ( void * param , void * v_in, double * v_out);
+int da_mi_b  ( void * param , void * v_in, double * v_out);
+
 int  cumulant_1  ( void * param , void * v_in, double * v_out);
 int dcumulant_1  ( void * param , void * v_in, double * v_out);
 int  cumulant_2  ( void * param , void * v_in, double * v_out);
@@ -44,6 +47,11 @@ int dcumulant_4  ( void * param , void * v_in, double * v_out);
 int ratio_1_2_mi_3 ( void * param , void * v_in, double * v_out);
 int dratio_1_2_mi_3 ( void * param , void * v_in, double * v_out);
 
+int sqrt_ab_over_cd ( void * param , void * v_in, double * v_out);
+int dsqrt_ab_over_cd ( void * param , void * v_in, double * v_out);
+
+int a_mi_w_ti_z_dag_re ( void * param , void * v_in, double * v_out);
+int da_mi_w_ti_z_dag_re ( void * param , void * v_in, double * v_out);
 
 }
 

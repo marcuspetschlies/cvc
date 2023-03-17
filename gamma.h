@@ -14,7 +14,7 @@ typedef struct {
 void gamma_matrix_init ( gamma_matrix_type *g);
 void gamma_matrix_zero ( gamma_matrix_type *g);
 void gamma_matrix_fill ( gamma_matrix_type *g);
-void gamma_matrix_printf (gamma_matrix_type *g, char*name, FILE*ofs);
+void gamma_matrix_printf (gamma_matrix_type *g, const char * name, FILE*ofs);
 void gamma_matrix_mult ( gamma_matrix_type *g1, gamma_matrix_type *g2, gamma_matrix_type *g3 );
 
 void gamma_matrix_transposed (gamma_matrix_type *g, gamma_matrix_type *p);
