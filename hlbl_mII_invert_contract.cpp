@@ -75,8 +75,22 @@ typedef void (*QED_kernel_LX_ptr)( const double xv[4], const double yv[4], const
 
 /***********************************************************
  * x must be in { 0, ..., L-1 }
+ * mapping as in 2006.16224, eq. 8
  ***********************************************************/
 inline void site_map (int xv[4], int const x[4] )
+{
+  xv[0] = ( x[0] >= T_global   / 2 ) ? (x[0] - T_global )  : x[0];
+  xv[1] = ( x[1] >= LX_global  / 2 ) ? (x[1] - LX_global)  : x[1];
+  xv[2] = ( x[2] >= LY_global  / 2 ) ? (x[2] - LY_global)  : x[2];
+  xv[3] = ( x[3] >= LZ_global  / 2 ) ? (x[3] - LZ_global)  : x[3];
+
+  return;
+}
+
+/***********************************************************
+ * as above, but set L/2 to 0 and -L/2 to 0
+ ***********************************************************/
+inline void site_map_zerohalf (int xv[4], int const x[4] )
 {
   xv[0] = ( x[0] > T_global   / 2 ) ? x[0] - T_global   : (  ( x[0] < T_global   / 2 ) ? x[0] : 0 );
   xv[1] = ( x[1] > LX_global  / 2 ) ? x[1] - LX_global  : (  ( x[1] < LX_global  / 2 ) ? x[1] : 0 );
@@ -648,7 +662,7 @@ int main(int argc, char **argv) {
                     ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
                 int zv[4];
-                site_map ( zv, z );
+                site_map_zerohalf ( zv, z );
 
                 _fv_eq_fv_ti_re ( _s, _u,  zv[rho  ] );
               }
@@ -668,7 +682,7 @@ int main(int argc, char **argv) {
                     ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
                 int zv[4];
-                site_map ( zv, z );
+                site_map_zerohalf ( zv, z );
 
                 _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -zv[sigma] );
               }
@@ -699,6 +713,7 @@ int main(int argc, char **argv) {
 
           }  /* of ia */
 
+#if 0
           /***********************************************************
            * TEST WRITE dzu
            ***********************************************************/
@@ -718,6 +733,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * END OF TEST
            ***********************************************************/
+#endif
 
 #if _WITH_TIMER
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -840,8 +856,9 @@ int main(int argc, char **argv) {
             x[2] = ( x[2] - gsx[2] + LY_global ) % LY_global;
             x[3] = ( x[3] - gsx[3] + LZ_global ) % LZ_global;
 
-            int xv[4];
+            int xv[4], xvzh[4];
             site_map ( xv, x );
+            site_map_zerohalf ( xvzh, x );
 
             for ( int ib = 0; ib < 12; ib++) 
             {
@@ -936,8 +953,8 @@ int main(int argc, char **argv) {
 
                         double u[2] = { g_dxu[lambda][mu][ia][2*ib], g_dxu[lambda][mu][ia][2*ib+1] };
 
-                        double v[2] = { xv[rho] * g_dzsu[sigma][nu][ib][2*ia  ] - xv[sigma] * g_dzsu[rho][nu][ib][2*ia  ],
-                                        xv[rho] * g_dzsu[sigma][nu][ib][2*ia+1] - xv[sigma] * g_dzsu[rho][nu][ib][2*ia+1] };
+                        double v[2] = { xvzh[rho] * g_dzsu[sigma][nu][ib][2*ia  ] - xvzh[sigma] * g_dzsu[rho][nu][ib][2*ia  ],
+                                        xvzh[rho] * g_dzsu[sigma][nu][ib][2*ia+1] - xvzh[sigma] * g_dzsu[rho][nu][ib][2*ia+1] };
 
                         dtmp[0] += u[0] * v[0] - u[1] * v[1];
                         dtmp[1] += u[0] * v[1] + u[1] * v[0];
@@ -982,6 +999,9 @@ int main(int argc, char **argv) {
               xm[2] - ym[2],
               xm[3] - ym[3] };
 
+            /***********************************************************
+             * loop on kernsl
+             ***********************************************************/
             for ( int ikernel = 0; ikernel < 4; ikernel++ )
             {
 
@@ -1008,7 +1028,7 @@ int main(int argc, char **argv) {
                 }
               }
               kernel_sum_thread[ikernel] += dtmp;
-#if 0
+
 #pragma omp critical
 {
             for ( int mu = 0; mu < 4; mu++ )
@@ -1036,7 +1056,7 @@ int main(int argc, char **argv) {
               }
             }
 }  /* end of critical region */
-#endif
+
             }
 
 #if 0
