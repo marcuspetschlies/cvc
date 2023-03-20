@@ -390,10 +390,10 @@ int prepare_seqn_stochastic_vertex_propagator_sliced3d_oet (double**seq_prop, do
   const int isimag = gamma_permutation[idsource][ 0] % 2;
             /* sign from the source gamma matrix; the minus sign
              *    * in the lower two lines is the action of gamma_5 */
-  const double ssource[4] =  { gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]],
-                               gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]],
-                               gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]],
-                               gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] };
+  const double ssource[4] =  { 1.0 * gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]],
+                               1.0 * gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]],
+                               1.0 * gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]],
+                               1.0 * gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]] };
 
 
   int i, it;
@@ -586,10 +586,10 @@ int prepare_seq_stochastic_vertex_stochastic_oet (double**seq_prop, double**stoc
   const int isimag = gamma_permutation[gid][ 0] % 2;
             /* sign from the source gamma matrix; the minus sign
              *    * in the lower two lines is the action of gamma_5 */
-  const double svertex[4] =  { gamma_sign[gid][ 0] * gamma_sign[5][gamma_permutation[gid][ 0]],
-                               gamma_sign[gid][ 6] * gamma_sign[5][gamma_permutation[gid][ 6]],
-                               gamma_sign[gid][12] * gamma_sign[5][gamma_permutation[gid][12]],
-                               gamma_sign[gid][18] * gamma_sign[5][gamma_permutation[gid][18]] };
+  const double svertex[4] =  { 1.0 * gamma_sign[gid][ 0] * gamma_sign[5][gamma_permutation[gid][ 0]],
+                               1.0 * gamma_sign[gid][ 6] * gamma_sign[5][gamma_permutation[gid][ 6]],
+                               1.0 * gamma_sign[gid][12] * gamma_sign[5][gamma_permutation[gid][12]],
+                               1.0 * gamma_sign[gid][18] * gamma_sign[5][gamma_permutation[gid][18]] };
 
 
   int i, isample;
