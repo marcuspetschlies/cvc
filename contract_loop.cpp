@@ -291,7 +291,7 @@ int contract_loop_write_to_h5_file (double *** const loop, void * file, char*tag
       /* big_endian() ?  H5T_IEEE_F64BE : H5T_IEEE_F64LE; */
  
       /* shape of the output arary */ 
-      hsize_t dims[4] = { T_global, momentum_number, nc, 2 };
+      hsize_t dims[4] = { static_cast<hsize_t>(T_global), static_cast<hsize_t>(momentum_number), static_cast<hsize_t>(nc), 2 };
   
       /*
                  int rank                             IN: Number of dimensions of dataspace.
