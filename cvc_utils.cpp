@@ -6717,7 +6717,7 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   }
 
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "gauge_field_eq_gauge_field_ti_phase", "multiply bc phase", g_cart_id == 0 );
+  show_time ( &ta, &tb, "gauge_field_eq_gauge_field_ti_phase", "multiply-bc-phase", g_cart_id == 0 );
   return(0);
 }  /* end of gauge_field_eq_gauge_field_ti_phase */
 
