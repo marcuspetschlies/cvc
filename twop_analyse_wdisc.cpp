@@ -52,10 +52,10 @@ void usage() {
   EXIT(0);
 }
 
-#define _LOOP_H5 1
-#define _LOOP_ASCII 0
+#define _LOOP_H5 0
+#define _LOOP_ASCII 1
 
-#define _PLEGMA_CONVENTION 0
+#define _PLEGMA_CONVENTION 1
 
 int main(int argc, char **argv) {
   
@@ -353,6 +353,8 @@ int main(int argc, char **argv) {
         {
           case 'a': replica = 0; break;
           case 'b': replica = 1; break;
+          case 'c': replica = 2; break;
+          case 'd': replica = 3; break;
         }
 
 
@@ -477,6 +479,8 @@ int main(int argc, char **argv) {
         {
           case 'a': replica = 0; break;
           case 'b': replica = 1; break;
+          case 'c': replica = 2; break;
+          case 'd': replica = 3; break;
         }
 
         if ( loop_nev < 0 ) {
@@ -576,10 +580,6 @@ int main(int argc, char **argv) {
 
 #endif  /* end of if _LOOP_ASCII */
 
-
-  /****************************************************/
-  /****************************************************/
-
 #if _LOOP_H5
   double ****** loops_matrix = init_6level_dtable ( g_sink_momentum_number, num_conf, loop_nsample, T_global, 4, 8 );
   if ( loops_matrix == NULL ) {
@@ -612,7 +612,7 @@ int main(int argc, char **argv) {
   for ( int iconf = 0; iconf < num_conf; iconf++ )
   {
 
-    sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.h5", conf_src_list[iconf][0][0], filename_prefix, conf_src_list[iconf][0][1], filename_prefix2, conf_src_list[iconf][0][1] );
+    sprintf ( filename, "stream_%c/%s/%s.%.4d.h5", conf_src_list[iconf][0][0], filename_prefix, filename_prefix2, conf_src_list[iconf][0][1] );
 
     size_t ncdim = 0, *cdim = NULL;
     int *ibuffer = NULL;
@@ -726,7 +726,6 @@ int main(int argc, char **argv) {
       gamma_matrix_set ( &gf, gamma_id, 1.0 );
       if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "g_cvc", stdout );
 
-
       if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
       project_loop ( loops_proj_sink[isink_momentum][isink_gamma][0][0], gf.m, loops_matrix[isink_momentum][0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );
 
@@ -779,8 +778,6 @@ int main(int argc, char **argv) {
 
       gamma_matrix_set ( &gf, gamma_id, 1.0 );
       if ( g_verbose > 1 ) gamma_matrix_printf ( &gf, "g_cvc", stdout );
-
-
 
       if ( g_verbose > 0 ) fprintf ( stdout, "# [twop_analyse_wdisc] WARNING: using loop_transpose = %d %s %d\n", loop_transpose, __FILE__, __LINE__ );
       project_loop ( loops_proj_source[isink_momentum][isource_gamma][0][0], gf.m, loops_matrix[isink_momentum][0][0][0][0], num_conf * loop_nsample * T_global, loop_transpose );

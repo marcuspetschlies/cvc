@@ -53,10 +53,10 @@
 
 #define _TWOP_STATS  1
 
-#define _LOOP_ANALYSIS 0
+#define _LOOP_ANALYSIS 1
 
-#define _RAT_METHOD       0
-#define _RAT_SUB_METHOD   0
+#define _RAT_METHOD       1
+#define _RAT_SUB_METHOD   1
 #define _FHT_METHOD_ALLT  0
 #define _FHT_METHOD_ACCUM 0
 
@@ -147,8 +147,7 @@ int main(int argc, char **argv) {
 #if _TWOP_CYD_H5
   const char flavor_tag[2][3] = { "uu", "dd" };
 #elif _TWOP_AVGX_H5
-  // char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
-  char const flavor_tag[2][20]        = { "l-gf-l-gi" , "l-gf-l-gi" };
+  char const flavor_tag[3][20]        = { "s-gf-l-gi" , "l-gf-s-gi" , "l-gf-l-gi" };
 #else
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 #endif
@@ -180,6 +179,8 @@ int main(int argc, char **argv) {
   char loop_type[10] = "NA";
   char oet_type[10] = "NA";
   int loop_transpose = 0;
+  int flavor_id_list[3] = { -1, -1, -1};
+  int flavor_id_num = 0;
 
   struct timeval ta, tb, start_time, end_time;
 
@@ -193,7 +194,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:t:b:m:l:O:T:B:M:x:s:o:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:E:v:n:u:w:t:b:m:l:O:T:B:M:x:s:o:i:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -275,6 +276,11 @@ int main(int argc, char **argv) {
     case 's':
       g_mus = atof ( optarg );
       fprintf ( stdout, "# [avxn_analyse] g_mus set to %e\n", g_mus );
+      break;
+    case 'i':
+      flavor_id_list[flavor_id_num] = atoi ( optarg );
+      fprintf ( stdout, "# [avxn_analyse] flavor_id %d set to %d\n", flavor_id_num, flavor_id_list[flavor_id_num] );
+      flavor_id_num++;
       break;
     case 'h':
     case '?':
@@ -1011,19 +1017,23 @@ int main(int argc, char **argv) {
 
         char key[400], key2[400];
 
+
 /*        if ( twop_weight[0] != 0. ) { */
           /* s-gf-l-gi/mu-0.0186/mu0.0007/t116/s0/gf5/gi5/pix-1piy0piz0/px1py0pz0 */
           
+          int const flavor_id = flavor_id_list[0];
+
           sprintf( key, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_tag[0],
+              flavor_tag[flavor_id],
                   -g_mus, g_mu,
                   conf_src_list[iconf][isrc][2], 
-                  conf_src_list[iconf][isrc][3], 
+                  // conf_src_list[iconf][isrc][3], 
+                  conf_src_list[iconf][isrc][4], 
                   pi[0], pi[1], pi[2],
                   pf[0], pf[1], pf[2]);
 
           sprintf( key2, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_tag[0],
+              flavor_tag[flavor_id],
                   -g_mus, g_mu,
                   conf_src_list[iconf][isrc][2], 
                   0, 
@@ -1053,9 +1063,11 @@ int main(int argc, char **argv) {
 
 #if 0
         if ( twop_weight[1] != 0. ) {
+        
+          int const flavor_id = flavor_id_list[1];
 
           sprintf( key, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_type_2pt[flavor_id_2pt],
+              flavor_type_2pt[flavor_id],
                   muval_2pt_list[0], -muval_2pt_list[1],
                   conf_src_list[iconf][isrc][2], 
                   conf_src_list[iconf][isrc][3], 
@@ -1063,7 +1075,7 @@ int main(int argc, char **argv) {
                   -pf[0], -pf[1], -pf[2]);
 
           sprintf( key2, "/%s/mu%6.4f/mu%6.4f/t%d/s%d/gf5/gi5/pix%dpiy%dpiz%d/px%dpy%dpz%d",
-              flavor_type_2pt[flavor_id_2pt],
+              flavor_type_2pt[flavor_id],
                   muval_2pt_list[0], -muval_2pt_list[1],
                   conf_src_list[iconf][isrc][2],
                   0,
@@ -1239,7 +1251,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    char obs_name[400];
+    char obs_name[500];
     sprintf( obs_name, "twop.orbit.gf%d.gi%d.PX%d_PY%d_PZ%d.%s",
           g_sink_gamma_id_list[0],
           g_source_gamma_id_list[0],
@@ -1306,7 +1318,9 @@ int main(int argc, char **argv) {
   {
 
     for ( int imom = 0; imom < g_sink_momentum_number; imom++ ) {
-      for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+      for ( int iflavor = 0; iflavor < flavor_id_num; iflavor++ ) 
+      {
+        int const flavor_id = flavor_id_list[iflavor];
 
         double ** data = init_2level_dtable ( num_conf, T_global );
         if ( data == NULL ) {
@@ -1326,8 +1340,8 @@ int main(int argc, char **argv) {
           }
         }
 
-        char obs_name[400];
-        sprintf( obs_name, "twop.%s.gf%d.gi%d.PX%d_PY%d_PZ%d.%s", flavor_tag[iflavor],
+        char obs_name[500];
+        sprintf( obs_name, "twop.%s.gf%d.gi%d.PX%d_PY%d_PZ%d.%s", flavor_tag[flavor_id],
               g_sink_gamma_id_list[0],
               g_source_gamma_id_list[0],
               g_sink_momentum_list[imom][0],
@@ -1395,8 +1409,22 @@ int main(int argc, char **argv) {
         for ( int idir = 0; idir < 4; idir++ ) {
   
           char stream_tag;
-          if      ( conf_src_list[iconf][0][0] == 'a' ) stream_tag='0';
+          /* if      ( conf_src_list[iconf][0][0] == 'a' ) stream_tag='0';
           else if ( conf_src_list[iconf][0][0] == 'b' ) stream_tag='1';
+          else if ( conf_src_list[iconf][0][0] == 'c' ) stream_tag='2';
+          else if ( conf_src_list[iconf][0][0] == 'd' ) stream_tag='3'; */
+
+          switch (conf_src_list[iconf][0][0]) {
+            case 'a': stream_tag='0'; break;
+            case 'b': stream_tag='1'; break;
+            case 'c': stream_tag='2'; break;
+            case 'd': stream_tag='3'; break;
+            default:
+              fprintf ( stderr, "[avx_analyse] unrecognized stream %c   %s %d\n", conf_src_list[iconf][0][0], __FILE__ , __LINE__ );
+              EXIT(1);
+              break;
+          }
+
 
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
   
@@ -1837,7 +1865,7 @@ int main(int argc, char **argv) {
           }
         }
 
-        char obs_name[400];
+        char obs_name[500];
         sprintf ( obs_name, "loop.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
@@ -1879,7 +1907,7 @@ int main(int argc, char **argv) {
           }
         }
 
-        char obs_name[400];
+        char obs_name[500];
         sprintf ( obs_name, "loop_sym.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
@@ -1921,7 +1949,7 @@ int main(int argc, char **argv) {
           }
         }
 
-        char obs_name[400];
+        char obs_name[500];
         sprintf ( obs_name, "loop_sub.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
@@ -1965,7 +1993,7 @@ int main(int argc, char **argv) {
           data[iconf] /= (double)T_global;
         }
 
-        char obs_name[400];
+        char obs_name[500];
         sprintf ( obs_name, "loop_sub.tavg.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
             loop_tag,
@@ -2394,7 +2422,7 @@ int main(int argc, char **argv) {
           }
         }
 
-        char obs_name[400];
+        char obs_name[500];
         sprintf ( obs_name, "threep.orbit.src.%s.%s.dtsnk%d.PX%d_PY%d_PZ%d.%s",
             loop_tag, threep_tag[k],
             g_sequential_source_timeslice_list[idt],
@@ -2438,7 +2466,7 @@ int main(int argc, char **argv) {
         int narg          = 2;
         int arg_first[2]  = { 0, nT };
         int arg_stride[2] = { 1,  0 };
-        char obs_name[400];
+        char obs_name[500];
 
         double ** data = init_2level_dtable ( num_conf, nT + 1 );
         if ( data == NULL ) {
@@ -2499,7 +2527,7 @@ int main(int argc, char **argv) {
         int narg          = 3;
         int arg_first[3]  = { 0, nT, nT+1 };
         int arg_stride[3] = { 1,  0,    0 };
-        char obs_name[400];
+        char obs_name[500];
 
         double ** data = init_2level_dtable ( num_conf, nT + 2 );
         if ( data == NULL ) {
@@ -2726,7 +2754,7 @@ int main(int argc, char **argv) {
     dquant fptr = acosh_ratio_deriv, dfptr = dacosh_ratio_deriv;
     int narg = 6;
     int arg_stride[6] = {1,1,1,1,1,1};
-    char obs_name[400];
+    char obs_name[500];
  
     /**********************************************************
      * threep_44
@@ -2775,7 +2803,7 @@ int main(int argc, char **argv) {
       int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
       int nT = Thp1 - 2 * itau;
 
-      char obs_name[400];
+      char obs_name[500];
       sprintf ( obs_name, "threep.fht.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
           loop_tag,
           itau,
@@ -2807,7 +2835,7 @@ int main(int argc, char **argv) {
       int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
       int nT = Thp1 - 2 * itau;
 
-      char obs_name[400];
+      char obs_name[500];
       sprintf ( obs_name, "threep.fht.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
           loop_tag,
           itau,
@@ -2995,7 +3023,7 @@ int main(int argc, char **argv) {
     dquant fptr = acosh_ratio_deriv, dfptr = dacosh_ratio_deriv;
     int narg = 6;
     int arg_stride[6] = {1,1,1,1,1,1};
-    char obs_name[400];
+    char obs_name[500];
  
     /**********************************************************
      * threep_44
@@ -3070,7 +3098,7 @@ int main(int argc, char **argv) {
       int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
       int nT = Thp1 - 2 * itau;
 
-      char obs_name[400];
+      char obs_name[500];
       sprintf ( obs_name, "threep.fht.accum.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
           loop_tag,
           itau,
@@ -3115,7 +3143,7 @@ int main(int argc, char **argv) {
       int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
       int nT = Thp1 - 2 * itau;
 
-      char obs_name[400];
+      char obs_name[500];
       sprintf ( obs_name, "threep.fht.accum.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
           loop_tag,
           itau,

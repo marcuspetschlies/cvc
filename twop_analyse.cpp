@@ -95,6 +95,12 @@ int main(int argc, char **argv) {
   char const twop_flavor_tag[5][20]        = { "u-gf-u-gi" , "d-gf-u-gi" , "u-gf-d-gi" , "d-gf-d-gi" , "u-v-u-v" };
 #endif
 
+#if _TWOP_H5_OET
+  char const twop_flavor_tag[2][20]        = { "d+-g-u-g" , "u+-g-u-g" };
+#else
+  char const twop_flavor_tag[5][20]        = { "u-gf-u-gi" , "d-gf-u-gi" , "u-gf-d-gi" , "d-gf-d-gi" , "u-v-u-v" };
+#endif
+
   char const gamma_id_to_ascii[16][10] = {
     "gt",
     "gx",
