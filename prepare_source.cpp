@@ -1119,7 +1119,7 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
     fini_1level_dtable ( &ran_buffer );
 
   } else {
-    fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+    if ( g_verbose > 2 ) fprintf(stdout, "# [init_timeslice_source_oet] proc%.4d using existing random vector\n", g_cart_id);
   }
 
   if(have_source) {
