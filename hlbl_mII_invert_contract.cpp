@@ -1029,35 +1029,43 @@ int main(int argc, char **argv) {
               }
               kernel_sum_thread[ikernel] += dtmp;
 
+              /***********************************************************
+               * BEGIN TEST
+               ***********************************************************/
+#if 0
 #pragma omp critical
 {
-            for ( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int nu = 0; nu < 4; nu++ )
+              for ( int mu = 0; mu < 4; mu++ )
               {
-                for ( int lambda = 0; lambda < 4; lambda++ )
+                for ( int nu = 0; nu < 4; nu++ )
                 {
-                  for( int k = 0; k < 6; k++ )
+                  for ( int lambda = 0; lambda < 4; lambda++ )
                   {
-                    fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
-                        rank,
-                        xv[0], xv[1], xv[2], xv[3],
-                        yv[0], yv[1], yv[2], yv[3],
-                        iflavor,
-                        ikernel,
-                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
-                        kerv1[k][mu][nu][lambda],
-                        kerv2[k][mu][nu][lambda],
-                        kerv3[k][mu][nu][lambda],
-                        corr_I[k][mu][nu][2*lambda],
-                        corr_II[k][mu][nu][2*lambda] );
+                    for( int k = 0; k < 6; k++ )
+                    {
+                      fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
+                          rank,
+                          xv[0], xv[1], xv[2], xv[3],
+                          yv[0], yv[1], yv[2], yv[3],
+                          iflavor,
+                          ikernel,
+                          mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
+                          kerv1[k][mu][nu][lambda],
+                          kerv2[k][mu][nu][lambda],
+                          kerv3[k][mu][nu][lambda],
+                          corr_I[k][mu][nu][2*lambda],
+                          corr_II[k][mu][nu][2*lambda] );
+                    }
                   }
                 }
               }
-            }
 }  /* end of critical region */
+#endif
+              /***********************************************************
+               * END TEST
+               ***********************************************************/
 
-            }
+            }  /* end of loop on kernels */
 
 #if 0
             QED_kernel_L1( xm, ym, kqed_t, kerv );
@@ -1086,6 +1094,9 @@ int main(int argc, char **argv) {
 #endif
 
 #if 0
+            /***********************************************************
+             * BEGIN TEST
+             ***********************************************************/
 #pragma omp critical
 {
             for ( int mu = 0; mu < 4; mu++ )
@@ -1111,6 +1122,10 @@ int main(int argc, char **argv) {
               }
             }
 }  /* end of critical region */
+
+            /***********************************************************
+             * END TEST
+             ***********************************************************/
 #endif
           }  /* end of loop on ix */
 
