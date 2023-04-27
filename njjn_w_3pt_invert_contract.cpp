@@ -226,14 +226,13 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
-  char aff_tag[400];
 #endif
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?f:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -525,12 +524,6 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   for( int isource_location = 0; isource_location < g_source_location_number; isource_location++ ) 
   {
-
-    /***************************************************************************
-     * allocate point-to-all propagators,
-     * spin-color dilution (i.e. 12 fields per flavor of size 24xVOLUME real )
-     ***************************************************************************/
-
     /***************************************************************************
      * determine source coordinates,
      * find out, if source_location is in this process
@@ -590,6 +583,7 @@ int main(int argc, char **argv) {
      **
      ** point-to-all propagators with source at coherent source
      **
+     ** POINT SOURCE FROM SOURCE POSITION
      ***************************************************************************
      ***************************************************************************/
         
@@ -598,13 +592,13 @@ int main(int argc, char **argv) {
 
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      /***********************************************************
+      /***************************************************************************
        * flavor-type point-to-all propagator
        *
        * ONLY SOURCE smearing here
        *
        * NOTE: quark flavor is controlled by value of iflavor
-       ***********************************************************/
+       ***************************************************************************/
       /*                                     output field         src coords flavor type  src smear  sink smear gauge field for smearing,  for residual check ...
        */
       exitstatus = point_source_propagator ( propagator[iflavor], gsx,       iflavor,     1,         0,         gauge_field_smeared,       check_propagator_residual, gauge_field_with_phase, lmzz );
@@ -617,6 +611,8 @@ int main(int argc, char **argv) {
       show_time ( &ta, &tb, "njjn_w_3pt_invert_contract", "forward-light-smear-invert-check", g_cart_id == 0 );
 
     }  /* end of loop on flavor */
+
+
 
     /***************************************************************************
      ***************************************************************************
@@ -645,7 +641,70 @@ int main(int argc, char **argv) {
           EXIT(123);
         }
 
-        /* up and down quark propagator with source smearing */
+
+        /***************************************************************************
+         * propagators filled with current sink timeslice only
+         ***************************************************************************/
+
+        /***************************************************************************
+         * processes which have (global) sink timeslice do copy
+         ***************************************************************************/
+
+        fermion_propagator_type * delta[2] = { NULL, NULL };
+
+        for ( int iflavor = 0; iflavor < 2; iflavor++ )
+        {
+        
+          delta[iflavor]  = create_fp_field ( VOLUME );
+        
+          double ** propagator_allsink = init_2level_dtable ( 12, _GSI( VOLUME ) );
+          if( propagator_allsink == NULL ) {
+            fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
+            EXIT(123);
+          }
+
+          for ( int isc = 0; isc < 12; isc++ )
+          {
+
+            if ( gxsink[0] / T == g_proc_coords[0] )
+            {
+              size_t const sizeof_spinor_field_timeslice = _GSI( VOL3 ) * sizeof( double );
+              size_t const offset = _GSI( VOL3 );
+              for ( int it = 0; it < T; it++ ) 
+              {
+                memcpy ( propagator_allsink[isc] + it * offset, propagator[iflavor][isc] + xsink[0] * offset, sizeof_spinor_field_timeslice );
+              }
+            } 
+#ifdef HAVE_MPI
+            int root = ( ( ( gxsink[0] / T ) * g_proc_x + g_proc_coords[1] ) * g_nproc_y + g_proc_coords[2] ) * g_nproc_z + g_proc_coords[3];
+            if ( g_verbose > 2 ) fprintf (stdout, "proc %4d root %4d  %s %d\n", g_cart_id, root, __FILE__ , __LINE__ );
+
+            if ( MPI_Bcast( propagator_allsink[isc], _GSI(VOLUME), MPI_DOUBLE, root, g_tr_comm )  != MPI_SUCCESS )
+            {
+              fprintf ( stderr, "[njjn_w_3pt_invert_contract] Error from MPI_Bcast   %s %d\n", __FILE__, __LINE__ );
+              EXIT(12);
+            }
+#endif
+          }  /* end of loop on spin-color for propagator_allsink */
+ 
+          assign_fermion_propagator_from_spinor_field ( delta[iflavor], propagator_allsink, VOLUME);
+        
+          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( delta[iflavor], gamma_f1_list[0], delta[iflavor], VOLUME );
+
+          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( delta[iflavor], gamma_f1_list[0], delta[iflavor], VOLUME );
+
+          /* fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( delta[iflavor], delta[iflavor], -gamma_f1_sign[0]*gamma_f1_sign[0], VOLUME ); */
+
+          fini_2level_dtable ( &propagator_allsink );
+
+        }  /* end of loop on flavor for propagator_allsink */
+
+
+        /***************************************************************************
+         * up and down quark propagator with source smearing
+         *
+         * POINT SOURCE FROM SINK POSITION
+         ***************************************************************************/
         double *** sink_propagator = init_3level_dtable ( 2, 12, _GSI( VOLUME ) );
         if( sink_propagator == NULL ) {
           fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
@@ -675,12 +734,27 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "njjn_w_3pt_invert_contract", "forward-light-invert-check", g_cart_id == 0 );
 
-        }  /* end of loop on flavor */
+        }  /* end of loop on flavor for sink_propagator */
 
-        double *** v = init_3level_dtable ( 2, 12, _GSI(VOLUME ) );
+        /***************************************************************************
+         ***************************************************************************
+         ** 
+         ** QUARK BILINEARS
+         **
+         ** build omega / sigma b
+         **   from sink-to-insertion^+ x source-to-insertion propagators
+         **
+         ** contract with delta
+         **
+         ***************************************************************************
+         ***************************************************************************/
 
-        for ( int igamma = 0; igamma < sequential_gamma_sets ; igamma++ )
+        for ( int iflavor = 0; iflavor < 2; iflavor++ )
         {
+
+          double ** v = init_2level_dtable ( 12, _GSI(VOLUME ) );
+              
+          fermion_propagator_type * omega  = create_fp_field ( VOLUME );
 
           /***************************************************************************
            * vx holds the x-dependent nucleon-nucleon spin propagator,
@@ -691,6 +765,7 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
             EXIT(47);
           }
+
           double ** vx = init_2level_dtable ( VOLUME, 32 );
           if ( vx == NULL ) {
             fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
@@ -707,19 +782,22 @@ int main(int argc, char **argv) {
             EXIT(47);
           }
 
-          memset ( vx[0], 0, 32*VOLUME *sizeof(double) );
-
-          for ( int igs = 0; igs < sequential_gamma_num[igamma]; igs++ )
+          for ( int igamma = 0; igamma < sequential_gamma_sets ; igamma++ )
           {
-            int const gamma_id = sequential_gamma_id[igamma][igs];
 
-            for ( int iflavor = 0; iflavor < 2; iflavor++ )
+            /* vx to zero for each SET of sequential gamma matrices */
+            memset ( vx[0], 0, 32*VOLUME *sizeof(double) );
+
+            /* loop on gamma matrices inside a set */
+            for ( int igs = 0; igs < sequential_gamma_num[igamma]; igs++ )
             {
+              int const gamma_id = sequential_gamma_id[igamma][igs];
 
+              /* build v -> omega */
               for ( int isrc = 0; isrc < 12; isrc++ )
               {
                 for ( int isnk = 0; isnk < 12; isnk++ )
-                  {
+                {
 #pragma omp parallel
 {
                   double sp[24];
@@ -729,7 +807,7 @@ int main(int argc, char **argv) {
                   {
                     double * const _pi = propagator[iflavor][isrc]        + _GSI(ix);
                     double * const _pf = sink_propagator[1-iflavor][isnk] + _GSI(ix);
-                    double * const _v  = v[iflavor][isrc] + _GSI(ix);
+                    double * const _v  = v[isrc] + _GSI(ix);
 
                     _fv_eq_gamma_ti_fv ( sp, gamma_id, _pi );
 
@@ -749,27 +827,18 @@ int main(int argc, char **argv) {
                 /* multiply by g5 from right;
                  * from using conjugate sink propagator
                  */
-
-                for ( int isnk = 0; isnk < 12; isnk++ )
-                {
-                  g5_phi ( v[iflavor][isrc], VOLUME );
-                }
+                g5_phi ( v[isrc], VOLUME );
 
               }  /* end of loop on source spin-color */
               
-            }  /* end of loop on iflavor */
+              /* load v into omega */
+              assign_fermion_propagator_from_spinor_field ( omega, v, VOLUME);
 
-            fermion_propagator_type * omega  = create_fp_field ( VOLUME );
-
-            for ( int iflavor = 0; iflavor < 2; iflavor++ )
-            {
-
-              assign_fermion_propagator_from_spinor_field ( omega, v[iflavor], VOLUME);
-
+              /* vx_aux to zero */
               memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
 
               /* contraction */
-              exitstatus = contract_v5 ( vx_aux, omega, delta, omega, VOLUME );
+              exitstatus = contract_v5 ( vx_aux, omega, delta[1-iflavor], omega, VOLUME );
               if ( exitstatus != 0 ) {
                 fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT( 1 );
@@ -783,7 +852,7 @@ int main(int argc, char **argv) {
               memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
 
               /* contraction */
-              exitstatus = contract_v6 ( vx_aux, omega, delta, omega, VOLUME );
+              exitstatus = contract_v6 ( vx_aux, omega, delta[1-iflavor], omega, VOLUME );
               if ( exitstatus != 0 ) {
                 fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT( 1 );
@@ -795,41 +864,246 @@ int main(int argc, char **argv) {
                 vx[0][ix] += vx_aux[0][ix];
               }
 
-            free_fp_field ( &omega  );
+            }  /* end of loop on sequential_gamma_num */
 
-          }  /* end of loop on sequential_gamma_num */
+            char aff_tag[200];
+            sprintf ( aff_tag, "/w%c%c-f%c-w%c%c/dt%d/Gc_%s/sample%d/qb",
+                flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[1-iflavor],
+                flavor_tag[iflavor], flavor_tag[iflavor],
+                g_sequential_source_timeslice_list[idt],
+                sequential_gamma_tag[igamma],
+                isink_location);
 
-          char aff_tag[200];
-          sprintf ( aff_tag_prefix, "/%s/w%c%c-f%c-w%c%c/dt%d/Gc_%s/sample%d/qb",
-              correlator_tag,
-              flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[1-iflavor],
-              flavor_tag[iflavor], flavor_tag[iflavor],
-              g_sequential_source_timeslice[idt],
-              sequential_gamma_tag[igamma],
-              isink_location);
+            int momentum[3] = {0,0,0};
 
-          int momentum[3] = {0,0,0};
+            exitstatus = project_write ( vx, vp, affw, aff_tag, &momentum, 1, 16, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(48);
+            }
 
-          exitstatus = project_write ( vx, vp, affw, aff_tag, &momentum, 1, 16, io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(48);
-          }
+          }  /* end of loop on sequential_gamma_sets */
+
+          free_fp_field ( &omega  );
 
           fini_2level_dtable ( &vx_aux );
           fini_2level_dtable ( &vx );
           fini_3level_dtable ( &vp );
+          fini_2level_dtable ( &v );
 
-        }  /* end of loop on sequential_gamma_sets */
+        }  /* end of loop on flavor */
+
+        /***************************************************************************/
+        /***************************************************************************/
+
+        /***************************************************************************
+         ***************************************************************************
+         ** 
+         ** COLOR CROSSED
+         **
+         ** build omega / sigma b
+         **   from sink-to-insertion^+ x source-to-insertion propagators
+         **
+         ** contract with delta
+         **
+         ***************************************************************************
+         ***************************************************************************/
+
+        for ( int iflavor = 0; iflavor < 2; iflavor++ )
+        {
+
+          double **** v = init_4level_dtable ( 3, 3, 12, _GSI(VOLUME ) );
+              
+          fermion_propagator_type * omega  = create_fp_field ( VOLUME );
+          fermion_propagator_type * sigma  = create_fp_field ( VOLUME );
+
+          /***************************************************************************
+           * vx holds the x-dependent nucleon-nucleon spin propagator,
+           * i.e. a 4x4 complex matrix per space time point
+           ***************************************************************************/
+          double ** vx_aux = init_2level_dtable ( VOLUME, 32 );
+          if ( vx_aux == NULL ) {
+            fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+            EXIT(47);
+          }
+
+          double ** vx = init_2level_dtable ( VOLUME, 32 );
+          if ( vx == NULL ) {
+            fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+            EXIT(47);
+          }
+
+          /***************************************************************************
+           * vp holds the nucleon-nucleon spin propagator in momentum space,
+           * i.e. the momentum projected vx
+           ***************************************************************************/
+          double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+          if ( vp == NULL ) {
+            fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(47);
+          }
+
+          for ( int igamma = 0; igamma < sequential_gamma_sets ; igamma++ )
+          {
+
+            /* vx to zero for each SET of sequential gamma matrices */
+            memset ( vx[0], 0, 32*VOLUME *sizeof(double) );
+
+            /* loop on gamma matrices inside a set */
+            for ( int igs = 0; igs < sequential_gamma_num[igamma]; igs++ )
+            {
+              int const gamma_id = sequential_gamma_id[igamma][igs];
+
+              for ( int icol1 = 0; icol1 < 3; icol1++ )
+              {
+                for ( int icol2 = 0; icol2 < 3; icol2++ )
+                {
+
+                  /* build v -> omega */
+                  for ( int isrc = 0; isrc < 12; isrc++ )
+                  {
+                    for ( int isnk = 0; isnk < 12; isnk++ )
+                    {
+#pragma omp parallel
+{
+                      double sp[24], spi[24], spf[24] ;
+                      complex w;
+#pragma omp for
+                      for ( unsigned int ix = 0; ix < VOLUME; ix++ ) 
+                      {
+                        double * const _pi = propagator[iflavor][isrc]        + _GSI(ix);
+                        double * const _pf = sink_propagator[1-iflavor][isnk] + _GSI(ix);
+                        double * const _v  = v[icol1][icol2][isrc] + _GSI(ix);
+
+                        spi[2*(3*0+icol1)+0] = _pi[2*(3*0+icol1)+0];
+                        spi[2*(3*0+icol1)+1] = _pi[2*(3*0+icol1)+1];
+                        spi[2*(3*1+icol1)+0] = _pi[2*(3*1+icol1)+0];
+                        spi[2*(3*1+icol1)+1] = _pi[2*(3*1+icol1)+1];
+                        spi[2*(3*2+icol1)+0] = _pi[2*(3*2+icol1)+0];
+                        spi[2*(3*2+icol1)+1] = _pi[2*(3*2+icol1)+1];
+                        spi[2*(3*3+icol1)+0] = _pi[2*(3*3+icol1)+0];
+                        spi[2*(3*3+icol1)+1] = _pi[2*(3*3+icol1)+1];
+
+                        spf[2*(3*0+icol2)+0] = _pf[2*(3*0+icol2)+0];
+                        spf[2*(3*0+icol2)+1] = _pf[2*(3*0+icol2)+1];
+                        spf[2*(3*1+icol2)+0] = _pf[2*(3*1+icol2)+0];
+                        spf[2*(3*1+icol2)+1] = _pf[2*(3*1+icol2)+1];
+                        spf[2*(3*2+icol2)+0] = _pf[2*(3*2+icol2)+0];
+                        spf[2*(3*2+icol2)+1] = _pf[2*(3*2+icol2)+1];
+                        spf[2*(3*3+icol2)+0] = _pf[2*(3*3+icol2)+0];
+                        spf[2*(3*3+icol2)+1] = _pf[2*(3*3+icol2)+1];
+
+
+                        _fv_eq_gamma_ti_fv ( sp, gamma_id, spi );
+
+                        _fv_ti_eq_g5 ( sp );
+
+                        _co_eq_fv_dag_ti_fv ( &w, spf, sp );
+
+                        _v[ 2 * isnk + 0] = w.re;
+                        _v[ 2 * isnk + 1] = w.im;
+ 
+                      }  /* end of loop on volume */
+  
+}  /* end of parallel region */
+
+                    }  /* end of loop on sink spin-color */
+
+                    /* multiply by g5 from right;
+                     * from using conjugate sink propagator
+                     */
+                    g5_phi ( v[icol1][icol2][isrc], VOLUME );
+ 
+                  }  /* end of loop on source spin-color */
+
+                }  /* end of loop on icol2 */
+              }  /* end of loop on icol1 */ 
+
+              for ( int icol1 = 0; icol1 < 3; icol1++ )
+              {
+                for ( int icol2 = 0; icol2 < 3; icol2++ )
+                {
+
+                  /* load v for icol1, icol2 into omega */
+                  assign_fermion_propagator_from_spinor_field ( omega, v[icol1][icol2], VOLUME);
+
+                  /* load v for icol2, icol1 into sigma */
+                  assign_fermion_propagator_from_spinor_field ( sigma, v[icol2][icol1], VOLUME);
+
+                  /* vx_aux to zero */
+                  memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
+
+                  /* contraction */
+                  exitstatus = contract_v5 ( vx_aux, omega, delta[1-iflavor], omega, VOLUME );
+                  if ( exitstatus != 0 ) {
+                    fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT( 1 );
+                  }
+#pragma omp parallel for
+                  for ( size_t ix = 0; ix < 32*VOLUME; ix++ )
+                  {
+                    vx[0][ix] += vx_aux[0][ix];
+                  }
+
+                  memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
+
+                  /* contraction */
+                  exitstatus = contract_v6 ( vx_aux, omega, delta[1-iflavor], omega, VOLUME );
+                  if ( exitstatus != 0 ) {
+                    fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+                    EXIT( 1 );
+                  }
+
+#pragma omp parallel for
+                 for ( size_t ix = 0; ix < 32*VOLUME; ix++ )
+                   {
+                    vx[0][ix] += vx_aux[0][ix];
+                  }
+
+                }  /* end of loop on icol2 */
+              }  /* end of loop on icol1 */ 
+               
+            }  /* end of loop on sequential_gamma_num */
+
+            char aff_tag[200];
+            sprintf ( aff_tag, "/w%c%c-f%c-w%c%c/dt%d/Gc_%s/sample%d/cc",
+                flavor_tag[iflavor], flavor_tag[iflavor], flavor_tag[1-iflavor],
+                flavor_tag[iflavor], flavor_tag[iflavor],
+                g_sequential_source_timeslice_list[idt],
+                sequential_gamma_tag[igamma],
+                isink_location);
+
+            int momentum[3] = {0,0,0};
+
+            exitstatus = project_write ( vx, vp, affw, aff_tag, &momentum, 1, 16, io_proc );
+            if ( exitstatus != 0 ) {
+              fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(48);
+            }
+
+          }  /* end of loop on sequential_gamma_sets */
+
+          free_fp_field ( &omega  );
+          free_fp_field ( &sigma  );
+
+          fini_2level_dtable ( &vx_aux );
+          fini_2level_dtable ( &vx );
+          fini_3level_dtable ( &vp );
+          fini_4level_dtable ( &v );
+
+        }  /* end of loop on flavor */
+
+        /***************************************************************************/
+        /***************************************************************************/
 
         fini_3level_dtable ( &sink_propagator );
+    
+        free_fp_field ( &(delta[0]) );
+        free_fp_field ( &(delta[1]) );
 
       }  /* end of loop on sink locations */
 
     }  /* end of loop on source - sink -timeseparations */
-
-    free_fp_field ( delta[0] );
-    free_fp_field ( delta[1] );
 
 
 #ifdef HAVE_LHPC_AFF
@@ -844,6 +1118,8 @@ int main(int argc, char **argv) {
       }
     }  /* end of if io_proc == 2 */
 #endif  /* of ifdef HAVE_LHPC_AFF */
+
+    fini_3level_dtable ( &propagator );
 
   }  /* end of loop on source locations */
 
