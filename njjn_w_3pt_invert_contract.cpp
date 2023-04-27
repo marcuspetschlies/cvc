@@ -124,6 +124,19 @@ static inline int project_write ( double ** vx, double *** vp, struct AffWriter_
     return( 2 );
   }
 
+  for ( int it = 0; it < T; it++ )
+  {
+    for ( int ip = 0; ip < momentum_number; ip++ )
+    {
+      for ( int l = 0; l < 16; l++ )
+      {
+        fprintf (stdout, "vp %3d  %2d   %2d   %25.16e %25.16e\n", it, ip, l, 
+            vp[it][ip][2*l], vp[it][ip][2*l+1]);
+      }
+    }
+  }
+
+
 #if defined HAVE_LHPC_AFF
   /* write to AFF file */
   exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
@@ -627,11 +640,19 @@ int main(int argc, char **argv) {
       for( int isink_location = 0; isink_location < sink_location_number; isink_location++ )
       {
 
-        int gxsink[4] = {
+        /* int gxsink[4] = {
           ( gsx[0] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global,
           rand() % LX_global,
           rand() % LY_global,
           rand() % LZ_global
+        }; */
+
+        /* for TESTING */
+        int gxsink[4] = {
+          ( gsx[0] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global,
+            ( gsx[1] + LX_global/2 ) % LX_global,
+            ( gsx[2] + LY_global/2 ) % LY_global,
+            ( gsx[3] + LZ_global/2 ) % LZ_global 
         };
 
         int xsink[4], sink_proc_id = -1;
@@ -676,7 +697,7 @@ int main(int argc, char **argv) {
               }
             } 
 #ifdef HAVE_MPI
-            int root = ( ( ( gxsink[0] / T ) * g_proc_x + g_proc_coords[1] ) * g_nproc_y + g_proc_coords[2] ) * g_nproc_z + g_proc_coords[3];
+            int root = ( ( ( gxsink[0] / T ) * g_nproc_x + g_proc_coords[1] ) * g_nproc_y + g_proc_coords[2] ) * g_nproc_z + g_proc_coords[3];
             if ( g_verbose > 2 ) fprintf (stdout, "proc %4d root %4d  %s %d\n", g_cart_id, root, __FILE__ , __LINE__ );
 
             if ( MPI_Bcast( propagator_allsink[isc], _GSI(VOLUME), MPI_DOUBLE, root, g_tr_comm )  != MPI_SUCCESS )
@@ -725,7 +746,7 @@ int main(int argc, char **argv) {
            ***********************************************************/
           /*                                     output field         src coords flavor type  src smear  sink smear gauge field for smearing,  for residual check ...
            */
-          exitstatus = point_source_propagator ( sink_propagator[iflavor], gsx,       iflavor,     1,         0,         gauge_field_smeared,       check_propagator_residual, gauge_field_with_phase, lmzz );
+          exitstatus = point_source_propagator ( sink_propagator[iflavor], gxsink,       iflavor,     1,         0,         gauge_field_smeared,       check_propagator_residual, gauge_field_with_phase, lmzz );
           if(exitstatus != 0) {
             fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(12);
@@ -735,6 +756,7 @@ int main(int argc, char **argv) {
           show_time ( &ta, &tb, "njjn_w_3pt_invert_contract", "forward-light-invert-check", g_cart_id == 0 );
 
         }  /* end of loop on flavor for sink_propagator */
+
 
         /***************************************************************************
          ***************************************************************************
@@ -876,6 +898,26 @@ int main(int argc, char **argv) {
 
             int momentum[3] = {0,0,0};
 
+            for ( int it = 0; it < T; it++ )
+            {
+              for ( int ix = 0; ix < LX; ix++ )
+              {
+              for ( int iy = 0; iy < LY; iy++ )
+              {
+              for ( int iz = 0; iz < LZ; iz++ )
+              {
+                for ( int l = 0; l < 16; l++ )
+                {
+                  fprintf(stdout, "vx %3d %3d %3d %3d    %2d  %25.16e %25.16e\n", it, ix, iy, iz, l, 
+                      vx[g_ipt[it][ix][iy][iz]][2*l],
+                      vx[g_ipt[it][ix][iy][iz]][2*l+1] );
+                    
+                }
+              }}}
+            }
+
+
+
             exitstatus = project_write ( vx, vp, affw, aff_tag, &momentum, 1, 16, io_proc );
             if ( exitstatus != 0 ) {
               fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -893,6 +935,7 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on flavor */
 
+#if 0
         /***************************************************************************/
         /***************************************************************************/
 
@@ -954,6 +997,9 @@ int main(int argc, char **argv) {
             {
               int const gamma_id = sequential_gamma_id[igamma][igs];
 
+              if ( g_verbose > 2 && io_proc == 2 ) fprintf ( stdout, "# [njjn_w_3pt_invert_contract] gamma_id = %d \n", gamma_id );
+
+
               for ( int icol1 = 0; icol1 < 3; icol1++ )
               {
                 for ( int icol2 = 0; icol2 < 3; icol2++ )
@@ -973,7 +1019,11 @@ int main(int argc, char **argv) {
                       {
                         double * const _pi = propagator[iflavor][isrc]        + _GSI(ix);
                         double * const _pf = sink_propagator[1-iflavor][isnk] + _GSI(ix);
-                        double * const _v  = v[icol1][icol2][isrc] + _GSI(ix);
+                        double * const _v  = v[icol1][icol2][isrc]            + _GSI(ix);
+
+                        memset ( spi, 0, 24 * sizeof(double) );
+                        memset ( spf, 0, 24 * sizeof(double) );
+
 
                         spi[2*(3*0+icol1)+0] = _pi[2*(3*0+icol1)+0];
                         spi[2*(3*0+icol1)+1] = _pi[2*(3*0+icol1)+1];
@@ -1002,7 +1052,7 @@ int main(int argc, char **argv) {
 
                         _v[ 2 * isnk + 0] = w.re;
                         _v[ 2 * isnk + 1] = w.im;
- 
+
                       }  /* end of loop on volume */
   
 }  /* end of parallel region */
@@ -1019,6 +1069,7 @@ int main(int argc, char **argv) {
                 }  /* end of loop on icol2 */
               }  /* end of loop on icol1 */ 
 
+
               for ( int icol1 = 0; icol1 < 3; icol1++ )
               {
                 for ( int icol2 = 0; icol2 < 3; icol2++ )
@@ -1034,11 +1085,13 @@ int main(int argc, char **argv) {
                   memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
 
                   /* contraction */
-                  exitstatus = contract_v5 ( vx_aux, omega, delta[1-iflavor], omega, VOLUME );
+                  exitstatus = contract_v5 ( vx_aux, omega, delta[1-iflavor], sigma, VOLUME );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT( 1 );
                   }
+
+
 #pragma omp parallel for
                   for ( size_t ix = 0; ix < 32*VOLUME; ix++ )
                   {
@@ -1048,7 +1101,7 @@ int main(int argc, char **argv) {
                   memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
 
                   /* contraction */
-                  exitstatus = contract_v6 ( vx_aux, omega, delta[1-iflavor], omega, VOLUME );
+                  exitstatus = contract_v6 ( vx_aux, omega, delta[1-iflavor], sigma, VOLUME );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT( 1 );
@@ -1062,8 +1115,10 @@ int main(int argc, char **argv) {
 
                 }  /* end of loop on icol2 */
               }  /* end of loop on icol1 */ 
-               
+
+
             }  /* end of loop on sequential_gamma_num */
+
 
             char aff_tag[200];
             sprintf ( aff_tag, "/w%c%c-f%c-w%c%c/dt%d/Gc_%s/sample%d/cc",
@@ -1092,7 +1147,7 @@ int main(int argc, char **argv) {
           fini_4level_dtable ( &v );
 
         }  /* end of loop on flavor */
-
+#endif
         /***************************************************************************/
         /***************************************************************************/
 
