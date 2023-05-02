@@ -652,20 +652,27 @@ int main(int argc, char **argv) {
       for( int isink_location = 0; isink_location < sink_location_number; isink_location++ )
       {
 
-        /* int gxsink[4] = {
+        int gxsink[4] = {
           ( gsx[0] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global,
           rand() % LX_global,
           rand() % LY_global,
           rand() % LZ_global
-        }; */
+        };
+#ifdef HAVE_MPI
+        if ( MPI_Bcast( gxsink, 4, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) 
+        {
+          fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from MPI_Bcast %s %d\n", __FILE__, __LINE__);
+          EXIT(123);
+        }
+#endif
 
         /* for TESTING */
-        int gxsink[4] = {
+        /* int gxsink[4] = {
           ( gsx[0] + g_sequential_source_timeslice_list[idt] + T_global ) % T_global,
             ( gsx[1] + LX_global/2 ) % LX_global,
             ( gsx[2] + LY_global/2 ) % LY_global,
             ( gsx[3] + LZ_global/2 ) % LZ_global 
-        };
+        }; */
 
         int xsink[4], sink_proc_id = -1;
         exitstatus = get_point_source_info (gxsink, xsink, &sink_proc_id);
@@ -674,9 +681,10 @@ int main(int argc, char **argv) {
           EXIT(123);
         }
 
-        if ( io_proc == 2 && g_verbose > 2 ) 
+        if ( g_verbose > 2 ) 
         {
-          fprintf ( stdout, "# [njjn_w_3pt_invert_contract] src %3d %3d %3d %3d   sink %3d %3d %3d %3d    %s %d\n", 
+          fprintf ( stdout, "# [njjn_w_3pt_invert_contract] proc%.4d src %3d %3d %3d %3d   sink %3d %3d %3d %3d    %s %d\n", 
+              g_cart_id,
               gsx[0], gsx[1], gsx[2], gsx[3],
               gxsink[0], gxsink[1], gxsink[2], gxsink[3], __FILE__, __LINE__ );
         }
