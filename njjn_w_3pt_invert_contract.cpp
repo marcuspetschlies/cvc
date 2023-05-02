@@ -124,19 +124,6 @@ static inline int project_write ( double ** vx, double *** vp, struct AffWriter_
     return( 2 );
   }
 
-  for ( int it = 0; it < T; it++ )
-  {
-    for ( int ip = 0; ip < momentum_number; ip++ )
-    {
-      for ( int l = 0; l < 16; l++ )
-      {
-        fprintf (stdout, "vp %3d  %2d   %2d   %25.16e %25.16e\n", it, ip, l, 
-            vp[it][ip][2*l], vp[it][ip][2*l+1]);
-      }
-    }
-  }
-
-
 #if defined HAVE_LHPC_AFF
   /* write to AFF file */
   exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
@@ -237,6 +224,9 @@ int main(int argc, char **argv) {
 
   int sink_location_number = 0;
 
+  int with_gt = 0;
+  double * gauge_trafo = NULL;
+
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
 #endif
@@ -245,7 +235,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:s:")) != -1) {
+  while ((c = getopt(argc, argv, "gch?f:s:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -256,6 +246,9 @@ int main(int argc, char **argv) {
       break;
     case 's':
       sink_location_number = atoi ( optarg );
+      break;
+    case 'g':
+      with_gt = 1;
       break;
     case 'h':
     case '?':
@@ -349,6 +342,17 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_propagator();
 
   /***************************************************************************
+   * set io process
+   ***************************************************************************/
+  io_proc = get_io_proc ();
+  if( io_proc < 0 ) {
+    fprintf(stderr, "[njjn_w_3pt_invert_contract] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
+    EXIT(14);
+  }
+  fprintf(stdout, "# [njjn_w_3pt_invert_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+
+
+  /***************************************************************************
    * set up the gauge field
    *
    *   either read it from file or get it from tmLQCD interface
@@ -386,9 +390,26 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  /***********************************************************
+
+  /***************************************************************************
+   * apply gauge transformation, if needed
+   ***************************************************************************/
+  if ( with_gt )
+  {
+    init_gauge_trafo ( &gauge_trafo, 1.0 );
+
+    apply_gt_gauge ( gauge_trafo, g_gauge_field );
+
+    if( io_proc == 2 ) fprintf (stdout, "# [njjn_w_3pt_invert_contract] plaquette after gt  %s %d\n", __FILE__, __LINE__ );
+    
+    plaquetteria  ( g_gauge_field );
+  }
+
+
+
+  /***************************************************************************
    * multiply the phase to the gauge field
-   ***********************************************************/
+   ***************************************************************************/
   exitstatus = gauge_field_eq_gauge_field_ti_phase ( &gauge_field_with_phase, g_gauge_field, co_phase_up );
   if(exitstatus != 0) {
     fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from gauge_field_eq_gauge_field_ti_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -407,16 +428,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
   }
-
-  /***************************************************************************
-   * set io process
-   ***************************************************************************/
-  io_proc = get_io_proc ();
-  if( io_proc < 0 ) {
-    fprintf(stderr, "[njjn_w_3pt_invert_contract] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
-    EXIT(14);
-  }
-  fprintf(stdout, "# [njjn_w_3pt_invert_contract] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
   /***************************************************************************
    * set the gamma matrices
@@ -569,6 +580,7 @@ int main(int argc, char **argv) {
      * only I/O process id 2 opens a writer
      ***************************************************************************/
       sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.aff", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      if ( with_gt ) strcat( filename, ".gt" );
       fprintf(stdout, "# [njjn_w_3pt_invert_contract] writing data to file %s\n", filename);
       affw = aff_writer(filename);
       const char * aff_status_str = aff_writer_errstr ( affw );
@@ -687,20 +699,18 @@ int main(int argc, char **argv) {
           for ( int isc = 0; isc < 12; isc++ )
           {
 
-            if ( gxsink[0] / T == g_proc_coords[0] )
+            if ( sink_proc_id == g_cart_id )
             {
-              size_t const sizeof_spinor_field_timeslice = _GSI( VOL3 ) * sizeof( double );
-              size_t const offset = _GSI( VOL3 );
-              for ( int it = 0; it < T; it++ ) 
+              double * const _p = propagator[iflavor][isc] + _GSI( g_ipt[xsink[0]][xsink[1]][xsink[2]][xsink[3]] );
+#pragma omp parallel for
+              for ( unsigned int ix = 0; ix < VOLUME; ix++ ) 
               {
-                memcpy ( propagator_allsink[isc] + it * offset, propagator[iflavor][isc] + xsink[0] * offset, sizeof_spinor_field_timeslice );
+                double * const _t = propagator_allsink[isc] + _GSI(ix);
+                _fv_eq_fv ( _t, _p );
               }
             } 
 #ifdef HAVE_MPI
-            int root = ( ( ( gxsink[0] / T ) * g_nproc_x + g_proc_coords[1] ) * g_nproc_y + g_proc_coords[2] ) * g_nproc_z + g_proc_coords[3];
-            if ( g_verbose > 2 ) fprintf (stdout, "proc %4d root %4d  %s %d\n", g_cart_id, root, __FILE__ , __LINE__ );
-
-            if ( MPI_Bcast( propagator_allsink[isc], _GSI(VOLUME), MPI_DOUBLE, root, g_tr_comm )  != MPI_SUCCESS )
+            if ( MPI_Bcast( propagator_allsink[isc], _GSI(VOLUME), MPI_DOUBLE, sink_proc_id, g_cart_grid )  != MPI_SUCCESS )
             {
               fprintf ( stderr, "[njjn_w_3pt_invert_contract] Error from MPI_Bcast   %s %d\n", __FILE__, __LINE__ );
               EXIT(12);
@@ -757,7 +767,6 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on flavor for sink_propagator */
 
-
         /***************************************************************************
          ***************************************************************************
          ** 
@@ -798,7 +807,7 @@ int main(int argc, char **argv) {
            * vp holds the nucleon-nucleon spin propagator in momentum space,
            * i.e. the momentum projected vx
            ***************************************************************************/
-          double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+          double *** vp = init_3level_dtable ( T, 1, 32 );
           if ( vp == NULL ) {
             fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(47);
@@ -898,26 +907,6 @@ int main(int argc, char **argv) {
 
             int momentum[3] = {0,0,0};
 
-            for ( int it = 0; it < T; it++ )
-            {
-              for ( int ix = 0; ix < LX; ix++ )
-              {
-              for ( int iy = 0; iy < LY; iy++ )
-              {
-              for ( int iz = 0; iz < LZ; iz++ )
-              {
-                for ( int l = 0; l < 16; l++ )
-                {
-                  fprintf(stdout, "vx %3d %3d %3d %3d    %2d  %25.16e %25.16e\n", it, ix, iy, iz, l, 
-                      vx[g_ipt[it][ix][iy][iz]][2*l],
-                      vx[g_ipt[it][ix][iy][iz]][2*l+1] );
-                    
-                }
-              }}}
-            }
-
-
-
             exitstatus = project_write ( vx, vp, affw, aff_tag, &momentum, 1, 16, io_proc );
             if ( exitstatus != 0 ) {
               fprintf(stderr, "[njjn_w_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -934,8 +923,9 @@ int main(int argc, char **argv) {
           fini_2level_dtable ( &v );
 
         }  /* end of loop on flavor */
-
 #if 0
+#endif
+
         /***************************************************************************/
         /***************************************************************************/
 
@@ -980,7 +970,7 @@ int main(int argc, char **argv) {
            * vp holds the nucleon-nucleon spin propagator in momentum space,
            * i.e. the momentum projected vx
            ***************************************************************************/
-          double *** vp = init_3level_dtable ( T, g_sink_momentum_number, 32 );
+          double *** vp = init_3level_dtable ( T, 1, 32 );
           if ( vp == NULL ) {
             fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(47);
@@ -1085,7 +1075,7 @@ int main(int argc, char **argv) {
                   memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
 
                   /* contraction */
-                  exitstatus = contract_v5 ( vx_aux, omega, delta[1-iflavor], sigma, VOLUME );
+                  exitstatus = contract_v5 ( vx_aux, sigma, delta[1-iflavor], omega, VOLUME );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT( 1 );
@@ -1101,7 +1091,7 @@ int main(int argc, char **argv) {
                   memset ( vx_aux[0], 0, 32*VOLUME *sizeof(double) );
 
                   /* contraction */
-                  exitstatus = contract_v6 ( vx_aux, omega, delta[1-iflavor], sigma, VOLUME );
+                  exitstatus = contract_v6 ( vx_aux, sigma, delta[1-iflavor], omega, VOLUME );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_3pt_invert_contract] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                     EXIT( 1 );
@@ -1109,9 +1099,9 @@ int main(int argc, char **argv) {
 
 #pragma omp parallel for
                  for ( size_t ix = 0; ix < 32*VOLUME; ix++ )
-                   {
-                    vx[0][ix] += vx_aux[0][ix];
-                  }
+                 {
+                   vx[0][ix] += vx_aux[0][ix];
+                 }
 
                 }  /* end of loop on icol2 */
               }  /* end of loop on icol1 */ 
@@ -1147,6 +1137,8 @@ int main(int argc, char **argv) {
           fini_4level_dtable ( &v );
 
         }  /* end of loop on flavor */
+
+#if 0
 #endif
         /***************************************************************************/
         /***************************************************************************/
