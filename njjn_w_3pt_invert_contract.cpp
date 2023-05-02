@@ -674,6 +674,13 @@ int main(int argc, char **argv) {
           EXIT(123);
         }
 
+        if ( io_proc == 2 && g_verbose > 2 ) 
+        {
+          fprintf ( stdout, "# [njjn_w_3pt_invert_contract] src %3d %3d %3d %3d   sink %3d %3d %3d %3d    %s %d\n", 
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              gxsink[0], gxsink[1], gxsink[2], gxsink[3], __FILE__, __LINE__ );
+        }
+
 
         /***************************************************************************
          * propagators filled with current sink timeslice only
@@ -923,6 +930,7 @@ int main(int argc, char **argv) {
           fini_2level_dtable ( &v );
 
         }  /* end of loop on flavor */
+
 #if 0
 #endif
 
@@ -1015,23 +1023,24 @@ int main(int argc, char **argv) {
                         memset ( spf, 0, 24 * sizeof(double) );
 
 
-                        spi[2*(3*0+icol1)+0] = _pi[2*(3*0+icol1)+0];
-                        spi[2*(3*0+icol1)+1] = _pi[2*(3*0+icol1)+1];
-                        spi[2*(3*1+icol1)+0] = _pi[2*(3*1+icol1)+0];
-                        spi[2*(3*1+icol1)+1] = _pi[2*(3*1+icol1)+1];
-                        spi[2*(3*2+icol1)+0] = _pi[2*(3*2+icol1)+0];
-                        spi[2*(3*2+icol1)+1] = _pi[2*(3*2+icol1)+1];
-                        spi[2*(3*3+icol1)+0] = _pi[2*(3*3+icol1)+0];
-                        spi[2*(3*3+icol1)+1] = _pi[2*(3*3+icol1)+1];
+                        /* set color-component 0 in bith spi and spf */
+                        spi[2*(3*0)+0] = _pi[2*(3*0+icol1)+0];
+                        spi[2*(3*0)+1] = _pi[2*(3*0+icol1)+1];
+                        spi[2*(3*1)+0] = _pi[2*(3*1+icol1)+0];
+                        spi[2*(3*1)+1] = _pi[2*(3*1+icol1)+1];
+                        spi[2*(3*2)+0] = _pi[2*(3*2+icol1)+0];
+                        spi[2*(3*2)+1] = _pi[2*(3*2+icol1)+1];
+                        spi[2*(3*3)+0] = _pi[2*(3*3+icol1)+0];
+                        spi[2*(3*3)+1] = _pi[2*(3*3+icol1)+1];
 
-                        spf[2*(3*0+icol2)+0] = _pf[2*(3*0+icol2)+0];
-                        spf[2*(3*0+icol2)+1] = _pf[2*(3*0+icol2)+1];
-                        spf[2*(3*1+icol2)+0] = _pf[2*(3*1+icol2)+0];
-                        spf[2*(3*1+icol2)+1] = _pf[2*(3*1+icol2)+1];
-                        spf[2*(3*2+icol2)+0] = _pf[2*(3*2+icol2)+0];
-                        spf[2*(3*2+icol2)+1] = _pf[2*(3*2+icol2)+1];
-                        spf[2*(3*3+icol2)+0] = _pf[2*(3*3+icol2)+0];
-                        spf[2*(3*3+icol2)+1] = _pf[2*(3*3+icol2)+1];
+                        spf[2*(3*0)+0] = _pf[2*(3*0+icol2)+0];
+                        spf[2*(3*0)+1] = _pf[2*(3*0+icol2)+1];
+                        spf[2*(3*1)+0] = _pf[2*(3*1+icol2)+0];
+                        spf[2*(3*1)+1] = _pf[2*(3*1+icol2)+1];
+                        spf[2*(3*2)+0] = _pf[2*(3*2+icol2)+0];
+                        spf[2*(3*2)+1] = _pf[2*(3*2+icol2)+1];
+                        spf[2*(3*3)+0] = _pf[2*(3*3+icol2)+0];
+                        spf[2*(3*3)+1] = _pf[2*(3*3+icol2)+1];
 
 
                         _fv_eq_gamma_ti_fv ( sp, gamma_id, spi );
