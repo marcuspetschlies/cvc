@@ -37,6 +37,7 @@
 #include "project.h"
 #include "uwerr.h"
 #include "derived_quantities.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
@@ -5781,6 +5782,37 @@ void spinor_field_pl_eq_spinor_field(double*r, double*s, unsigned int N) {
     ss = s + offset;
     _fv_pl_eq_fv(rr, ss);
   }
+}  /* end of spinor_field_pl_eq_spinor_field_ti_re */
+
+
+/***********************************************************
+ * r += a * s
+ ***********************************************************/
+void spinor_field_pl_eq_spinor_field_ti_re ( double * const r, double * const s, double const a, unsigned int const N ) {
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+  {
+#endif
+    unsigned int offset;
+    double *rr = NULL, *ss = NULL;
+#ifdef HAVE_OPENMP
+#pragma omp for 
+#endif
+    for ( unsigned int ix = 0; ix < N; ix++) {
+      offset = _GSI(ix);
+      rr = r + offset;
+      ss = s + offset;
+
+      /* rr = rr + ss * a */
+      _fv_eq_fv_pl_fv_ti_re(rr, rr, ss, a);
+
+    }
+
+#ifdef HAVE_OPENMP
+  }
+#endif
+
 }  /* end of spinor_field_pl_eq_spinor_field_ti_re */
 
 
