@@ -389,7 +389,8 @@ int Jacobi_Smearing(double *smeared_gauge_field, double *psi, int const N, doubl
 /******************************************
  *
  ******************************************/
-inline void _ADD_STAPLES_TO_COMPONENT( double * const buff_out, double * const buff_in, unsigned int const x,  int const to, int const via) 
+/* inline  */
+void _ADD_STAPLES_TO_COMPONENT( double * const buff_out, double * const buff_in, unsigned int const x,  int const to, int const via) 
 {
   double tmp[18], tmp2[18];
 
@@ -451,7 +452,8 @@ void generic_staples ( double * const buff_out, const unsigned int x, const int 
 /******************************************
  *
  ******************************************/
-inline void exposu3( double * const vr, double * const p ) {
+/* inline  */
+void exposu3( double * const vr, double * const p ) {
   
   double v[18], v2[18];
 
