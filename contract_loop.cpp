@@ -48,6 +48,7 @@
 #include "contract_cvc_tensor.h"
 #include "scalar_products.h"
 #include "contract_loop_inline.h"
+#include "cvc_timer.h"
 
 #define MAX_SUBGROUP_NUMBER 20
 

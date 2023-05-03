@@ -50,6 +50,7 @@
 #include "Q_clover_phi.h"
 #include "contract_cvc_tensor.h"
 #include "scalar_products.h"
+#include "cvc_timer.h"
 
 #define MAX_SUBGROUP_NUMBER 20
 
