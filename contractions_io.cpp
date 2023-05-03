@@ -61,6 +61,7 @@ extern "C"
 #include "propagator_io.h"
 #include "contractions_io.h"
 #include "cvc_utils.h"
+#include "cvc_timer.h"
 #include "table_init_z.h"
 
 #define MAX_SUBGROUP_NUMBER 20
