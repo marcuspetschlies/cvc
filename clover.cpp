@@ -41,6 +41,7 @@ extern "C"
 #include "mpi_init.h"
 #include "io.h"
 #include "Q_clover_phi.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
