@@ -39,6 +39,7 @@
 #include "contract_loop.h"
 #include "ranlxd.h"
 #include "gamma.h"
+#include "cvc_timer.h"
 
 using namespace cvc;
 
@@ -204,10 +205,20 @@ int main(int argc, char **argv) {
 
   geometry();
 
+#if 0
+  T_global  = T;
+  LX_global = LX;
+  LY_global = LY;
+  LZ_global = LZ;
+
+#endif
+
   /***************************************************************************
    * some additional xchange operations
    ***************************************************************************/
+#ifdef HAVE_MPI
   mpi_init_xchange_contraction(2);
+#endif
 
   /***************************************************************************
    * set io process
@@ -740,13 +751,12 @@ int main(int argc, char **argv) {
    ***************************************************************************/
 
   free_geometry();
+
   fini_2level_itable ( &sink_momentum_list );
   fini_1level_itable ( &sink_momentum_matchid );
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
-  mpi_fini_xchange_eo_spinor ();
-  mpi_fini_datatypes();
   MPI_Finalize();
 #endif
 
