@@ -96,7 +96,7 @@ static inline void spinor_field_cvc_eq_convert_spinor_field_szin (double * const
 /***************************************************************************
  *
  ***************************************************************************/
-int read_propagator ( double ** const spinor_field , char * const filename, int const check_propagator_residual, int const source_proc_id , double * const gf,  double ** const mzz, int const sx[4] ) {
+int read_propagator ( double ** const spinor_field , char * const filename, int const check_propagator_residual, int const source_proc_id , double * const gf,  double ** const mzz, double ** const mzzinv, int const sx[4] ) {
   
   size_t const sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
 
@@ -151,7 +151,8 @@ int read_propagator ( double ** const spinor_field , char * const filename, int 
       spinor_field_cvc_eq_convert_spinor_field_szin ( spinor_work[1], spinor_work[1] , VOLUME );
 
 
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gf, mzz, 1 );
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gf, mzz, mzzinv, 1 );
+
     }
 
     fini_2level_dtable ( &spinor_work );
@@ -159,6 +160,9 @@ int read_propagator ( double ** const spinor_field , char * const filename, int 
   }
 
 }  /* end of read_propagator */
+
+/***************************************************************************/
+/***************************************************************************/
 
 /***************************************************************************
  * helper message
@@ -365,7 +369,7 @@ int main(int argc, char **argv) {
    *   l   = light quark mass
    ***************************************************************************/
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
-  exitstatus = init_clover ( &lmzz, &lmzzinv, gauge_field_with_phase );
+  exitstatus = init_clover ( &g_clover, &lmzz, &lmzzinv, gauge_field_with_phase, g_mu, g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[test_gradient_flow] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -435,7 +439,7 @@ int main(int argc, char **argv) {
     }
 
     if ( check_propagator_residual ) {
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], 1 );
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], lmzzinv[0], 1 );
     }
 
     fini_2level_dtable ( &spinor_work );
@@ -505,7 +509,7 @@ int main(int argc, char **argv) {
 
     /* || s0 - D s1 || */
     if ( check_propagator_residual ) {
-      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], 1 );
+      check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], lmzzinv[0], 1 );
     }  
 
     memcpy ( spinor_field[0], spinor_work[1], sizeof_spinor_field );
@@ -850,7 +854,7 @@ int main(int argc, char **argv) {
   if ( gauge_field_with_phase != NULL ) free ( gauge_field_with_phase );
 
   /* free clover matrix terms */
-  fini_clover ( );
+  fini_clover ( &lmzz, &lmzzinv );
 
   /* free lattice geometry arrays */
   free_geometry();
