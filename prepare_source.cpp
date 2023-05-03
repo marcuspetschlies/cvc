@@ -34,6 +34,7 @@
 #include "matrix_init.h"
 #include "make_x_orbits.h"
 #include "table_init_d.h"
+#include "cvc_timer.h"
 
 namespace cvc {
 
