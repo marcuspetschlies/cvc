@@ -1168,6 +1168,20 @@ int main(int argc, char **argv) {
            * end of contractions for term I and II
            ***********************************************************/
 
+          /// DEBUG:
+          printf(
+              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 0: %f\n",
+              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][0]);
+          printf(
+              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 1: %f\n",
+              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][1]);
+          printf(
+              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 2: %f\n",
+              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][2]);
+          printf(
+              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 3: %f\n",
+              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][3]);
+
           /***********************************************************/
           /***********************************************************/
 

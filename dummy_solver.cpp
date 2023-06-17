@@ -14,7 +14,7 @@ namespace cvc {
  * dummy solver
  ************************************************************************************/
 int dummy_solver ( double * const propagator, double * const source, int const op_id ) {
- // return( rangauss(propagator, _GSI(VOLUME) ) );
+ return( rangauss(propagator, _GSI(VOLUME) ) );
  memcpy ( propagator, source, _GSI(VOLUME)*sizeof(double) );
  return ( 0 ) ;
 }  /* end of dummy_solver */
