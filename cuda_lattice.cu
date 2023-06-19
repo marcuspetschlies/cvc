@@ -59,7 +59,7 @@ __device__ inline Coord get_thread_origin(Geom local_geom) {
   return Coord { .t = t, .x = x, .y = y, .z = z };
 }
 __device__ inline size_t coord2lexic(Coord coord, Geom local_geom) {
-  return (((coord.t*local_geom.LX) + coord.x)*local_geom.LY + coord.y) + coord.z;
+  return (((coord.t*local_geom.LX) + coord.x)*local_geom.LY + coord.y)*local_geom.LZ + coord.z;
 }
 
 /**
@@ -87,27 +87,27 @@ __global__ void ker_g5_phi(double* spinor, size_t len) {
   }
 }
 
-__device__ void site_map(int xv[4], int const x[4], Geom global_geom ) {
-  int T_global = global_geom.T;
-  int LX_global = global_geom.LX;
-  int LY_global = global_geom.LY;
-  int LZ_global = global_geom.LZ;
-  xv[0] = ( x[0] >= T_global   / 2 ) ? (x[0] - T_global )  : x[0];
-  xv[1] = ( x[1] >= LX_global  / 2 ) ? (x[1] - LX_global)  : x[1];
-  xv[2] = ( x[2] >= LY_global  / 2 ) ? (x[2] - LY_global)  : x[2];
-  xv[3] = ( x[3] >= LZ_global  / 2 ) ? (x[3] - LZ_global)  : x[3];
-}
+// __device__ void site_map(int xv[4], int const x[4], Geom global_geom ) {
+//   int T_global = global_geom.T;
+//   int LX_global = global_geom.LX;
+//   int LY_global = global_geom.LY;
+//   int LZ_global = global_geom.LZ;
+//   xv[0] = ( x[0] >= T_global   / 2 ) ? (x[0] - T_global )  : x[0];
+//   xv[1] = ( x[1] >= LX_global  / 2 ) ? (x[1] - LX_global)  : x[1];
+//   xv[2] = ( x[2] >= LY_global  / 2 ) ? (x[2] - LY_global)  : x[2];
+//   xv[3] = ( x[3] >= LZ_global  / 2 ) ? (x[3] - LZ_global)  : x[3];
+// }
 
-__device__ void site_map_zerohalf (int xv[4], int const x[4], Geom global_geom ) {
-  int T_global = global_geom.T;
-  int LX_global = global_geom.LX;
-  int LY_global = global_geom.LY;
-  int LZ_global = global_geom.LZ;
-  xv[0] = ( x[0] > T_global   / 2 ) ? x[0] - T_global   : (  ( x[0] < T_global   / 2 ) ? x[0] : 0 );
-  xv[1] = ( x[1] > LX_global  / 2 ) ? x[1] - LX_global  : (  ( x[1] < LX_global  / 2 ) ? x[1] : 0 );
-  xv[2] = ( x[2] > LY_global  / 2 ) ? x[2] - LY_global  : (  ( x[2] < LY_global  / 2 ) ? x[2] : 0 );
-  xv[3] = ( x[3] > LZ_global  / 2 ) ? x[3] - LZ_global  : (  ( x[3] < LZ_global  / 2 ) ? x[3] : 0 );
-}
+// __device__ void site_map_zerohalf (int xv[4], int const x[4], Geom global_geom ) {
+//   int T_global = global_geom.T;
+//   int LX_global = global_geom.LX;
+//   int LY_global = global_geom.LY;
+//   int LZ_global = global_geom.LZ;
+//   xv[0] = ( x[0] > T_global   / 2 ) ? x[0] - T_global   : (  ( x[0] < T_global   / 2 ) ? x[0] : 0 );
+//   xv[1] = ( x[1] > LX_global  / 2 ) ? x[1] - LX_global  : (  ( x[1] < LX_global  / 2 ) ? x[1] : 0 );
+//   xv[2] = ( x[2] > LY_global  / 2 ) ? x[2] - LY_global  : (  ( x[2] < LY_global  / 2 ) ? x[2] : 0 );
+//   xv[3] = ( x[3] > LZ_global  / 2 ) ? x[3] - LZ_global  : (  ( x[3] < LZ_global  / 2 ) ? x[3] : 0 );
+// }
 
 __device__ int coord_map_zerohalf(int xi, int Li) {
   return (xi > Li / 2) ? xi - Li : ( (xi < Li / 2) ? xi : 0 );
@@ -134,7 +134,8 @@ __global__ void ker_dzu_dzsu(
     for (int k = 0; k < 6; ++k) {
       const int sigma = idx_comb.comb[k][1];
       const int rho = idx_comb.comb[k][0];
-      const double* g_fwd_base = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
+      const double* g_fwd_base_sigma = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
+      const double* g_fwd_base_rho = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + rho)*12 + ia)];
       for (int dt = 0; dt < BS; ++dt) {
         for (int dx = 0; dx < BS; ++dx) {
           for (int dy = 0; dy < BS; ++dy) {
@@ -147,7 +148,8 @@ __global__ void ker_dzu_dzsu(
                 .t = tt, .x = xx, .y = yy, .z = zz
               };
               size_t iz = coord2lexic(coord, local_geom);
-              const double* _u = &g_fwd_base[_GSI(iz)];
+              const double* _u_sigma = &g_fwd_base_sigma[_GSI(iz)];
+              const double* _u_rho = &g_fwd_base_rho[_GSI(iz)];
               
               // const int z[4] = {
               //   ( tt + g_proc_coords[0] * local_geom.T  - gsx[0] + global_geom.T ) % global_geom.T,
@@ -160,21 +162,25 @@ __global__ void ker_dzu_dzsu(
               int local_geom_arr[4] = {local_geom.T, local_geom.LX, local_geom.LY, local_geom.LZ};
               int global_geom_arr[4] = {global_geom.T, global_geom.LX, global_geom.LY, global_geom.LZ};
               int coord_arr[4] = {tt, xx, yy, zz};
-              int zrho = coord_arr[rho] + coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
+              int proc_coord_arr[4] = {g_proc_coords.t, g_proc_coords.x, g_proc_coords.y, g_proc_coords.z};
+              int zrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
               zrho = (zrho + global_geom_arr[rho]) % global_geom_arr[rho];
-              int zsigma = coord_arr[sigma] + coord_arr[sigma] * local_geom_arr[sigma] - gsx_arr[sigma];
+              int zsigma = coord_arr[sigma] + proc_coord_arr[sigma] * local_geom_arr[sigma] - gsx_arr[sigma];
               zsigma = (zsigma + global_geom_arr[sigma]) % global_geom_arr[sigma];
-              int factor = (
-                  coord_map_zerohalf(zrho, global_geom_arr[rho])
-                  - coord_map_zerohalf(zsigma, global_geom_arr[sigma]));
+              int factor_rho = coord_map_zerohalf(zrho, global_geom_arr[rho]);
+              int factor_sigma = coord_map_zerohalf(zsigma, global_geom_arr[sigma]);
               for (int ib = 0; ib < 12; ++ib) {
                 for (int i = 0; i < 12; ++i) {
                   double fwd_y_re = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i];
                   double fwd_y_im = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i+1];
-                  double s_re = _u[2*i] * factor;
-                  double s_im = _u[2*i+1] * factor;
+                  double s_re = _u_sigma[2*i] * factor_rho;
+                  double s_im = _u_sigma[2*i+1] * factor_rho;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 0] += fwd_y_re * s_re + fwd_y_im * s_im;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 1] += fwd_y_re * s_im - fwd_y_im * s_re;
+                  s_re = _u_rho[2*i] * factor_sigma;
+                  s_im = _u_rho[2*i+1] * factor_sigma;
+                  dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 0] -= fwd_y_re * s_re + fwd_y_im * s_im;
+                  dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 1] -= fwd_y_re * s_im - fwd_y_im * s_re;
                 }
               }
             }
@@ -182,6 +188,7 @@ __global__ void ker_dzu_dzsu(
         }
       } // end vol loop
 
+      // reduce (TODO faster reduce algo?)
       for (int ib = 0; ib < 12; ++ib) {
         int ind = ((k * 12 + ia) * 12 + ib) * 2;
         atomicAdd_system(&d_dzu[ind], dzu_work[ind]);
@@ -219,6 +226,7 @@ __global__ void ker_dzu_dzsu(
           }
         } // end vol loop
 
+        // reduce (TODO faster reduce algo?)
         int ind = ((sigma * 12 + ia) * 12 + ib) * 2;
         atomicAdd_system(&d_dzsu[ind], dzsu_work[ind]);
         atomicAdd_system(&d_dzsu[ind+1], dzsu_work[ind+1]);

@@ -2,6 +2,8 @@
  * hlbl_mII_invert_contract
  ****************************************************/
 
+#include <cassert>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -184,6 +186,20 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
   size_t ind_out = (iflavor * 4 * 12 + mu * 12 + ib) * len_prop_block;
   cu_spinor_field_eq_gamma_ti_spinor_field(&y[ind_out], &x[ind_in], mu, len_prop_block);
   cu_g5_phi(&y[ind_out], len_prop_block);
+  /// TEST:
+  // double* y_dev = (double*)malloc(len_prop_block * sizeof(double));
+  // checkCudaErrors(cudaMemcpy(y_dev, &y[ind_out], len_prop_block * sizeof(double), cudaMemcpyDeviceToHost));
+  // double* x_check = (double*)malloc(len_prop_block * sizeof(double));
+  // checkCudaErrors(cudaMemcpy(x_check, &x[ind_in], len_prop_block * sizeof(double), cudaMemcpyDeviceToHost));
+  // double* y_check = (double*)malloc(len_prop_block * sizeof(double));
+  // spinor_field_eq_gamma_ti_spinor_field ( y_check, mu, x_check, VOLUME );
+  // g5_phi ( y_check, VOLUME );
+  // for (int i = 0; i < len_prop_block; ++i) {
+  //   assert(fabs(y_dev[i] - y_check[i]) < 1e-10);
+  // }
+  // free(y_dev);
+  // free(y_check);
+  // free(x_check);
 }
 // inline l2c_t init_lexic2coords(int ** g_lexic2coords, unsigned VOLUME) {
 //   int* d_lexic2coords;
@@ -216,6 +232,8 @@ inline void compute_dzu_dzsu(
   size_t sizeof_dzsu = 4 * 12 * 24 * sizeof(double);
   checkCudaErrors(cudaMalloc((void**)&d_dzu, sizeof_dzu));
   checkCudaErrors(cudaMalloc((void**)&d_dzsu, sizeof_dzsu));
+  checkCudaErrors(cudaMemset(d_dzu, 0, sizeof_dzu));
+  checkCudaErrors(cudaMemset(d_dzsu, 0, sizeof_dzsu));
   printf("Alloc'd d_dzu=%p d_dzsu=%p\n", d_dzu, d_dzsu);
 
   Coord d_proc_coords {
@@ -232,11 +250,13 @@ inline void compute_dzu_dzsu(
     d_idx_comb.comb[i][1] = idx_comb[i][1];
   }
   Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
-  cu_dzu_dzsu(d_dzu, d_dzsu, g_fwd_src, fwd_y, iflavor, d_proc_coords, d_gsx, d_idx_comb, global_geom, local_geom);
+  cu_dzu_dzsu(
+      d_dzu, d_dzsu, g_fwd_src, fwd_y, iflavor, d_proc_coords, d_gsx,
+      d_idx_comb, global_geom, local_geom);
   checkCudaErrors(cudaMemcpy(
-      (void*)&dzu[0][0][0], (const void*)d_dzu, sizeof_dzu, cudaMemcpyDeviceToHost));
+      (void*)dzu[0][0], (const void*)d_dzu, sizeof_dzu, cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaMemcpy(
-      (void*)&dzsu[0][0][0], (const void*)d_dzsu, sizeof_dzsu, cudaMemcpyDeviceToHost));
+      (void*)dzsu[0][0], (const void*)d_dzsu, sizeof_dzsu, cudaMemcpyDeviceToHost));
   // TODO: Could probably cache these device buffers for the whole computation
 
   checkCudaErrors(cudaFree(d_dzu));
@@ -309,28 +329,6 @@ inline void compute_dzu_dzsu(
   //   }
 
   // }  /* of ia */
-
-#if 0
-  /***********************************************************
-   * TEST WRITE dzu
-   ***********************************************************/
-  for ( int k = 0; k < 6; k++ )
-  {
-    for ( int ia = 0; ia < 12; ia++ )
-    {
-      for ( int ib = 0; ib < 12; ib++ )
-      {
-        double const g5sign = 1. - 2. * ( (ib/3) > 1 );
-
-        fprintf ( stdout, "seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
-                  iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia, 
-                  g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );
-      }}
-  }
-  /***********************************************************
-   * END OF TEST
-   ***********************************************************/
-#endif
 
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
@@ -498,28 +496,6 @@ inline void compute_dzu_dzsu(
     }
 
   }  /* of ia */
-
-#if 0
-  /***********************************************************
-   * TEST WRITE dzu
-   ***********************************************************/
-  for ( int k = 0; k < 6; k++ )
-  {
-    for ( int ia = 0; ia < 12; ia++ )
-    {
-      for ( int ib = 0; ib < 12; ib++ )
-      {
-        double const g5sign = 1. - 2. * ( (ib/3) > 1 );
-
-        fprintf ( stdout, "seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
-                  iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia, 
-                  g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );
-      }}
-  }
-  /***********************************************************
-   * END OF TEST
-   ***********************************************************/
-#endif
 
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
@@ -838,9 +814,11 @@ int main(int argc, char **argv) {
   
   // double *** fwd_y   = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
   prop_t fwd_y = init_prop(VOLUME);
+  double *** fwd_y_2;
 
   // double **** g_fwd_src = init_4level_dtable ( 2, 4, 12, _GSI( (size_t)VOLUME ) );
   g_prop_t g_fwd_src = init_g_prop(VOLUME);
+  double **** g_fwd_src_2;
 
   if( fwd_src == NULL || fwd_y == NULL || g_fwd_src == NULL  )
   {
@@ -1095,10 +1073,31 @@ int main(int argc, char **argv) {
               g_fwd_src, fwd_y, dzu, dzsu, g_dzu, g_dzsu, gsx, iflavor, io_proc,
               spinor_work, VOLUME);
 
-          /***********************************************************/
-          /***********************************************************/
+#if 0
+          /***********************************************************
+           * TEST WRITE dzu
+           ***********************************************************/
+          for ( int k = 0; k < 6; k++ )
+          {
+            for ( int ia = 0; ia < 12; ia++ )
+            {
+              for ( int ib = 0; ib < 12; ib++ )
+              {
+                double const g5sign = 1. - 2. * ( (ib/3) > 1 );
 
-#if 0 /// FORNOW
+                fprintf ( stdout, "[test_dzu] seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
+                          iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia,
+                          g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );                  
+              }}
+          }
+          /***********************************************************
+           * END OF TEST
+           ***********************************************************/
+#endif
+          
+
+          /***********************************************************/
+          /***********************************************************/
 
           /***********************************************************
            * contractions for term I and II
@@ -1148,6 +1147,22 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
+
+#if USE_CUDA
+          /// FORNOW: Dumb copy to cpu
+          fwd_y_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
+          g_fwd_src_2 = init_4level_dtable( 2, 4, 12, _GSI( (size_t)VOLUME ) );
+          checkCudaErrors(cudaMemcpy(
+              &fwd_y_2[0][0][0], fwd_y, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
+          checkCudaErrors(cudaMemcpy(
+              &g_fwd_src_2[0][0][0][0], g_fwd_src, 2*4*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
+#else
+          fwd_y_2 = fwd_y;
+          g_fwd_src_2 = g_fwd_src;
+#endif
+          
+
+          
           for ( unsigned int ix = 0; ix < VOLUME; ix++ )
           {
             int x[4] = { g_proc_coords[0]*T  + g_lexic2coords[ix][0],
@@ -1168,7 +1183,7 @@ int main(int argc, char **argv) {
 
             for ( int ib = 0; ib < 12; ib++) 
             {
-              double * const _u = fwd_y[iflavor][ib] + _GSI(ix);
+              double * const _u = fwd_y_2[iflavor][ib] + _GSI(ix);
 
               for ( int mu = 0; mu < 4; mu++ )
               {
@@ -1176,7 +1191,7 @@ int main(int argc, char **argv) {
                 for ( int ia = 0; ia < 12; ia++) 
                 {
                 
-                  double * const _d = g_fwd_src[1-iflavor][mu][ia] + _GSI(ix);
+                  double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
                   complex w;
 
                   _co_eq_fv_dag_ti_fv ( &w ,_d, _u );
@@ -1470,8 +1485,6 @@ int main(int argc, char **argv) {
           show_time ( &ta, &tb, "hlbl_mII_invert_contract", "kernel-sum", io_proc == 2 );
 #endif
 
-#endif /// FORNOW
-
           /***********************************************************
            * end of contractions for term I and II
            ***********************************************************/
@@ -1556,9 +1569,16 @@ int main(int argc, char **argv) {
   // fini_3level_dtable ( &fwd_y );
   // fini_4level_dtable ( &g_fwd_src );
   fini_prop ( &fwd_src );
-  fini_prop ( &fwd_y );
-  fini_g_prop ( &g_fwd_src );
+  // fini_prop ( &fwd_y_2 );
+  // fini_g_prop ( &g_fwd_src_2 );
+  fini_3level_dtable ( &fwd_y_2 );
+  fini_4level_dtable ( &g_fwd_src_2 );
   fini_2level_dtable ( &spinor_work );
+#if USE_CUDA
+  fini_prop(&fwd_y);
+  fini_prop(&g_fwd_src);
+#endif
+
 
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
