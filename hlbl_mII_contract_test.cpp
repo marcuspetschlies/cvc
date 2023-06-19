@@ -38,17 +38,7 @@ extern "C"
 #endif
 
 #ifdef HAVE_CUDA
-#  include <cuda_profiler_api.h>
-#  include <cuda_runtime.h>
 #  include "cuda_lattice.h"
-#define checkCudaErrors(err) __checkCudaErrors(err, __FILE__, __LINE__)
-inline void __checkCudaErrors(cudaError err, const char *file, const int line) {
-  if (cudaSuccess != err) {
-    fprintf(stderr, "%s(%i) : CUDA Runtime API error %d: %s.\n", file, line,
-            (int)err, cudaGetErrorString(err));
-    exit(EXIT_FAILURE);
-  }
-}
 #endif
 
 #define MAIN_PROGRAM
@@ -152,6 +142,7 @@ const int idx_comb[6][2] = {
 #  ifndef HAVE_CUDA
 #    error "Must build with CUDA to use it."
 #  endif
+#warning "Building with CUDA"
 
 /***********************************************************
  * CUDA version of contractions
@@ -172,10 +163,12 @@ inline g_prop_t init_g_prop(unsigned VOLUME) {
   return x;
 }
 inline void fini_prop(prop_t* x) {
+  printf("fini_prop %p\n", *x);
   checkCudaErrors(cudaFree(*x));
   *x = NULL;
 }
 inline void fini_g_prop(g_prop_t* x) {
+  printf("fini_g_prop %p\n", *x);
   checkCudaErrors(cudaFree(*x));
   *x = NULL;
 }
@@ -183,13 +176,13 @@ inline void fini_g_prop(g_prop_t* x) {
 inline void assign_prop(prop_t x, int iflavor, int i, double* input, unsigned VOLUME) {
   size_t sizeof_spinor_field = _GSI( (size_t)VOLUME ) * sizeof(double);
   size_t ind = (iflavor * 12 + i) * _GSI( (size_t)VOLUME );
-  cudaMemcpy((void*)&x[off], (void*)input, cudaMemcpyHostToDevice);
+  cudaMemcpy((void*)&x[ind], (void*)input, sizeof_spinor_field, cudaMemcpyHostToDevice);
 }
 inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsigned VOLUME) {
   size_t len_prop_block = _GSI( (size_t)VOLUME );
   size_t ind_in = (iflavor * 12 + ib) * len_prop_block;
   size_t ind_out = (iflavor * 4 * 12 + mu * 12 + ib) * len_prop_block;
-  cu_spinor_field_eq_gamma_ti_spinor_field(&y[ind_out], &x[ind_in], len_prop_block);
+  cu_spinor_field_eq_gamma_ti_spinor_field(&y[ind_out], &x[ind_in], mu, len_prop_block);
   cu_g5_phi(&y[ind_out], len_prop_block);
 }
 // inline l2c_t init_lexic2coords(int ** g_lexic2coords, unsigned VOLUME) {
@@ -216,79 +209,106 @@ inline void compute_dzu_dzsu(
 #if _WITH_TIMER
   gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-  for(int ia = 0; ia < 12; ia++ )
-  {
 
-    for ( int k = 0; k < 6; k++ )
-    {
-      int const sigma = idx_comb[k][1];
-      int const rho   = idx_comb[k][0];
+  double* d_dzu = NULL;
+  double* d_dzsu = NULL;
+  size_t sizeof_dzu = 6 * 12 * 24 * sizeof(double);
+  size_t sizeof_dzsu = 4 * 12 * 24 * sizeof(double);
+  checkCudaErrors(cudaMalloc((void**)&d_dzu, sizeof_dzu));
+  checkCudaErrors(cudaMalloc((void**)&d_dzsu, sizeof_dzsu));
+  printf("Alloc'd d_dzu=%p d_dzsu=%p\n", d_dzu, d_dzsu);
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-      for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
-      {
-        double * const _u = g_fwd_src[iflavor][sigma][ia] + _GSI(iz);
-        double * const _s = spinor_work[0] + _GSI(iz);
+  Coord d_proc_coords {
+    .t = g_proc_coords[0],
+    .x = g_proc_coords[1],
+    .y = g_proc_coords[2],
+    .z = g_proc_coords[3]
+  };
+  Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
+  Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
+  IdxComb d_idx_comb;
+  for (int i = 0; i < 6; ++i) {
+    d_idx_comb.comb[i][0] = idx_comb[i][0];
+    d_idx_comb.comb[i][1] = idx_comb[i][1];
+  }
+  Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
+  cu_dzu_dzsu(d_dzu, d_dzsu, g_fwd_src, fwd_y, iflavor, d_proc_coords, d_gsx, d_idx_comb, global_geom, local_geom);
+  checkCudaErrors(cudaMemcpy(
+      (void*)&dzu[0][0][0], (const void*)d_dzu, sizeof_dzu, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(
+      (void*)&dzsu[0][0][0], (const void*)d_dzsu, sizeof_dzsu, cudaMemcpyDeviceToHost));
+  // TODO: Could probably cache these device buffers for the whole computation
 
-        int const z[4] = {
-          ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
-          ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
-          ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
-          ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
+  checkCudaErrors(cudaFree(d_dzu));
+  checkCudaErrors(cudaFree(d_dzsu));
 
-        int zv[4];
-        site_map_zerohalf ( zv, z );
+  // for(int ia = 0; ia < 12; ia++ )
+  // {
 
-        _fv_eq_fv_ti_re ( _s, _u,  zv[rho  ] );
-      }
+  //   for ( int k = 0; k < 6; k++ )
+  //   {
+  //     int const sigma = idx_comb[k][1];
+  //     int const rho   = idx_comb[k][0];
+
+  //     for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
+  //     {
+  //       double * const _u = g_fwd_src[iflavor][sigma][ia] + _GSI(iz);
+  //       double * const _s = spinor_work[0] + _GSI(iz);
+
+  //       int const z[4] = {
+  //         ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
+  //         ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
+  //         ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
+  //         ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
+
+  //       int zv[4];
+  //       site_map_zerohalf ( zv, z );
+
+  //       _fv_eq_fv_ti_re ( _s, _u,  zv[rho  ] );
+  //     }
             
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-      for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
-      {
-        double * const _u = g_fwd_src[iflavor][rho  ][ia] + _GSI(iz);
-        double * const _s = spinor_work[0] + _GSI(iz);
+  //     for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
+  //     {
+  //       double * const _u = g_fwd_src[iflavor][rho  ][ia] + _GSI(iz);
+  //       double * const _s = spinor_work[0] + _GSI(iz);
 
-        int const z[4] = {
-          ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
-          ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
-          ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
-          ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
+  //       int const z[4] = {
+  //         ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
+  //         ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
+  //         ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
+  //         ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
-        int zv[4];
-        site_map_zerohalf ( zv, z );
+  //       int zv[4];
+  //       site_map_zerohalf ( zv, z );
 
-        _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -zv[sigma] );
-      }
+  //       _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -zv[sigma] );
+  //     }
 
-      for(int ib = 0; ib < 12; ib++ )
-      {
-        complex w = {0.,0.};
-        spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], spinor_work[0], VOLUME );
+  //     for(int ib = 0; ib < 12; ib++ )
+  //     {
+  //       complex w = {0.,0.};
+  //       spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], spinor_work[0], VOLUME );
 
-        dzu[k][ia][2*ib  ] = w.re;
-        dzu[k][ia][2*ib+1] = w.im;
+  //       dzu[k][ia][2*ib  ] = w.re;
+  //       dzu[k][ia][2*ib+1] = w.im;
 
-      }  /* of ib */
-    }  /* of index combinations k --- rho, sigma */
+  //     }  /* of ib */
+  //   }  /* of index combinations k --- rho, sigma */
 
         
-    for ( int sigma = 0; sigma < 4; sigma++ )
-    {
-      complex w = { 0., 0. };
+  //   for ( int sigma = 0; sigma < 4; sigma++ )
+  //   {
+  //     complex w = { 0., 0. };
 
-      for(int ib = 0; ib < 12; ib++ )
-      {
-        spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], g_fwd_src[iflavor][sigma][ia], VOLUME );
-        dzsu[sigma][ia][2*ib  ] = w.re;
-        dzsu[sigma][ia][2*ib+1] = w.im;
-      }
-    }
+  //     for(int ib = 0; ib < 12; ib++ )
+  //     {
+  //       spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], g_fwd_src[iflavor][sigma][ia], VOLUME );
+  //       dzsu[sigma][ia][2*ib  ] = w.re;
+  //       dzsu[sigma][ia][2*ib+1] = w.im;
+  //     }
+  //   }
 
-  }  /* of ia */
+  // }  /* of ia */
 
 #if 0
   /***********************************************************
@@ -322,9 +342,6 @@ inline void compute_dzu_dzsu(
   gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
   for ( int k = 0; k < 6; k++ )
   {
     double spinor1[24];
@@ -339,9 +356,6 @@ inline void compute_dzu_dzsu(
     }
   }
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
   for ( int k = 0; k < 4; k++ )
   {
     double spinor1[24];
@@ -362,7 +376,7 @@ inline void compute_dzu_dzsu(
 #endif
 }
 
-#else
+#else // !USE_CUDA
 
 /***********************************************************
  * CPU version of contractions
@@ -557,7 +571,7 @@ inline void compute_dzu_dzsu(
 #endif
 }
 
-#endif
+#endif // USE_CUDA
 
 /***********************************************************/
 /***********************************************************/
@@ -1084,6 +1098,8 @@ int main(int argc, char **argv) {
           /***********************************************************/
           /***********************************************************/
 
+#if 0 /// FORNOW
+
           /***********************************************************
            * contractions for term I and II
            ***********************************************************/
@@ -1453,6 +1469,8 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "hlbl_mII_invert_contract", "kernel-sum", io_proc == 2 );
 #endif
+
+#endif /// FORNOW
 
           /***********************************************************
            * end of contractions for term I and II
