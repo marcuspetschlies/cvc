@@ -49,7 +49,7 @@ LDFLAGS = -lm -L$(fftwdir)/lib/ -lfftw \
 
 LINK = $(CXX) -o $@ ${LDFLAGS}
 COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
-CUDA_COMPILE = ${NVCC} $(INCLUDE) -o $@ ${CXXFLAGS} ${NVCCFLAGS}
+CUDA_COMPILE = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -o $@ --compiler-options="${CXXFLAGS}"
 
 MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
 	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default \
@@ -102,8 +102,8 @@ $(addsuffix .o,${CUDA_MODULES}): %.o: ${srcdir}/%.cu $(addprefix ${srcdir}/, $(a
 $(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
 	${COMPILE} ${OPTARGS} -c $< 
 
-${PROGRAM}: %: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES}) $(addsufffix .o,${CUDA_MODULES})
-	${LINK}  $(addsuffix .o,${MODULES}) $@.o $(LIBS)
+${PROGRAM}: %: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $(LIBS)
 
 ${srcdir}/gitversion.cpp: ${srcdir}/.git/HEAD ${srcdir}/.git/index
 	echo "namespace cvc { const char *g_gitversion = \"$(shell cd ${srcdir} && git rev-parse HEAD && cd -)\"; }" > ${srcdir}/gitversion.cpp
