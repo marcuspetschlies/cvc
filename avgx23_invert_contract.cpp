@@ -66,8 +66,8 @@ extern "C"
 #define _OP_ID_DN 1
 #define _OP_ID_ST 2
 
-#define _DERIV  1
-#define _DDERIV 0
+#define _AVGX2 1
+#define _AVGX3 0
 
 using namespace cvc;
 
@@ -647,18 +647,23 @@ int main(int argc, char **argv) {
        *****************************************************************/
       gettimeofday ( &ta, (struct timezone *)NULL );
 
+#if _AVGX2
       double ***** stochastic_propagator_zero_ddispl_list = init_5level_dtable (12, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_ddispl_list == NULL )
       {
         fprintf( stderr, "[avgx23_invert_contract] Error from init_5level_dtable  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
+#endif  /* of if _AVGX2 */
+
+#if _AVGX3
       double ****** stochastic_propagator_zero_dddispl_list = init_6level_dtable (24, 2, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_dddispl_list == NULL )
       {
         fprintf( stderr, "[avgx23_invert_contract] Error from init_6level_dtable  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
+#endif  /* of if _AVGX3 */
 
       for ( int isc = 0; isc < spin_color_dilution; isc++ )
       {
@@ -683,7 +688,7 @@ int main(int argc, char **argv) {
                   fprintf(stderr, "[avgx23_invert_contract] Error from spinor_field_eq_cov_displ_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                    EXIT(33);
                 }
-            
+#if _AVGX3
                 for ( int m = 0; m < 2; m++ )
                 {
                   for ( int ifbwd3 = 0; ifbwd3 < 2; ifbwd3++ ) 
@@ -699,7 +704,9 @@ int main(int argc, char **argv) {
 
                   }  /* end of loop on fbwd3 */
                 }  /* end of 3rd direction m */
-                  
+
+#endif  /* of if _AVGX3 */
+
               }  /* end of loop on fbwd2 */
             }  /* end of 3rd direction l */
 
@@ -1063,12 +1070,14 @@ int main(int argc, char **argv) {
               EXIT(47);
             }
 
+#if _AVGX3
             double ***** contr_ddd = init_5level_dtable ( 24, 2, 2, 2, 2*T );
             if ( contr_ddd == NULL ) {
               fprintf(stderr, "[avgx23_invert_contract] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__ );
               EXIT(47);
             }
-                
+#endif
+
             /*****************************************************************
              * loop on directions for 2 covariant displacements
              *****************************************************************/
@@ -1127,6 +1136,7 @@ int main(int argc, char **argv) {
 #endif
                   }  /* end of loop on kappa => current gamma */
 
+#if _AVGX3
                   /*****************************************************************
                    * DDD contraction
                    * [ DDD fwd(0) ] ^+ g5 Gc seq Gi g5
@@ -1179,6 +1189,7 @@ int main(int argc, char **argv) {
 
                     }  /* end of loop on fbwd3 */
                   }  /* end of loop on ilda => lambda */
+#endif  /* of if _AVGX3 */
 
                 }  /* end of loop on fbwd2 */
               }  /* end of loop on fbwd */
@@ -1261,7 +1272,7 @@ int main(int argc, char **argv) {
 
             /*****************************************************************/
             /*****************************************************************/
-
+#if _AVGX3
             gettimeofday ( &ta, (struct timezone *)NULL );
 
             if (  /* again, skip any momentum vector, which has at least one component equal to zero */
@@ -1330,11 +1341,15 @@ int main(int argc, char **argv) {
             gettimeofday ( &tb, (struct timezone *)NULL );
             show_time ( &ta, &tb, "avgx23_invert_contract", "io-gddd-threep", g_cart_id == 0 );
 
+#endif  /* of if _AVGX3  */
+
             /*****************************************************************/
             /*****************************************************************/
 
             fini_5level_dtable ( &contr_dd );
+#if _AVGX3
             fini_5level_dtable ( &contr_ddd );
+#endif
 
             fini_2level_dtable ( &sequential_propagator_list );
 
@@ -1351,7 +1366,9 @@ int main(int argc, char **argv) {
 
       fini_5level_dtable ( &stochastic_propagator_zero_ddispl_list );
 
+#if _AVGX3
       fini_6level_dtable ( &stochastic_propagator_zero_dddispl_list );
+#endif
 
     }  /* loop on flavor */
 
