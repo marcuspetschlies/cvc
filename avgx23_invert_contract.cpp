@@ -66,8 +66,8 @@ extern "C"
 #define _OP_ID_DN 1
 #define _OP_ID_ST 2
 
-#define _DERIV  1
-#define _DDERIV 0
+#define _AVGX2 1
+#define _AVGX3 0
 
 using namespace cvc;
 
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
   
   const char outfile_prefix[] = "avgx";
 
-  const char fbwd_str[2][4] =  { "fwd", "bwd" };
+  /* const char fbwd_str[2][4] =  { "fwd", "bwd" }; */
   
   const char flavor_tag[4][2] =  { "l", "l", "s", "s" };
 
@@ -103,9 +103,6 @@ int main(int argc, char **argv) {
   double g_mus =0.;
 
   char data_tag[400];
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-  struct AffWriter_s *affw = NULL;
-#endif
 
   int const idx_map_dd[12][2] = {
     {0,1},
@@ -481,25 +478,10 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-#if ( defined HAVE_LHPC_AFF ) && !(defined HAVE_HDF5 )
     /***************************************************************************
      * output filename
      ***************************************************************************/
-    sprintf ( output_filename, "%s.%.4d.t%d.s%d.aff", g_outfile_prefix, Nconf, gts, isample );
-    /***************************************************************************
-     * writer for aff output file
-     ***************************************************************************/
-    if(io_proc == 2) {
-      affw = aff_writer ( output_filename);
-      const char * aff_status_str = aff_writer_errstr ( affw );
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[avgx23_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(15);
-      }
-    }  /* end of if io_proc == 2 */
-#elif ( defined HAVE_HDF5 )
     sprintf ( output_filename, "%s.%.4d.t%d.s%d.h5", g_outfile_prefix, Nconf, gts, isample );
-#endif
     if(io_proc == 2 && g_verbose > 1 ) { 
       fprintf(stdout, "# [avgx23_invert_contract] writing data to file %s\n", output_filename);
     }
@@ -665,18 +647,23 @@ int main(int argc, char **argv) {
        *****************************************************************/
       gettimeofday ( &ta, (struct timezone *)NULL );
 
+#if _AVGX2
       double ***** stochastic_propagator_zero_ddispl_list = init_5level_dtable (12, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_ddispl_list == NULL )
       {
         fprintf( stderr, "[avgx23_invert_contract] Error from init_5level_dtable  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
+#endif  /* of if _AVGX2 */
+
+#if _AVGX3
       double ****** stochastic_propagator_zero_dddispl_list = init_6level_dtable (24, 2, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_dddispl_list == NULL )
       {
         fprintf( stderr, "[avgx23_invert_contract] Error from init_6level_dtable  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
+#endif  /* of if _AVGX3 */
 
       for ( int isc = 0; isc < spin_color_dilution; isc++ )
       {
@@ -701,7 +688,7 @@ int main(int argc, char **argv) {
                   fprintf(stderr, "[avgx23_invert_contract] Error from spinor_field_eq_cov_displ_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                    EXIT(33);
                 }
-            
+#if _AVGX3
                 for ( int m = 0; m < 2; m++ )
                 {
                   for ( int ifbwd3 = 0; ifbwd3 < 2; ifbwd3++ ) 
@@ -717,7 +704,9 @@ int main(int argc, char **argv) {
 
                   }  /* end of loop on fbwd3 */
                 }  /* end of 3rd direction m */
-                  
+
+#endif  /* of if _AVGX3 */
+
               }  /* end of loop on fbwd2 */
             }  /* end of 3rd direction l */
 
@@ -926,11 +915,7 @@ int main(int argc, char **argv) {
               flavor_tag[2*(iflavor/2)+1-(iflavor%2)], flavor_tag[iflavor2],
               muval[2*(iflavor/2) + 1-(iflavor%2)], muval[iflavor2] );
   
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-          exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
-#elif ( defined HAVE_HDF5 )          
           exitstatus = contract_write_to_h5_file ( &contr_p, output_filename, data_tag, &sink_momentum, 1, io_proc );
-#endif
           if(exitstatus != 0) {
             fprintf(stderr, "[avgx23_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             return(3);
@@ -1079,12 +1064,19 @@ int main(int argc, char **argv) {
              * contractions for covariant displacement insertion
              *****************************************************************/
                     
-            double * contr_p = init_1level_dtable (  2*T );
-            if ( contr_p == NULL ) {
-              fprintf(stderr, "[avgx23_invert_contract] Error from init_1level_dtable %s %d\n", __FILE__, __LINE__ );
+            double ***** contr_dd = init_5level_dtable ( 12, 2, 2, 2, 2*T );
+            if ( contr_dd == NULL ) {
+              fprintf(stderr, "[avgx23_invert_contract] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__ );
               EXIT(47);
             }
-                
+
+#if _AVGX3
+            double ***** contr_ddd = init_5level_dtable ( 24, 2, 2, 2, 2*T );
+            if ( contr_ddd == NULL ) {
+              fprintf(stderr, "[avgx23_invert_contract] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__ );
+              EXIT(47);
+            }
+#endif
 
             /*****************************************************************
              * loop on directions for 2 covariant displacements
@@ -1102,11 +1094,12 @@ int main(int argc, char **argv) {
                 for ( int ifbwd2 = 0; ifbwd2 <= 1; ifbwd2++ )
                 {
 
+                  int ikappa = -1;
                   for ( int kappa = 0; kappa < 4; kappa++)
                   {
                     if ( mu == kappa || nu == kappa ) continue;
+                    ikappa++;
 
-                    memset ( contr_p, 0, 2 * T * sizeof ( double ) );
 
                     /*****************************************************************
                      * DD contraction
@@ -1117,10 +1110,10 @@ int main(int argc, char **argv) {
                      * seq was produced for flavor iflavor3 - after - iflavor2
                      *
                      *****************************************************************/
-                    contract_twopoint_snk_momentum ( contr_p, source_gamma, kappa,
+                    contract_twopoint_snk_momentum ( contr_dd[k][ifbwd2][ifbwd][ikappa], source_gamma, kappa,
                           stochastic_propagator_zero_ddispl_list[k][ifbwd2][ifbwd], 
                           sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
-
+#if 0
                     sprintf ( data_tag, "/DD%s-gc-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s/", 
                         flavor_tag[2*(iflavor/2) + 1-(iflavor%2)],
                         flavor_tag[iflavor3], flavor_tag[iflavor2],
@@ -1140,8 +1133,10 @@ int main(int argc, char **argv) {
                       EXIT(3);
                     }
               
+#endif
                   }  /* end of loop on kappa => current gamma */
 
+#if _AVGX3
                   /*****************************************************************
                    * DDD contraction
                    * [ DDD fwd(0) ] ^+ g5 Gc seq Gi g5
@@ -1166,12 +1161,10 @@ int main(int argc, char **argv) {
                       {
                         if ( mu == kappa || nu == kappa || lambda == kappa ) continue;
 
-                        memset ( contr_p, 0, 2 * T * sizeof ( double ) );
-
-                        contract_twopoint_snk_momentum ( contr_p, source_gamma, kappa, 
+                        contract_twopoint_snk_momentum ( contr_ddd[2*k+ilda][ifbwd3][ifbwd2][ifbwd], source_gamma, kappa, 
                            stochastic_propagator_zero_dddispl_list[2*k+ilda][ifbwd3][ifbwd2][ifbwd], 
                            sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
-
+#if 0
                         sprintf ( data_tag, "/DDD%s-gc-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/gc%d_d%d_%s_d%d_%s/d%d_%s", 
                             flavor_tag[2*(iflavor/2) + 1-(iflavor%2)],
                             flavor_tag[iflavor3], flavor_tag[iflavor2],
@@ -1191,11 +1184,12 @@ int main(int argc, char **argv) {
                           fprintf(stderr, "[avgx23_invert_contract] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                           EXIT(3);
                         }
-              
+#endif
                       }  /* end of loop on kappa => current gamma */
 
                     }  /* end of loop on fbwd3 */
                   }  /* end of loop on ilda => lambda */
+#endif  /* of if _AVGX3 */
 
                 }  /* end of loop on fbwd2 */
               }  /* end of loop on fbwd */
@@ -1203,12 +1197,159 @@ int main(int argc, char **argv) {
             }  /* end of loop on k => nu, mu */
               
             gettimeofday ( &tb, (struct timezone *)NULL );
-            show_time ( &ta, &tb, "avgx23_invert_contract", "contract-io-gdd-and-gddd-threep", g_cart_id == 0 );
+            show_time ( &ta, &tb, "avgx23_invert_contract", "contract-gdd-and-gddd-threep", g_cart_id == 0 );
 
             /*****************************************************************/
             /*****************************************************************/
 
-            fini_1level_dtable ( &contr_p );
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
+            if ( io_proc > 0 ) 
+            {
+#ifdef HAVE_MPI
+              int nsend =  T * 12 * 2 * 2 * 2   * 2;
+              double * mbuffer = init_1level_dtable ( nsend );
+              for ( int it = 0; it < T; it++ )
+              {
+                for ( int k = 0; k < 96; k++ )
+                {
+                  mbuffer[ 2 * ( it * 96 + k ) + 0 ] = contr_dd[0][0][0][0][ 2 * ( k * T + it ) + 0 ];
+                  mbuffer[ 2 * ( it * 96 + k ) + 1 ] = contr_dd[0][0][0][0][ 2 * ( k * T + it ) + 1 ];
+                }
+              }
+
+              double ***** gcontr_dd = ( io_proc == 2 ) ? init_5level_dtable ( T_global, 12, 2, 2, 2 * 2 ) : init_5level_dtable ( 1, 1, 1, 1, 1 );
+
+              exitstatus = MPI_Gather ( mbuffer, nsend, MPI_DOUBLE, gcontr_dd[0][0][0][0], nsend, MPI_DOUBLE, 0, g_tr_comm );
+              if ( exitstatus != MPI_SUCCESS ) 
+              {
+                fprintf(stderr, "[avgx23_invert_contract] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(3);
+              }
+
+              fini_1level_dtable ( &mbuffer );
+#else
+              double ***** gcontr_dd = init_5level_dtable ( T_global, 12, 2, 2, 2 * 2 );
+              for ( int it = 0; it < T; it++ )
+              {
+                for ( int k = 0; k < 96; k++ )
+                {
+                  gcontr_dd[0][0][0][0][ 2 * ( it * 96 + k ) + 0 ] = contr_dd[0][0][0][0][ 2 * ( k * T + it ) + 0 ];
+                  gcontr_dd[0][0][0][0][ 2 * ( it * 96 + k ) + 1 ] = contr_dd[0][0][0][0][ 2 * ( k * T + it ) + 1 ];
+                }
+              }
+#endif
+
+              if ( io_proc == 2 ) 
+              {
+
+                sprintf ( data_tag, "/DD%s-gc-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/px%dpy%dpz%d", 
+                    flavor_tag[2*(iflavor/2) + 1-(iflavor%2)],
+                    flavor_tag[iflavor3], flavor_tag[iflavor2],
+                    muval[2*(iflavor/2)+1-(iflavor%2)], muval[iflavor3], muval[iflavor2],
+                    g_sequential_source_timeslice_list[iseq_timeslice],
+                    sink_momentum[0], sink_momentum[1], sink_momentum[2]);
+
+                int const ncdim = 5;
+                int const cdim[ncdim] = {T_global, 12, 2, 2, 2 * 2 };
+
+                exitstatus = write_h5_contraction ( (void*)(gcontr_dd[0][0][0][0]), NULL, output_filename, data_tag, "double", ncdim, cdim );
+                if(exitstatus != 0) {
+                  fprintf(stderr, "[avgx23_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(3);
+                }
+  
+              }
+
+              fini_5level_dtable ( &gcontr_dd );
+
+
+
+            }  /* end of if io_proc > 0 */
+
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "avgx23_invert_contract", "io-gdd-threep", g_cart_id == 0 );
+
+            /*****************************************************************/
+            /*****************************************************************/
+#if _AVGX3
+            gettimeofday ( &ta, (struct timezone *)NULL );
+
+            if (  /* again, skip any momentum vector, which has at least one component equal to zero */
+                  ( source_momentum[0] != 0 ) && ( source_momentum[1] != 0 ) && ( source_momentum[2] != 0 ) 
+                  &&  ( io_proc > 0 )  )
+            {
+#ifdef HAVE_MPI
+              int nsend =  T * 24 * 2 * 2 * 2   * 2;
+              double * mbuffer = init_1level_dtable ( nsend );
+              for ( int it = 0; it < T; it++ )
+              {
+                for ( int k = 0; k < 192; k++ )
+                {
+                  mbuffer[ 2 * ( it * 192 + k ) + 0 ] = contr_ddd[0][0][0][0][ 2 * ( k * T + it ) + 0 ];
+                  mbuffer[ 2 * ( it * 192 + k ) + 1 ] = contr_ddd[0][0][0][0][ 2 * ( k * T + it ) + 1 ];
+                }
+              }
+
+              double ***** gcontr_ddd = ( io_proc == 2 ) ? init_5level_dtable ( T_global, 24, 2, 2, 2 * 2 ) : init_5level_dtable ( 1, 1, 1, 1, 1 );
+
+              exitstatus = MPI_Gather ( mbuffer, nsend, MPI_DOUBLE, gcontr_ddd[0][0][0][0], nsend, MPI_DOUBLE, 0, g_tr_comm );
+              if ( exitstatus != MPI_SUCCESS ) 
+              {
+                fprintf(stderr, "[avgx23_invert_contract] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(3);
+              }
+
+              fini_1level_dtable ( &mbuffer );
+#else
+              double ***** gcontr_ddd = init_5level_dtable ( T_global, 24, 2, 2, 2 * 2 );
+              for ( int it = 0; it < T; it++ )
+              {
+                for ( int k = 0; k < 192; k++ )
+                {
+                  gcontr_ddd[0][0][0][0][ 2 * ( it * 192 + k ) + 0 ] = contr_ddd[0][0][0][0][ 2 * ( k * T + it ) + 0 ];
+                  gcontr_ddd[0][0][0][0][ 2 * ( it * 192 + k ) + 1 ] = contr_ddd[0][0][0][0][ 2 * ( k * T + it ) + 1 ];
+                }
+              }
+#endif
+              if ( io_proc == 2 ) 
+              {
+
+                int const ncdim = 5;
+                int const cdim[ncdim] = {T_global, 24, 2, 2, 2 * 2 };
+
+                sprintf ( data_tag, "/DDD%s-gc-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/px%dpy%dpz%d", 
+                    flavor_tag[2*(iflavor/2) + 1-(iflavor%2)],
+                    flavor_tag[iflavor3], flavor_tag[iflavor2],
+                    muval[2*(iflavor/2)+1-(iflavor%2)], muval[iflavor3], muval[iflavor2],
+                    g_sequential_source_timeslice_list[iseq_timeslice],
+                    sink_momentum[0], sink_momentum[1], sink_momentum[2] );
+
+
+                exitstatus = write_h5_contraction ( (void*)(gcontr_ddd[0][0][0][0]), NULL, output_filename, data_tag, "double", ncdim, cdim );
+                if(exitstatus != 0) {
+                  fprintf(stderr, "[avgx23_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                  EXIT(3);
+                }
+
+              }
+
+              fini_5level_dtable ( &gcontr_ddd );
+
+            }  /* end of if io_proc > 0 */
+
+            gettimeofday ( &tb, (struct timezone *)NULL );
+            show_time ( &ta, &tb, "avgx23_invert_contract", "io-gddd-threep", g_cart_id == 0 );
+
+#endif  /* of if _AVGX3  */
+
+            /*****************************************************************/
+            /*****************************************************************/
+
+            fini_5level_dtable ( &contr_dd );
+#if _AVGX3
+            fini_5level_dtable ( &contr_ddd );
+#endif
 
             fini_2level_dtable ( &sequential_propagator_list );
 
@@ -1225,21 +1366,11 @@ int main(int argc, char **argv) {
 
       fini_5level_dtable ( &stochastic_propagator_zero_ddispl_list );
 
+#if _AVGX3
       fini_6level_dtable ( &stochastic_propagator_zero_dddispl_list );
+#endif
 
     }  /* loop on flavor */
-
-
-#if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
-    if(io_proc == 2) {
-      const char * aff_status_str = (char*)aff_writer_close (affw);
-      if( aff_status_str != NULL ) {
-        fprintf(stderr, "[avgx23_invert_contract] Error from aff_writer_close, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
-        EXIT(32);
-      }
-    }  /* end of if io_proc == 2 */
-
-#endif  /* of ifdef HAVE_LHPC_AFF */
 
     /***************************************************************************/
     /***************************************************************************/
