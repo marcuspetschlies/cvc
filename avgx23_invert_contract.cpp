@@ -445,15 +445,21 @@ int main(int argc, char **argv) {
     }
   }
   
+#if ( defined _STOCH_PROPAGATOR )
   /***************************************************************************
-   * loop on source timeslices
+   * loop on stochastic samples = source timeslices
    ***************************************************************************/
   for ( int isample = g_sourceid; isample <= g_sourceid2; isample += g_sourceid_step )
+#elif ( defined _PTA_PROPAGATOR )
+  for ( int isample = 0; isample < g_source_location_number; isample++ )
+#endif
   {
 
+#ifdef _STOCH_PROPAGATOR
     /***************************************************************************
      * random source timeslice
      ***************************************************************************/
+
     double dts;
     ranlxd ( &dts , 1 );
     int gts = (int)(dts * T_global);
@@ -472,11 +478,34 @@ int main(int argc, char **argv) {
     int source_timeslice = -1;
     int source_proc_id   = -1;
 
+
     exitstatus = get_timeslice_source_info ( gts, &source_timeslice, &source_proc_id );
     if( exitstatus != 0 ) {
       fprintf(stderr, "[avgx23_invert_contract] Error from get_timeslice_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(123);
     }
+
+#elif ( defined _PTA_PROPAGATOR )
+
+    /***************************************************************************
+     * TEST
+     *
+     * with point source
+     ***************************************************************************/
+    int source_proc_id = -1;
+    int sx[4];
+
+    exitstatus = get_point_source_info ( g_source_coords_list[isample], sx, &source_proc_id );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[avgx23_invert_contract] Error from get_point_source_info, status %d   %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
+
+    int source_timeslice = sx[0];
+    int gts = g_source_coords_list[isample][0];
+
+#endif  /* of ifdef _..._PROPAGATOR */
+
 
     /***************************************************************************
      * output filename
@@ -507,6 +536,7 @@ int main(int argc, char **argv) {
         }
       }
       /* recover the ran field */
+    
       exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, spin_dilution, color_dilution,  -1 );
       if( exitstatus != 0 ) {
         fprintf(stderr, "[avgx23_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -517,14 +547,17 @@ int main(int argc, char **argv) {
      * generate stochastic oet source
      ***************************************************************************/
     } else {
+#if ( defined _STOCH_PROPAGATOR )
       /* call to initialize the ran field 
        *   penultimate argument is momentum vector for the source, NULL here
        *   final argument in arg list is 1
        */
+
       if( (exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, spin_dilution, color_dilution, 1 ) ) != 0 ) {
         fprintf(stderr, "[avgx23_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(64);
       }
+
       if ( g_write_source ) {
         for ( int i = 0; i < spin_color_dilution; i++ ) {
           sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, i, isample);
@@ -534,6 +567,7 @@ int main(int argc, char **argv) {
           }
         }
       }
+#endif
     }  /* end of if read stochastic source - else */
 
     /***************************************************************************
@@ -552,36 +586,6 @@ int main(int argc, char **argv) {
     }
 
     /***************************************************************************
-     * prepare stochastic timeslice source at source momentum
-     *
-     * FOR ALL FLAVORS, LIGHT = UP, DN and STRANGE = SP, SM
-     ***************************************************************************/
-
-    int source_momentum[3] = { 0, 0, 0 };
-    exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, spin_dilution, color_dilution, 0 );
-    if( exitstatus != 0 ) {
-      fprintf(stderr, "[avgx23_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      EXIT(64);
-    }
-
-    if ( N_Jacobi > 0 ) {
-      gettimeofday ( &ta, (struct timezone *)NULL );
-      /***************************************************************************
-       * SOURCE SMEARING
-       ***************************************************************************/
-
-      for( int i = 0; i < spin_color_dilution; i++) {
-        exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_source_list[i], N_Jacobi, kappa_Jacobi);
-        if(exitstatus != 0) {
-          fprintf(stderr, "[avgx23_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          return(11);
-        }
-      }
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "avgx23_invert_contract", "Jacobi_Smearing-diluted-stochastic-source", g_cart_id == 0 );
-    }
-
-    /***************************************************************************
      * loop on quark flavor
      *
      * this flavor is used to apply dd and ddd to
@@ -591,15 +595,69 @@ int main(int argc, char **argv) {
     {
 
       /***************************************************************************
+       * prepare stochastic timeslice source at source momentum
+       *
+       * FOR ALL FLAVORS, LIGHT = UP, DN and STRANGE = SP, SM
+       ***************************************************************************/
+#if ( defined _STOCH_PROPAGATOR )
+      int source_momentum[3] = { 0, 0, 0 };
+      exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, spin_dilution, color_dilution, 0 );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[avgx23_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(64);
+      }
+
+      if ( g_write_source ) {
+        for ( int i = 0; i < spin_color_dilution; i++ ) {
+          sprintf(filename, "%s.%.4d.t%d.%d.%.5d.zeromom", filename_prefix, Nconf, gts, i, isample);
+          if ( ( exitstatus = write_propagator( stochastic_source_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[avgx23_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
+          }
+        }
+      }
+#elif ( defined _PTA_PROPAGATOR )
+      /* TEST set a spin-color diluted point source */
+      for ( int i = 0; i < spin_dilution; i++ )
+      {
+        for (int k = 0; k < color_dilution; k++)
+        {
+          memset ( stochastic_source_list[i*color_dilution+k], 0, sizeof_spinor_field );
+          if ( g_cart_id == source_proc_id ) 
+          {
+            stochastic_source_list[i*color_dilution+k][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*(i*color_dilution+k)] = 1.;
+          }
+        }
+      }
+#endif
+
+      if ( N_Jacobi > 0 ) {
+        gettimeofday ( &ta, (struct timezone *)NULL );
+        /***************************************************************************
+         * SOURCE SMEARING
+         ***************************************************************************/
+
+        for( int i = 0; i < spin_color_dilution; i++) {
+          exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_source_list[i], N_Jacobi, kappa_Jacobi);
+          if(exitstatus != 0) {
+            fprintf(stderr, "[avgx23_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            return(11);
+          }
+        }
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "avgx23_invert_contract", "Jacobi_Smearing-diluted-stochastic-source", g_cart_id == 0 );
+      }
+
+      /***************************************************************************
        * invert for stochastic timeslice propagator at zero momentum
        *   dn flavor
        *   this one will run from source to sink as part of the sequential
        *   propagator
        ***************************************************************************/
       for( int i = 0; i < spin_color_dilution; i++) {
-
+  
         memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
-
+  
   
         memset ( spinor_work[1], 0, sizeof_spinor_field );
   
@@ -608,7 +666,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[avgx23_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(44);
         }
-
+  
         if ( check_propagator_residual ) {
           if ( iflavor < 2 ) {
             check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
@@ -616,14 +674,14 @@ int main(int argc, char **argv) {
             check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, smzz[iflavor%2], smzzinv[iflavor%2], 1 );
           }
         }
- 
+  
         memcpy( stochastic_propagator_zero_list[i],         spinor_work[1], sizeof_spinor_field);
-
+  
         memcpy( stochastic_propagator_zero_smeared_list[i], spinor_work[1], sizeof_spinor_field);
- 
+  
         if ( N_Jacobi > 0 ) {
           gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
           /***************************************************************************
            * SOURCE SMEARING
            ***************************************************************************/
@@ -635,8 +693,19 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "avgx23_invert_contract", "Jacobi_Smearing-sequential-propagator", g_cart_id == 0 );
         }
-
+  
       }  /* end of loop on spin color dilution indices */
+ 
+      if ( g_write_source ) {
+        for ( int i = 0; i < spin_color_dilution; i++ ) {
+          sprintf(filename, "%s.fl%d.%.4d.t%d.%d.%.5d.zeromom.inverted", filename_prefix, iflavor, Nconf, gts, i, isample );
+          if ( ( exitstatus = write_propagator( stochastic_propagator_zero_smeared_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+            fprintf(stderr, "[avgx23_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(2);
+          }
+        }
+      }
+
 
       /*****************************************************************/
       /*****************************************************************/
@@ -646,7 +715,7 @@ int main(int argc, char **argv) {
        * at sink
        *****************************************************************/
       gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
 #if _AVGX2
       double ***** stochastic_propagator_zero_ddispl_list = init_5level_dtable (12, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_ddispl_list == NULL )
@@ -655,7 +724,7 @@ int main(int argc, char **argv) {
         EXIT(12);
       }
 #endif  /* of if _AVGX2 */
-
+  
 #if _AVGX3
       double ****** stochastic_propagator_zero_dddispl_list = init_6level_dtable (24, 2, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_dddispl_list == NULL )
@@ -664,7 +733,7 @@ int main(int argc, char **argv) {
         EXIT(12);
       }
 #endif  /* of if _AVGX3 */
-
+  
       for ( int isc = 0; isc < spin_color_dilution; isc++ )
       {
         for ( int k = 0; k < 4; k++ ) 
@@ -677,7 +746,7 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[avgx23_invert_contract] Error from spinor_field_eq_cov_displ_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(33);
             }
-
+  
             for ( int l = 0; l < 3; l++ )
             {
               for ( int ifbwd2 = 0; ifbwd2 < 2; ifbwd2++ ) 
@@ -700,23 +769,24 @@ int main(int argc, char **argv) {
                       fprintf(stderr, "[avgx23_invert_contract] Error from spinor_field_eq_cov_displ_spinor_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                       EXIT(33);
                     }
-
-
+  
+  
                   }  /* end of loop on fbwd3 */
                 }  /* end of 3rd direction m */
-
+  
 #endif  /* of if _AVGX3 */
-
+  
               }  /* end of loop on fbwd2 */
             }  /* end of 3rd direction l */
-
+  
           }  /* end of loop on fbwd */
         }  /* end of 3rd direction k */
-
+  
       }  /* end of loop on isc */
           
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "avgx23_invert_contract", "apply-dd-and-ddd-to-zero-mom-prop", g_cart_id == 0 );
+
 
       /***************************************************************************/
       /***************************************************************************/
@@ -728,7 +798,7 @@ int main(int argc, char **argv) {
        ***************************************************************************/
       for ( int isrc_mom = 0; isrc_mom < g_source_momentum_number; isrc_mom++ ) 
       {
-
+  
         /***************************************************************************
          * 3-momentum vector at source
          ***************************************************************************/
@@ -737,21 +807,59 @@ int main(int argc, char **argv) {
             g_source_momentum_list[isrc_mom][1],
             g_source_momentum_list[isrc_mom][2] };
 
+        if ( io_proc == 2 ) fprintf (stdout, "# [] source momentum %3d %3d %3d   %s %d\n", 
+            source_momentum[0], source_momentum[1], source_momentum[2], __FILE__, __LINE__ ); 
+
         /***************************************************************************
          * prepare stochastic timeslice source at source momentum
          ***************************************************************************/
+#if ( defined _STOCH_PROPAGATOR )
+  
         exitstatus = init_timeslice_source_oet ( stochastic_source_list, gts, source_momentum, spin_dilution, color_dilution, 0 );
         if( exitstatus != 0 ) {
           fprintf(stderr, "[avgx23_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(64);
         }
-
+  
+  
+        if ( g_write_source ) {
+          for ( int i = 0; i < spin_color_dilution; i++ ) {
+            sprintf(filename, "%s.fl%d.%.4d.t%d.%d.%.5d.px%d_py%d_pz%d", filename_prefix, iflavor, Nconf, gts, i, isample,
+                source_momentum[0], source_momentum[1], source_momentum[2] );
+            if ( ( exitstatus = write_propagator( stochastic_source_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+              fprintf(stderr, "[avgx23_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(2);
+            }
+          }
+        }
+  
+  
+#elif ( defined _PTA_PROPAGATOR )
+  
+        /* TEST set a spin-color diluted momentum point source */
+        for ( int i = 0; i < spin_dilution; i++ )
+        {
+          for (int k = 0; k < color_dilution; k++)
+          {
+            memset ( stochastic_source_list[i*color_dilution+k], 0, sizeof_spinor_field );
+            if ( g_cart_id == source_proc_id )
+            {
+              double phase =   source_momentum[0] * g_source_coords_list[isample][1] * 2. * M_PI / (double)LX_global
+                             + source_momentum[1] * g_source_coords_list[isample][2] * 2. * M_PI / (double)LY_global
+                             + source_momentum[2] * g_source_coords_list[isample][3] * 2. * M_PI / (double)LZ_global;
+              stochastic_source_list[i*color_dilution+k][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*(i*color_dilution+k)+0] = cos( phase );
+              stochastic_source_list[i*color_dilution+k][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*(i*color_dilution+k)+1] = sin( phase );
+            }
+          }
+        }
+#endif
+  
         /***************************************************************************
          * source-smearing
          ***************************************************************************/
         if ( N_Jacobi > 0 ) {
           gettimeofday ( &ta, (struct timezone *)NULL );
- 
+  
           for( int i = 0; i < spin_color_dilution; i++) {
             exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_source_list[i], N_Jacobi, kappa_Jacobi);
             if(exitstatus != 0) {
@@ -762,7 +870,7 @@ int main(int argc, char **argv) {
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "avgx23_invert_contract", "Jacobi_Smearing-diluted-stochastic-source", g_cart_id == 0 );
         }
-
+  
         /***************************************************************************
          * invert for flavors iflavor2, which takes values
          *   iflavor and 2 * ( 1 - ( iflavor / 2) ) + ( iflavor % 2 )
@@ -789,39 +897,53 @@ int main(int argc, char **argv) {
          *
          ***************************************************************************/
         int const flavor_seqsrc_list[2] = { iflavor, 2 * ( 1 - ( iflavor / 2) ) + ( iflavor % 2 ) };
-
+  
         for ( int ifl2 = 0; ifl2 < 2; ifl2++ ) 
         {
-
+  
           int const iflavor2 = flavor_seqsrc_list[ifl2];
-
+  
           if ( ( iflavor / 2 == 1 ) && ( iflavor2 / 2 == 1 ) ) continue; /* skip quark flow with only strange flavor propagators */
       
+          if ( io_proc == 2 ) fprintf ( stdout, "# [] flavor combination iflavor = %d   iflavor2 = %d   %s %d\n", iflavor, iflavor2, __FILE__, __LINE__ );
+
+
           for( int i = 0; i < spin_color_dilution; i++) 
           {
-
+  
             memcpy ( spinor_work[0], stochastic_source_list[i], sizeof_spinor_field );
- 
+  
             memset ( spinor_work[1], 0, sizeof_spinor_field );
-
+  
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor2 );
             if(exitstatus < 0) {
               fprintf(stderr, "[avgx23_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
               EXIT(44);
             }
-
+  
             if ( check_propagator_residual ) 
             {
               double ** const _mzz    = ( iflavor2/2 == 0 ) ? mzz[iflavor2]    : smzz[iflavor2-2];
               double ** const _mzzinv = ( iflavor2/2 == 0 ) ? mzzinv[iflavor2] : smzzinv[iflavor2-2];
-
+  
               check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, _mzz, _mzzinv, 1 );
             }
-
+  
             memcpy( stochastic_propagator_mom_list[i], spinor_work[1], sizeof_spinor_field);
-
+  
           }  /* end of loop on spinor components */
 
+          if ( g_write_source ) {
+            for ( int i = 0; i < spin_color_dilution; i++ ) {
+              sprintf(filename, "%s.fl%d.%.4d.t%d.%d.%.5d.px%d_py%d_pz%d.inverted", filename_prefix, iflavor2, Nconf, gts, i, isample,
+                  source_momentum[0], source_momentum[1], source_momentum[2] );
+              if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+                fprintf(stderr, "[avgx23_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+            }
+          }
+  
           /***************************************************************************
            * SINK SMEARING of the momentum propagator
            *
@@ -832,15 +954,15 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[avgx23_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__ );
             EXIT(48);
           }
-
+  
           memcpy ( stochastic_propagator_mom_smeared_list[0], stochastic_propagator_mom_list[0], spin_color_dilution * sizeof_spinor_field );
-
+  
           if ( N_Jacobi > 0 ) 
           {
             gettimeofday ( &ta, (struct timezone *)NULL );
   
             for( int i = 0; i < spin_color_dilution; i++) {
- 
+  
               exitstatus = Jacobi_Smearing ( gauge_field_smeared, stochastic_propagator_mom_smeared_list[i], N_Jacobi, kappa_Jacobi);
               if(exitstatus != 0) {
                 fprintf(stderr, "[avgx23_invert_contract] Error from Jacobi_Smearing, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -850,10 +972,23 @@ int main(int argc, char **argv) {
             gettimeofday ( &tb, (struct timezone *)NULL );
             show_time ( &ta, &tb, "avgx23_invert_contract", "Jacobi_Smearing-diluted-stochastic-propagator", g_cart_id == 0 );
           }
- 
-          /***************************************************************************/
-          /***************************************************************************/
+  
 
+          if ( g_write_source ) {
+            for ( int i = 0; i < spin_color_dilution; i++ ) {
+              sprintf(filename, "%s.fl%d.%.4d.t%d.%d.%.5d.px%d_py%d_pz%d.inverted.smeared", filename_prefix, iflavor2, Nconf, gts, i, isample,
+                  source_momentum[0], source_momentum[1], source_momentum[2] );
+              if ( ( exitstatus = write_propagator( stochastic_propagator_mom_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+                fprintf(stderr, "[avgx23_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+            }
+          }
+
+
+          /***************************************************************************/
+          /***************************************************************************/
+  
           /***************************************************************************
            ***************************************************************************
            **
@@ -869,9 +1004,9 @@ int main(int argc, char **argv) {
            ***************************************************************************/
             
           gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
           int source_gamma = 5;
-
+  
           int sink_gamma   = source_gamma;
         
           /* allocate contraction fields in position and momentum space */
@@ -903,7 +1038,7 @@ int main(int argc, char **argv) {
             -source_momentum[0],
             -source_momentum[1],
             -source_momentum[2] };
-
+  
           /* momentum projection at sink */
           exitstatus = momentum_projection ( contr_x, contr_p, T, 1, &sink_momentum );
           if(exitstatus != 0) {
@@ -924,13 +1059,13 @@ int main(int argc, char **argv) {
           /* deallocate the contraction fields */       
           fini_1level_dtable ( &contr_x );
           fini_1level_dtable ( &contr_p );
-
+  
           gettimeofday ( &tb, (struct timezone *)NULL );
           show_time ( &ta, &tb, "avgx23_invert_contract", "contract-io-twop", g_cart_id == 0 );
-
+  
           /*****************************************************************/
           /*****************************************************************/
-
+  
           /*****************************************************************
            *****************************************************************
            **
@@ -944,29 +1079,29 @@ int main(int argc, char **argv) {
            *****************************************************************/
           for ( int iseq_timeslice = 0; iseq_timeslice < g_sequential_source_timeslice_number; iseq_timeslice++ )
           {
-
+  
             /*****************************************************************
              * global sequential source timeslice
              * NOTE: counted from current source timeslice
              *****************************************************************/
             int gtseq = ( gts + g_sequential_source_timeslice_list[iseq_timeslice] + T_global ) % T_global;
-
+  
             double ** sequential_propagator_list = init_2level_dtable ( spin_color_dilution, nelem );
             if ( sequential_propagator_list == NULL ) {
               fprintf(stderr, "[avgx23_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );;
               EXIT(48);
             }
-
+  
             /*****************************************************************
              * seq source mom is zero always
              *****************************************************************/
             int current_momentum[3] = { 0, 0, 0 };
-
+  
             int sink_momentum[3] = {
                 -( current_momentum[0] + source_momentum[0] ),
                 -( current_momentum[1] + source_momentum[1] ),
                 -( current_momentum[2] + source_momentum[2] ) };
-
+  
             /*****************************************************************
              *****************************************************************
              **
@@ -981,13 +1116,13 @@ int main(int argc, char **argv) {
              *****************************************************************
              *****************************************************************/
             int iflavor3 = 2 * ( iflavor / 2 ) + 1 - ( iflavor % 2 );
-
+  
             /*****************************************************************
              * invert for sequential timeslice propagator
              *****************************************************************/
             for ( int i = 0; i < spin_color_dilution; i++ ) 
             {
-
+  
               if ( g_cart_id == 0 && g_verbose > 2 ) {
                 fprintf ( stdout, "# [avgx23_invert_contract] start LIGHT-AFTER-LIGHT with tseq = %d, pf = %3d %3d %3d, pi = %3d %3d %3d, sc = %d  %s %d\n",
                     gtseq,
@@ -1011,10 +1146,10 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[avgx23_invert_contract] Error from init_sequential_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(64);
               }
-
+  
               if ( N_Jacobi > 0 ) {
                 gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
                 /***************************************************************************
                  * SINK SMEARING THE SEQUENTIAL SOURCE
                  ***************************************************************************/
@@ -1026,9 +1161,9 @@ int main(int argc, char **argv) {
                 gettimeofday ( &tb, (struct timezone *)NULL );
                 show_time ( &ta, &tb, "avgx23_invert_contract", "Jacobi_Smearing-sequential-source", g_cart_id == 0 );
               }
-
+  
               memset ( spinor_work[1], 0, sizeof_spinor_field );
-
+  
               /***************************************************************************
                * invert on the sequential source
                ***************************************************************************/
@@ -1037,29 +1172,29 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[avgx23_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(44);
               }
-
+  
               if ( check_propagator_residual ) 
               {
                 double ** const _mzz    = ( iflavor3 / 2 == 0 ) ? mzz[iflavor3]    : smzz[iflavor3-2];
                 double ** const _mzzinv = ( iflavor3 / 2 == 0 ) ? mzzinv[iflavor3] : smzzinv[iflavor3-2];
-
+  
                 check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, _mzz, _mzzinv, 1 );
               }
-
+  
               /***************************************************************************
                * NO SMEARING AT THIS END OF THE PRPOAGATOR
                *
                * this end runs to the insertion
                ***************************************************************************/
-
+  
               memcpy( sequential_propagator_list[i], spinor_work[1], sizeof_spinor_field );
             }  /* end of loop on oet spin components */
-
+  
             /*****************************************************************/
             /*****************************************************************/
-
+  
             gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
             /*****************************************************************
              * contractions for covariant displacement insertion
              *****************************************************************/
@@ -1069,7 +1204,7 @@ int main(int argc, char **argv) {
               fprintf(stderr, "[avgx23_invert_contract] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__ );
               EXIT(47);
             }
-
+  
 #if _AVGX3
             double ***** contr_ddd = init_5level_dtable ( 24, 2, 2, 2, 2*T );
             if ( contr_ddd == NULL ) {
@@ -1077,7 +1212,7 @@ int main(int argc, char **argv) {
               EXIT(47);
             }
 #endif
-
+  
             /*****************************************************************
              * loop on directions for 2 covariant displacements
              *****************************************************************/
@@ -1093,14 +1228,14 @@ int main(int argc, char **argv) {
               {
                 for ( int ifbwd2 = 0; ifbwd2 <= 1; ifbwd2++ )
                 {
-
+  
                   int ikappa = -1;
                   for ( int kappa = 0; kappa < 4; kappa++)
                   {
                     if ( mu == kappa || nu == kappa ) continue;
                     ikappa++;
-
-
+  
+  
                     /*****************************************************************
                      * DD contraction
                      * [ DD fwd(0) ] ^+ g5 Gc seq Gi g5
@@ -1122,7 +1257,7 @@ int main(int argc, char **argv) {
                         kappa, 
                         nu, fbwd_str[ifbwd2], 
                         mu, fbwd_str[ifbwd] );
-
+  
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                     exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
 #elif ( defined HAVE_HDF5 )
@@ -1135,7 +1270,7 @@ int main(int argc, char **argv) {
               
 #endif
                   }  /* end of loop on kappa => current gamma */
-
+  
 #if _AVGX3
                   /*****************************************************************
                    * DDD contraction
@@ -1148,19 +1283,19 @@ int main(int argc, char **argv) {
                    *****************************************************************/
                   for ( int ilda = 0; ilda < 2; ilda++ )
                   {
-
+  
                     /* skip any momentum vector, which has at least one component equal to zero */
                     if ( ( source_momentum[0] == 0 ) || ( source_momentum[1] == 0 ) || ( source_momentum[2] == 0 ) ) continue;
-
+  
                     int const lambda = idx_map_ddd[2*k+ilda][2];
-
+  
                     for ( int ifbwd3 = 0; ifbwd3 < 2; ifbwd3++ )
                     {
-
+  
                       for ( int kappa = 0; kappa < 4; kappa++)
                       {
                         if ( mu == kappa || nu == kappa || lambda == kappa ) continue;
-
+  
                         contract_twopoint_snk_momentum ( contr_ddd[2*k+ilda][ifbwd3][ifbwd2][ifbwd], source_gamma, kappa, 
                            stochastic_propagator_zero_dddispl_list[2*k+ilda][ifbwd3][ifbwd2][ifbwd], 
                            sequential_propagator_list, spin_dilution, color_dilution, current_momentum, 1);
@@ -1174,7 +1309,7 @@ int main(int argc, char **argv) {
                             lambda, fbwd_str[ifbwd3], 
                             nu,     fbwd_str[ifbwd2], 
                             mu,     fbwd_str[ifbwd] );
-
+  
 #if ( defined HAVE_LHPC_AFF ) && ! ( defined HAVE_HDF5 )
                         exitstatus = contract_write_to_aff_file ( &contr_p, affw, data_tag, &sink_momentum, 1, io_proc );
 #elif ( defined HAVE_HDF5 )
@@ -1186,11 +1321,11 @@ int main(int argc, char **argv) {
                         }
 #endif
                       }  /* end of loop on kappa => current gamma */
-
+  
                     }  /* end of loop on fbwd3 */
                   }  /* end of loop on ilda => lambda */
 #endif  /* of if _AVGX3 */
-
+  
                 }  /* end of loop on fbwd2 */
               }  /* end of loop on fbwd */
                   
@@ -1198,12 +1333,12 @@ int main(int argc, char **argv) {
               
             gettimeofday ( &tb, (struct timezone *)NULL );
             show_time ( &ta, &tb, "avgx23_invert_contract", "contract-gdd-and-gddd-threep", g_cart_id == 0 );
-
+  
             /*****************************************************************/
             /*****************************************************************/
-
+  
             gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
             if ( io_proc > 0 ) 
             {
 #ifdef HAVE_MPI
@@ -1217,16 +1352,16 @@ int main(int argc, char **argv) {
                   mbuffer[ 2 * ( it * 96 + k ) + 1 ] = contr_dd[0][0][0][0][ 2 * ( k * T + it ) + 1 ];
                 }
               }
-
+  
               double ***** gcontr_dd = ( io_proc == 2 ) ? init_5level_dtable ( T_global, 12, 2, 2, 2 * 2 ) : init_5level_dtable ( 1, 1, 1, 1, 1 );
-
+  
               exitstatus = MPI_Gather ( mbuffer, nsend, MPI_DOUBLE, gcontr_dd[0][0][0][0], nsend, MPI_DOUBLE, 0, g_tr_comm );
               if ( exitstatus != MPI_SUCCESS ) 
               {
                 fprintf(stderr, "[avgx23_invert_contract] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(3);
               }
-
+  
               fini_1level_dtable ( &mbuffer );
 #else
               double ***** gcontr_dd = init_5level_dtable ( T_global, 12, 2, 2, 2 * 2 );
@@ -1239,20 +1374,20 @@ int main(int argc, char **argv) {
                 }
               }
 #endif
-
+  
               if ( io_proc == 2 ) 
               {
-
+  
                 sprintf ( data_tag, "/DD%s-gc-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/px%dpy%dpz%d", 
                     flavor_tag[2*(iflavor/2) + 1-(iflavor%2)],
                     flavor_tag[iflavor3], flavor_tag[iflavor2],
                     muval[2*(iflavor/2)+1-(iflavor%2)], muval[iflavor3], muval[iflavor2],
                     g_sequential_source_timeslice_list[iseq_timeslice],
                     sink_momentum[0], sink_momentum[1], sink_momentum[2]);
-
+  
                 int const ncdim = 5;
                 int const cdim[ncdim] = {T_global, 12, 2, 2, 2 * 2 };
-
+  
                 exitstatus = write_h5_contraction ( (void*)(gcontr_dd[0][0][0][0]), NULL, output_filename, data_tag, "double", ncdim, cdim );
                 if(exitstatus != 0) {
                   fprintf(stderr, "[avgx23_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1260,21 +1395,21 @@ int main(int argc, char **argv) {
                 }
   
               }
-
+  
               fini_5level_dtable ( &gcontr_dd );
-
-
-
+  
+  
+  
             }  /* end of if io_proc > 0 */
-
+  
             gettimeofday ( &tb, (struct timezone *)NULL );
             show_time ( &ta, &tb, "avgx23_invert_contract", "io-gdd-threep", g_cart_id == 0 );
-
+  
             /*****************************************************************/
             /*****************************************************************/
 #if _AVGX3
             gettimeofday ( &ta, (struct timezone *)NULL );
-
+  
             if (  /* again, skip any momentum vector, which has at least one component equal to zero */
                   ( source_momentum[0] != 0 ) && ( source_momentum[1] != 0 ) && ( source_momentum[2] != 0 ) 
                   &&  ( io_proc > 0 )  )
@@ -1290,16 +1425,16 @@ int main(int argc, char **argv) {
                   mbuffer[ 2 * ( it * 192 + k ) + 1 ] = contr_ddd[0][0][0][0][ 2 * ( k * T + it ) + 1 ];
                 }
               }
-
+  
               double ***** gcontr_ddd = ( io_proc == 2 ) ? init_5level_dtable ( T_global, 24, 2, 2, 2 * 2 ) : init_5level_dtable ( 1, 1, 1, 1, 1 );
-
+  
               exitstatus = MPI_Gather ( mbuffer, nsend, MPI_DOUBLE, gcontr_ddd[0][0][0][0], nsend, MPI_DOUBLE, 0, g_tr_comm );
               if ( exitstatus != MPI_SUCCESS ) 
               {
                 fprintf(stderr, "[avgx23_invert_contract] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                 EXIT(3);
               }
-
+  
               fini_1level_dtable ( &mbuffer );
 #else
               double ***** gcontr_ddd = init_5level_dtable ( T_global, 24, 2, 2, 2 * 2 );
@@ -1314,61 +1449,65 @@ int main(int argc, char **argv) {
 #endif
               if ( io_proc == 2 ) 
               {
-
+  
                 int const ncdim = 5;
                 int const cdim[ncdim] = {T_global, 24, 2, 2, 2 * 2 };
-
+  
                 sprintf ( data_tag, "/DDD%s-gc-%s%s-gi/mu%6.4f/mu%6.4f/mu%6.4f/dt%d/px%dpy%dpz%d", 
                     flavor_tag[2*(iflavor/2) + 1-(iflavor%2)],
                     flavor_tag[iflavor3], flavor_tag[iflavor2],
                     muval[2*(iflavor/2)+1-(iflavor%2)], muval[iflavor3], muval[iflavor2],
                     g_sequential_source_timeslice_list[iseq_timeslice],
                     sink_momentum[0], sink_momentum[1], sink_momentum[2] );
-
-
+  
+  
                 exitstatus = write_h5_contraction ( (void*)(gcontr_ddd[0][0][0][0]), NULL, output_filename, data_tag, "double", ncdim, cdim );
                 if(exitstatus != 0) {
                   fprintf(stderr, "[avgx23_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(3);
                 }
-
+  
               }
-
+  
               fini_5level_dtable ( &gcontr_ddd );
-
+  
             }  /* end of if io_proc > 0 */
-
+  
             gettimeofday ( &tb, (struct timezone *)NULL );
             show_time ( &ta, &tb, "avgx23_invert_contract", "io-gddd-threep", g_cart_id == 0 );
-
+  
 #endif  /* of if _AVGX3  */
-
+  
             /*****************************************************************/
             /*****************************************************************/
-
+  
             fini_5level_dtable ( &contr_dd );
 #if _AVGX3
             fini_5level_dtable ( &contr_ddd );
 #endif
-
+  
             fini_2level_dtable ( &sequential_propagator_list );
-
+  
           }  /* end of loop on seq source timeslice */
 
+
+
           fini_2level_dtable ( &stochastic_propagator_mom_smeared_list );
-
+  
         }  /* end of loop on ifl2 => flavor2 */
-
+  
       }  /* end of loop on source momentum */
               
       /*****************************************************************/
       /*****************************************************************/
 
-      fini_5level_dtable ( &stochastic_propagator_zero_ddispl_list );
 
+      fini_5level_dtable ( &stochastic_propagator_zero_ddispl_list );
+  
 #if _AVGX3
       fini_6level_dtable ( &stochastic_propagator_zero_dddispl_list );
 #endif
+
 
     }  /* loop on flavor */
 
