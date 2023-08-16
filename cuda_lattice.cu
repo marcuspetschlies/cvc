@@ -63,17 +63,31 @@ __device__ inline size_t coord2lexic(Coord coord, Geom local_geom) {
 }
 
 /**
+ * Given length-24 spin vector in, multiply by appropriate gamma matrix, writing
+ * to out (non-aliasing assumed).
+ */
+__device__ inline void _fv_eq_gamma_ti_fv(double* out, int gamma_index, const double* in) {
+  for (int i = 0; i < 24; ++i) {
+    out[i] = in[gamma_permutation[gamma_index][i]] * gamma_sign[gamma_index][i];
+  }
+}
+__device__ inline void _fv_ti_eq_g5(double* in_out) {
+  for (int i = 12; i < 24; ++i) {
+    in_out[i] *= -1;
+  }
+}
+
+/**
  * 1D kernels: operate over CUDA_BLOCK_SIZE spinor elements each.
  *  - `len`: num *doubles* in the input/output array (must be divisible by 24)
  */
-__global__ void ker_spinor_field_eq_gamma_ti_spinor_field(double* out, const double* in, int gamma_index, size_t len) {
+__global__ void ker_spinor_field_eq_gamma_ti_spinor_field(
+    double* out, int gamma_index, const double* in, size_t len) {
   int start_ind = BS*_GSI(blockIdx.x * blockDim.x + threadIdx.x);
   for (int ind = start_ind; ind < len && ind < (start_ind + BS*24); ind += 24) {
     double* rr = out + ind;
     const double* ss = in + ind;
-    for (int i = 0; i < 24; ++i) {
-      rr[i] = ss[gamma_permutation[gamma_index][i]] * gamma_sign[gamma_index][i];
-    }
+    _fv_eq_gamma_ti_fv(rr, gamma_index, ss);
   }
 }
 
@@ -81,9 +95,7 @@ __global__ void ker_g5_phi(double* spinor, size_t len) {
   /* invert sign of spin components 2 and 3 */
   int start_ind = BS*_GSI(blockIdx.x * blockDim.x + threadIdx.x);
   for (int ind = start_ind; ind < len && ind < (start_ind + BS*24); ind += 24) {
-    for (int i = 12; i < 24; ++i) {
-      spinor[ind + i] *= -1;
-    }
+    _fv_ti_eq_g5(&spinor[ind]);
   }
 }
 
@@ -118,7 +130,7 @@ __device__ int coord_map_zerohalf(int xi, int Li) {
  * 4D kernels: operate over CUDA_BLOCK_SIZE^4 spinor elements each.
  */
 __global__ void ker_dzu_dzsu(
-    double* d_dzu, double* d_dzsu, const double* g_fwd_src, const double* fwd_y,
+    double* d_dzu, double* d_dzsu, const double* fwd_src, const double* fwd_y,
     int iflavor, Coord g_proc_coords, Coord gsx, IdxComb idx_comb,
     Geom global_geom, Geom local_geom) {
   Coord origin = get_thread_origin(local_geom);
@@ -130,12 +142,15 @@ __global__ void ker_dzu_dzsu(
   size_t VOLUME = local_geom.T * local_geom.LX * local_geom.LY * local_geom.LZ;
   double dzu_work[6 * 12 * 12 * 2] = { 0 };
   double dzsu_work[6 * 12 * 12 * 2] = { 0 };
+  double spinor_work_0[24] = { 0 };
+  double spinor_work_1[24] = { 0 };
   for (int ia = 0; ia < 12; ++ia) {
     for (int k = 0; k < 6; ++k) {
       const int sigma = idx_comb.comb[k][1];
       const int rho = idx_comb.comb[k][0];
-      const double* g_fwd_base_sigma = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
-      const double* g_fwd_base_rho = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + rho)*12 + ia)];
+      const double* fwd_base = &fwd_src[_GSI(VOLUME) * (iflavor * 12 + ia)];
+      // const double* g_fwd_base_sigma = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
+      // const double* g_fwd_base_rho = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + rho)*12 + ia)];
       for (int dt = 0; dt < BS; ++dt) {
         for (int dx = 0; dx < BS; ++dx) {
           for (int dy = 0; dy < BS; ++dy) {
@@ -148,8 +163,15 @@ __global__ void ker_dzu_dzsu(
                 .t = tt, .x = xx, .y = yy, .z = zz
               };
               size_t iz = coord2lexic(coord, local_geom);
-              const double* _u_sigma = &g_fwd_base_sigma[_GSI(iz)];
-              const double* _u_rho = &g_fwd_base_rho[_GSI(iz)];
+              const double* _u = &fwd_base[_GSI(iz)];
+              double* _t_sigma = spinor_work_0;
+              double* _t_rho = spinor_work_1;
+              _fv_eq_gamma_ti_fv(_t_sigma, sigma, _u);
+              _fv_ti_eq_g5(_t_sigma);
+              _fv_eq_gamma_ti_fv(_t_rho, rho, _u);
+              _fv_ti_eq_g5(_t_rho);
+              // const double* _u_sigma = &g_fwd_base_sigma[_GSI(iz)];
+              // const double* _u_rho = &g_fwd_base_rho[_GSI(iz)];
               
               // const int z[4] = {
               //   ( tt + g_proc_coords[0] * local_geom.T  - gsx[0] + global_geom.T ) % global_geom.T,
@@ -173,12 +195,12 @@ __global__ void ker_dzu_dzsu(
                 for (int i = 0; i < 12; ++i) {
                   double fwd_y_re = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i];
                   double fwd_y_im = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i+1];
-                  double s_re = _u_sigma[2*i] * factor_rho;
-                  double s_im = _u_sigma[2*i+1] * factor_rho;
+                  double s_re = _t_sigma[2*i] * factor_rho;
+                  double s_im = _t_sigma[2*i+1] * factor_rho;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 0] += fwd_y_re * s_re + fwd_y_im * s_im;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 1] += fwd_y_re * s_im - fwd_y_im * s_re;
-                  s_re = _u_rho[2*i] * factor_sigma;
-                  s_im = _u_rho[2*i+1] * factor_sigma;
+                  s_re = _t_rho[2*i] * factor_sigma;
+                  s_im = _t_rho[2*i+1] * factor_sigma;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 0] -= fwd_y_re * s_re + fwd_y_im * s_im;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 1] -= fwd_y_re * s_im - fwd_y_im * s_re;
                 }
@@ -197,7 +219,8 @@ __global__ void ker_dzu_dzsu(
     }
 
     for (int sigma = 0; sigma < 4; ++sigma) {
-      const double* g_fwd_base = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
+      const double* fwd_base = &fwd_src[_GSI(VOLUME) * (iflavor * 12 + ia)];
+      // const double* g_fwd_base = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
       for (int ib = 0; ib < 12; ++ib) {
         for (int dt = 0; dt < BS; ++dt) {
           for (int dx = 0; dx < BS; ++dx) {
@@ -211,13 +234,16 @@ __global__ void ker_dzu_dzsu(
                   .t = tt, .x = xx, .y = yy, .z = zz
                 };
                 size_t iz = coord2lexic(coord, local_geom);
-                const double* _u = &g_fwd_base[_GSI(iz)];
+                const double* _u = &fwd_base[_GSI(iz)];
+                double* _t = spinor_work_0;
+                _fv_eq_gamma_ti_fv(_t, sigma, _u);
+                _fv_ti_eq_g5(_t);
 
                 for (int i = 0; i < 12; ++i) {
                   double fwd_y_re = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i];
                   double fwd_y_im = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i+1];
-                  double s_re = _u[2*i];
-                  double s_im = _u[2*i+1];
+                  double s_re = _t[2*i];
+                  double s_im = _t[2*i+1];
                   dzsu_work[((sigma * 12 + ia) * 12 + ib) * 2 + 0] += fwd_y_re * s_re + fwd_y_im * s_im;
                   dzsu_work[((sigma * 12 + ia) * 12 + ib) * 2 + 1] += fwd_y_re * s_im - fwd_y_im * s_re;
                 }
@@ -238,13 +264,13 @@ __global__ void ker_dzu_dzsu(
 /**
  * Top-level operations.
  */
-void cu_spinor_field_eq_gamma_ti_spinor_field(double* out, const double* in, int mu, size_t len) {
+void cu_spinor_field_eq_gamma_ti_spinor_field(double* out, int mu, const double* in, size_t len) {
   const size_t BS_spinor = 12 * CUDA_BLOCK_SIZE * CUDA_THREAD_DIM_1D;
   size_t nx = (len + BS_spinor - 1) / BS_spinor;
   dim3 kernel_nblocks(nx);
   dim3 kernel_nthreads(CUDA_THREAD_DIM_1D);
   ker_spinor_field_eq_gamma_ti_spinor_field<<<kernel_nblocks, kernel_nthreads>>>(
-      out, in, mu, len);
+      out, mu, in, len);
 }
 
 void cu_g5_phi(double* spinor, size_t len) {

@@ -36,10 +36,10 @@ struct Coord {
 #define CUDA_THREAD_DIM_4D 4
 
 void cu_spinor_field_eq_gamma_ti_spinor_field(
-    double* out, const double* in, int mu, size_t len);
+    double* out, int mu, const double* in, size_t len);
 void cu_g5_phi(double* out, size_t len);
 void cu_dzu_dzsu(
-    double* d_dzu, double* d_dzsu, const double* g_fwd_src, const double* fwd_y,
+    double* d_dzu, double* d_dzsu, const double* fwd_src, const double* fwd_y,
     int iflavor, Coord proc_coords, Coord gsx, IdxComb idx_comb, Geom global_geom, Geom local_geom);
 
 
