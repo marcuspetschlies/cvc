@@ -371,7 +371,8 @@ int main(int argc, char **argv) {
     /***********************************************************
      * loop on sources
      ***********************************************************/
-    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+    for( int isrc = 0; isrc < num_src_per_conf; isrc++ ) 
+    {
 
       /***********************************************************
        * open AFF reader
@@ -529,12 +530,6 @@ int main(int argc, char **argv) {
    **********************************************************/
   for ( int ireim = 0; ireim < 1; ireim++ ) {  /* real part only */
 
-    if ( num_conf < 6 ) {
-      fprintf ( stderr, "[avx23_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-      /* EXIT(1); */
-      continue;
-    }
-
     double ** data = init_2level_dtable ( num_conf, T_global );
     if ( data == NULL ) {
       fprintf ( stderr, "[avx23_conn_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
@@ -564,17 +559,11 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][1],
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
-    /* apply UWerr analysis */
-    exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[avx23_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(1);
-    }
-
     /**********************************************************
      * write data to ascii file
      **********************************************************/
-    if ( write_data == 2 ) {
+    if ( write_data )
+    {
       sprintf ( filename, "%s.corr", obs_name );
 
       FILE * fs = fopen( filename, "w" );
@@ -586,25 +575,40 @@ int main(int argc, char **argv) {
       fclose ( fs );
     }  /* end of if write data */
 
-    /**********************************************************
-     * acosh ratio for m_eff
-     **********************************************************/
-    int const Thp1 = T_global / 2 + 1;
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
-      int narg = 3;
-      int arg_first[3] = { 0, 2 * itau, itau };
-      int arg_stride[3] = {1,1,1};
-      int nT = Thp1 - 2 * itau;
 
-      char obs_name2[100];
-      sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
+    if ( num_conf < 6 ) 
+    {
+      fprintf ( stderr, "[avx23_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+      continue;
+    } else {
 
-      exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
       if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avx23_conn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
+        fprintf ( stderr, "[avx23_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
       }
-    }
+  
+      /**********************************************************
+       * acosh ratio for m_eff
+       **********************************************************/
+      int const Thp1 = T_global / 2 + 1;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
+        int narg = 3;
+        int arg_first[3] = { 0, 2 * itau, itau };
+        int arg_stride[3] = {1,1,1};
+        int nT = Thp1 - 2 * itau;
+  
+        char obs_name2[100];
+        sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
+  
+        exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avx23_conn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
+      }
+    }  /* end of if num_conf < 6 */
 
     fini_2level_dtable ( &data );
   }  /* end of loop on reim */
@@ -822,8 +826,8 @@ int main(int argc, char **argv) {
                          */
                        + buffer[k][itt_pl_mu_pl_nu][idd][1][1][2*igc+ireim]
                        + buffer[k][itt_mi_mu_mi_nu][idd][0][0][2*igc+ireim]
-                       - buffer[k][itt_pl_mu_pl_nu][idd][0][1][2*igc+ireim]
-                       - buffer[k][itt_pl_mu_pl_nu][idd][1][0][2*igc+ireim]
+                       - buffer[k][itt_pl_mu_mi_nu][idd][0][1][2*igc+ireim]
+                       - buffer[k][itt_mi_mu_pl_nu][idd][1][0][2*igc+ireim]
                         /*
                          *   <-- <--
                          * +  D   D
@@ -873,6 +877,42 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "avx23_conn_analyse", "read-threep-h5", g_cart_id == 0 );
 
 #endif  /* end of if _THREEP_AVGX_H5 */
+
+    /**********************************************************
+     * show basic 3-pt function
+     **********************************************************/
+    for ( int imom = 0; imom < g_sink_momentum_number; imom++ )
+    {
+      for ( int k = 0; k < 24; k++ )
+      {
+        for ( int ireim = 0; ireim < 2; ireim++ )
+        {
+          sprintf ( filename, "threep.%s.conn.gdd%d%d%d.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
+                    flavor_type_3pt[flavor_id_3pt],
+                    idx_map[k][0], idx_map[k][1], idx_map[k][2],
+                    g_sequential_source_timeslice_list[idt],
+                    g_sink_momentum_list[imom][0],
+                    g_sink_momentum_list[imom][1],
+                    g_sink_momentum_list[imom][2], reim_str[ireim] );
+
+          FILE * fs = fopen ( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ )
+          {
+            for ( int isrc = 0; isrc < num_src_per_conf; isrc++ )
+            {
+              for ( int it = 0; it < T_global; it++ )
+              {
+                fprintf ( fs, "%3d %25.16e %c %6d   %3d %3d %3d %3d\n", it, threep[imom][iconf][isrc][k][it][ireim], 
+                    conf_src_list[iconf][isrc][0],
+                    conf_src_list[iconf][isrc][1],
+                    conf_src_list[iconf][isrc][2], conf_src_list[iconf][isrc][3], conf_src_list[iconf][isrc][4], conf_src_list[iconf][isrc][5] );
+              }
+            }
+          }
+        }
+      }
+    }  /* end of loop on imom */
 
     /**********************************************************
      * symmetrization of threep
