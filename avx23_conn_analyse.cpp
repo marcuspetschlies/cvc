@@ -44,13 +44,11 @@
 #define _SQR(_a) ((_a)*(_a))
 #endif
 
-#define _RAT_METHOD 1
+#define _TWOP_STATS     1
 
-#define _TWOP_STATS 1
+#define _TWOP_AVGX_H5   1
 
-#define _TWOP_AVGX_H5     1
-
-#define _THREEP_AVGX_H5      1
+#define _THREEP_AVGX_H5 0
 
 using namespace cvc;
 
@@ -380,10 +378,17 @@ int main(int argc, char **argv) {
       char data_filename[500];
     
       /* avgx23.1300.t111.s2.h5 */
-      sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
+      /* sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
           conf_src_list[iconf][isrc][0],
           filename_prefix,
           conf_src_list[iconf][isrc][1],
+          filename_prefix2,
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2],
+          conf_src_list[iconf][isrc][3] );
+      */
+      sprintf( data_filename, "stream_%c/%s.%.4d.t%d.s%d.h5",
+          conf_src_list[iconf][isrc][0],
           filename_prefix2,
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
@@ -700,7 +705,7 @@ int main(int argc, char **argv) {
          ***********************************************************/
         char data_filename[500];
   
-        sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
+        /* sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
             conf_src_list[iconf][isrc][0],
             filename_prefix,
             conf_src_list[iconf][isrc][1],
@@ -708,7 +713,15 @@ int main(int argc, char **argv) {
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
             conf_src_list[iconf][isrc][3] );
-  
+          */
+ 
+        sprintf( data_filename, "stream_%c/%s.%.4d.t%d.s%d.h5",
+            conf_src_list[iconf][isrc][0],
+            filename_prefix2,
+            conf_src_list[iconf][isrc][1],
+            conf_src_list[iconf][isrc][2],
+            conf_src_list[iconf][isrc][3] );
+ 
         if ( g_verbose > 2 ) fprintf ( stdout, "# [avx23_conn_analyse] reading from data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
 
         /***********************************************************
@@ -887,13 +900,17 @@ int main(int argc, char **argv) {
       {
         for ( int ireim = 0; ireim < 2; ireim++ )
         {
-          sprintf ( filename, "threep.%s.conn.gdd%d%d%d.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
+          char obs_name[100];
+
+          sprintf ( obs_name, "threep.%s.conn.gdd%d%d%d.dtsnk%d.PX%d_PY%d_PZ%d.%s",
                     flavor_type_3pt[flavor_id_3pt],
                     idx_map[k][0], idx_map[k][1], idx_map[k][2],
                     g_sequential_source_timeslice_list[idt],
                     g_sink_momentum_list[imom][0],
                     g_sink_momentum_list[imom][1],
                     g_sink_momentum_list[imom][2], reim_str[ireim] );
+
+          sprintf ( filename, "%s.corr", obs_name );
 
           FILE * fs = fopen ( filename, "w" );
 
@@ -910,6 +927,38 @@ int main(int argc, char **argv) {
               }
             }
           }
+ 
+          double ** data = init_2level_dtable ( num_conf, T_global );
+          if ( data == NULL ) {
+            fprintf ( stderr, "[avx23_conn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+            EXIT(1);
+          }
+
+#pragma omp parallel for
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) 
+          {
+            for ( int it = 0; it < T_global; it++ )
+            {
+              double dtmp = 0.;
+              for ( int isrc = 0; isrc < num_src_per_conf; isrc++ ) {
+                dtmp += threep[imom][iconf][isrc][k][it][ireim];
+              }
+              data[iconf][it] = dtmp / (double)num_src_per_conf;
+            }
+          }
+
+          if ( num_conf >=  6 ) {
+            /* apply UWerr analysis */
+            exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+            if ( exitstatus != 0 ) {
+              fprintf ( stderr, "[avx23_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+              EXIT(1);
+            }
+          } else {
+            fprintf ( stderr, "[avx23_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+          }
+
+          fini_2level_dtable ( &data );
         }
       }
     }  /* end of loop on imom */
