@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
   struct timeval ta, tb, start_time, end_time;
   int check_propagator_residual = 0;
   int gf_niter = 1;
-  double gf_dt = 0.0;
+  double gf_dt = 0.01;
 
 
 #ifdef HAVE_MPI
@@ -398,7 +398,6 @@ int main(int argc, char **argv) {
   size_t const sizeof_spinor_field = _GSI ( VOLUME ) * sizeof ( double ) ;
   size_t const sizeof_gauge_field  = 72 * VOLUME * sizeof ( double );
 
-
   /***************************************************************************
    * test solve, just to have original gauge field up on device
    ***************************************************************************/
@@ -418,11 +417,12 @@ int main(int argc, char **argv) {
   }
   check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, lmzz[0], lmzzinv[0], 1 );
 
-  sprintf ( filename, "propagator.0" );
-  write_propagator ( spinor_work[1], filename, 0, 64 );
+  // sprintf ( filename, "propagator.0" );
+  // write_propagator ( spinor_work[1], filename, 0, 64 );
 
   fini_2level_dtable ( &spinor_work );
-
+#if 0
+#endif
 
   /***************************************************************************
    * up- and down-load gauge field
@@ -455,6 +455,7 @@ int main(int argc, char **argv) {
     fprintf ( stderr, "[test_gauge_load] Error from init_2level_dtable    %s %d\n", __FILE__, __LINE__ );
     EXIT(12);
   }
+
 
   /***************************************************************************
    * Begin of gauge_param initialization
@@ -530,6 +531,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * End of gauge_param initialization
    ***************************************************************************/
+
 
   /***************************************************************************
    ***************************************************************************/
@@ -770,13 +772,13 @@ int main(int argc, char **argv) {
   /* for ( gf_dt = 0.1; gf_dt >= 0.00001; gf_dt /= 10. )
   { */
 
+#ifdef _GFLOW_QUDA
     /***************************************************************************
      * upload gauge field
      ***************************************************************************/
   
-    /* memcpy ( gauge_field_smeared, gauge_field_with_phase, sizeof_gauge_field ); */
- 
-    unit_gauge_field ( gauge_field_smeared, VOLUME );
+    memcpy ( gauge_field_smeared, gauge_field_with_phase, sizeof_gauge_field );
+    // unit_gauge_field ( gauge_field_smeared, VOLUME );
 
   
     /* reshape gauge field */
@@ -785,7 +787,9 @@ int main(int argc, char **argv) {
   
     /* upload to device */
     loadGaugeQuda ( (void *)h_gauge, &gauge_param );
-  
+ 
+#endif   /* of #ifdef _GFLOW_QUDA  */
+
 #if 0
     /* to really check, set both gauge fields to zero */
     memset ( h_gauge[0], 0, 4 * 18 * VOLUME * sizeof ( double ) );
@@ -808,8 +812,9 @@ int main(int argc, char **argv) {
       EXIT(12);
     }
 #endif
-#if 0
+
     prepare_volume_source ( spinor_field[0], VOLUME );
+#if 0
 #pragma omp parallel for
     for ( unsigned int ix = 0; ix < _GSI( VOLUME ); ix++ )
     {
@@ -817,21 +822,41 @@ int main(int argc, char **argv) {
     }
 #endif
 
+#if 0
+    int const gsx[4] = {
+            g_source_coords_list[0][0],
+            g_source_coords_list[0][1],
+            g_source_coords_list[0][2],
+            g_source_coords_list[0][3] };
+    int sx[4], source_proc_id = -1;
+
+    get_point_source_info ( gsx, sx, &source_proc_id );
+
     memset ( spinor_field[0], 0, sizeof_spinor_field );
-    if ( g_cart_id == 0 ) spinor_field[0][_GSI(g_ipt[0][5][6][0])+12] = 1.;
+    /* if ( g_cart_id == 0 ) spinor_field[0][_GSI(g_ipt[0][5][6][0])+12] = 1.; */
     /* if ( g_cart_id == 3 ) spinor_field[0][_GSI(g_ipt[T-1][5][6][LZ-1])+12] = 1.; */
 
+    if ( g_cart_id == source_proc_id )
+    {
+      spinor_field[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+12] = 1.;
+    }
+#endif
     /***************************************************************************
      * flow the gauge field and the spinor field on the gpu
      ***************************************************************************/
+    
+    memcpy ( spinor_field[1], spinor_field[0], sizeof_spinor_field ); 
+    /* _performWuppertalnStep ( spinor_field[1], spinor_field[1], 1, 1. ); */
+
 #ifdef _GFLOW_QUDA
  
-    memcpy ( spinor_field[1], spinor_field[0], sizeof_spinor_field ); 
-    /*_performGFlownStep ( spinor_field[1], spinor_field[1], gf_niter, gf_dt, 1, QUDA_WFLOW_TYPE_WILSON , 1 );*/
+    QudaGaugeSmearParam smear_param;
+    smear_param.n_steps       = gf_niter;
+    smear_param.epsilon       = gf_dt;
+    smear_param.meas_interval = 1;
+    smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
 
-    _performWuppertalnStep ( spinor_field[1], spinor_field[1], 1, 1. );
-
-    /* performWuppertalnStep ( spinor_field[1], spinor_field[0], &inv_param, 1, 0. ); */
+    _performGFlownStep ( spinor_field[1], spinor_field[1], &smear_param, 1 );
 
     saveGaugeQuda ( (void*)h_gauge, &gauge_param );
 
@@ -845,7 +870,8 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "[test_gauge_load] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
     }
-#endif
+#endif  /* of if 0 */
+
 #endif  /* of if _GFLOW_QUDA */
 
 
@@ -853,9 +879,8 @@ int main(int argc, char **argv) {
      * now flow the gauge field and the spinor field the same way on the cpu
      ***************************************************************************/
 #ifdef _GFLOW_CVC
-    /* memcpy ( gauge_field_smeared_cpu, gauge_field_with_phase, sizeof_gauge_field ); */
-    /*  unit_gauge_field ( gauge_field_smeared_cpu, VOLUME ); */
     memcpy ( gauge_field_smeared_cpu, gauge_field_with_phase, sizeof_gauge_field );
+    // unit_gauge_field ( gauge_field_smeared_cpu, VOLUME );
 
     memcpy ( spinor_field[2], spinor_field[0], sizeof_spinor_field );
  
@@ -869,7 +894,7 @@ int main(int argc, char **argv) {
       fprintf ( stderr, "[test_gauge_load] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(12);
     }
-#endif
+#endif  /* if 0 */
 
 #endif  /* of if _GFLOW_CVC */
 
@@ -975,6 +1000,7 @@ int main(int argc, char **argv) {
   fini_2level_dtable ( &spinor_field );
 
 
+#if 0
   /***************************************************************************
    * another test solve, just to have original gauge field up on device
    ***************************************************************************/
@@ -998,6 +1024,7 @@ int main(int argc, char **argv) {
   write_propagator ( spinor_work[1], filename, 0, 64 );
 
   fini_2level_dtable ( &spinor_work );
+#endif
 
   /***************************************************************************
    * free the allocated memory, finalize
