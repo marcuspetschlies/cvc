@@ -347,9 +347,6 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
       /* phi2 <- phi2 -dt 2/9 phi0 = phi0 + dt 8/9 Delta1 phi1 - 2/9 Delta0 phi0 */
       spinor_field_pl_eq_spinor_field_ti_re ( phi[2], phi[0],  -dt*2./9., VOLUME );
 
-      /* TEST */
-      /* memcpy ( phi[3], phi[2], sizeof_spinor_field ); */
-
     }
 
 
@@ -388,8 +385,8 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
 
       apply_ZX ( w, z, dt );
     }
-#if 0
-#endif
+
+
 
   }  /* end of loop on iterations */
 
