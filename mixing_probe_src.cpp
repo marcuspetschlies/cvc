@@ -58,8 +58,8 @@ extern "C"
 #include "table_init_d.h"
 #include "dummy_solver.h"
 #include "contractions_io.h"
-#include "contract_factorized.h"
-#include "contract_diagrams.h"
+// #include "contract_factorized.h"
+// #include "contract_diagrams.h"
 #include "gamma.h"
 
 #include "clover.h"
@@ -80,7 +80,7 @@ using namespace cvc;
 
 typedef int ( * reduction_operation ) (double**, fermion_propagator_type*, fermion_propagator_type*, fermion_propagator_type*, unsigned int);
 
-
+#if 0
 /***************************************************************************
  * 
  ***************************************************************************/
@@ -116,7 +116,7 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
 
 }  /* end of reduce_project_write */
 
-
+#endif  /* of if 0  */
 
 /***************************************************************************
  * helper message
@@ -391,7 +391,7 @@ int main(int argc, char **argv) {
    *   mzz = space-time diagonal part of the Dirac matrix
    *   l   = light quark mass
    ***************************************************************************/
-  exitstatus = init_clover ( &lmzz, &lmzzinv, gauge_field_with_phase );
+  exitstatus = init_clover ( &g_clover, &lmzz, &lmzzinv, gauge_field_with_phase, g_mu, g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[mixing_probe_src] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -668,7 +668,7 @@ int main(int argc, char **argv) {
 
 
             if ( check_propagator_residual ) {
-              check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
+              check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], lmzzinv[_OP_ID_UP], 1 );
             }
 
             /* tm-rotate stochastic propagator at sink */
@@ -934,7 +934,7 @@ int main(int argc, char **argv) {
        * NOTE: quark flavor is controlled by value of iflavor
        ***********************************************************/
       /*                                     output field         src coords flavor type  src smear  sink smear gauge field for smearing,  for residual check ...                                   */
-      exitstatus = point_source_propagator ( propagator[iflavor], gsx,       iflavor,     1,         0,         gauge_field_smeared,       check_propagator_residual, gauge_field_with_phase, lmzz );
+      exitstatus = point_source_propagator ( propagator[iflavor], gsx,       iflavor,     1,         0,         gauge_field_smeared,       check_propagator_residual, gauge_field_with_phase, lmzz, lmzzinv );
       if(exitstatus != 0) {
         fprintf(stderr, "[mixing_probe_src] Error from point_source_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
         EXIT(12);
@@ -1491,7 +1491,8 @@ int main(int argc, char **argv) {
   if ( gauge_field_smeared    != NULL ) free ( gauge_field_smeared );
 
   /* free clover matrix terms */
-  fini_clover ( );
+  fini_clover ( &lmzz, &lmzzinv );
+
 
   /* free lattice geometry arrays */
   free_geometry();
