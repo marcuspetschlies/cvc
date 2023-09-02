@@ -52,10 +52,10 @@ __device__ __constant__ int gamma_sign[16][24] = {
 const int BS = CUDA_BLOCK_SIZE;
 __device__ inline Coord get_thread_origin(Geom local_geom) {
   int x = BS*(blockIdx.x * blockDim.x + threadIdx.x);
-  int y = BS*(blockIdx.y * blockDim.y + threadIdx.y);
-  int z = BS*(blockIdx.z * blockDim.z + threadIdx.z);
   int t = BS*(x / local_geom.LX);
   x %= local_geom.LX;
+  int y = BS*(blockIdx.y * blockDim.y + threadIdx.y);
+  int z = BS*(blockIdx.z * blockDim.z + threadIdx.z);
   return Coord { .t = t, .x = x, .y = y, .z = z };
 }
 __device__ inline size_t coord2lexic(Coord coord, Geom local_geom) {
@@ -135,11 +135,10 @@ __global__ void ker_dzu_dzsu(
     Geom global_geom, Geom local_geom) {
   Coord origin = get_thread_origin(local_geom);
   int gsx_arr[4] = {gsx.t, gsx.x, gsx.y, gsx.z};
-  if (origin.t >= local_geom.T || origin.x >= local_geom.LX ||
-      origin.y >= local_geom.LY || origin.z >= local_geom.LZ) {
-    return;
-  }
   size_t VOLUME = local_geom.T * local_geom.LX * local_geom.LY * local_geom.LZ;
+  int local_geom_arr[4] = {local_geom.T, local_geom.LX, local_geom.LY, local_geom.LZ};
+  int global_geom_arr[4] = {global_geom.T, global_geom.LX, global_geom.LY, global_geom.LZ};
+  int proc_coord_arr[4] = {g_proc_coords.t, g_proc_coords.x, g_proc_coords.y, g_proc_coords.z};
   double dzu_work[6 * 12 * 12 * 2] = { 0 };
   double dzsu_work[6 * 12 * 12 * 2] = { 0 };
   double spinor_work_0[24] = { 0 };
@@ -149,8 +148,6 @@ __global__ void ker_dzu_dzsu(
       const int sigma = idx_comb.comb[k][1];
       const int rho = idx_comb.comb[k][0];
       const double* fwd_base = &fwd_src[_GSI(VOLUME) * (iflavor * 12 + ia)];
-      // const double* g_fwd_base_sigma = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
-      // const double* g_fwd_base_rho = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + rho)*12 + ia)];
       for (int dt = 0; dt < BS; ++dt) {
         for (int dx = 0; dx < BS; ++dx) {
           for (int dy = 0; dy < BS; ++dy) {
@@ -159,6 +156,10 @@ __global__ void ker_dzu_dzsu(
               const int xx = dx + origin.x;
               const int yy = dy + origin.y;
               const int zz = dz + origin.z;
+              if (tt >= local_geom.T || xx >= local_geom.LX ||
+                  yy >= local_geom.LY || zz >= local_geom.LZ) {
+                continue;
+              }
               const Coord coord{
                 .t = tt, .x = xx, .y = yy, .z = zz
               };
@@ -170,21 +171,7 @@ __global__ void ker_dzu_dzsu(
               _fv_ti_eq_g5(_t_sigma);
               _fv_eq_gamma_ti_fv(_t_rho, rho, _u);
               _fv_ti_eq_g5(_t_rho);
-              // const double* _u_sigma = &g_fwd_base_sigma[_GSI(iz)];
-              // const double* _u_rho = &g_fwd_base_rho[_GSI(iz)];
-              
-              // const int z[4] = {
-              //   ( tt + g_proc_coords[0] * local_geom.T  - gsx[0] + global_geom.T ) % global_geom.T,
-              //   ( xx + g_proc_coords[1] * local_geom.LX  - gsx[1] + global_geom.LX ) % global_geom.LX,
-              //   ( yy + g_proc_coords[2] * local_geom.LY  - gsx[2] + global_geom.LY ) % global_geom.LY,
-              //   ( zz + g_proc_coords[3] * local_geom.LZ  - gsx[3] + global_geom.LZ ) % global_geom.LZ,
-              // };
-              // int zv[4];
-              // site_map_zerohalf(zv, z, global_geom);
-              int local_geom_arr[4] = {local_geom.T, local_geom.LX, local_geom.LY, local_geom.LZ};
-              int global_geom_arr[4] = {global_geom.T, global_geom.LX, global_geom.LY, global_geom.LZ};
               int coord_arr[4] = {tt, xx, yy, zz};
-              int proc_coord_arr[4] = {g_proc_coords.t, g_proc_coords.x, g_proc_coords.y, g_proc_coords.z};
               int zrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
               zrho = (zrho + global_geom_arr[rho]) % global_geom_arr[rho];
               int zsigma = coord_arr[sigma] + proc_coord_arr[sigma] * local_geom_arr[sigma] - gsx_arr[sigma];
@@ -195,14 +182,10 @@ __global__ void ker_dzu_dzsu(
                 for (int i = 0; i < 12; ++i) {
                   double fwd_y_re = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i];
                   double fwd_y_im = fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(iz) + 2*i+1];
-                  double s_re = _t_sigma[2*i] * factor_rho;
-                  double s_im = _t_sigma[2*i+1] * factor_rho;
+                  double s_re = (_t_sigma[2*i] * factor_rho - _t_rho[2*i] * factor_sigma);
+                  double s_im = (_t_sigma[2*i+1] * factor_rho - _t_rho[2*i+1] * factor_sigma);
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 0] += fwd_y_re * s_re + fwd_y_im * s_im;
                   dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 1] += fwd_y_re * s_im - fwd_y_im * s_re;
-                  s_re = _t_rho[2*i] * factor_sigma;
-                  s_im = _t_rho[2*i+1] * factor_sigma;
-                  dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 0] -= fwd_y_re * s_re + fwd_y_im * s_im;
-                  dzu_work[((k * 12 + ia) * 12 + ib) * 2 + 1] -= fwd_y_re * s_im - fwd_y_im * s_re;
                 }
               }
             }
@@ -220,7 +203,6 @@ __global__ void ker_dzu_dzsu(
 
     for (int sigma = 0; sigma < 4; ++sigma) {
       const double* fwd_base = &fwd_src[_GSI(VOLUME) * (iflavor * 12 + ia)];
-      // const double* g_fwd_base = &g_fwd_src[_GSI(VOLUME) * ((iflavor * 4 + sigma)*12 + ia)];
       for (int ib = 0; ib < 12; ++ib) {
         for (int dt = 0; dt < BS; ++dt) {
           for (int dx = 0; dx < BS; ++dx) {
@@ -230,6 +212,10 @@ __global__ void ker_dzu_dzsu(
                 const int xx = dx + origin.x;
                 const int yy = dy + origin.y;
                 const int zz = dz + origin.z;
+                if (tt >= local_geom.T || xx >= local_geom.LX ||
+                    yy >= local_geom.LY || zz >= local_geom.LZ) {
+                  continue;
+                }
                 const Coord coord{
                   .t = tt, .x = xx, .y = yy, .z = zz
                 };
@@ -282,21 +268,23 @@ void cu_g5_phi(double* spinor, size_t len) {
 }
 
 void cu_dzu_dzsu(
-    double* d_dzu, double* d_dzsu, const double* g_fwd_src, const double* fwd_y,
+    double* d_dzu, double* d_dzsu, const double* fwd_src, const double* fwd_y,
     int iflavor, Coord proc_coords, Coord gsx, IdxComb idx_comb, Geom global_geom, Geom local_geom) {
   int T = local_geom.T;
   int LX = local_geom.LX;
   int LY = local_geom.LY;
   int LZ = local_geom.LZ;
   const size_t BS_TX = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE * CUDA_BLOCK_SIZE;
-  const size_t BS_YZ = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
+  const size_t BS_Y = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
+  const size_t BS_Z = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
   size_t nx = (T*LX + BS_TX - 1) / BS_TX;
-  size_t ny = (LY + BS_YZ - 1) / BS_YZ;
-  size_t nz = (LZ + BS_YZ - 1) / BS_YZ;
+  size_t ny = (LY + BS_Y - 1) / BS_Y;
+  size_t nz = (LZ + BS_Z - 1) / BS_Z;
   dim3 kernel_nblocks(nx, ny, nz);
   dim3 kernel_nthreads(CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D);
   ker_dzu_dzsu<<<kernel_nblocks, kernel_nthreads>>>(
-      d_dzu, d_dzsu, g_fwd_src, fwd_y, iflavor, proc_coords, gsx, idx_comb, global_geom, local_geom);
+      d_dzu, d_dzsu, fwd_src, fwd_y, iflavor, proc_coords, gsx, idx_comb,
+      global_geom, local_geom);
 }
 
 

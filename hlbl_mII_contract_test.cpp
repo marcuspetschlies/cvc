@@ -230,8 +230,12 @@ inline void compute_dzu_dzsu(
 
   double* d_dzu = NULL;
   double* d_dzsu = NULL;
-  size_t sizeof_dzu = 6 * 12 * 24 * sizeof(double);
-  size_t sizeof_dzsu = 4 * 12 * 24 * sizeof(double);
+  constexpr size_t n_dzu = 6 * 12 * 24;
+  constexpr size_t n_dzsu = 4 * 12 * 24;
+  double local_dzu[n_dzu];
+  double local_dzsu[n_dzsu];
+  size_t sizeof_dzu = n_dzu * sizeof(double);
+  size_t sizeof_dzsu = n_dzsu * sizeof(double);
   checkCudaErrors(cudaMalloc((void**)&d_dzu, sizeof_dzu));
   checkCudaErrors(cudaMalloc((void**)&d_dzsu, sizeof_dzsu));
   checkCudaErrors(cudaMemset(d_dzu, 0, sizeof_dzu));
@@ -256,81 +260,27 @@ inline void compute_dzu_dzsu(
       d_dzu, d_dzsu, fwd_src, fwd_y, iflavor, d_proc_coords, d_gsx,
       d_idx_comb, global_geom, local_geom);
   checkCudaErrors(cudaMemcpy(
-      (void*)dzu[0][0], (const void*)d_dzu, sizeof_dzu, cudaMemcpyDeviceToHost));
+      (void*)local_dzu, (const void*)d_dzu, sizeof_dzu, cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaMemcpy(
-      (void*)dzsu[0][0], (const void*)d_dzsu, sizeof_dzsu, cudaMemcpyDeviceToHost));
+      (void*)local_dzsu, (const void*)d_dzsu, sizeof_dzsu, cudaMemcpyDeviceToHost));
   // TODO: Could probably cache these device buffers for the whole computation
 
   checkCudaErrors(cudaFree(d_dzu));
   checkCudaErrors(cudaFree(d_dzsu));
 
-  // for(int ia = 0; ia < 12; ia++ )
-  // {
-
-  //   for ( int k = 0; k < 6; k++ )
-  //   {
-  //     int const sigma = idx_comb[k][1];
-  //     int const rho   = idx_comb[k][0];
-
-  //     for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
-  //     {
-  //       double * const _u = g_fwd_src[iflavor][sigma][ia] + _GSI(iz);
-  //       double * const _s = spinor_work[0] + _GSI(iz);
-
-  //       int const z[4] = {
-  //         ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
-  //         ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
-  //         ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
-  //         ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
-
-  //       int zv[4];
-  //       site_map_zerohalf ( zv, z );
-
-  //       _fv_eq_fv_ti_re ( _s, _u,  zv[rho  ] );
-  //     }
-            
-  //     for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
-  //     {
-  //       double * const _u = g_fwd_src[iflavor][rho  ][ia] + _GSI(iz);
-  //       double * const _s = spinor_work[0] + _GSI(iz);
-
-  //       int const z[4] = {
-  //         ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
-  //         ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
-  //         ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
-  //         ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
-
-  //       int zv[4];
-  //       site_map_zerohalf ( zv, z );
-
-  //       _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -zv[sigma] );
-  //     }
-
-  //     for(int ib = 0; ib < 12; ib++ )
-  //     {
-  //       complex w = {0.,0.};
-  //       spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], spinor_work[0], VOLUME );
-
-  //       dzu[k][ia][2*ib  ] = w.re;
-  //       dzu[k][ia][2*ib+1] = w.im;
-
-  //     }  /* of ib */
-  //   }  /* of index combinations k --- rho, sigma */
-
-        
-  //   for ( int sigma = 0; sigma < 4; sigma++ )
-  //   {
-  //     complex w = { 0., 0. };
-
-  //     for(int ib = 0; ib < 12; ib++ )
-  //     {
-  //       spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], g_fwd_src[iflavor][sigma][ia], VOLUME );
-  //       dzsu[sigma][ia][2*ib  ] = w.re;
-  //       dzsu[sigma][ia][2*ib+1] = w.im;
-  //     }
-  //   }
-
-  // }  /* of ia */
+#ifdef HAVE_MPI
+  if ( MPI_Allreduce(local_dzu, dzu[0][0], n_dzu, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+  if ( MPI_Allreduce(local_dzsu, dzsu[0][0], n_dzsu, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+#else
+  memcpy((void*)dzu[0][0], (void*)local_dzu, sizeof_dzu);
+  memcpy((void*)dzsu[0][0], (void*)local_dzsu, sizeof_dzsu);
+#endif
 
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
@@ -401,8 +351,6 @@ inline void assign_prop(prop_t x, int iflavor, int i, double* input, unsigned VO
   size_t sizeof_spinor_field = _GSI( (size_t)VOLUME ) * sizeof(double);
   memcpy(x[iflavor][i], input, sizeof_spinor_field);
 }
-// spinor_field_eq_gamma_ti_spinor_field ( g_fwd_src[iflavor][mu][ib], mu, fwd_src[iflavor][ib], VOLUME );
-// g5_phi ( g_fwd_src[iflavor][mu][ib], VOLUME );
 inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsigned VOLUME) {
   spinor_field_eq_gamma_ti_spinor_field ( y[iflavor][mu][ib], mu, x[iflavor][ib], VOLUME );
   g5_phi ( y[iflavor][mu][ib], VOLUME );
@@ -461,28 +409,6 @@ inline void compute_dzu_dzsu(
         _fv_eq_fv_pl_fv_ti_re ( _s, _s, _t, -zv[sigma] );
       }
             
-// #ifdef HAVE_OPENMP
-// #pragma omp parallel for
-// #endif
-//       for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
-//       {
-//         double * const _u = fwd_src[iflavor][ia] + _GSI(iz);
-//         // double * const _u = g_fwd_src[iflavor][rho  ][ia] + _GSI(iz);
-//         double * const _s = spinor_work[0] + _GSI(iz);
-//         double * const _t = spinor_work[1] + _GSI(iz);
-
-//         int const z[4] = {
-//           ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsx[0] + T_global  ) % T_global,
-//           ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsx[1] + LX_global ) % LX_global,
-//           ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsx[2] + LY_global ) % LY_global,
-//           ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
-
-//         int zv[4];
-//         site_map_zerohalf ( zv, z );
-
-//         _fv_eq_fv_pl_fv_ti_re ( _s, _s , _u, -zv[sigma] );
-//       }
-
       for(int ib = 0; ib < 12; ib++ )
       {
         complex w = {0.,0.};
@@ -501,7 +427,6 @@ inline void compute_dzu_dzsu(
 
       for(int ib = 0; ib < 12; ib++ )
       {
-        // spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], g_fwd_src[iflavor][sigma][ia], VOLUME );
         spinor_field_eq_gamma_ti_spinor_field ( spinor_work[0], sigma, fwd_src[iflavor][ia], VOLUME );
         g5_phi ( spinor_work[0], VOLUME );
         spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], spinor_work[0], VOLUME );
@@ -834,7 +759,7 @@ int main(int argc, char **argv) {
 
   // double **** g_fwd_src = init_4level_dtable ( 2, 4, 12, _GSI( (size_t)VOLUME ) );
   // g_prop_t g_fwd_src = init_g_prop(VOLUME);
-  double **** g_fwd_src_2;
+  // double **** g_fwd_src_2;
 
   if( fwd_src == NULL || fwd_y == NULL ) // || g_fwd_src == NULL  )
   {
@@ -1064,6 +989,25 @@ int main(int argc, char **argv) {
         /***********************************************************/
 
 
+#if USE_CUDA
+        /// FORNOW: Dumb copy to cpu
+        fprintf(stdout, "# [hlbl_mII_invert_contract] allocating CPU mirror arrays\n");
+        fflush(stdout);
+        fwd_y_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
+        fwd_src_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
+        fprintf(stdout, "# [hlbl_mII_invert_contract] alloc'd CPU mirror arrays\n");
+        fflush(stdout);
+        checkCudaErrors(cudaMemcpy(
+            &fwd_y_2[0][0][0], fwd_y, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(
+            &fwd_src_2[0][0][0], fwd_src, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
+        fprintf(stdout, "# [hlbl_mII_invert_contract] assign'd CPU mirror arrays\n");
+        fflush(stdout);
+#else
+        fwd_y_2 = fwd_y;
+        fwd_src_2 = fwd_src;
+#endif
+
         for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
         {
           /***********************************************************
@@ -1158,41 +1102,10 @@ int main(int argc, char **argv) {
            **
            ***********************************************************
            ***********************************************************/
+          
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-
-#if USE_CUDA
-          /// FORNOW: Dumb copy to cpu
-          fwd_y_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
-          fwd_src_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
-          checkCudaErrors(cudaMemcpy(
-              &fwd_y_2[0][0][0], fwd_y, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
-          checkCudaErrors(cudaMemcpy(
-              &fwd_src_2[0][0][0], fwd_src, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
-#else
-          fwd_y_2 = fwd_y;
-          fwd_src_2 = fwd_src;
-#endif
-          /// FORNOW: We construct g_fwd_src on the CPU. Ideally this is removed
-          /// fully in the end.
-          g_fwd_src_2 = init_4level_dtable( 2, 4, 12, _GSI( (size_t)VOLUME ) );
-          for ( int iflavor = 0; iflavor < 2; iflavor++ )
-          {
-            for( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int ib = 0; ib < 12; ib++)
-              {
-                spinor_field_eq_gamma_ti_spinor_field ( g_fwd_src_2[iflavor][mu][ib], mu, fwd_src_2[iflavor][ib], VOLUME );
-                g5_phi ( g_fwd_src_2[iflavor][mu][ib], VOLUME );
-              }
-            }
-          }
-          // checkCudaErrors(cudaMemcpy(
-          //     &g_fwd_src_2[0][0][0][0], g_fwd_src, 2*4*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
-          
-
-          
           for ( unsigned int ix = 0; ix < VOLUME; ix++ )
           {
             int x[4] = { g_proc_coords[0]*T  + g_lexic2coords[ix][0],
@@ -1220,11 +1133,15 @@ int main(int argc, char **argv) {
             
                 for ( int ia = 0; ia < 12; ia++) 
                 {
+                  double * const _d = fwd_src_2[1-iflavor][ia] + _GSI(ix);
+                  double * const _t = spinor1;
+                  _fv_eq_gamma_ti_fv ( _t, mu, _d );
+                  _fv_ti_eq_g5 ( _t );
                 
-                  double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
+                  // double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
                   complex w;
 
-                  _co_eq_fv_dag_ti_fv ( &w ,_d, _u );
+                  _co_eq_fv_dag_ti_fv ( &w, _t, _u );
 
                   /* -1 factor due to (g5 gmu)^+ = -g5 gmu */
                   dxu[mu][ib][2*ia  ] = -w.re;
@@ -1521,17 +1438,17 @@ int main(int argc, char **argv) {
 
           /// DEBUG:
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 0: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][0]);
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 0: %f\n",
+              g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][0]);
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 1: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][1]);
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 1: %f\n",
+              g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][1]);
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 2: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][2]);
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 2: %f\n",
+              g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][2]);
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 3: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][3]);
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 3: %f\n",
+              g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][3]);
 
           /***********************************************************/
           /***********************************************************/
@@ -1566,6 +1483,23 @@ int main(int argc, char **argv) {
     }
 
     fini_1level_dtable ( &mbuffer );
+
+    printf("# [hlbl_mII_invert_contract] kernel_sum:\n");
+    if (g_cart_id == 0) {
+      for (int iflavor = 0; iflavor < 2; ++iflavor)  {
+        for (int iy = 0; iy < ymax+1; ++iy) {
+          for (int isign = 0; isign < ysign_num; ++isign) {
+            for (int jker = 0; jker < 4; ++jker) {
+              fprintf(stdout,
+                  "# [hlbl_mII_invert_contract] final kernel_sum iflavor=%d iy=%d isign=%d %d: %f\n",
+                  iflavor, iy, isign, jker, kernel_sum[iflavor][iy][isign][jker]);
+              fflush(stdout);
+            }
+          }
+        }
+      }
+    }
+
 
 #endif  /* end of ifdef HAVE_MPI */
 
@@ -1603,7 +1537,7 @@ int main(int argc, char **argv) {
   // fini_g_prop ( &g_fwd_src_2 );
   fini_3level_dtable ( &fwd_y_2 );
   fini_3level_dtable ( &fwd_src_2 );
-  fini_4level_dtable ( &g_fwd_src_2 );
+  // fini_4level_dtable ( &g_fwd_src_2 );
   fini_2level_dtable ( &spinor_work );
 #if USE_CUDA
   fini_prop ( &fwd_src );
