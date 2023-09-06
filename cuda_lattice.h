@@ -43,5 +43,25 @@ void cu_dzu_dzsu(
     int iflavor, Coord proc_coords, Coord gsx, IdxComb idx_comb, Geom global_geom, Geom local_geom);
 
 
+/**
+ * Simple interface to KQED.
+ */
+void
+cu_pt_QED_kernel_L0(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] );
+void
+cu_pt_QED_kernel_L1(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] );
+void
+cu_pt_QED_kernel_L2(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] );
+void
+cu_pt_QED_kernel_L3(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] );
+
 
 #endif // CUDA_LATTICE_H

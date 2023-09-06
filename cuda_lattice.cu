@@ -288,3 +288,132 @@ void cu_dzu_dzsu(
 }
 
 
+/**
+ * Simple interface to KQED.
+ */
+#include "KQED.h"
+
+struct __attribute__((packed, aligned(8))) Vec4 {
+  double x[4];
+};
+inline Vec4 vec4(const double xv[4]) {
+  Vec4 pt;
+  for (int i = 0; i < 4; ++i) {
+    pt.x[i] = xv[i];
+  }
+  return pt;
+}
+struct __attribute__((packed, aligned(8))) OneKernel {
+  double k[6][4][4][4] ;
+};
+
+__global__
+void
+ker_QED_kernel_L0(
+    const Vec4 *d_xv, const Vec4 *d_yv, unsigned n,
+    const struct QED_kernel_temps t, OneKernel *d_kerv ) {
+  unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= n) return;
+  QED_kernel_L0(d_xv[i].x, d_yv[i].x, t, (double (*)[4][4][4]) &d_kerv[i].k);
+}
+__global__
+void
+ker_QED_kernel_L1(
+    const Vec4 *d_xv, const Vec4 *d_yv, unsigned n,
+    const struct QED_kernel_temps t, OneKernel *d_kerv ) {
+  unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= n) return;
+  QED_kernel_L1(d_xv[i].x, d_yv[i].x, t, (double (*)[4][4][4]) &d_kerv[i].k);
+}
+__global__
+void
+ker_QED_kernel_L2(
+    const Vec4 *d_xv, const Vec4 *d_yv, unsigned n,
+    const struct QED_kernel_temps t, OneKernel *d_kerv ) {
+  unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= n) return;
+  QED_kernel_L2(d_xv[i].x, d_yv[i].x, t, (double (*)[4][4][4]) &d_kerv[i].k);
+}
+__global__
+void
+ker_QED_kernel_L3(
+    const Vec4 *d_xv, const Vec4 *d_yv, unsigned n,
+    const struct QED_kernel_temps t, OneKernel *d_kerv ) {
+  unsigned i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= n) return;
+  QED_kernel_L3(d_xv[i].x, d_yv[i].x, t, (double (*)[4][4][4]) &d_kerv[i].k);
+}
+
+void
+cu_pt_QED_kernel_L0(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] ) {
+  OneKernel *d_kerv;
+  size_t sizeof_kerv = 6*4*4*4*sizeof(double);
+  checkCudaErrors(cudaMalloc(&d_kerv, sizeof_kerv));
+  Vec4 *d_xv, *d_yv;
+  checkCudaErrors(cudaMalloc(&d_xv, sizeof(Vec4)));
+  checkCudaErrors(cudaMalloc(&d_yv, sizeof(Vec4)));
+  checkCudaErrors(cudaMemcpy(d_xv, xv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(d_yv, yv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  ker_QED_kernel_L0<<<1,1>>>( d_xv, d_yv, 1, t, d_kerv );
+  checkCudaErrors(cudaMemcpy(kerv, d_kerv, sizeof_kerv, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaFree(d_kerv));
+  checkCudaErrors(cudaFree(d_xv));
+  checkCudaErrors(cudaFree(d_yv));
+}
+void
+cu_pt_QED_kernel_L1(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] ) {
+  OneKernel *d_kerv;
+  size_t sizeof_kerv = 6*4*4*4*sizeof(double);
+  checkCudaErrors(cudaMalloc(&d_kerv, sizeof_kerv));
+  Vec4 *d_xv, *d_yv;
+  checkCudaErrors(cudaMalloc(&d_xv, sizeof(Vec4)));
+  checkCudaErrors(cudaMalloc(&d_yv, sizeof(Vec4)));
+  checkCudaErrors(cudaMemcpy(d_xv, xv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(d_yv, yv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  ker_QED_kernel_L1<<<1,1>>>( d_xv, d_yv, 1, t, d_kerv );
+  checkCudaErrors(cudaMemcpy(kerv, d_kerv, sizeof_kerv, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaFree(d_kerv));
+  checkCudaErrors(cudaFree(d_xv));
+  checkCudaErrors(cudaFree(d_yv));
+}
+void
+cu_pt_QED_kernel_L2(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] ) {
+  OneKernel *d_kerv;
+  size_t sizeof_kerv = 6*4*4*4*sizeof(double);
+  checkCudaErrors(cudaMalloc(&d_kerv, sizeof_kerv));
+  Vec4 *d_xv, *d_yv;
+  checkCudaErrors(cudaMalloc(&d_xv, sizeof(Vec4)));
+  checkCudaErrors(cudaMalloc(&d_yv, sizeof(Vec4)));
+  checkCudaErrors(cudaMemcpy(d_xv, xv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(d_yv, yv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  ker_QED_kernel_L2<<<1,1>>>( d_xv, d_yv, 1, t, d_kerv );
+  checkCudaErrors(cudaMemcpy(kerv, d_kerv, sizeof_kerv, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaFree(d_kerv));
+  checkCudaErrors(cudaFree(d_xv));
+  checkCudaErrors(cudaFree(d_yv));
+}
+void
+cu_pt_QED_kernel_L3(
+    const double xv[4] , const double yv[4] ,
+    const struct QED_kernel_temps t , double kerv[6][4][4][4] ) {
+  OneKernel *d_kerv;
+  size_t sizeof_kerv = 6*4*4*4*sizeof(double);
+  checkCudaErrors(cudaMalloc(&d_kerv, sizeof_kerv));
+  Vec4 *d_xv, *d_yv;
+  checkCudaErrors(cudaMalloc(&d_xv, sizeof(Vec4)));
+  checkCudaErrors(cudaMalloc(&d_yv, sizeof(Vec4)));
+  checkCudaErrors(cudaMemcpy(d_xv, xv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(d_yv, yv, sizeof(Vec4), cudaMemcpyHostToDevice));
+  ker_QED_kernel_L3<<<1,1>>>( d_xv, d_yv, 1, t, d_kerv );
+  checkCudaErrors(cudaMemcpy(kerv, d_kerv, sizeof_kerv, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaFree(d_kerv));
+  checkCudaErrors(cudaFree(d_xv));
+  checkCudaErrors(cudaFree(d_yv));
+}
+

@@ -1089,11 +1089,19 @@ int main(int argc, char **argv) {
 
           double kernel_sum_thread[4] = { 0., 0., 0., 0. };
 
+#ifdef USE_CUDA
+          QED_kernel_LX_ptr KQED_LX[4] = {
+            cu_pt_QED_kernel_L0,
+            cu_pt_QED_kernel_L1,
+            cu_pt_QED_kernel_L2,
+            cu_pt_QED_kernel_L3 };
+#else
           QED_kernel_LX_ptr KQED_LX[4] = {
             QED_kernel_L0,
             QED_kernel_L1,
             QED_kernel_L2,
             QED_kernel_L3 };
+#endif
 
           /***********************************************************
            ***********************************************************
