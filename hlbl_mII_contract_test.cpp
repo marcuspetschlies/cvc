@@ -223,7 +223,7 @@ inline void compute_dzu_dzsu(
     double ** spinor_work, unsigned VOLUME) {
 
   struct timeval ta, tb;
-  
+
 #if _WITH_TIMER
   gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -371,7 +371,7 @@ inline void compute_dzu_dzsu(
     double ** spinor_work, unsigned VOLUME) {
 
   struct timeval ta, tb;
-  
+
 #if _WITH_TIMER
   gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -386,7 +386,7 @@ inline void compute_dzu_dzsu(
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-      for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
+      for ( unsigned int iz = 0; iz < VOLUME; iz++ )
       {
         double * const _u = fwd_src[iflavor][ia] + _GSI(iz);
         double * const _s = spinor_work[0] + _GSI(iz);
@@ -408,7 +408,7 @@ inline void compute_dzu_dzsu(
         _fv_ti_eq_g5 ( _t );
         _fv_eq_fv_pl_fv_ti_re ( _s, _s, _t, -zv[sigma] );
       }
-            
+
       for(int ib = 0; ib < 12; ib++ )
       {
         complex w = {0.,0.};
@@ -420,7 +420,7 @@ inline void compute_dzu_dzsu(
       }  /* of ib */
     }  /* of index combinations k --- rho, sigma */
 
-        
+
     for ( int sigma = 0; sigma < 4; sigma++ )
     {
       complex w = { 0., 0. };
@@ -697,7 +697,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_rng_stat_file %s %d\n", __FILE__, __LINE__ );;
       EXIT( 50 );
     }
-  
+
     double ** spinor_field = init_2level_dtable ( 2, _GSI( (size_t)VOLUME ));
     if( spinor_field == NULL ) {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
@@ -719,7 +719,7 @@ int main(int argc, char **argv) {
     memset ( spinor_work[1], 0, sizeof_spinor_field );
 
     /* full_spinor_work[1] = D^-1 full_spinor_work[0],
-     * flavor id 0 
+     * flavor id 0
      */
     exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], 0 );
     if(exitstatus < 0) {
@@ -752,7 +752,7 @@ int main(int argc, char **argv) {
   // double *** fwd_src = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
   prop_t fwd_src = init_prop(VOLUME);
   double *** fwd_src_2;
-  
+
   // double *** fwd_y   = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
   prop_t fwd_y = init_prop(VOLUME);
   double *** fwd_y_2;
@@ -818,7 +818,7 @@ int main(int argc, char **argv) {
      * local kernel sum
      ***********************************************************/
     double **** kernel_sum = init_4level_dtable ( 2, ymax + 1, ysign_num, 4 );
-    if ( kernel_sum == NULL ) 
+    if ( kernel_sum == NULL )
     {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(19);
@@ -828,14 +828,14 @@ int main(int argc, char **argv) {
     * forward proapgators from source
     ***********************************************************/
 
-    for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
+    for ( int iflavor = 0; iflavor <= 1; iflavor ++ )
     {
-      for ( int i = 0; i < 12; i++ ) 
+      for ( int i = 0; i < 12; i++ )
       {
         memset ( spinor_work[0], 0, sizeof_spinor_field );
         memset ( spinor_work[1], 0, sizeof_spinor_field );
 
-        if ( source_proc_id == g_cart_id ) 
+        if ( source_proc_id == g_cart_id )
         {
           spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) + 2*i ] = 1.;
         }
@@ -846,7 +846,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[hlbl_mII_invert_contract] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(19);
         }
- 
+
         /* check residuum */
         if ( check_propagator_residual )
         {
@@ -859,8 +859,8 @@ int main(int argc, char **argv) {
 
         // memcpy ( fwd_src[iflavor][i], spinor_work[1], sizeof_spinor_field );
         assign_prop(fwd_src, iflavor, i, spinor_work[1], VOLUME);
-     
-        if ( g_write_propagator ) 
+
+        if ( g_write_propagator )
         {
           sprintf ( filename, "fwd_0.f%d.t%dx%dy%dz%d.sc%d.lime", iflavor, gsx[0] , gsx[1] ,gsx[2] , gsx[3], i );
 
@@ -869,7 +869,7 @@ int main(int argc, char **argv) {
             EXIT(2);
           }
         }
-      
+
       }  /* end of loop on spin-color components */
 
     }  /* end of loop on flavor */
@@ -908,7 +908,7 @@ int main(int argc, char **argv) {
       for ( int isign = 0; isign < ysign_num; isign++ )
       {
 
-        sprintf ( filename, "pi-tensor-mII.y%d.st%dsx%dsy%dsz%d", iy, 
+        sprintf ( filename, "pi-tensor-mII.y%d.st%dsx%dsy%dsz%d", iy,
             ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3] );
 
         int gsy[4], sy[4];
@@ -934,32 +934,32 @@ int main(int argc, char **argv) {
         /***********************************************************/
         /***********************************************************/
 
-        for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
+        for ( int iflavor = 0; iflavor <= 1; iflavor++ )
         {
- 
+
           /***********************************************************
            * forward proapgators from y
            ***********************************************************/
-  
-          for ( int i = 0; i < 12; i++ ) 
+
+          for ( int i = 0; i < 12; i++ )
           {
             memset ( spinor_work[0], 0, sizeof_spinor_field );
             memset ( spinor_work[1], 0, sizeof_spinor_field );
-      
-            if ( source_proc_id_y == g_cart_id ) 
+
+            if ( source_proc_id_y == g_cart_id )
             {
               spinor_work[0][_GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) + 2*i ] = 1.;
             }
-      
+
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor );
-    
+
             if(exitstatus < 0) {
               fprintf(stderr, "[hlbl_mII_invert_contract] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
               EXIT(19);
             }
-       
+
             /* check residuum */
-            if ( check_propagator_residual ) 
+            if ( check_propagator_residual )
             {
               exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1);
               if(exitstatus != 0) {
@@ -970,18 +970,18 @@ int main(int argc, char **argv) {
 
             assign_prop(fwd_y, iflavor, i, spinor_work[1], VOLUME);
             // memcpy ( fwd_y[iflavor][i], spinor_work[1], sizeof_spinor_field );
-           
-            if ( g_write_propagator ) 
+
+            if ( g_write_propagator )
             {
               sprintf ( filename, "fwd_y.f%d.t%dx%dy%dz%d.y%d.st%dsx%dsy%dsz%d.sc%d.lime", iflavor, gsy[0] , gsy[1] ,gsy[2] , gsy[3], iy,
                 ysign_comb[isign][0], ysign_comb[isign][1], ysign_comb[isign][2], ysign_comb[isign][3], i );
-    
+
               if ( ( exitstatus = write_propagator( spinor_work[1], filename, 0, g_propagator_precision) ) != 0 ) {
                 fprintf(stderr, "[hlbl_mII_invert_contract] Error from write_propagator for %s, status was %d   %s %d\n", filename, exitstatus, __FILE__, __LINE__);
                 EXIT(2);
               }
             }
-            
+
           }  /* end of loop on spin-color components */
         }  /* end of loop on flavor for fwd_y */
 
@@ -1008,7 +1008,7 @@ int main(int argc, char **argv) {
         fwd_src_2 = fwd_src;
 #endif
 
-        for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
+        for ( int iflavor = 0; iflavor <= 1; iflavor++ )
         {
           /***********************************************************
            * D_y^+ z g5 gsigma U_src
@@ -1043,16 +1043,41 @@ int main(int argc, char **argv) {
               {
                 double const g5sign = 1. - 2. * ( (ib/3) > 1 );
 
-                fprintf ( stdout, "[test_dzu] seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
-                          iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia,
-                          g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );                  
+                fprintf (
+                    stdout, "[test_dzu] %d seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
+                    g_cart_id, iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia,
+                    g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );
               }}
           }
           /***********************************************************
            * END OF TEST
            ***********************************************************/
 #endif
-          
+
+#if 0
+          /***********************************************************
+           * TEST WRITE dzsu
+           ***********************************************************/
+          for ( int sigma = 0; sigma < 4; sigma++ )
+          {
+            for ( int ia = 0; ia < 12; ia++ )
+            {
+              for ( int ib = 0; ib < 12; ib++ )
+              {
+                double const g5sign = 1. - 2. * ( (ib/3) > 1 );
+
+                fprintf (
+                    stdout, "[test_dzsu] %d seq fl %d yv %3d %3d %3d %3d, sigma %d isnk %2d isrc %2d   %25.16e %25.16e\n",
+                    g_cart_id, iflavor, yv[0], yv[1], yv[2], yv[3], sigma, ib, ia,
+                    g5sign * dzsu[sigma][ia][2*ib  ], g5sign * dzsu[sigma][ia][2*ib+1] );
+              }}
+          }
+          /***********************************************************
+           * END OF TEST
+           ***********************************************************/
+#endif
+
+
 
           /***********************************************************/
           /***********************************************************/
@@ -1060,7 +1085,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contractions for term I and II
            ***********************************************************/
- 
+
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -1069,7 +1094,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel
 {
 #endif
-          unsigned int rank;          
+          unsigned int rank;
           double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
           double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
           double ***  dxu     = init_3level_dtable ( 4, 12, 24 );
@@ -1110,7 +1135,7 @@ int main(int argc, char **argv) {
            **
            ***********************************************************
            ***********************************************************/
-          
+
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
@@ -1120,7 +1145,7 @@ int main(int argc, char **argv) {
                          g_proc_coords[1]*LX + g_lexic2coords[ix][1],
                          g_proc_coords[2]*LY + g_lexic2coords[ix][2],
                          g_proc_coords[3]*LZ + g_lexic2coords[ix][3] };
-            
+
             rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
 
             x[0] = ( x[0] - gsx[0] + T_global  ) % T_global;
@@ -1132,20 +1157,20 @@ int main(int argc, char **argv) {
             site_map ( xv, x );
             site_map_zerohalf ( xvzh, x );
 
-            for ( int ib = 0; ib < 12; ib++) 
+            for ( int ib = 0; ib < 12; ib++)
             {
               double * const _u = fwd_y_2[iflavor][ib] + _GSI(ix);
 
               for ( int mu = 0; mu < 4; mu++ )
               {
-            
-                for ( int ia = 0; ia < 12; ia++) 
+
+                for ( int ia = 0; ia < 12; ia++)
                 {
                   double * const _d = fwd_src_2[1-iflavor][ia] + _GSI(ix);
                   double * const _t = spinor1;
                   _fv_eq_gamma_ti_fv ( _t, mu, _d );
                   _fv_ti_eq_g5 ( _t );
-                
+
                   // double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
                   complex w;
 
@@ -1176,13 +1201,13 @@ int main(int argc, char **argv) {
              ***********************************************************/
             for ( int mu = 0; mu < 4; mu++ )
             {
-              for ( int nu = 0; nu < 4; nu++ ) 
+              for ( int nu = 0; nu < 4; nu++ )
               {
                 for ( int lambda = 0; lambda < 4; lambda++ )
                 {
                   for( int k = 0; k < 6; k++ )
                   {
- 
+
                     double dtmp[2] = {0., 0.};
                     for ( int ia = 0; ia < 12; ia++)
                     {
@@ -1212,7 +1237,7 @@ int main(int argc, char **argv) {
              ***********************************************************/
             for ( int mu = 0; mu < 4; mu++ )
             {
-              for ( int nu = 0; nu < 4; nu++ ) 
+              for ( int nu = 0; nu < 4; nu++ )
               {
                 for ( int lambda = 0; lambda < 4; lambda++ )
                 {
@@ -1295,7 +1320,7 @@ int main(int argc, char **argv) {
                   {
                     for ( int lambda = 0; lambda < 4; lambda++ )
                     {
-                      dtmp += ( kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda] - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i] 
+                      dtmp += ( kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda] - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
                               + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
 
                       i++;
@@ -1319,7 +1344,7 @@ int main(int argc, char **argv) {
                   {
                     for( int k = 0; k < 6; k++ )
                     {
-                      fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
+                      fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n",
                           rank,
                           xv[0], xv[1], xv[2], xv[3],
                           yv[0], yv[1], yv[2], yv[3],
@@ -1383,7 +1408,7 @@ int main(int argc, char **argv) {
                 {
                   for( int k = 0; k < 6; k++ )
                   {
-                    fprintf ( stdout, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 
+                    fprintf ( stdout, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n",
                         iy,
                         ysign_comb[isign][0],
                         ysign_comb[isign][1],
@@ -1534,7 +1559,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
-          
+
   free_QED_temps( &kqed_t  );
 
   // fini_3level_dtable ( &fwd_src );
