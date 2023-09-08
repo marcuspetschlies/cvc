@@ -218,8 +218,8 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
  * D_y^+ z g5 gsigma U_src
  ***********************************************************/
 inline void compute_dzu_dzsu(
-    prop_t fwd_src, prop_t fwd_y, double *** dzu, double *** dzsu,
-    double **** g_dzu, double **** g_dzsu, int* gsx, int iflavor, int io_proc,
+    const prop_t fwd_src, const prop_t fwd_y, double *** dzu, double *** dzsu,
+    double **** g_dzu, double **** g_dzsu, const int* gsx, int iflavor, int io_proc,
     double ** spinor_work, unsigned VOLUME) {
 
   struct timeval ta, tb;
@@ -326,6 +326,15 @@ inline void compute_dzu_dzsu(
 #endif
 }
 
+inline void compute_corrs(
+    const prop_t fwd_src, const prop_t fwd_y,
+    double **** const g_dzu, double **** const g_dzsu,
+    const int* gsx, int iflavor, const double xunit[2], const int yv[4],
+    double *** dxu, double **** g_dxu, double **** corr_I, double **** corr_II,
+    double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
+  // TODO
+}
+
 #else // !USE_CUDA
 
 /***********************************************************
@@ -366,8 +375,8 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
  * D_y^+ z g5 gsigma U_src
  ***********************************************************/
 inline void compute_dzu_dzsu(
-    prop_t fwd_src, prop_t fwd_y, double *** dzu, double *** dzsu,
-    double **** g_dzu, double **** g_dzsu, int* gsx, int iflavor, int io_proc,
+    const prop_t fwd_src, const prop_t fwd_y, double *** dzu, double *** dzsu,
+    double **** g_dzu, double **** g_dzsu, const int* gsx, int iflavor, int io_proc,
     double ** spinor_work, unsigned VOLUME) {
 
   struct timeval ta, tb;
@@ -485,6 +494,333 @@ inline void compute_dzu_dzsu(
   gettimeofday ( &tb, (struct timezone *)NULL );
   show_time ( &ta, &tb, "hlbl_mII_invert_contract", "g_dzu-g_dzsu", io_proc == 2 );
 #endif
+}
+
+inline void compute_corrs(
+    const prop_t fwd_src, const prop_t fwd_y,
+    double **** const g_dzu, double **** const g_dzsu,
+    const int* gsx, int iflavor, const double xunit[2], const int yv[4],
+    double *** dxu, double **** g_dxu, double **** corr_I, double **** corr_II,
+    double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
+  double spinor1[24];
+
+  double kerv1[6][4][4][4] KQED_ALIGN ;
+  double kerv2[6][4][4][4] KQED_ALIGN ;
+  double kerv3[6][4][4][4] KQED_ALIGN ;
+
+  // QED_kernel_LX_ptr KQED_LX[4] = {
+  //   cu_pt_QED_kernel_L0,
+  //   cu_pt_QED_kernel_L1,
+  //   cu_pt_QED_kernel_L2,
+  //   cu_pt_QED_kernel_L3 };
+  QED_kernel_LX_ptr KQED_LX[4] = {
+    QED_kernel_L0,
+    QED_kernel_L1,
+    QED_kernel_L2,
+    QED_kernel_L3 };
+  
+
+  /***********************************************************
+   ***********************************************************
+   **
+   ** loop on volume
+   **
+   ***********************************************************
+   ***********************************************************/
+
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+  {
+    int x[4] = { g_proc_coords[0]*T  + g_lexic2coords[ix][0],
+                 g_proc_coords[1]*LX + g_lexic2coords[ix][1],
+                 g_proc_coords[2]*LY + g_lexic2coords[ix][2],
+                 g_proc_coords[3]*LZ + g_lexic2coords[ix][3] };
+
+    unsigned int rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
+
+    x[0] = ( x[0] - gsx[0] + T_global  ) % T_global;
+    x[1] = ( x[1] - gsx[1] + LX_global ) % LX_global;
+    x[2] = ( x[2] - gsx[2] + LY_global ) % LY_global;
+    x[3] = ( x[3] - gsx[3] + LZ_global ) % LZ_global;
+
+    int xv[4], xvzh[4];
+    site_map ( xv, x );
+    site_map_zerohalf ( xvzh, x );
+
+    for ( int ib = 0; ib < 12; ib++)
+    {
+      double * const _u = fwd_y[iflavor][ib] + _GSI(ix);
+
+      for ( int mu = 0; mu < 4; mu++ )
+      {
+
+        for ( int ia = 0; ia < 12; ia++)
+        {
+          double * const _d = fwd_src[1-iflavor][ia] + _GSI(ix);
+          double * const _t = spinor1;
+          _fv_eq_gamma_ti_fv ( _t, mu, _d );
+          _fv_ti_eq_g5 ( _t );
+
+          // double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
+          complex w;
+
+          _co_eq_fv_dag_ti_fv ( &w, _t, _u );
+
+          /* -1 factor due to (g5 gmu)^+ = -g5 gmu */
+          dxu[mu][ib][2*ia  ] = -w.re;
+          dxu[mu][ib][2*ia+1] = -w.im;
+        }
+      } /* end of loop on gamma_mu */
+    }
+
+
+    for ( int mu = 0; mu < 4; mu++ )
+    {
+      for ( int ib = 0; ib < 12; ib++)
+      {
+        _fv_eq_gamma_ti_fv ( spinor1, 5, dxu[mu][ib] );
+        for ( int lambda = 0; lambda < 4; lambda++ )
+        {
+          _fv_eq_gamma_ti_fv ( g_dxu[lambda][mu][ib], lambda, spinor1 );
+        }
+      }
+    }
+
+    /***********************************************************
+     * combine g_dxu and g_dzu
+     ***********************************************************/
+    for ( int mu = 0; mu < 4; mu++ )
+    {
+      for ( int nu = 0; nu < 4; nu++ )
+      {
+        for ( int lambda = 0; lambda < 4; lambda++ )
+        {
+          for( int k = 0; k < 6; k++ )
+          {
+
+            double dtmp[2] = {0., 0.};
+            for ( int ia = 0; ia < 12; ia++)
+            {
+              for ( int ib = 0; ib < 12; ib++)
+              {
+
+                double u[2] = { g_dxu[lambda][mu][ia][2*ib], g_dxu[lambda][mu][ia][2*ib+1] };
+
+                double v[2] = { g_dzu[k][nu][ib][2*ia], g_dzu[k][nu][ib][2*ia+1] };
+
+                dtmp[0] += u[0] * v[0] - u[1] * v[1];
+                dtmp[1] += u[0] * v[1] + u[1] * v[0];
+              }
+            }
+            corr_I[k][mu][nu][2*lambda  ] = -dtmp[0];
+            corr_I[k][mu][nu][2*lambda+1] = -dtmp[1];
+          }
+        }
+      }
+    }
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * combine g_dxu and g_dzsu
+     ***********************************************************/
+    for ( int mu = 0; mu < 4; mu++ )
+    {
+      for ( int nu = 0; nu < 4; nu++ )
+      {
+        for ( int lambda = 0; lambda < 4; lambda++ )
+        {
+          for( int k = 0; k < 6; k++ )
+          {
+            int const sigma = idx_comb[k][1];
+            int const rho   = idx_comb[k][0];
+
+            double dtmp[2] = {0., 0.};
+            for ( int ia = 0; ia < 12; ia++)
+            {
+              for ( int ib = 0; ib < 12; ib++)
+              {
+
+                double u[2] = { g_dxu[lambda][mu][ia][2*ib], g_dxu[lambda][mu][ia][2*ib+1] };
+
+                double v[2] = { xvzh[rho] * g_dzsu[sigma][nu][ib][2*ia  ] - xvzh[sigma] * g_dzsu[rho][nu][ib][2*ia  ],
+                                xvzh[rho] * g_dzsu[sigma][nu][ib][2*ia+1] - xvzh[sigma] * g_dzsu[rho][nu][ib][2*ia+1] };
+
+                dtmp[0] += u[0] * v[0] - u[1] * v[1];
+                dtmp[1] += u[0] * v[1] + u[1] * v[0];
+              }
+            }
+            corr_II[k][mu][nu][2*lambda  ] = -dtmp[0];
+            corr_II[k][mu][nu][2*lambda+1] = -dtmp[1];
+          }
+        }
+      }
+    }
+
+    /***********************************************************/
+    /***********************************************************/
+
+    /***********************************************************
+     * summation with QED kernel
+     ***********************************************************/
+    double const xm[4] = {
+      xv[0] * xunit[0],
+      xv[1] * xunit[0],
+      xv[2] * xunit[0],
+      xv[3] * xunit[0] };
+
+    double const ym[4] = {
+      yv[0] * xunit[0],
+      yv[1] * xunit[0],
+      yv[2] * xunit[0],
+      yv[3] * xunit[0] };
+
+
+    double * const _kerv1   = (double * const )kerv1;
+    double * const _kerv2   = (double * const )kerv2;
+    double * const _kerv3   = (double * const )kerv3;
+
+    double * const _corr_I  = corr_I[0][0][0];
+    double * const _corr_II = corr_II[0][0][0];
+
+    double const xm_mi_ym[4] = {
+      xm[0] - ym[0],
+      xm[1] - ym[1],
+      xm[2] - ym[2],
+      xm[3] - ym[3] };
+
+    /***********************************************************
+     * loop on kernsl
+     ***********************************************************/
+    for ( int ikernel = 0; ikernel < 4; ikernel++ )
+    {
+
+      /* QED_kernel_L0( xm, ym, kqed_t, kerv );*/
+      KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
+      KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
+      KQED_LX[ikernel]( xm, xm_mi_ym, kqed_t, kerv3 );
+      double dtmp = 0.;
+      int i = 0;
+      for( int k = 0; k < 6; k++ )
+      {
+        for ( int mu = 0; mu < 4; mu++ )
+        {
+          for ( int nu = 0; nu < 4; nu++ )
+          {
+            for ( int lambda = 0; lambda < 4; lambda++ )
+            {
+              dtmp += ( kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda] - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
+                  + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
+
+              i++;
+            }
+          }
+        }
+      }
+      kernel_sum[ikernel] += dtmp;
+
+      /***********************************************************
+       * BEGIN TEST
+       ***********************************************************/
+#if 0
+#pragma omp critical
+      {
+        for ( int mu = 0; mu < 4; mu++ )
+        {
+          for ( int nu = 0; nu < 4; nu++ )
+          {
+            for ( int lambda = 0; lambda < 4; lambda++ )
+            {
+              for( int k = 0; k < 6; k++ )
+              {
+                fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n",
+                          rank,
+                          xv[0], xv[1], xv[2], xv[3],
+                          yv[0], yv[1], yv[2], yv[3],
+                          iflavor,
+                          ikernel,
+                          mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
+                          kerv1[k][mu][nu][lambda],
+                          kerv2[k][mu][nu][lambda],
+                          kerv3[k][mu][nu][lambda],
+                          corr_I[k][mu][nu][2*lambda],
+                          corr_II[k][mu][nu][2*lambda] );
+              }
+            }
+          }
+        }
+      }  /* end of critical region */
+#endif
+      /***********************************************************
+       * END TEST
+       ***********************************************************/
+
+    }  /* end of loop on kernels */
+
+#if 0
+    QED_kernel_L1( xm, ym, kqed_t, kerv );
+    dtmp = 0.;
+    for( int i = 0 ; i < 384 ; i++ )
+    {
+      dtmp +=  _kerv[i] * _corr_I[2*i];
+    }
+    kernel_sum[1] += dtmp;
+
+    QED_kernel_L2( xm, ym, kqed_t, kerv );
+    dtmp = 0.;
+    for( int i = 0 ; i < 384 ; i++ )
+    {
+      dtmp +=  _kerv[i] * _corr_I[2*i];
+    }
+    kernel_sum[2] += dtmp;
+
+    QED_kernel_L3( xm, ym, kqed_t, kerv );
+    dtmp = 0.;
+    for( int i = 0 ; i < 384 ; i++ )
+    {
+      dtmp +=  _kerv[i] * _corr_I[2*i];
+    }
+    kernel_sum[3] += dtmp;
+#endif
+
+#if 0
+    /***********************************************************
+     * BEGIN TEST
+     ***********************************************************/
+#pragma omp critical
+    {
+      for ( int mu = 0; mu < 4; mu++ )
+      {
+        for ( int nu = 0; nu < 4; nu++ )
+        {
+          for ( int lambda = 0; lambda < 4; lambda++ )
+          {
+            for( int k = 0; k < 6; k++ )
+            {
+              fprintf ( stdout, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n",
+                        iy,
+                        ysign_comb[isign][0],
+                        ysign_comb[isign][1],
+                        ysign_comb[isign][2],
+                        ysign_comb[isign][3],
+                        iflavor,
+                        rank,
+                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
+                        corr_I[k][mu][nu][2*lambda  ], corr_I[k][mu][nu][2*lambda+1] );
+            }
+          }
+        }
+      }
+    }  /* end of critical region */
+
+    /***********************************************************
+     * END TEST
+     ***********************************************************/
+#endif
+  }  /* end of loop on ix */
 }
 
 #endif // USE_CUDA
@@ -989,24 +1325,24 @@ int main(int argc, char **argv) {
         /***********************************************************/
 
 
-#if USE_CUDA
-        /// FORNOW: Dumb copy to cpu
-        fprintf(stdout, "# [hlbl_mII_invert_contract] allocating CPU mirror arrays\n");
-        fflush(stdout);
-        fwd_y_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
-        fwd_src_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
-        fprintf(stdout, "# [hlbl_mII_invert_contract] alloc'd CPU mirror arrays\n");
-        fflush(stdout);
-        checkCudaErrors(cudaMemcpy(
-            &fwd_y_2[0][0][0], fwd_y, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
-        checkCudaErrors(cudaMemcpy(
-            &fwd_src_2[0][0][0], fwd_src, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
-        fprintf(stdout, "# [hlbl_mII_invert_contract] assign'd CPU mirror arrays\n");
-        fflush(stdout);
-#else
-        fwd_y_2 = fwd_y;
-        fwd_src_2 = fwd_src;
-#endif
+// #if USE_CUDA
+//         /// FORNOW: Dumb copy to cpu
+//         fprintf(stdout, "# [hlbl_mII_invert_contract] allocating CPU mirror arrays\n");
+//         fflush(stdout);
+//         fwd_y_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
+//         fwd_src_2 = init_3level_dtable( 2, 12, _GSI( (size_t)VOLUME ) );
+//         fprintf(stdout, "# [hlbl_mII_invert_contract] alloc'd CPU mirror arrays\n");
+//         fflush(stdout);
+//         checkCudaErrors(cudaMemcpy(
+//             &fwd_y_2[0][0][0], fwd_y, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
+//         checkCudaErrors(cudaMemcpy(
+//             &fwd_src_2[0][0][0], fwd_src, 2*12*_GSI(VOLUME)*sizeof(double), cudaMemcpyDeviceToHost));
+//         fprintf(stdout, "# [hlbl_mII_invert_contract] assign'd CPU mirror arrays\n");
+//         fflush(stdout);
+// #else
+//         fwd_y_2 = fwd_y;
+//         fwd_src_2 = fwd_src;
+// #endif
 
         for ( int iflavor = 0; iflavor <= 1; iflavor++ )
         {
@@ -1094,7 +1430,6 @@ int main(int argc, char **argv) {
 #pragma omp parallel
 {
 #endif
-          unsigned int rank;
           double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
           double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
           double ***  dxu     = init_3level_dtable ( 4, 12, 24 );
@@ -1106,329 +1441,11 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
 
-          double spinor1[24];
-
-          double kerv1[6][4][4][4] KQED_ALIGN ;
-          double kerv2[6][4][4][4] KQED_ALIGN ;
-          double kerv3[6][4][4][4] KQED_ALIGN ;
-
           double kernel_sum_thread[4] = { 0., 0., 0., 0. };
 
-#ifdef USE_CUDA
-          QED_kernel_LX_ptr KQED_LX[4] = {
-            cu_pt_QED_kernel_L0,
-            cu_pt_QED_kernel_L1,
-            cu_pt_QED_kernel_L2,
-            cu_pt_QED_kernel_L3 };
-#else
-          QED_kernel_LX_ptr KQED_LX[4] = {
-            QED_kernel_L0,
-            QED_kernel_L1,
-            QED_kernel_L2,
-            QED_kernel_L3 };
-#endif
-
-          /***********************************************************
-           ***********************************************************
-           **
-           ** loop on volume
-           **
-           ***********************************************************
-           ***********************************************************/
-
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-          for ( unsigned int ix = 0; ix < VOLUME; ix++ )
-          {
-            int x[4] = { g_proc_coords[0]*T  + g_lexic2coords[ix][0],
-                         g_proc_coords[1]*LX + g_lexic2coords[ix][1],
-                         g_proc_coords[2]*LY + g_lexic2coords[ix][2],
-                         g_proc_coords[3]*LZ + g_lexic2coords[ix][3] };
-
-            rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
-
-            x[0] = ( x[0] - gsx[0] + T_global  ) % T_global;
-            x[1] = ( x[1] - gsx[1] + LX_global ) % LX_global;
-            x[2] = ( x[2] - gsx[2] + LY_global ) % LY_global;
-            x[3] = ( x[3] - gsx[3] + LZ_global ) % LZ_global;
-
-            int xv[4], xvzh[4];
-            site_map ( xv, x );
-            site_map_zerohalf ( xvzh, x );
-
-            for ( int ib = 0; ib < 12; ib++)
-            {
-              double * const _u = fwd_y_2[iflavor][ib] + _GSI(ix);
-
-              for ( int mu = 0; mu < 4; mu++ )
-              {
-
-                for ( int ia = 0; ia < 12; ia++)
-                {
-                  double * const _d = fwd_src_2[1-iflavor][ia] + _GSI(ix);
-                  double * const _t = spinor1;
-                  _fv_eq_gamma_ti_fv ( _t, mu, _d );
-                  _fv_ti_eq_g5 ( _t );
-
-                  // double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
-                  complex w;
-
-                  _co_eq_fv_dag_ti_fv ( &w, _t, _u );
-
-                  /* -1 factor due to (g5 gmu)^+ = -g5 gmu */
-                  dxu[mu][ib][2*ia  ] = -w.re;
-                  dxu[mu][ib][2*ia+1] = -w.im;
-                }
-              } /* end of loop on gamma_mu */
-            }
-
-
-            for ( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int ib = 0; ib < 12; ib++)
-              {
-                _fv_eq_gamma_ti_fv ( spinor1, 5, dxu[mu][ib] );
-                for ( int lambda = 0; lambda < 4; lambda++ )
-                {
-                  _fv_eq_gamma_ti_fv ( g_dxu[lambda][mu][ib], lambda, spinor1 );
-                }
-              }
-            }
-
-            /***********************************************************
-             * combine g_dxu and g_dzu
-             ***********************************************************/
-            for ( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int nu = 0; nu < 4; nu++ )
-              {
-                for ( int lambda = 0; lambda < 4; lambda++ )
-                {
-                  for( int k = 0; k < 6; k++ )
-                  {
-
-                    double dtmp[2] = {0., 0.};
-                    for ( int ia = 0; ia < 12; ia++)
-                    {
-                      for ( int ib = 0; ib < 12; ib++)
-                      {
-
-                        double u[2] = { g_dxu[lambda][mu][ia][2*ib], g_dxu[lambda][mu][ia][2*ib+1] };
-
-                        double v[2] = { g_dzu[k][nu][ib][2*ia], g_dzu[k][nu][ib][2*ia+1] };
-
-                        dtmp[0] += u[0] * v[0] - u[1] * v[1];
-                        dtmp[1] += u[0] * v[1] + u[1] * v[0];
-                      }
-                    }
-                    corr_I[k][mu][nu][2*lambda  ] = -dtmp[0];
-                    corr_I[k][mu][nu][2*lambda+1] = -dtmp[1];
-                  }
-                }
-              }
-            }
-
-            /***********************************************************/
-            /***********************************************************/
-
-            /***********************************************************
-             * combine g_dxu and g_dzsu
-             ***********************************************************/
-            for ( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int nu = 0; nu < 4; nu++ )
-              {
-                for ( int lambda = 0; lambda < 4; lambda++ )
-                {
-                  for( int k = 0; k < 6; k++ )
-                  {
-                    int const sigma = idx_comb[k][1];
-                    int const rho   = idx_comb[k][0];
-
-                    double dtmp[2] = {0., 0.};
-                    for ( int ia = 0; ia < 12; ia++)
-                    {
-                      for ( int ib = 0; ib < 12; ib++)
-                      {
-
-                        double u[2] = { g_dxu[lambda][mu][ia][2*ib], g_dxu[lambda][mu][ia][2*ib+1] };
-
-                        double v[2] = { xvzh[rho] * g_dzsu[sigma][nu][ib][2*ia  ] - xvzh[sigma] * g_dzsu[rho][nu][ib][2*ia  ],
-                                        xvzh[rho] * g_dzsu[sigma][nu][ib][2*ia+1] - xvzh[sigma] * g_dzsu[rho][nu][ib][2*ia+1] };
-
-                        dtmp[0] += u[0] * v[0] - u[1] * v[1];
-                        dtmp[1] += u[0] * v[1] + u[1] * v[0];
-                      }
-                    }
-                    corr_II[k][mu][nu][2*lambda  ] = -dtmp[0];
-                    corr_II[k][mu][nu][2*lambda+1] = -dtmp[1];
-                  }
-                }
-              }
-            }
-
-            /***********************************************************/
-            /***********************************************************/
-
-            /***********************************************************
-             * summation with QED kernel
-             ***********************************************************/
-            double const xm[4] = {
-              xv[0] * xunit[0],
-              xv[1] * xunit[0],
-              xv[2] * xunit[0],
-              xv[3] * xunit[0] };
-
-            double const ym[4] = {
-              yv[0] * xunit[0],
-              yv[1] * xunit[0],
-              yv[2] * xunit[0],
-              yv[3] * xunit[0] };
-
-
-            double * const _kerv1   = (double * const )kerv1;
-            double * const _kerv2   = (double * const )kerv2;
-            double * const _kerv3   = (double * const )kerv3;
-
-            double * const _corr_I  = corr_I[0][0][0];
-            double * const _corr_II = corr_II[0][0][0];
-
-            double const xm_mi_ym[4] = {
-              xm[0] - ym[0],
-              xm[1] - ym[1],
-              xm[2] - ym[2],
-              xm[3] - ym[3] };
-
-            /***********************************************************
-             * loop on kernsl
-             ***********************************************************/
-            for ( int ikernel = 0; ikernel < 4; ikernel++ )
-            {
-
-              /* QED_kernel_L0( xm, ym, kqed_t, kerv );*/
-              KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
-              KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
-              KQED_LX[ikernel]( xm, xm_mi_ym, kqed_t, kerv3 );
-              double dtmp = 0.;
-              int i = 0;
-              for( int k = 0; k < 6; k++ )
-              {
-                for ( int mu = 0; mu < 4; mu++ )
-                {
-                  for ( int nu = 0; nu < 4; nu++ )
-                  {
-                    for ( int lambda = 0; lambda < 4; lambda++ )
-                    {
-                      dtmp += ( kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda] - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
-                              + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
-
-                      i++;
-                    }
-                  }
-                }
-              }
-              kernel_sum_thread[ikernel] += dtmp;
-
-              /***********************************************************
-               * BEGIN TEST
-               ***********************************************************/
-#if 0
-#pragma omp critical
-{
-              for ( int mu = 0; mu < 4; mu++ )
-              {
-                for ( int nu = 0; nu < 4; nu++ )
-                {
-                  for ( int lambda = 0; lambda < 4; lambda++ )
-                  {
-                    for( int k = 0; k < 6; k++ )
-                    {
-                      fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n",
-                          rank,
-                          xv[0], xv[1], xv[2], xv[3],
-                          yv[0], yv[1], yv[2], yv[3],
-                          iflavor,
-                          ikernel,
-                          mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
-                          kerv1[k][mu][nu][lambda],
-                          kerv2[k][mu][nu][lambda],
-                          kerv3[k][mu][nu][lambda],
-                          corr_I[k][mu][nu][2*lambda],
-                          corr_II[k][mu][nu][2*lambda] );
-                    }
-                  }
-                }
-              }
-}  /* end of critical region */
-#endif
-              /***********************************************************
-               * END TEST
-               ***********************************************************/
-
-            }  /* end of loop on kernels */
-
-#if 0
-            QED_kernel_L1( xm, ym, kqed_t, kerv );
-            dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
-            {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[1] += dtmp;
-
-            QED_kernel_L2( xm, ym, kqed_t, kerv );
-            dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
-            {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[2] += dtmp;
-
-            QED_kernel_L3( xm, ym, kqed_t, kerv );
-            dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
-            {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[3] += dtmp;
-#endif
-
-#if 0
-            /***********************************************************
-             * BEGIN TEST
-             ***********************************************************/
-#pragma omp critical
-{
-            for ( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int nu = 0; nu < 4; nu++ )
-              {
-                for ( int lambda = 0; lambda < 4; lambda++ )
-                {
-                  for( int k = 0; k < 6; k++ )
-                  {
-                    fprintf ( stdout, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n",
-                        iy,
-                        ysign_comb[isign][0],
-                        ysign_comb[isign][1],
-                        ysign_comb[isign][2],
-                        ysign_comb[isign][3],
-                        iflavor,
-                        rank,
-                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
-                        corr_I[k][mu][nu][2*lambda  ], corr_I[k][mu][nu][2*lambda+1] );
-                  }
-                }
-              }
-            }
-}  /* end of critical region */
-
-            /***********************************************************
-             * END TEST
-             ***********************************************************/
-#endif
-          }  /* end of loop on ix */
+          compute_corrs(
+              fwd_src, fwd_y, g_dzu, g_dzsu, gsx, iflavor, xunit, yv,
+              dxu, g_dxu, corr_I, corr_II, kernel_sum_thread, kqed_t, VOLUME);
 
           /***********************************************************
            * summation with QED kernel
@@ -1568,15 +1585,13 @@ int main(int argc, char **argv) {
   // fini_prop ( &fwd_src );
   // fini_prop ( &fwd_y_2 );
   // fini_g_prop ( &g_fwd_src_2 );
-  fini_3level_dtable ( &fwd_y_2 );
-  fini_3level_dtable ( &fwd_src_2 );
+  // fini_3level_dtable ( &fwd_y_2 );
+  // fini_3level_dtable ( &fwd_src_2 );
   // fini_4level_dtable ( &g_fwd_src_2 );
   fini_2level_dtable ( &spinor_work );
-#if USE_CUDA
   fini_prop ( &fwd_src );
-  fini_prop(&fwd_y);
+  fini_prop ( &fwd_y );
   // fini_prop(&g_fwd_src);
-#endif
 
 
 
