@@ -12,10 +12,14 @@ hdf5dir=$(work)/hdf5-1.14.1-2/install/
 kqeddir=$(work)/KQED/install/
 cudadir=/opt/cuda/
 
+defines= -DF_  -DCUBIC_GROUP_SINGLE_COVER -DDUMMY_SOLVER -DHAVE_KQED -DHAVE_HDF5 -DHAVE_LHPC_AFF
+gpu_defines= -DHAVE_CUDA -DUSE_CUDA
+
 # -fopenmp
 CXX=g++
-CXXFLAGS= -Wall -g -O2 -DF_  -DCUBIC_GROUP_SINGLE_COVER -DDUMMY_SOLVER -DHAVE_KQED -DHAVE_HDF5 -DHAVE_LHPC_AFF -DHAVE_CUDA -DUSE_CUDA
-NVCC=nvcc
+CXXFLAGS= -Wall -g -O2 $(defines)
+CXXFLAGS_GPU= -Wall -g -O2 $(defines) $(gpu_defines)
+NVCC=nvcc -ccbin=$(CXX)
 NVCCFLAGS= -arch=sm_60
 # -DHAVE_OPENMP
 # -DCUBIC_GROUP_DOUBLE_COVER
@@ -38,19 +42,15 @@ LIBS = -lm -L$(fftwdir)/lib/ -lfftw \
 	-L$(cudadir)/lib/ -lcudart
 # -lfftw_mpi -lblas 
 
-LDFLAGS = -lm -L$(fftwdir)/lib/ -lfftw \
-	-L$(limedir)/lib/ -llime \
-	-L$(kqeddir)/lib/ -lKQED_cuda \
-	-L$(hdf5dir)/lib/ -lhdf5 \
-	-L$(lhpcdir)/lib/ -llhpc-aff \
-	-L$(lapackdir) -llapack -lrefblas -lgfortran
-# -fopenmp -lfftw_mpi -L$(arpackdir)/lib -lblas 
+LDFLAGS = $(LIBS)
+# -fopenmp
 
 
 LINK = $(CXX) -o $@ ${LDFLAGS}
 COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
-CUDA_COMPILE = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -dc -o $@ --compiler-options="${CXXFLAGS}"
-CUDA_LINK = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -o $@ --compiler-options="${CXXFLAGS}"
+COMPILE_GPU = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS_GPU}
+CUDA_COMPILE = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -dc -o $@ --compiler-options="${CXXFLAGS_GPU}"
+CUDA_LINK = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -dlink -o $@ --compiler-options="${CXXFLAGS_GPU}"
 
 MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
 	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default \
@@ -75,7 +75,7 @@ PROGRAM = hlbl_mII_contract_test
 
 
 
-all: dep $(PROGRAM) 
+all: dep $(PROGRAM) $(PROGRAM).gpu
 
 
 # ##########
@@ -101,10 +101,20 @@ $(addsuffix .o,${CUDA_MODULES}): %.o: ${srcdir}/%.cu $(addprefix ${srcdir}/, $(a
 	${CUDA_COMPILE} ${OPTARGS} -c $<
 
 $(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
-	${COMPILE} ${OPTARGS} -c $< 
+	${COMPILE} ${OPTARGS} -c $<
 
-${PROGRAM}: %: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
-	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $(LIBS)
+$(addsuffix .gpu.o,${PROGRAM}): %.gpu.o: ${srcdir}/%.cpp %.d
+	${COMPILE_GPU} ${OPTARGS} -c $<
+
+${PROGRAM}.dlink: %.dlink: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $< $(LIBS)
+${PROGRAM}: %: %.o %.dlink ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $@.dlink $(LIBS)
+
+${PROGRAM}.gpu.dlink: %.dlink: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $< $(LIBS)
+${PROGRAM}.gpu: %: %.o %.dlink ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $@.dlink $(LIBS)
 
 ${srcdir}/gitversion.cpp: ${srcdir}/.git/HEAD ${srcdir}/.git/index
 	echo "namespace cvc { const char *g_gitversion = \"$(shell cd ${srcdir} && git rev-parse HEAD && cd -)\"; }" > ${srcdir}/gitversion.cpp
@@ -113,7 +123,7 @@ ${srcdir}/gitversion.cpp: ${srcdir}/.git/HEAD ${srcdir}/.git/index
 
 
 clean:
-	rm -f *~ *.o *.d $(PROGRAM) ${srcdir}/gitversion.cpp
+	rm -f *~ *.o *.d *.dlink $(PROGRAM) $(PROGRAM).gpu ${srcdir}/gitversion.cpp
 
 .PHONY: clean
 
