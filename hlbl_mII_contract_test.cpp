@@ -849,7 +849,7 @@ int main(int argc, char **argv) {
   char filename[400];
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
-  int first_solve_dummy = 1;
+  int first_solve_dummy = 0;
   struct timeval start_time, end_time;
   int ymax = 0;
 
@@ -964,11 +964,14 @@ int main(int argc, char **argv) {
   Nconf = g_tmLQCD_lat.nstore;
   if(g_cart_id== 0) fprintf(stdout, "[hlbl_mII_invert_contract] Nconf = %d\n", Nconf);
 
-  exitstatus = tmLQCD_read_gauge(Nconf);
-  if(exitstatus != 0) {
-    EXIT(5);
+  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
+    sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
+    if(g_cart_id==0) fprintf(stdout, "# [hlbl_mII_invert_contract] reading gauge field from file %s\n", filename);
+    exitstatus = tmLQCD_read_gauge(Nconf);
+    if(exitstatus != 0) {
+      EXIT(5);
+    }
   }
-
   exitstatus = tmLQCD_get_gauge_field_pointer( &g_gauge_field );
   if(exitstatus != 0) {
     EXIT(6);
@@ -976,6 +979,13 @@ int main(int argc, char **argv) {
   if( g_gauge_field == NULL) {
     fprintf(stderr, "[hlbl_mII_invert_contract] Error, g_gauge_field is NULL %s %d\n", __FILE__, __LINE__);
     EXIT(7);
+  }
+  if (strcmp(gaugefilename_prefix,"identity")==0) {
+    if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_mII_invert_contract] initializing unit matrices\n");
+    exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
+    if(exitstatus != 0) {
+      EXIT(6);
+    }
   }
 #endif
 
