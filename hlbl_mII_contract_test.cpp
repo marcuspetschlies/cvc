@@ -240,7 +240,6 @@ inline void compute_dzu_dzsu(
   checkCudaErrors(cudaMalloc((void**)&d_dzsu, sizeof_dzsu));
   checkCudaErrors(cudaMemset(d_dzu, 0, sizeof_dzu));
   checkCudaErrors(cudaMemset(d_dzsu, 0, sizeof_dzsu));
-  printf("Alloc'd d_dzu=%p d_dzsu=%p\n", d_dzu, d_dzsu);
 
   Coord d_proc_coords {
     .t = g_proc_coords[0],
@@ -326,13 +325,56 @@ inline void compute_dzu_dzsu(
 #endif
 }
 
-inline void compute_corrs(
+inline void compute_4pt_contraction(
     const prop_t fwd_src, const prop_t fwd_y,
     double **** const g_dzu, double **** const g_dzsu,
     const int* gsx, int iflavor, const double xunit[2], const int yv[4],
-    double *** dxu, double **** g_dxu, double **** corr_I, double **** corr_II,
     double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
-  // TODO
+  constexpr size_t n_g_dzu = 6 * 4 * 12 * 24;
+  constexpr size_t n_g_dzsu = 4 * 4 * 12 * 24;
+  size_t sizeof_g_dzu = n_g_dzu * sizeof(double);
+  size_t sizeof_g_dzsu = n_g_dzsu * sizeof(double);
+  double* d_g_dzu = NULL;
+  double* d_g_dzsu = NULL;
+  checkCudaErrors(cudaMalloc((void**)&d_g_dzu, sizeof_g_dzu));
+  checkCudaErrors(cudaMalloc((void**)&d_g_dzsu, sizeof_g_dzsu));
+  checkCudaErrors(cudaMemcpy(
+      d_g_dzu, &g_dzu[0][0][0][0], sizeof_g_dzu, cudaMemcpyHostToDevice));
+  checkCudaErrors(cudaMemcpy(
+      d_g_dzsu, &g_dzsu[0][0][0][0], sizeof_g_dzsu, cudaMemcpyHostToDevice));
+  double* d_kernel_sum = NULL;
+  checkCudaErrors(cudaMalloc((void**)&d_kernel_sum, 4*sizeof(double)));
+  checkCudaErrors(cudaMemset(d_kernel_sum, 0, 4*sizeof(double)));
+  
+  Coord d_proc_coords {
+    .t = g_proc_coords[0],
+    .x = g_proc_coords[1],
+    .y = g_proc_coords[2],
+    .z = g_proc_coords[3]
+  };
+  Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
+  Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
+  IdxComb d_idx_comb;
+  for (int i = 0; i < 6; ++i) {
+    d_idx_comb.comb[i][0] = idx_comb[i][0];
+    d_idx_comb.comb[i][1] = idx_comb[i][1];
+  }
+  Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
+  Coord d_yv = { .t = yv[0], .x = yv[1], .y = yv[2], .z = yv[3] };
+  Pair d_xunit = { .a = xunit[0], .b = xunit[1] };
+
+  fprintf(stdout, "[hlbl_mII_invert_contract] cu_4pt_contraction start %d \n", g_cart_id);
+  cu_4pt_contraction(
+      d_kernel_sum, d_g_dzu, d_g_dzsu, fwd_src, fwd_y, iflavor, d_proc_coords,
+      d_gsx, d_xunit, d_yv, d_idx_comb, kqed_t, global_geom, local_geom);
+  fprintf(stdout, "[hlbl_mII_invert_contract] cu_4pt_contraction complete %d \n", g_cart_id);
+
+  checkCudaErrors(cudaMemcpy(
+      &kernel_sum[0], d_kernel_sum, 4*sizeof(double), cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaFree(d_kernel_sum));
+
+  checkCudaErrors(cudaFree(d_g_dzu));
+  checkCudaErrors(cudaFree(d_g_dzsu));
 }
 
 #else // !USE_CUDA
@@ -496,12 +538,23 @@ inline void compute_dzu_dzsu(
 #endif
 }
 
-inline void compute_corrs(
+inline void compute_4pt_contraction(
     const prop_t fwd_src, const prop_t fwd_y,
     double **** const g_dzu, double **** const g_dzsu,
     const int* gsx, int iflavor, const double xunit[2], const int yv[4],
-    double *** dxu, double **** g_dxu, double **** corr_I, double **** corr_II,
     double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
+
+  double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
+  double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
+  double ***  dxu     = init_3level_dtable ( 4, 12, 24 );
+  double **** g_dxu   = init_4level_dtable ( 4, 4, 12, 24 );
+
+  if ( corr_I == NULL || corr_II == NULL || dxu == NULL || g_dxu == NULL )
+  {
+    fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
+    EXIT(12);
+  }
+
   double spinor1[24];
 
   double kerv1[6][4][4][4] KQED_ALIGN ;
@@ -679,9 +732,9 @@ inline void compute_corrs(
       yv[3] * xunit[0] };
 
 
-    double * const _kerv1   = (double * const )kerv1;
-    double * const _kerv2   = (double * const )kerv2;
-    double * const _kerv3   = (double * const )kerv3;
+    // double * const _kerv1   = (double * const )kerv1;
+    // double * const _kerv2   = (double * const )kerv2;
+    // double * const _kerv3   = (double * const )kerv3;
 
     double * const _corr_I  = corr_I[0][0][0];
     double * const _corr_II = corr_II[0][0][0];
@@ -698,7 +751,6 @@ inline void compute_corrs(
     for ( int ikernel = 0; ikernel < 4; ikernel++ )
     {
 
-      /* QED_kernel_L0( xm, ym, kqed_t, kerv );*/
       KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
       KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
       KQED_LX[ikernel]( xm, xm_mi_ym, kqed_t, kerv3 );
@@ -761,32 +813,6 @@ inline void compute_corrs(
     }  /* end of loop on kernels */
 
 #if 0
-    QED_kernel_L1( xm, ym, kqed_t, kerv );
-    dtmp = 0.;
-    for( int i = 0 ; i < 384 ; i++ )
-    {
-      dtmp +=  _kerv[i] * _corr_I[2*i];
-    }
-    kernel_sum[1] += dtmp;
-
-    QED_kernel_L2( xm, ym, kqed_t, kerv );
-    dtmp = 0.;
-    for( int i = 0 ; i < 384 ; i++ )
-    {
-      dtmp +=  _kerv[i] * _corr_I[2*i];
-    }
-    kernel_sum[2] += dtmp;
-
-    QED_kernel_L3( xm, ym, kqed_t, kerv );
-    dtmp = 0.;
-    for( int i = 0 ; i < 384 ; i++ )
-    {
-      dtmp +=  _kerv[i] * _corr_I[2*i];
-    }
-    kernel_sum[3] += dtmp;
-#endif
-
-#if 0
     /***********************************************************
      * BEGIN TEST
      ***********************************************************/
@@ -821,6 +847,11 @@ inline void compute_corrs(
      ***********************************************************/
 #endif
   }  /* end of loop on ix */
+
+  fini_4level_dtable ( &corr_I  );
+  fini_4level_dtable ( &corr_II );
+  fini_4level_dtable ( &g_dxu   );
+  fini_3level_dtable ( &dxu     );
 }
 
 #endif // USE_CUDA
@@ -1097,11 +1128,11 @@ int main(int argc, char **argv) {
 
   // double *** fwd_src = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
   prop_t fwd_src = init_prop(VOLUME);
-  double *** fwd_src_2;
+  // double *** fwd_src_2;
 
   // double *** fwd_y   = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
   prop_t fwd_y = init_prop(VOLUME);
-  double *** fwd_y_2;
+  // double *** fwd_y_2;
 
   // double **** g_fwd_src = init_4level_dtable ( 2, 4, 12, _GSI( (size_t)VOLUME ) );
   // g_prop_t g_fwd_src = init_g_prop(VOLUME);
@@ -1276,6 +1307,10 @@ int main(int argc, char **argv) {
             iy * ysign_comb[isign][2],
             iy * ysign_comb[isign][3] };
 
+        fprintf(stdout, "# [hlbl_mII_invert_contract] Start contractions for y = (%d, %d, %d, %d)\n",
+                yv[0], yv[1], yv[2], yv[3]);
+
+
 
         /***********************************************************/
         /***********************************************************/
@@ -1356,6 +1391,7 @@ int main(int argc, char **argv) {
 
         for ( int iflavor = 0; iflavor <= 1; iflavor++ )
         {
+          fprintf(stdout, "# [hlbl_mII_invert_contract] Start contraction iflavor = %d\n", iflavor);
           /***********************************************************
            * D_y^+ z g5 gsigma U_src
            ***********************************************************/
@@ -1440,22 +1476,11 @@ int main(int argc, char **argv) {
 #pragma omp parallel
 {
 #endif
-          double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
-          double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
-          double ***  dxu     = init_3level_dtable ( 4, 12, 24 );
-          double **** g_dxu   = init_4level_dtable ( 4, 4, 12, 24 );
-
-          if ( corr_I == NULL || corr_II == NULL || dxu == NULL || g_dxu == NULL )
-          {
-            fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
-            EXIT(12);
-          }
-
           double kernel_sum_thread[4] = { 0., 0., 0., 0. };
 
-          compute_corrs(
+          compute_4pt_contraction(
               fwd_src, fwd_y, g_dzu, g_dzsu, gsx, iflavor, xunit, yv,
-              dxu, g_dxu, corr_I, corr_II, kernel_sum_thread, kqed_t, VOLUME);
+              kernel_sum_thread, kqed_t, VOLUME);
 
           /***********************************************************
            * summation with QED kernel
@@ -1475,11 +1500,6 @@ int main(int argc, char **argv) {
    /***********************************************************/
 #endif
 
-
-          fini_4level_dtable ( &corr_I  );
-          fini_4level_dtable ( &corr_II );
-          fini_4level_dtable ( &g_dxu   );
-          fini_3level_dtable ( &dxu     );
 
 #ifdef HAVE_OPENMP
    /***********************************************************/
