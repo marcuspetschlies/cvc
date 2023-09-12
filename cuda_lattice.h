@@ -57,6 +57,7 @@ void cu_4pt_contraction(
 /**
  * Simple interface to KQED.
  */
+#if 0
 void
 cu_pt_QED_kernel_L0(
     const double xv[4] , const double yv[4] ,
@@ -73,6 +74,7 @@ void
 cu_pt_QED_kernel_L3(
     const double xv[4] , const double yv[4] ,
     const struct QED_kernel_temps t , double kerv[6][4][4][4] );
+#endif
 
 
 #endif // CUDA_LATTICE_H

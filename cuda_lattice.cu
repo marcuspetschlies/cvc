@@ -228,7 +228,22 @@ __global__ void ker_dzu_dzsu(
   }
 }
 
-typedef void (*QED_kernel_LX_ptr)( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] );
+// typedef void (*QED_kernel_LX_ptr)( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] );
+
+__device__
+void KQED_LX(
+    int ikernel, const double xm[4], const double ym[4],
+    const struct QED_kernel_temps kqed_t, double kerv[6][4][4][4]) {
+  if (ikernel == 0) {
+    QED_kernel_L0( xm, ym, kqed_t, kerv );
+  } else if (ikernel == 1) {
+    QED_kernel_L1( xm, ym, kqed_t, kerv );
+  } else if (ikernel == 2) {
+    QED_kernel_L2( xm, ym, kqed_t, kerv );
+  } else {
+    QED_kernel_L3( xm, ym, kqed_t, kerv );
+  }
+}
 
 __global__
 void ker_4pt_contraction(
@@ -247,19 +262,20 @@ void ker_4pt_contraction(
   double corr_I[6 * 4 * 4 * 4 * 2];
   double corr_II[6 * 4 * 4 * 4 * 2];
   double dxu[4 * 12 * 12 * 2];
-  double g_dxu[4 * 4 * 12 * 12 * 2];
+  // double g_dxu[4 * 4 * 12 * 12 * 2];
 
   double kernel_sum_work[4] = { 0 };
-  double spinor_work[24];
-  double kerv1[6][4][4][4] KQED_ALIGN ;
-  double kerv2[6][4][4][4] KQED_ALIGN ;
-  double kerv3[6][4][4][4] KQED_ALIGN ;
+  double spinor_work_0[24], spinor_work_1[24];
+  double kerv[6][4][4][4] KQED_ALIGN = { 0 };
+  // double kerv1[6][4][4][4] KQED_ALIGN ;
+  // double kerv2[6][4][4][4] KQED_ALIGN ;
+  // double kerv3[6][4][4][4] KQED_ALIGN ;
 
-  QED_kernel_LX_ptr KQED_LX[4] = {
-    QED_kernel_L0,
-    QED_kernel_L1,
-    QED_kernel_L2,
-    QED_kernel_L3 };
+  // QED_kernel_LX_ptr KQED_LX[4] = {
+  //   QED_kernel_L0,
+  //   QED_kernel_L1,
+  //   QED_kernel_L2,
+  //   QED_kernel_L3 };
   
   for (int dt = 0; dt < BS; ++dt) {
     for (int dx = 0; dx < BS; ++dx) {
@@ -283,15 +299,16 @@ void ker_4pt_contraction(
           for (int rho = 0; rho < 4; ++rho) {
             int xrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
             xrho = (xrho + global_geom_arr[rho]) % global_geom_arr[rho];
-            xv[rho] = coord_map(xv[rho], global_geom_arr[rho]);
-            xvzh[rho] = coord_map_zerohalf(xv[rho], global_geom_arr[rho]);
+            xv[rho] = coord_map(xrho, global_geom_arr[rho]);
+            xvzh[rho] = coord_map_zerohalf(xrho, global_geom_arr[rho]);
           }
+
           for (int ib = 0; ib < 12; ++ib) {
             const double* _u = &fwd_y[(iflavor * 12 + ib) * _GSI(VOLUME) + _GSI(ix)];
             for (int mu = 0; mu < 4; ++mu) {
               for (int ia = 0; ia < 12; ++ia) {
                 const double* _d = &fwd_src[((1-iflavor) * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
-                double* _t = spinor_work;
+                double* _t = spinor_work_1;
                 _fv_eq_gamma_ti_fv(_t, mu, _d);
                 _fv_ti_eq_g5(_t);
                 dxu[((mu * 12 + ib) * 12 + ia) * 2 + 0] = 0.0;
@@ -305,13 +322,6 @@ void ker_4pt_contraction(
                   dxu[((mu * 12 + ib) * 12 + ia) * 2 + 0] += -(_t_re * _u_re + _t_im * _u_im);
                   dxu[((mu * 12 + ib) * 12 + ia) * 2 + 1] += -(_t_re * _u_im - _t_im * _u_re);
                 }
-              }
-              double* _t = spinor_work;
-              const double* _dxu = &dxu[(mu * 12 + ib) * 12 * 2];
-              _fv_eq_gamma_ti_fv(_t, 5, _dxu);
-              for (int lambda = 0; lambda < 4; ++lambda) {
-                double* _g_dxu = &g_dxu[((lambda * 4 + mu) * 12 + ib) * 12 * 2];
-                _fv_eq_gamma_ti_fv(_g_dxu, lambda, _t);
               }
             }
           }
@@ -329,9 +339,16 @@ void ker_4pt_contraction(
                   _corr_II[0] = 0.0;
                   _corr_II[1] = 0.0;
                   for (int ia = 0; ia < 12; ++ia) {
+                    double *_t = spinor_work_0;
+                    double *_g_dxu = spinor_work_1;
+                    double *_dxu = &dxu[(mu * 12 + ia) * 12 * 2];
+                    _fv_eq_gamma_ti_fv(_t, 5, _dxu);
+                    _fv_eq_gamma_ti_fv(_g_dxu, lambda, _t);
                     for (int ib = 0; ib < 12; ++ib) {
-                      double u_re = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2];
-                      double u_im = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2 + 1];
+                      // double u_re = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2];
+                      // double u_im = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2 + 1];
+                      double u_re = _g_dxu[2*ib];
+                      double u_im = _g_dxu[2*ib+1];
                       double v_re = g_dzu[(((k * 4 + nu) * 12 + ib) * 12 + ia) * 2];
                       double v_im = g_dzu[(((k * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1];
                       _corr_I[0] -= u_re * v_re - u_im * v_im;
@@ -380,28 +397,44 @@ void ker_4pt_contraction(
 
           // TODO: Better kernel parameterization / loop?
           for (int ikernel = 0; ikernel < 4; ++ikernel) {
-            // atomicAdd_system(&kernel_sum[ikernel], corr_I[0]);
-            // atomicAdd_system(&kernel_sum[ikernel], corr_II[0]);
-            // continue; // FORNOW
-            KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
-            KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
-            KQED_LX[ikernel]( xm, xm_mi_ym, kqed_t, kerv3 );
+            // dtmp += (
+            //     kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda]
+            //     - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
+            //     + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
             double dtmp = 0.;
-            int i = 0;
+            int i;
+            KQED_LX( ikernel, xm, ym, kqed_t, kerv );
+            i = 0;
             for( int k = 0; k < 6; k++ ) {
               for ( int mu = 0; mu < 4; mu++ ) {
                 for ( int nu = 0; nu < 4; nu++ ) {
                   for ( int lambda = 0; lambda < 4; lambda++ ) {
-                    /// FORNOW
-                    kerv1[k][mu][nu][lambda] = 1.0;
-                    kerv2[k][nu][mu][lambda] = 1.0;
-                    kerv3[k][lambda][nu][mu] = 1.0;
-                    dtmp += (
-                        kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda]
-                        - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
-                        + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
-                    // dtmp += _corr_I[2*i] * _corr_II[2*i];
-
+                    dtmp += kerv[k][mu][nu][lambda] * _corr_I[2*i];
+                    i++;
+                  }
+                }
+              }
+            }
+            KQED_LX( ikernel, ym, xm,       kqed_t, kerv );
+            i = 0;
+            for( int k = 0; k < 6; k++ ) {
+              for ( int mu = 0; mu < 4; mu++ ) {
+                for ( int nu = 0; nu < 4; nu++ ) {
+                  for ( int lambda = 0; lambda < 4; lambda++ ) {
+                    dtmp += kerv[k][nu][mu][lambda] * _corr_I[2*i];
+                    i++;
+                  }
+                }
+              }
+            }
+            KQED_LX( ikernel, xm, xm_mi_ym, kqed_t, kerv );
+            i = 0;
+            for( int k = 0; k < 6; k++ ) {
+              for ( int mu = 0; mu < 4; mu++ ) {
+                for ( int nu = 0; nu < 4; nu++ ) {
+                  for ( int lambda = 0; lambda < 4; lambda++ ) {
+                    dtmp -= kerv[k][lambda][nu][mu] * _corr_I[2*i];
+                    dtmp += kerv[k][lambda][nu][mu] * _corr_II[2*i];
                     i++;
                   }
                 }
@@ -409,13 +442,6 @@ void ker_4pt_contraction(
             }
             kernel_sum_work[ikernel] += dtmp;
           }
-
-          // FORNOW
-          // for (int ikernel = 0; ikernel < 4; ++ikernel) {
-          //   atomicAdd_system(&kernel_sum[ikernel], kernel_sum_work[ikernel]);
-          // }
-          // return;
-          
 
         } // end coord loop
       }
@@ -474,10 +500,13 @@ void cu_4pt_contraction(
     const double* fwd_src, const double* fwd_y, int iflavor, Coord proc_coords,
     Coord gsx, Pair xunit, Coord yv, IdxComb idx_comb, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom) {
-  int T = local_geom.T;
-  int LX = local_geom.LX;
-  int LY = local_geom.LY;
-  int LZ = local_geom.LZ;
+  size_t T = local_geom.T;
+  size_t LX = local_geom.LX;
+  size_t LY = local_geom.LY;
+  size_t LZ = local_geom.LZ;
+  // size_t VOLUME = T * LX * LY * LZ;
+  // size_t kernel_nthreads = CUDA_THREAD_DIM_1D;
+  // size_t kernel_nblocks = (VOLUME + nthreads - 1) / kernel_nthreads;
   const size_t BS_TX = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE * CUDA_BLOCK_SIZE;
   const size_t BS_Y = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
   const size_t BS_Z = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
@@ -494,7 +523,10 @@ void cu_4pt_contraction(
 
 /**
  * Simple interface to KQED.
+ * NOTE: One should not really use these single-point evaluations in production,
+ * they are only intended to test that the CUDA QED kernels work.
  */
+#if 0
 #include "KQED.h"
 
 struct __attribute__((packed, aligned(8))) Vec4 {
@@ -620,4 +652,4 @@ cu_pt_QED_kernel_L3(
   checkCudaErrors(cudaFree(d_xv));
   checkCudaErrors(cudaFree(d_yv));
 }
-
+#endif

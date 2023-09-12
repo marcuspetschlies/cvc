@@ -255,7 +255,7 @@ inline void set_omp_number_threads (void) {
 /***************************************************************************
  * calculate elapsed wall-time
  ***************************************************************************/
-inline void show_time ( struct timeval * const ta, struct timeval * const tb, char * tag, char * timer, int const io ) {
+inline void show_time ( struct timeval * const ta, struct timeval * const tb, const char * tag, const char * timer, int const io ) {
 
   long int seconds =  tb->tv_sec  - ta->tv_sec;
   long int useconds = tb->tv_usec - ta->tv_usec;

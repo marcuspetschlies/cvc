@@ -367,11 +367,11 @@ inline void compute_4pt_contraction(
   cu_4pt_contraction(
       d_kernel_sum, d_g_dzu, d_g_dzsu, fwd_src, fwd_y, iflavor, d_proc_coords,
       d_gsx, d_xunit, d_yv, d_idx_comb, kqed_t, global_geom, local_geom);
-  fprintf(stdout, "[hlbl_mII_invert_contract] cu_4pt_contraction complete %d \n", g_cart_id);
 
   checkCudaErrors(cudaMemcpy(
       &kernel_sum[0], d_kernel_sum, 4*sizeof(double), cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaFree(d_kernel_sum));
+  fprintf(stdout, "[hlbl_mII_invert_contract] cu_4pt_contraction complete %d \n", g_cart_id);
 
   checkCudaErrors(cudaFree(d_g_dzu));
   checkCudaErrors(cudaFree(d_g_dzsu));
@@ -544,6 +544,12 @@ inline void compute_4pt_contraction(
     const int* gsx, int iflavor, const double xunit[2], const int yv[4],
     double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
 
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
+  double kernel_sum_thread[4] = { 0., 0., 0., 0. };
+
   double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
   double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
   double ***  dxu     = init_3level_dtable ( 4, 12, 24 );
@@ -561,11 +567,6 @@ inline void compute_4pt_contraction(
   double kerv2[6][4][4][4] KQED_ALIGN ;
   double kerv3[6][4][4][4] KQED_ALIGN ;
 
-  // QED_kernel_LX_ptr KQED_LX[4] = {
-  //   cu_pt_QED_kernel_L0,
-  //   cu_pt_QED_kernel_L1,
-  //   cu_pt_QED_kernel_L2,
-  //   cu_pt_QED_kernel_L3 };
   QED_kernel_LX_ptr KQED_LX[4] = {
     QED_kernel_L0,
     QED_kernel_L1,
@@ -602,6 +603,18 @@ inline void compute_4pt_contraction(
     site_map ( xv, x );
     site_map_zerohalf ( xvzh, x );
 
+    // double local_g_fwd_src[4 * 12 * 12 * 2];
+    // for ( int mu = 0; mu < 4; mu++ )
+    // {
+    //   for ( int ia = 0; ia < 12; ia++ )
+    //   {
+    //     double * const _d = fwd_src[1-iflavor][ia] + _GSI(ix);
+    //     double * const _t = &local_g_fwd_src[(mu * 12 + ia) * 12 * 2];
+    //     _fv_eq_gamma_ti_fv ( _t, mu, _d );
+    //     _fv_ti_eq_g5 ( _t );
+    //   }
+    // }
+
     for ( int ib = 0; ib < 12; ib++)
     {
       double * const _u = fwd_y[iflavor][ib] + _GSI(ix);
@@ -615,6 +628,7 @@ inline void compute_4pt_contraction(
           double * const _t = spinor1;
           _fv_eq_gamma_ti_fv ( _t, mu, _d );
           _fv_ti_eq_g5 ( _t );
+          // double * const _t = &local_g_fwd_src[(mu * 12 + ia) * 12 * 2];
 
           // double * const _d = g_fwd_src_2[1-iflavor][mu][ia] + _GSI(ix);
           complex w;
@@ -772,7 +786,8 @@ inline void compute_4pt_contraction(
           }
         }
       }
-      kernel_sum[ikernel] += dtmp;
+
+      kernel_sum_thread[ikernel] += dtmp;
 
       /***********************************************************
        * BEGIN TEST
@@ -848,10 +863,36 @@ inline void compute_4pt_contraction(
 #endif
   }  /* end of loop on ix */
 
+  /***********************************************************
+   * summation with QED kernel
+   ***********************************************************/
+#ifdef HAVE_OPENMP
+#pragma omp critical
+{
+#endif
+
+  kernel_sum[0] += kernel_sum_thread[0];
+  kernel_sum[1] += kernel_sum_thread[1];
+  kernel_sum[2] += kernel_sum_thread[2];
+  kernel_sum[3] += kernel_sum_thread[3];
+
+#ifdef HAVE_OPENMP
+   /***********************************************************/
+}  /* end of critical region */
+   /***********************************************************/
+#endif
+
+
   fini_4level_dtable ( &corr_I  );
   fini_4level_dtable ( &corr_II );
   fini_4level_dtable ( &g_dxu   );
   fini_3level_dtable ( &dxu     );
+
+#ifdef HAVE_OPENMP
+   /***********************************************************/
+}  /* end of parallel region */
+   /***********************************************************/
+#endif
 }
 
 #endif // USE_CUDA
@@ -1167,6 +1208,34 @@ int main(int argc, char **argv) {
     EXIT(19);
   }
 
+  /***********************************************************
+   * test the QED kernel evaluation
+   ***********************************************************/
+#if 0
+  {
+    double kerv[6][4][4][4] KQED_ALIGN ;
+    double xm[4] = { xunit[0], 2*xunit[0], 3*xunit[0], 4*xunit[0] };
+    double ym[4] = { xunit[0], -xunit[0], -2*xunit[0], -3*xunit[0] };
+#ifdef USE_CUDA
+    cu_pt_QED_kernel_L3(xm, ym, kqed_t, kerv);
+#else
+    QED_kernel_L3(xm, ym, kqed_t, kerv);
+#endif
+    fprintf(stdout, "[TEST] kerv test rank %d\n", g_cart_id);
+    for (int i = 0; i < 6; ++i) {
+      for (int j = 0; j < 4; ++j) {
+        for (int k = 0; k < 4; ++k) {
+          for (int l = 0; l < 4; ++l) {
+            fprintf(stdout, "[TEST] rank %d kerv[%d][%d][%d][%d] = %.18g\n",
+                    g_cart_id, i, j, k, l, kerv[i][j][k][l]);
+          }
+        }
+      }
+    }
+    return(0);
+  }
+#endif
+
 
 
   /***********************************************************
@@ -1472,40 +1541,9 @@ int main(int argc, char **argv) {
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-{
-#endif
-          double kernel_sum_thread[4] = { 0., 0., 0., 0. };
-
           compute_4pt_contraction(
               fwd_src, fwd_y, g_dzu, g_dzsu, gsx, iflavor, xunit, yv,
-              kernel_sum_thread, kqed_t, VOLUME);
-
-          /***********************************************************
-           * summation with QED kernel
-           ***********************************************************/
-#ifdef HAVE_OPENMP
-#pragma omp critical
-{
-#endif
-          kernel_sum[iflavor][iy][isign][0] += kernel_sum_thread[0];
-          kernel_sum[iflavor][iy][isign][1] += kernel_sum_thread[1];
-          kernel_sum[iflavor][iy][isign][2] += kernel_sum_thread[2];
-          kernel_sum[iflavor][iy][isign][3] += kernel_sum_thread[3];
-
-#ifdef HAVE_OPENMP
-   /***********************************************************/
-}  /* end of critical region */
-   /***********************************************************/
-#endif
-
-
-#ifdef HAVE_OPENMP
-   /***********************************************************/
-}  /* end of parallel region */
-   /***********************************************************/
-#endif
+              kernel_sum[iflavor][iy][isign], kqed_t, VOLUME);
 
 #if _WITH_TIMER
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -1518,16 +1556,16 @@ int main(int argc, char **argv) {
 
           /// DEBUG:
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 0: %f\n",
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 0: %.18g\n",
               g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][0]);
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 1: %f\n",
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 1: %.18g\n",
               g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][1]);
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 2: %f\n",
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 2: %.18g\n",
               g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][2]);
           printf(
-              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 3: %f\n",
+              "# [hlbl_mII_invert_contract] kernel_sum rank=%d iflavor=%d iy=%d isign=%d 3: %.18g\n",
               g_cart_id, iflavor, iy, isign, kernel_sum[iflavor][iy][isign][3]);
 
           /***********************************************************/
@@ -1571,7 +1609,7 @@ int main(int argc, char **argv) {
           for (int isign = 0; isign < ysign_num; ++isign) {
             for (int jker = 0; jker < 4; ++jker) {
               fprintf(stdout,
-                  "# [hlbl_mII_invert_contract] final kernel_sum iflavor=%d iy=%d isign=%d %d: %f\n",
+                  "# [hlbl_mII_invert_contract] final kernel_sum iflavor=%d iy=%d isign=%d %d: %.18g\n",
                   iflavor, iy, isign, jker, kernel_sum[iflavor][iy][isign][jker]);
               fflush(stdout);
             }
