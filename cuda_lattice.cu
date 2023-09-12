@@ -61,6 +61,14 @@ __device__ inline Coord get_thread_origin(Geom local_geom) {
 __device__ inline size_t coord2lexic(Coord coord, Geom local_geom) {
   return (((coord.t*local_geom.LX) + coord.x)*local_geom.LY + coord.y)*local_geom.LZ + coord.z;
 }
+__device__ inline Coord lexic2coord(size_t ind, Geom local_geom) {
+  return Coord {
+    .t = (int)(ind / (local_geom.LX * local_geom.LY * local_geom.LZ)),
+    .x = (int)((ind / (local_geom.LY * local_geom.LZ)) % local_geom.LX),
+    .y = (int)((ind / local_geom.LZ) % local_geom.LY),
+    .z = (int)(ind % local_geom.LZ)
+  };
+}
 
 /**
  * Given length-24 spin vector in, multiply by appropriate gamma matrix, writing
@@ -252,7 +260,7 @@ void ker_4pt_contraction(
     Coord gsx, Pair xunit, Coord yv, IdxComb idx_comb, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom) {
 
-  Coord origin = get_thread_origin(local_geom);
+  // Coord origin = get_thread_origin(local_geom);
   int gsx_arr[4] = {gsx.t, gsx.x, gsx.y, gsx.z};
   size_t VOLUME = local_geom.T * local_geom.LX * local_geom.LY * local_geom.LZ;
   int local_geom_arr[4] = {local_geom.T, local_geom.LX, local_geom.LY, local_geom.LZ};
@@ -262,191 +270,164 @@ void ker_4pt_contraction(
   double corr_I[6 * 4 * 4 * 4 * 2];
   double corr_II[6 * 4 * 4 * 4 * 2];
   double dxu[4 * 12 * 12 * 2];
-  // double g_dxu[4 * 4 * 12 * 12 * 2];
 
   double kernel_sum_work[4] = { 0 };
   double spinor_work_0[24], spinor_work_1[24];
   double kerv[6][4][4][4] KQED_ALIGN = { 0 };
-  // double kerv1[6][4][4][4] KQED_ALIGN ;
-  // double kerv2[6][4][4][4] KQED_ALIGN ;
-  // double kerv3[6][4][4][4] KQED_ALIGN ;
 
-  // QED_kernel_LX_ptr KQED_LX[4] = {
-  //   QED_kernel_L0,
-  //   QED_kernel_L1,
-  //   QED_kernel_L2,
-  //   QED_kernel_L3 };
-  
-  for (int dt = 0; dt < BS; ++dt) {
-    for (int dx = 0; dx < BS; ++dx) {
-      for (int dy = 0; dy < BS; ++dy) {
-        for (int dz = 0; dz < BS; ++dz) {
-          const int tt = dt + origin.t;
-          const int xx = dx + origin.x;
-          const int yy = dy + origin.y;
-          const int zz = dz + origin.z;
-          if (tt >= local_geom.T || xx >= local_geom.LX ||
-              yy >= local_geom.LY || zz >= local_geom.LZ) {
-            continue;
+  for (int ix = blockIdx.x * blockDim.x + threadIdx.x;
+       ix < VOLUME; ix += blockDim.x * gridDim.x) {
+    Coord coord = lexic2coord(ix, local_geom);
+    const int tt = coord.t;
+    const int xx = coord.x;
+    const int yy = coord.y;
+    const int zz = coord.z;
+    int coord_arr[4] = {tt, xx, yy, zz};
+    int xv[4], xvzh[4];
+    for (int rho = 0; rho < 4; ++rho) {
+      int xrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
+      xrho = (xrho + global_geom_arr[rho]) % global_geom_arr[rho];
+      xv[rho] = coord_map(xrho, global_geom_arr[rho]);
+      xvzh[rho] = coord_map_zerohalf(xrho, global_geom_arr[rho]);
+    }
+
+    for (int mu = 0; mu < 4; ++mu) {
+      for (int ia = 0; ia < 12; ++ia) {
+        const double* _d = &fwd_src[((1-iflavor) * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
+        double* _t = spinor_work_1;
+        _fv_eq_gamma_ti_fv(_t, mu, _d);
+        _fv_ti_eq_g5(_t);
+        for (int ib = 0; ib < 12; ++ib) {
+          const double* _u = &fwd_y[(iflavor * 12 + ib) * _GSI(VOLUME) + _GSI(ix)];
+          dxu[((mu * 12 + ib) * 12 + ia) * 2 + 0] = 0.0;
+          dxu[((mu * 12 + ib) * 12 + ia) * 2 + 1] = 0.0;
+          for (int i = 0; i < 12; ++i) {
+            double _t_re = _t[2*i];
+            double _t_im = _t[2*i+1];
+            double _u_re = _u[2*i];
+            double _u_im = _u[2*i+1];
+            /* -1 factor due to (g5 gmu)^+ = -g5 gmu */
+            dxu[((mu * 12 + ib) * 12 + ia) * 2 + 0] += -(_t_re * _u_re + _t_im * _u_im);
+            dxu[((mu * 12 + ib) * 12 + ia) * 2 + 1] += -(_t_re * _u_im - _t_im * _u_re);
           }
-          const Coord coord{
-            .t = tt, .x = xx, .y = yy, .z = zz
-          };
-          size_t ix = coord2lexic(coord, local_geom);
-
-          int coord_arr[4] = {tt, xx, yy, zz};
-          int xv[4], xvzh[4];
-          for (int rho = 0; rho < 4; ++rho) {
-            int xrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
-            xrho = (xrho + global_geom_arr[rho]) % global_geom_arr[rho];
-            xv[rho] = coord_map(xrho, global_geom_arr[rho]);
-            xvzh[rho] = coord_map_zerohalf(xrho, global_geom_arr[rho]);
-          }
-
-          for (int ib = 0; ib < 12; ++ib) {
-            const double* _u = &fwd_y[(iflavor * 12 + ib) * _GSI(VOLUME) + _GSI(ix)];
-            for (int mu = 0; mu < 4; ++mu) {
-              for (int ia = 0; ia < 12; ++ia) {
-                const double* _d = &fwd_src[((1-iflavor) * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
-                double* _t = spinor_work_1;
-                _fv_eq_gamma_ti_fv(_t, mu, _d);
-                _fv_ti_eq_g5(_t);
-                dxu[((mu * 12 + ib) * 12 + ia) * 2 + 0] = 0.0;
-                dxu[((mu * 12 + ib) * 12 + ia) * 2 + 1] = 0.0;
-                for (int i = 0; i < 12; ++i) {
-                  double _t_re = _t[2*i];
-                  double _t_im = _t[2*i+1];
-                  double _u_re = _u[2*i];
-                  double _u_im = _u[2*i+1];
-                  /* -1 factor due to (g5 gmu)^+ = -g5 gmu */
-                  dxu[((mu * 12 + ib) * 12 + ia) * 2 + 0] += -(_t_re * _u_re + _t_im * _u_im);
-                  dxu[((mu * 12 + ib) * 12 + ia) * 2 + 1] += -(_t_re * _u_im - _t_im * _u_re);
-                }
-              }
-            }
-          }
-
-          for (int mu = 0; mu < 4; ++mu) {
-            for (int nu = 0; nu < 4; ++nu) {
-              for (int lambda = 0; lambda < 4; ++lambda) {
-                for (int k = 0; k < 6; ++k) {
-                  const int sigma = idx_comb.comb[k][1];
-                  const int rho = idx_comb.comb[k][0];
-                  double *_corr_I = &corr_I[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2];
-                  double *_corr_II = &corr_II[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2];
-                  _corr_I[0] = 0.0;
-                  _corr_I[1] = 0.0;
-                  _corr_II[0] = 0.0;
-                  _corr_II[1] = 0.0;
-                  for (int ia = 0; ia < 12; ++ia) {
-                    double *_t = spinor_work_0;
-                    double *_g_dxu = spinor_work_1;
-                    double *_dxu = &dxu[(mu * 12 + ia) * 12 * 2];
-                    _fv_eq_gamma_ti_fv(_t, 5, _dxu);
-                    _fv_eq_gamma_ti_fv(_g_dxu, lambda, _t);
-                    for (int ib = 0; ib < 12; ++ib) {
-                      // double u_re = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2];
-                      // double u_im = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2 + 1];
-                      double u_re = _g_dxu[2*ib];
-                      double u_im = _g_dxu[2*ib+1];
-                      double v_re = g_dzu[(((k * 4 + nu) * 12 + ib) * 12 + ia) * 2];
-                      double v_im = g_dzu[(((k * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1];
-                      _corr_I[0] -= u_re * v_re - u_im * v_im;
-                      _corr_I[1] -= u_re * v_im + u_im * v_re;
-                      v_re = (
-                          xvzh[rho] * g_dzsu[(((sigma * 4 + nu) * 12 + ib) * 12 + ia) * 2] -
-                          xvzh[sigma] * g_dzsu[(((rho * 4 + nu) * 12 + ib) * 12 + ia) * 2] );
-                      v_im = (
-                          xvzh[rho] * g_dzsu[(((sigma * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1] -
-                          xvzh[sigma] * g_dzsu[(((rho * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1] );
-                      _corr_II[0] -= u_re * v_re - u_im * v_im;
-                      _corr_II[1] -= u_re * v_im + u_im * v_re;
-                    }
-                  }
-                  // corr_I[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2] = -dtmp[0];
-                  // corr_I[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2 + 1] = -dtmp[1];
-                }
-              }
-            }
-          }
-
-          double const xm[4] = {
-            xv[0] * xunit.a,
-            xv[1] * xunit.a,
-            xv[2] * xunit.a,
-            xv[3] * xunit.a };
-
-          double const ym[4] = {
-            yv.t * xunit.a,
-            yv.x * xunit.a,
-            yv.y * xunit.a,
-            yv.z * xunit.a };
-
-          // double * const _kerv1   = (double * const )kerv1;
-          // double * const _kerv2   = (double * const )kerv2;
-          // double * const _kerv3   = (double * const )kerv3;
-
-          double * const _corr_I  = corr_I;
-          double * const _corr_II = corr_II;
-
-          double const xm_mi_ym[4] = {
-            xm[0] - ym[0],
-            xm[1] - ym[1],
-            xm[2] - ym[2],
-            xm[3] - ym[3] };
-
-          // TODO: Better kernel parameterization / loop?
-          for (int ikernel = 0; ikernel < 4; ++ikernel) {
-            // dtmp += (
-            //     kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda]
-            //     - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
-            //     + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
-            double dtmp = 0.;
-            int i;
-            KQED_LX( ikernel, xm, ym, kqed_t, kerv );
-            i = 0;
-            for( int k = 0; k < 6; k++ ) {
-              for ( int mu = 0; mu < 4; mu++ ) {
-                for ( int nu = 0; nu < 4; nu++ ) {
-                  for ( int lambda = 0; lambda < 4; lambda++ ) {
-                    dtmp += kerv[k][mu][nu][lambda] * _corr_I[2*i];
-                    i++;
-                  }
-                }
-              }
-            }
-            KQED_LX( ikernel, ym, xm,       kqed_t, kerv );
-            i = 0;
-            for( int k = 0; k < 6; k++ ) {
-              for ( int mu = 0; mu < 4; mu++ ) {
-                for ( int nu = 0; nu < 4; nu++ ) {
-                  for ( int lambda = 0; lambda < 4; lambda++ ) {
-                    dtmp += kerv[k][nu][mu][lambda] * _corr_I[2*i];
-                    i++;
-                  }
-                }
-              }
-            }
-            KQED_LX( ikernel, xm, xm_mi_ym, kqed_t, kerv );
-            i = 0;
-            for( int k = 0; k < 6; k++ ) {
-              for ( int mu = 0; mu < 4; mu++ ) {
-                for ( int nu = 0; nu < 4; nu++ ) {
-                  for ( int lambda = 0; lambda < 4; lambda++ ) {
-                    dtmp -= kerv[k][lambda][nu][mu] * _corr_I[2*i];
-                    dtmp += kerv[k][lambda][nu][mu] * _corr_II[2*i];
-                    i++;
-                  }
-                }
-              }
-            }
-            kernel_sum_work[ikernel] += dtmp;
-          }
-
-        } // end coord loop
+        }
       }
     }
-  }
+
+    for (int mu = 0; mu < 4; ++mu) {
+      for (int nu = 0; nu < 4; ++nu) {
+        for (int lambda = 0; lambda < 4; ++lambda) {
+          for (int k = 0; k < 6; ++k) {
+            const int sigma = idx_comb.comb[k][1];
+            const int rho = idx_comb.comb[k][0];
+            double *_corr_I = &corr_I[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2];
+            double *_corr_II = &corr_II[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2];
+            _corr_I[0] = 0.0;
+            _corr_I[1] = 0.0;
+            _corr_II[0] = 0.0;
+            _corr_II[1] = 0.0;
+            for (int ia = 0; ia < 12; ++ia) {
+              double *_t = spinor_work_0;
+              double *_g_dxu = spinor_work_1;
+              double *_dxu = &dxu[(mu * 12 + ia) * 12 * 2];
+              _fv_eq_gamma_ti_fv(_t, 5, _dxu);
+              _fv_eq_gamma_ti_fv(_g_dxu, lambda, _t);
+              for (int ib = 0; ib < 12; ++ib) {
+                // double u_re = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2];
+                // double u_im = g_dxu[(((lambda * 4 + mu) * 12 + ia) * 12 + ib) * 2 + 1];
+                double u_re = _g_dxu[2*ib];
+                double u_im = _g_dxu[2*ib+1];
+                double v_re = g_dzu[(((k * 4 + nu) * 12 + ib) * 12 + ia) * 2];
+                double v_im = g_dzu[(((k * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1];
+                _corr_I[0] -= u_re * v_re - u_im * v_im;
+                _corr_I[1] -= u_re * v_im + u_im * v_re;
+                v_re = (
+                    xvzh[rho] * g_dzsu[(((sigma * 4 + nu) * 12 + ib) * 12 + ia) * 2] -
+                    xvzh[sigma] * g_dzsu[(((rho * 4 + nu) * 12 + ib) * 12 + ia) * 2] );
+                v_im = (
+                    xvzh[rho] * g_dzsu[(((sigma * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1] -
+                    xvzh[sigma] * g_dzsu[(((rho * 4 + nu) * 12 + ib) * 12 + ia) * 2 + 1] );
+                _corr_II[0] -= u_re * v_re - u_im * v_im;
+                _corr_II[1] -= u_re * v_im + u_im * v_re;
+              }
+            }
+            // corr_I[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2] = -dtmp[0];
+            // corr_I[(((k * 4 + mu) * 4 + nu) * 4 + lambda) * 2 + 1] = -dtmp[1];
+          }
+        }
+      }
+    }
+
+    double const xm[4] = {
+      xv[0] * xunit.a,
+      xv[1] * xunit.a,
+      xv[2] * xunit.a,
+      xv[3] * xunit.a };
+
+    double const ym[4] = {
+      yv.t * xunit.a,
+      yv.x * xunit.a,
+      yv.y * xunit.a,
+      yv.z * xunit.a };
+
+    double * const _corr_I  = corr_I;
+    double * const _corr_II = corr_II;
+
+    double const xm_mi_ym[4] = {
+      xm[0] - ym[0],
+      xm[1] - ym[1],
+      xm[2] - ym[2],
+      xm[3] - ym[3] };
+
+    // TODO: Better kernel parameterization / loop?
+    for (int ikernel = 0; ikernel < 4; ++ikernel) {
+      // dtmp += (
+      //     kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda]
+      //     - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
+      //     + kerv3[k][lambda][nu][mu] * _corr_II[2*i];
+      double dtmp = 0.;
+      int i;
+      KQED_LX( ikernel, xm, ym, kqed_t, kerv );
+      i = 0;
+      for( int k = 0; k < 6; k++ ) {
+        for ( int mu = 0; mu < 4; mu++ ) {
+          for ( int nu = 0; nu < 4; nu++ ) {
+            for ( int lambda = 0; lambda < 4; lambda++ ) {
+              dtmp += kerv[k][mu][nu][lambda] * _corr_I[2*i];
+              i++;
+            }
+          }
+        }
+      }
+      KQED_LX( ikernel, ym, xm,       kqed_t, kerv );
+      i = 0;
+      for( int k = 0; k < 6; k++ ) {
+        for ( int mu = 0; mu < 4; mu++ ) {
+          for ( int nu = 0; nu < 4; nu++ ) {
+            for ( int lambda = 0; lambda < 4; lambda++ ) {
+              dtmp += kerv[k][nu][mu][lambda] * _corr_I[2*i];
+              i++;
+            }
+          }
+        }
+      }
+      KQED_LX( ikernel, xm, xm_mi_ym, kqed_t, kerv );
+      i = 0;
+      for( int k = 0; k < 6; k++ ) {
+        for ( int mu = 0; mu < 4; mu++ ) {
+          for ( int nu = 0; nu < 4; nu++ ) {
+            for ( int lambda = 0; lambda < 4; lambda++ ) {
+              dtmp -= kerv[k][lambda][nu][mu] * _corr_I[2*i];
+              dtmp += kerv[k][lambda][nu][mu] * _corr_II[2*i];
+              i++;
+            }
+          }
+        }
+      }
+      kernel_sum_work[ikernel] += dtmp;
+    }
+
+  } // end coord loop
 
   // reduce (TODO faster reduce algo?)
   for (int ikernel = 0; ikernel < 4; ++ikernel) {
@@ -478,6 +459,7 @@ void cu_dzu_dzsu(
     double* d_dzu, double* d_dzsu, const double* fwd_src, const double* fwd_y,
     int iflavor, Coord proc_coords, Coord gsx, IdxComb idx_comb,
     Geom global_geom, Geom local_geom) {
+  // TODO: Swap to 1D grid-stride kernel layout?
   int T = local_geom.T;
   int LX = local_geom.LX;
   int LY = local_geom.LY;
@@ -504,17 +486,17 @@ void cu_4pt_contraction(
   size_t LX = local_geom.LX;
   size_t LY = local_geom.LY;
   size_t LZ = local_geom.LZ;
-  // size_t VOLUME = T * LX * LY * LZ;
-  // size_t kernel_nthreads = CUDA_THREAD_DIM_1D;
-  // size_t kernel_nblocks = (VOLUME + nthreads - 1) / kernel_nthreads;
-  const size_t BS_TX = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE * CUDA_BLOCK_SIZE;
-  const size_t BS_Y = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
-  const size_t BS_Z = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
-  size_t nx = (T*LX + BS_TX - 1) / BS_TX;
-  size_t ny = (LY + BS_Y - 1) / BS_Y;
-  size_t nz = (LZ + BS_Z - 1) / BS_Z;
-  dim3 kernel_nblocks(nx, ny, nz);
-  dim3 kernel_nthreads(CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D);
+  size_t VOLUME = T * LX * LY * LZ;
+  size_t kernel_nthreads = CUDA_THREAD_DIM_1D;
+  size_t kernel_nblocks = (VOLUME + kernel_nthreads - 1) / kernel_nthreads;
+  // const size_t BS_TX = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE * CUDA_BLOCK_SIZE;
+  // const size_t BS_Y = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
+  // const size_t BS_Z = CUDA_THREAD_DIM_4D * CUDA_BLOCK_SIZE;
+  // size_t nx = (T*LX + BS_TX - 1) / BS_TX;
+  // size_t ny = (LY + BS_Y - 1) / BS_Y;
+  // size_t nz = (LZ + BS_Z - 1) / BS_Z;
+  // dim3 kernel_nblocks(nx, ny, nz);
+  // dim3 kernel_nthreads(CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D);
   ker_4pt_contraction<<<kernel_nblocks, kernel_nthreads>>>(
       d_kernel_sum, d_g_dzu, d_g_dzsu, fwd_src, fwd_y, iflavor, proc_coords,
       gsx, xunit, yv, idx_comb, kqed_t, global_geom, local_geom);
