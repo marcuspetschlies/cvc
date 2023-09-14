@@ -9,7 +9,8 @@ fftwdir=$(work)/fftw-2.1.5/install/
 lapackdir=$(work)/lapack-3.11.0/
 lhpcdir=$(work)/aff-3.0.0/install/
 hdf5dir=$(work)/hdf5-1.14.1-2/install/
-kqeddir=$(work)/KQED/install/
+kqedcudadir=$(work)/KQED_CUDA/build-cuda/
+kqeddir=$(work)/KQED_CUDA/build-cpu/
 cudadir=/opt/cuda/
 
 defines= -DF_  -DCUBIC_GROUP_SINGLE_COVER -DDUMMY_SOLVER -DHAVE_KQED -DHAVE_HDF5 -DHAVE_LHPC_AFF
@@ -30,27 +31,32 @@ DEPFLAGS = -MM
 
 INCLUDE = -I. -I$(srcdir) \
 	-I$(fftwdir)/include/ -I$(limedir)/include/ \
-	-I$(kqeddir)/include/ -I$(hdf5dir)/include/ \
+	-I$(hdf5dir)/include/ \
 	-I$(lhpcdir)/include/ -I$(cudadir)/include/
+INCLUDE_CPU=$(INCLUDE) -I$(kqeddir)/include/
+INCLUDE_GPU=$(INCLUDE) -I$(kqedcudadir)/include/
 
 LIBS = -lm -L$(fftwdir)/lib/ -lfftw \
 	-L$(limedir)/lib/ -llime \
-	-L$(kqeddir)/lib/ -lKQED_cuda \
 	-L$(hdf5dir)/lib/ -lhdf5 \
 	-L$(lhpcdir)/lib/ -llhpc-aff \
 	-L$(lapackdir) -llapack -lrefblas -lgfortran \
 	-L$(cudadir)/lib/ -lcudart
-# -lfftw_mpi -lblas 
+LIB_KQED_GPU=-L$(kqedcudadir)/lib/ -lKQED_cuda
+LIB_KQED=-L$(kqeddir)/lib/ -lKQED
+LIBS_GPU=$(LIBS) $(LIB_KQED_GPU)
+LIBS_CPU=$(LIBS) $(LIB_KQED)
+DEVICE_LIBS=$(LIB_KQED_GPU)
 
-LDFLAGS = $(LIBS)
-# -fopenmp
+LDFLAGS = $(LIBS_CPU) -fopenmp
+LDFLAGS_GPU = $(LIBS_GPU) -fopenmp
 
 
 LINK = $(CXX) -o $@ ${LDFLAGS}
-COMPILE = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS}
-COMPILE_GPU = ${CXX} $(INCLUDE) -o $@ ${CXXFLAGS_GPU}
-CUDA_COMPILE = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -dc -o $@ --compiler-options="${CXXFLAGS_GPU}"
-CUDA_LINK = ${NVCC} ${NVCCFLAGS} $(INCLUDE) -dlink -o $@ --compiler-options="${CXXFLAGS_GPU}"
+COMPILE = ${CXX} $(INCLUDE_CPU) -o $@ ${CXXFLAGS}
+COMPILE_GPU = ${CXX} $(INCLUDE_GPU) -o $@ ${CXXFLAGS_GPU}
+CUDA_COMPILE = ${NVCC} ${NVCCFLAGS} $(INCLUDE_GPU) -dc -o $@ --compiler-options="${CXXFLAGS_GPU}"
+CUDA_LINK = ${NVCC} ${NVCCFLAGS} $(INCLUDE_GPU) -dlink -o $@ --compiler-options="${CXXFLAGS_GPU}"
 
 MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
 	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default \
@@ -70,8 +76,8 @@ HEADERS = getopt cvc_complex cvc_geometry cvc_linalg iblas icontract cvc_utils d
 	  contract_loop uwerr incomp_gamma derived_quantities cuda_lattice
 
 
-PROGRAM = hlbl_mII_contract_test
-# PROGRAM = hlbl_mII_invert_contract
+# PROGRAM = hlbl_mII_contract_test
+PROGRAM = hlbl_mII_invert_contract
 
 
 
@@ -106,15 +112,13 @@ $(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
 $(addsuffix .gpu.o,${PROGRAM}): %.gpu.o: ${srcdir}/%.cpp %.d
 	${COMPILE_GPU} ${OPTARGS} -c $<
 
-${PROGRAM}.dlink: %.dlink: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
-	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $< $(LIBS)
-${PROGRAM}: %: %.o %.dlink ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
-	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $@.dlink $(LIBS)
+${PROGRAM}: %: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES})
+	${LINK}  $(addsuffix .o,${MODULES}) $@.o $(LDFLAGS)
 
 ${PROGRAM}.gpu.dlink: %.dlink: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
-	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $< $(LIBS)
+	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $< $(DEVICE_LIBS)
 ${PROGRAM}.gpu: %: %.o %.dlink ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
-	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $@.dlink $(LIBS)
+	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $@.dlink $(LDFLAGS_GPU)
 
 ${srcdir}/gitversion.cpp: ${srcdir}/.git/HEAD ${srcdir}/.git/index
 	echo "namespace cvc { const char *g_gitversion = \"$(shell cd ${srcdir} && git rev-parse HEAD && cd -)\"; }" > ${srcdir}/gitversion.cpp
