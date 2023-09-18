@@ -76,48 +76,6 @@ extern "C"
 
 using namespace cvc;
 
-/* typedef int ( * reduction_operation ) (double**, double*, fermion_propagator_type*, unsigned int ); */
-
-typedef int ( * reduction_operation ) (double**, fermion_propagator_type*, fermion_propagator_type*, fermion_propagator_type*, unsigned int);
-
-#if 0
-/***************************************************************************
- * 
- ***************************************************************************/
-static inline int reduce_project_write ( double ** vx, double *** vp, fermion_propagator_type * fa, fermion_propagator_type * fb, fermion_propagator_type * fc, reduction_operation reduce,
-    struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
-
-  int exitstatus;
-
-  /* contraction */
-  exitstatus = reduce ( vx, fa, fb, fc, N );
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from reduce, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    return( 1 );
-  }
-
-  /* (partial) Fourier transform, projection from position space to a (small) subset of momentum space */
-  exitstatus = contract_vn_momentum_projection ( vp, vx, nd, momentum_list, momentum_number);
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from contract_vn_momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-    return( 2 );
-  }
-
-#if defined HAVE_LHPC_AFF
-  /* write to AFF file */
-  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
-#endif
-  if ( exitstatus != 0 ) {
-    fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
-    return( 3 );
-  }
-
-  return ( 0 );
-
-}  /* end of reduce_project_write */
-
-#endif  /* of if 0  */
-
 /***************************************************************************
  * helper message
  ***************************************************************************/
@@ -141,55 +99,6 @@ int main(int argc, char **argv) {
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
 
-  const int sequential_gamma_sets = 4;
-  int const sequential_gamma_num[4] = {4, 4, 1, 1};
-  int const sequential_gamma_id[4][4] = {
-    { 0,  1,  2,  3 },
-    { 6,  7,  8,  9 },
-    { 4, -1, -1, -1 },
-    { 5, -1, -1, -1 } };
-
-  char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
-
-  char const gamma_id_to_Cg_ascii[16][10] = {
-    "Cgy",
-    "Cgzg5",
-    "Cgt",
-    "Cgxg5",
-    "Cgygt",
-    "Cgyg5gt",
-    "Cgyg5",
-    "Cgz",
-    "Cg5gt",
-    "Cgx",
-    "Cgzg5gt",
-    "C",
-    "Cgxg5gt",
-    "Cgxgt",
-    "Cg5",
-    "Cgzgt"
-  };
-
-
-  char const gamma_id_to_ascii[16][10] = {
-    "gt",
-    "gx",
-    "gy",
-    "gz",
-    "id",
-    "g5",
-    "gtg5",
-    "gxg5",
-    "gyg5",
-    "gzg5",
-    "gtgx",
-    "gtgy",
-    "gtgz",
-    "gxgy",
-    "gxgz",
-    "gygz" 
-  };
-
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -201,15 +110,6 @@ int main(int argc, char **argv) {
   double *gauge_field_smeared = NULL;
   struct timeval ta, tb, start_time, end_time;
 
-  /*
-  int const    gamma_f1_number                           = 4;
-  int const    gamma_f1_list[gamma_f1_number]            = { 14 , 11,  8,  2 };
-  double const gamma_f1_sign[gamma_f1_number]            = { +1 , +1, -1, -1 };
-  */
-
-  int const    gamma_f1_number                           = 1;
-  int const    gamma_f1_list[gamma_f1_number]            = { 14 };
-  double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
   int read_loop_field    = 0;
   int write_loop_field   = 0;
@@ -218,7 +118,6 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
-  char aff_tag[400];
 #endif
 
 #ifdef HAVE_MPI
@@ -415,26 +314,6 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * set the gamma matrices
    ***************************************************************************/
-#if 0
-  gamma_matrix_type sequential_gamma_list[4][4];
-  /* vector */
-  gamma_matrix_set( &( sequential_gamma_list[0][0] ), 0, 1. );  /*  gamma_0 = gamma_t */
-  gamma_matrix_set( &( sequential_gamma_list[0][1] ), 1, 1. );  /*  gamma_1 = gamma_x */
-  gamma_matrix_set( &( sequential_gamma_list[0][2] ), 2, 1. );  /*  gamma_2 = gamma_y */
-  gamma_matrix_set( &( sequential_gamma_list[0][3] ), 3, 1. );  /*  gamma_3 = gamma_z */
-  /* pseudovector */
-  gamma_matrix_set( &( sequential_gamma_list[1][0] ), 6, 1. );  /*  gamma_6 = gamma_5 gamma_t */
-  gamma_matrix_set( &( sequential_gamma_list[1][1] ), 7, 1. );  /*  gamma_7 = gamma_5 gamma_x */
-  gamma_matrix_set( &( sequential_gamma_list[1][2] ), 8, 1. );  /*  gamma_8 = gamma_5 gamma_y */
-  gamma_matrix_set( &( sequential_gamma_list[1][3] ), 9, 1. );  /*  gamma_9 = gamma_5 gamma_z */
-  /* scalar */
-  gamma_matrix_set( &( sequential_gamma_list[2][0] ), 4, 1. );  /*  gamma_4 = id */
-  /* pseudoscalar */
-  gamma_matrix_set( &( sequential_gamma_list[3][0] ), 5, 1. );  /*  gamma_5 */
-
-  gamma_matrix_type gammafive;
-  gamma_matrix_set( &gammafive, 5, 1. );  /*  gamma_5 */
-#endif
 
   gamma_matrix_type gamma_v[4];
   gamma_matrix_set( &( gamma_v[0]), 0, 1. );
@@ -1067,8 +946,6 @@ int main(int argc, char **argv) {
 
         int const it = ix / VOL3;
 
-        unsigned int const iix = _GSI( ix );
-
         /***************************************************************************
          * make the point-wise up and down propagator matrix
          ***************************************************************************/
@@ -1492,7 +1369,6 @@ int main(int argc, char **argv) {
 
   /* free clover matrix terms */
   fini_clover ( &lmzz, &lmzzinv );
-
 
   /* free lattice geometry arrays */
   free_geometry();
