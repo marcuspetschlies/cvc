@@ -65,6 +65,7 @@ extern "C"
 #include "clover.h"
 
 #include "pm.h"
+#include "gradient_flow.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -73,6 +74,7 @@ extern "C"
 #define _USE_TIME_DILUTION 1
 #endif
 
+#define MAX_NUM_GF_NSTEP 100
 
 using namespace cvc;
 
@@ -114,6 +116,9 @@ int main(int argc, char **argv) {
   int write_loop_field   = 0;
   int read_scalar_field  = 0;
   int write_scalar_field = 0;
+  int gf_nstep = 0;
+  int gf_niter_list[MAX_NUM_GF_NSTEP];
+  double gf_dt_list[MAX_NUM_GF_NSTEP];
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -339,6 +344,7 @@ int main(int argc, char **argv) {
    ***************************************************************************/
   unsigned int const VOL3 = LX * LY * LZ;
   size_t const sizeof_spinor_field = _GSI( VOLUME ) * sizeof( double );
+  size_t const sizeof_gauge_field = 72 * VOLUME  * sizeof( double );
 
   /***************************************************************************
    * init rng state
@@ -438,6 +444,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * reshape gauge field
    ***************************************************************************/
+#ifdef _GFLOW_QUDA
    double ** h_gauge = init_2level_dtable ( 4, 18*VOLUME );
   if ( h_gauge == NULL )
   {
@@ -447,6 +454,90 @@ int main(int argc, char **argv) {
   gauge_field_cvc_to_qdp ( h_gauge, gauge_field_with_phase );
 
 
+  /***************************************************************************
+   * Begin of gauge_param initialization
+   ***************************************************************************/
+  QudaGaugeParam gauge_param;
+
+  gauge_param.struct_size = sizeof ( QudaGaugeParam );
+ 
+  /* gauge_param.location = QUDA_CUDA_FIELD_LOCATION; */
+  gauge_param.location = QUDA_CPU_FIELD_LOCATION;
+
+  gauge_param.X[0] = LX;
+  gauge_param.X[1] = LY;
+  gauge_param.X[2] = LZ;
+  gauge_param.X[3] = T;
+
+  gauge_param.anisotropy    = 1.0;
+  gauge_param.tadpole_coeff = 0.0;
+  gauge_param.scale         = 0.0;
+
+  gauge_param.type = QUDA_FLOWED_LINKS;
+  gauge_param.gauge_order = QUDA_QDP_GAUGE_ORDER;  /* expect *gauge[mu], even-odd, spacetime, row-column color */
+
+  gauge_param.t_boundary = QUDA_PERIODIC_T; 
+
+  gauge_param.cpu_prec = QUDA_DOUBLE_PRECISION;
+
+  gauge_param.cuda_prec   = QUDA_DOUBLE_PRECISION;
+  gauge_param.reconstruct = QUDA_RECONSTRUCT_NO;
+
+  gauge_param.cuda_prec_sloppy   = QUDA_DOUBLE_PRECISION;
+  gauge_param.reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+
+  gauge_param.cuda_prec_refinement_sloppy   = QUDA_DOUBLE_PRECISION;
+  gauge_param.reconstruct_refinement_sloppy = QUDA_RECONSTRUCT_NO;
+
+  gauge_param.cuda_prec_precondition   = QUDA_DOUBLE_PRECISION;
+  gauge_param.reconstruct_precondition = QUDA_RECONSTRUCT_NO;
+
+  gauge_param.cuda_prec_eigensolver   = QUDA_DOUBLE_PRECISION;
+  gauge_param.reconstruct_eigensolver = QUDA_RECONSTRUCT_NO;
+
+  gauge_param.gauge_fix = QUDA_GAUGE_FIXED_NO;
+
+  gauge_param.ga_pad = get_gauge_padding ( gauge_param.X );
+
+  gauge_param.site_ga_pad = 0;
+
+  gauge_param.staple_pad   = 0;
+  gauge_param.llfat_ga_pad = 0;
+  gauge_param.mom_ga_pad   = 0;
+  
+  gauge_param.staggered_phase_type = QUDA_STAGGERED_PHASE_NO;
+  
+  gauge_param.staggered_phase_applied = QUDA_STAGGERED_PHASE_NO;
+
+  gauge_param.i_mu = 0.;
+
+  gauge_param.overlap = 0;
+
+  gauge_param.overwrite_mom = false;
+
+  gauge_param.use_resident_gauge  = false;
+  gauge_param.use_resident_mom    = false;
+  gauge_param.make_resident_gauge = false;
+  gauge_param.make_resident_mom   = false;
+  gauge_param.return_result_gauge = false;
+  gauge_param.return_result_mom   = false;
+
+  gauge_param.gauge_offset = 0;
+  gauge_param.mom_offset   = 0;
+
+  /***************************************************************************
+   * End of gauge_param initialization
+   ***************************************************************************/
+
+
+#elif defined _GFLOW_CVC
+  double * gauge_field_gf = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
+  if ( gauge_field_gf == NULL )
+  {
+    fprintf(stderr, "[loop_gf_invert_contract] Error from init_1level_dtable   %s %d\n", __FILE__, __LINE__);
+    EXIT(12);
+  }
+#endif
 
 
   /***************************************************************************
@@ -461,12 +552,15 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * gradient flow in stochastic source and propagator
      ***************************************************************************/
-
+#ifdef _GFLOW_QUDA
     /* reset: upload original gauge field to device */
     loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+#elif defined _GFLOW_CVC
+    memcpy ( gauge_field_gf, gauge_field_with_phase, sizeof_gauge_field );
+#endif
 
     /* cumulative flow time */
-    double gf_tau = 0
+    double gf_tau = 0;
 
     /* loop on GF steps */
     for ( int igf = 0; igf < gf_nstep; igf++ )
@@ -565,7 +659,15 @@ int main(int argc, char **argv) {
             /* field out, field in, quda parameters, update resident gaugeFlowed
              * here:never update gauge */
 #ifdef _GFLOW_QUDA
+            QudaGaugeSmearParam smear_param;
+            smear_param.n_steps       = gf_niter;
+            smear_param.epsilon       = gf_dt;
+            smear_param.meas_interval = 1;
+            smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+
             _performGFlownStep ( spinor_work[0], spinor_work[0], &smear_param, 0 );
+#elif defined _GFLOW_CVC
+             flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 0 );
 #endif    
             /* if final run for, then update resident gaugeFlowed */
 #if _USE_TIME_DILUTION
@@ -577,11 +679,15 @@ int main(int argc, char **argv) {
               /* if final run for, then update resident gaugeFlowed */
 #ifdef _GFLOW_QUDA
               _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 1 );
+#elif defined _GFLOW_CVC
+              flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 1 );
 #endif
             } else {
               /* intermediate run, do not update resident gaugeFlowed */
 #ifdef _GFLOW_QUDA
               _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 0 );
+#elif defined _GFLOW_CVC
+              flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 0 );
 #endif
             }
 
@@ -666,7 +772,11 @@ int main(int argc, char **argv) {
   free(g_gauge_field);
 #endif
 
+#ifdef _GFLOW_QUDA
   fini_2level_dtable ( &h_gauge );
+#elif defined _GFLOW_CVC
+  fini_1level_dtable ( &gauge_field_gf );
+#endif
   if ( gauge_field_with_phase != NULL ) free ( gauge_field_with_phase );
 
   /* free clover matrix terms */
