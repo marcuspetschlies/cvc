@@ -208,7 +208,7 @@ void apply_laplace ( double * const s, double * const r_in, double * const g ) {
 /******************************************************************
  * using 4-dimensional isotropic stout smearing as kernel
  ******************************************************************/
-void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigned int const niter, double const dt, int const flow_gauge, int const flow_spinor ) {
+void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigned int const niter, double const dt, int const flow_gauge, int const flow_spinor , int const update_gauge ) {
 
   size_t const sizeof_gauge_field  = 72 * VOLUME * sizeof ( double );
   size_t const sizeof_spinor_field = _GSI(VOLUME) * sizeof ( double );
@@ -390,7 +390,7 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
 
   }  /* end of loop on iterations */
 
-  if ( flow_gauge ) {
+  if ( flow_gauge && update_gauge ) {
     memcpy ( g, w, sizeof_gauge_field );
   }
   if ( flow_spinor ) {
