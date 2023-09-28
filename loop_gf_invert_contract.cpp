@@ -66,6 +66,7 @@ extern "C"
 
 #include "pm.h"
 #include "gradient_flow.h"
+#include "gauge_quda.h"
 
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
@@ -97,7 +98,7 @@ void usage() {
  ***************************************************************************/
 int main(int argc, char **argv) {
   
-  const char outfile_prefix[] = "mx_prb_src";
+  const char outfile_prefix[] = "loop_gf";
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
 
@@ -112,8 +113,6 @@ int main(int argc, char **argv) {
   struct timeval ta, tb, start_time, end_time;
 
 
-  int read_loop_field    = 0;
-  int write_loop_field   = 0;
   int read_scalar_field  = 0;
   int write_scalar_field = 0;
   int gf_nstep = 0;
@@ -128,7 +127,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "sSrwch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "sSch?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -136,12 +135,6 @@ int main(int argc, char **argv) {
       break;
     case 'c':
       check_propagator_residual = 1;
-      break;
-    case 'r':
-      read_loop_field = 1;
-      break;
-    case 'w':
-      write_loop_field = 1;
       break;
     case 's':
       read_scalar_field = 1;
@@ -426,7 +419,7 @@ int main(int argc, char **argv) {
           EXIT(12);
         }
       }
-    }  /* end of if write_loop_field */
+    }  /* end of if write_scalar_field */
 
   } else {
     sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
@@ -445,7 +438,7 @@ int main(int argc, char **argv) {
    * reshape gauge field
    ***************************************************************************/
 #ifdef _GFLOW_QUDA
-   double ** h_gauge = init_2level_dtable ( 4, 18*VOLUME );
+  double ** h_gauge = init_2level_dtable ( 4, 18*VOLUME );
   if ( h_gauge == NULL )
   {
     fprintf(stderr, "[loop_gf_invert_contract] Error from init_2level_dtable   %s %d\n", __FILE__, __LINE__);
@@ -529,6 +522,13 @@ int main(int argc, char **argv) {
    * End of gauge_param initialization
    ***************************************************************************/
 
+  /* TEST PLAQUETTE */
+  double * gauge_field_aux = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
+  if ( gauge_field_aux == NULL )
+  {
+    fprintf(stderr, "[loop_gf_invert_contract] Error from init_1level_dtable   %s %d\n", __FILE__, __LINE__);
+    EXIT(12);
+  }
 
 #elif defined _GFLOW_CVC
   double * gauge_field_gf = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
@@ -539,15 +539,22 @@ int main(int argc, char **argv) {
   }
 #endif
 
+  gf_nstep = 3;
+  gf_niter_list[0] = 0;
+  gf_niter_list[1] = 3;
+  gf_niter_list[2] = 3;
+  gf_dt_list[0] = 0.01;
+  gf_dt_list[1] = 0.01;
+  gf_dt_list[2] = 0.01;
+
 
   /***************************************************************************
    * loop on samples
    * invert and contract loops
    ***************************************************************************/
-  for ( int isample = 0; isample < g_nsample_oet; isample++ ) 
+  for ( int isample = 0; isample < g_nsample; isample++ ) 
   {
 
-    gettimeofday ( &ta, (struct timezone *)NULL );
 
     /***************************************************************************
      * gradient flow in stochastic source and propagator
@@ -658,39 +665,84 @@ int main(int argc, char **argv) {
 
             /* field out, field in, quda parameters, update resident gaugeFlowed
              * here:never update gauge */
-#ifdef _GFLOW_QUDA
-            QudaGaugeSmearParam smear_param;
-            smear_param.n_steps       = gf_niter;
-            smear_param.epsilon       = gf_dt;
-            smear_param.meas_interval = 1;
-            smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
 
-            _performGFlownStep ( spinor_work[0], spinor_work[0], &smear_param, 0 );
-#elif defined _GFLOW_CVC
-             flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 0 );
-#endif    
-            /* if final run for, then update resident gaugeFlowed */
-#if _USE_TIME_DILUTION
-            if ( timeslice == T_global - 1 && ispin == 3 && icol == 2 )
-#else
-            if ( ispin == 3 && icol == 2 )
-#endif
-            {
-              /* if final run for, then update resident gaugeFlowed */
+	    if ( gf_niter * gf_dt > 0. )
+	    {
+              gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef _GFLOW_QUDA
-              _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 1 );
-#elif defined _GFLOW_CVC
-              flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 1 );
+              QudaGaugeSmearParam smear_param;
+              smear_param.n_steps       = gf_niter;
+              smear_param.epsilon       = gf_dt;
+              smear_param.meas_interval = 1;
+              smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+
+              _performGFlownStep ( spinor_work[0], spinor_work[0], &smear_param, 0 );
+
+    	      /* TEST PLAQUETTE */
+              saveGaugeQuda ( h_gauge, &gauge_param );
+  	      gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
+#ifdef HAVE_MPI
+              xchange_gauge_field( gauge_field_aux );
 #endif
-            } else {
-              /* intermediate run, do not update resident gaugeFlowed */
-#ifdef _GFLOW_QUDA
-              _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 0 );
+	      plaquetteria  ( gauge_field_aux );
+	      /* END TEST PLAQUETTE */
+
 #elif defined _GFLOW_CVC
               flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 0 );
-#endif
-            }
+#endif    
 
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
+              /* if final run for, then update resident gaugeFlowed */
+#if _USE_TIME_DILUTION
+              if ( timeslice == T_global - 1 && ispin == 3 && icol == 2 )
+#else
+              if ( ( ispin == 3 ) && ( icol == 2 ) )
+#endif
+              {
+                gettimeofday ( &ta, (struct timezone *)NULL );
+                /* if final run for, then update resident gaugeFlowed */
+#ifdef _GFLOW_QUDA
+                _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 1 );
+
+                /* TEST PLAQUETTE */
+                saveGaugeQuda ( h_gauge, &gauge_param );
+                gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
+#ifdef HAVE_MPI
+                xchange_gauge_field( gauge_field_aux );
+#endif
+                plaquetteria  ( gauge_field_aux );
+		/* END TEST PLAQUETTE */
+
+#elif defined _GFLOW_CVC
+                flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[1], gf_niter, gf_dt, 1, 1, 1 );
+#endif
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
+
+              } else {
+                /* intermediate run, do not update resident gaugeFlowed */
+                gettimeofday ( &ta, (struct timezone *)NULL );
+#ifdef _GFLOW_QUDA
+                _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 0 );
+
+                /* TEST PLAQUETTE */
+                saveGaugeQuda ( h_gauge, &gauge_param );
+                gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
+#ifdef HAVE_MPI
+                xchange_gauge_field( gauge_field_aux );
+#endif
+                plaquetteria  ( gauge_field_aux );
+		/* END TEST PLAQUETTE */
+
+#elif defined _GFLOW_CVC
+                flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[1], gf_niter, gf_dt, 1, 1, 0 );
+#endif
+                gettimeofday ( &tb, (struct timezone *)NULL );
+                show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
+
+              }
+	    }  /* end of if do any flow */
 
             /***************************************************************************
              * fill in loop matrix element ksc = (kspin, kcol ), isc = (ispin, icol )
@@ -699,6 +751,8 @@ int main(int argc, char **argv) {
              *
              * with GF: everybody does the the following
              ***************************************************************************/
+
+            gettimeofday ( &ta, (struct timezone *)NULL );
 
 #pragma omp parallel for
             for ( size_t ix = 0; ix < VOLUME;   ix++ )
@@ -723,6 +777,9 @@ int main(int argc, char **argv) {
                 }
               }  /* end of loop on volume */
 
+             gettimeofday ( &tb, (struct timezone *)NULL );
+             show_time ( &ta, &tb, "loop_gf_invert_contract", "loop-matrix-accumulate", g_cart_id == 0 );
+
 
           }  /* end of loop on color dilution component */
 
@@ -732,25 +789,20 @@ int main(int argc, char **argv) {
       }  /* end of loop on timeslices */
 #endif
 
-      gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "loop_gf_invert_contract", "loop-invert-contract-sample", g_cart_id == 0 );
-
       /***************************************************************************
        * write loop field to lime file
        ***************************************************************************/
-      if ( write_loop_field ) {
-        sprintf( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, g_nsample, gf_tau );
-        char loop_type[2000];
+      sprintf( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, g_nsample, gf_tau );
+      char loop_type[2000];
 
-        sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
+      sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
 
-        exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
-        if ( exitstatus != 0  ) {
-          fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(12);
-        }
+      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
+      if ( exitstatus != 0  ) {
+        fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(12);
+      }
 
-      }  /* end of if write_loop_field */
 
       fini_3level_ztable ( &loop );
 
@@ -774,6 +826,10 @@ int main(int argc, char **argv) {
 
 #ifdef _GFLOW_QUDA
   fini_2level_dtable ( &h_gauge );
+
+  /* TEST PLAQUETTE */
+  fini_1level_dtable ( &gauge_field_aux );
+
 #elif defined _GFLOW_CVC
   fini_1level_dtable ( &gauge_field_gf );
 #endif
