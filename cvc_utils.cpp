@@ -3220,70 +3220,114 @@ void cm_proj_iterate(double *A, double *B, int maxiter, double tol) {
 
 /*****************************************************************************************************************
  * contraction of meson 2-point functions
+ *
+ * ns must be either 1 or 4
  *****************************************************************************************************************/
-void contract_twopoint(double *contr, const int idsource, const int idsink, double **chi, double **phi, int n_c) {
+void contract_twopoint ( double * const contr, const int idsource, const int idsink, double ** const chi, double ** const phi, int const n_s, int const n_c )
+{
 
-  int x0, ix, iix, psource[4], tt=0, isimag, mu, c, j;
-  int VOL3 = LX*LY*LZ;
-  double ssource[4], spinor1[24], spinor2[24];
+#ifdef HAVE_OPENMP
+  omp_lock_t writelock;
+#endif
+
+  int isimag = 0;
+  int    psource[4] = { 0, 0, 0, 0 };
+  double ssource[4] = { 1., 1., 1., 1. };
+
+  if ( idsource >= 0 && n_s > 1 ) {
+    /* permutation and sign from the source gamma matrix; the minus sign
+     * in the lower two lines is the action of gamma_5 */
+
+    for ( unsigned int mu = 0; mu < n_s; mu++ ) {
+      psource[mu] = gamma_permutation[idsource][6*mu] / 6;
+      ssource[mu] = gamma_sign[idsource][6*mu] * gamma_sign[5][gamma_permutation[idsource][6*mu]];
+    }
+
+    isimag = gamma_permutation[idsource][ 0] % 2;
+  }
+
+#ifdef HAVE_OPENMP
+  omp_init_lock ( &writelock );
+#pragma omp parallel default(shared)
+{
+#endif
+
   complex w;
+  double spinor1[_GSI(1)], spinor2[_GSI(1)];
+  double * contr_tmp = ( double * )calloc ( 2 * T, sizeof ( double ) );
 
-  psource[0] = gamma_permutation[idsource][ 0] / 6;
-  psource[1] = gamma_permutation[idsource][ 6] / 6;
-  psource[2] = gamma_permutation[idsource][12] / 6;
-  psource[3] = gamma_permutation[idsource][18] / 6;
-  isimag = gamma_permutation[idsource][ 0] % 2;
-  /* sign from the source gamma matrix; the minus sign
-   * in the lower two lines is the action of gamma_5 */
-  ssource[0] =  gamma_sign[idsource][ 0] * gamma_sign[5][gamma_permutation[idsource][ 0]];
-  ssource[1] =  gamma_sign[idsource][ 6] * gamma_sign[5][gamma_permutation[idsource][ 6]];
-  ssource[2] =  gamma_sign[idsource][12] * gamma_sign[5][gamma_permutation[idsource][12]];
-  ssource[3] =  gamma_sign[idsource][18] * gamma_sign[5][gamma_permutation[idsource][18]];
-/*
-  fprintf(stdout, "__________________________________\n");
-  fprintf(stdout, "isource=%d, idsink=%d, p[0] = %d\n", idsource, idsink, psource[0]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[1] = %d\n", idsource, idsink, psource[1]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[2] = %d\n", idsource, idsink, psource[2]);
-  fprintf(stdout, "isource=%d, idsink=%d, p[3] = %d\n", idsource, idsink, psource[3]);
-*/
 
-/*  if(g_cart_id==0) fprintf(stdout, "# %3d %3d ssource = %e\t%e\t%e\t%e\n", idsource, idsink,
-    ssource[0], ssource[1], ssource[2], ssource[3]); */
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( unsigned int ix = 0; ix < VOLUME; ix++ ) 
+  {
 
-  for(x0=0; x0<T; x0++) {
-    for(ix=0; ix<VOL3; ix++) {
-      iix = x0*VOL3 + ix;
-      for(mu=0; mu<4; mu++) {
-        for(c=0; c<n_c; c++) {
-/*
-           if(g_cart_id==0 && (iix==0 || iix==111)) {
-             fprintf(stdout, "iix=%4d, c=%d, mu=%d, idsource=%d, idsink=%d\n", iix, c, mu, idsource, idsink); 
-             for(j=0; j<12; j++) 
-               fprintf(stdout, "phi = %e +I %e\n", phi[mu*n_c+c][_GSI(iix)+2*j], phi[mu*n_c+c][_GSI(iix)+2*j+1]);
-           }
-*/
-          _fv_eq_gamma_ti_fv(spinor1, idsink, phi[mu*n_c+c]+_GSI(iix));
-          _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
-          _co_eq_fv_dag_ti_fv(&w, chi[psource[mu]*n_c+c]+_GSI(iix), spinor2);
+    unsigned int const iix = _GSI( ix );
 
-          if( !isimag ) {
-            contr[2*tt  ] += ssource[mu]*w.re;
-            contr[2*tt+1] += ssource[mu]*w.im;
-          } else {
-/*
-            contr[2*tt  ] += ssource[mu]*w.im;
-            contr[2*tt+1] += ssource[mu]*w.re;
-*/
-            contr[2*tt  ] +=  ssource[mu]*w.im;
-            contr[2*tt+1] += -ssource[mu]*w.re;
-          }
-/*          if(g_cart_id==0) fprintf(stdout, "# source[%2d, %2d] = %25.16e +I %25.16e\n", mu, tt, ssource[mu]*w.re, ssource[mu]*w.im); */
+    int const x0 = g_lexic2coords[ix][0];
+    int const x1 = g_lexic2coords[ix][1];
+    int const x2 = g_lexic2coords[ix][2];
+    int const x3 = g_lexic2coords[ix][3];
+
+    double tmp[2] = { 0., 0. };
+
+    for ( unsigned int mu=0; mu < n_s; mu++ ) 
+    {
+      for ( int c = 0; c < n_c; c++ ) 
+      {
+        _fv_eq_gamma_ti_fv(spinor1, idsink, phi[mu*n_c+c] + iix );
+        _fv_eq_gamma_ti_fv(spinor2, 5, spinor1);
+        _co_eq_fv_dag_ti_fv(&w, chi[psource[mu]*n_c+c] + iix , spinor2);
+
+        if( !isimag ) 
+        {
+          tmp[0] += ssource[mu]*w.re;
+          tmp[1] += ssource[mu]*w.im;
+        } else {
+          tmp[0] +=  ssource[mu]*w.im;
+          tmp[1] += -ssource[mu]*w.re;
         }
+       
       }
     }
-    tt++;
+    contr_tmp[2*x0  ] += tmp[0];
+    contr_tmp[2*x0+1] += tmp[1];
+  }  /* end of loop on volume */
+
+  #ifdef HAVE_OPENMP
+  omp_set_lock ( &writelock );
+#endif
+  for ( int x0 = 0; x0 < 2*T; x0++ ) 
+  {
+    contr[x0] += contr_tmp[x0];
   }
-}
+#ifdef HAVE_OPENMP
+  omp_unset_lock ( &writelock );
+#endif
+
+#ifdef HAVE_OPENMP
+  free ( contr_tmp );
+}  // end of parallel region
+  omp_destroy_lock ( &writelock );
+#endif
+
+#ifdef HAVE_MPI
+#  if ( defined PARALLELTX ) || ( defined PARALLELTXY ) || ( defined PARALLELTXYZ )
+  if ( reduce ) {
+    double * buffer = ( double * )  malloc ( 2 * T * sizeof ( double ) );
+
+    memcpy ( buffer, contr, 2*T*sizeof(double ) );
+    if ( MPI_Reduce ( buffer, contr, 2*T, MPI_DOUBLE, MPI_SUM, 0, g_ts_comm ) != MPI_SUCCESS ) {
+      fprintf( stderr, "[contract_twopoint] Error from MPI_Reduce %s %d\n", __FILE__, __LINE__ );
+    }
+    free ( buffer );
+  }
+#  endif
+#endif
+
+  return;
+}  /* end of contract_twopoint */
 
 /*****************************************************************************************************************
  * contraction of meson 2-point functions with sink momentum vector
@@ -3396,8 +3440,11 @@ void contract_twopoint_snk_momentum ( double * const contr, int const idsource, 
   }
 #ifdef HAVE_OPENMP
   omp_unset_lock ( &writelock );
+#endif
 
   free ( contr_tmp );
+
+#ifdef HAVE_OPENMP
 }  // end of parallel region
   omp_destroy_lock ( &writelock );
 #endif
