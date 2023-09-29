@@ -566,107 +566,108 @@ int main(int argc, char **argv) {
     memcpy ( gauge_field_gf, gauge_field_with_phase, sizeof_gauge_field );
 #endif
 
-    /* cumulative flow time */
-    double gf_tau = 0;
+    double _Complex **** loop = NULL;
 
-    /* loop on GF steps */
-    for ( int igf = 0; igf < gf_nstep; igf++ )
-    {
-      int const gf_niter = gf_niter_list[igf];
-      double const gf_dt = gf_dt_list[igf];
-      gf_tau += gf_niter * gf_dt;
- 
-      double _Complex *** loop = NULL;
-
-      loop = init_3level_ztable ( VOLUME, 12, 12 );
-      if ( loop  == NULL ) {
-        fprintf ( stderr, "[loop_gf_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
-      }
+    loop = init_4level_ztable ( gf_nstep, VOLUME, 12, 12 );
+    if ( loop  == NULL ) {
+      fprintf ( stderr, "[loop_gf_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
 
 
-      /***************************************************************************
-       * loop on spin and color index 
-       *
-       * we use spin-color dilution here:
-       *   for each inversion we select only a single spin-color component 
-       *   from stochastic_source
-       ***************************************************************************/
+    /***************************************************************************
+     * loop on spin and color index 
+     *
+     * we use spin-color dilution here:
+     *   for each inversion we select only a single spin-color component 
+     *   from stochastic_source
+     ***************************************************************************/
 #if _USE_TIME_DILUTION
-      for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
-      {
+    for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
+    {
 #endif
 
-        for ( int ispin = 0; ispin < 4; ispin++ ) 
+      for ( int ispin = 0; ispin < 4; ispin++ ) 
+      {
+
+        for ( int icol = 0; icol < 3; icol++ ) 
         {
 
-          for ( int icol = 0; icol < 3; icol++ ) 
-          {
+          int const isc = 3 * ispin + icol;
 
-            int const isc = 3 * ispin + icol;
-
-            memset ( spinor_work[0], 0, sizeof_spinor_field );
-            memset ( spinor_work[1], 0, sizeof_spinor_field );
+          memset ( spinor_work[0], 0, sizeof_spinor_field );
+          memset ( spinor_work[1], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
-            if ( timeslice / T == g_proc_coords[0] ) {
-              if ( g_verbose > 2 ) fprintf( stdout, "# [loop_gf_invert_contract] proc %d has global timeslice %d %s %d\n",
-                  g_cart_id, timeslice, __FILE__, __LINE__ );
+          if ( timeslice / T == g_proc_coords[0] ) {
+            if ( g_verbose > 2 ) fprintf( stdout, "# [loop_gf_invert_contract] proc %d has global timeslice %d %s %d\n",
+                g_cart_id, timeslice, __FILE__, __LINE__ );
             
-              size_t const loffset = ( timeslice % T ) * VOL3;
-              size_t const offset  = _GSI( loffset );
+            size_t const loffset = ( timeslice % T ) * VOL3;
+            size_t const offset  = _GSI( loffset );
           
 #pragma omp parallel for
-              for ( unsigned int ix = 0; ix < VOL3; ix++  ) {
-                size_t const iy = offset + _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-                size_t const iz = 2 * ( loffset + ix );
-                spinor_work[0][ iy     ] = scalar_field[isample][ iz     ];
-                spinor_work[0][ iy + 1 ] = scalar_field[isample][ iz + 1 ];
-              }
+            for ( unsigned int ix = 0; ix < VOL3; ix++  ) {
+              size_t const iy = offset + _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+              size_t const iz = 2 * ( loffset + ix );
+              spinor_work[0][ iy     ] = scalar_field[isample][ iz     ];
+              spinor_work[0][ iy + 1 ] = scalar_field[isample][ iz + 1 ];
             }
+          }
 
 #else  /* of if _USE_TIME_DILUTION */
 
 #pragma omp parallel for
-            for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
-              size_t const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
-              spinor_work[0][ iy    ] = scalar_field[isample][ 2 * ix     ];
-              spinor_work[0][ iy + 1] = scalar_field[isample][ 2 * ix + 1 ];
-            }
+          for ( unsigned int ix = 0; ix < VOLUME; ix++  ) {
+            size_t const iy = _GSI(ix) + 2 * isc;  /* offset for site ix and spin-color isc */
+            spinor_work[0][ iy    ] = scalar_field[isample][ 2 * ix     ];
+            spinor_work[0][ iy + 1] = scalar_field[isample][ 2 * ix + 1 ];
+          }
 #endif
-            /* tm-rotate stochastic propagator at source, in-place */
-            if( g_fermion_type == _TM_FERMION ) {
-              spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
-            }
+          /* tm-rotate stochastic propagator at source, in-place */
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
+          }
 
-            /* keep a copy of the sources field to later check of residual */
-            memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
+	  /* keep a copy of the sources field to later check of residual */
+          memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
 
-            /* call to (external/dummy) inverter / solver */
-            exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
+          /* call to (external/dummy) inverter / solver */
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
 #  if ( defined GPU_DIRECT_SOLVER )
-            if(exitstatus < 0)
+          if(exitstatus < 0)
 #  else
-            if(exitstatus != 0)
+          if(exitstatus != 0)
 #  endif
-            {
-              fprintf(stderr, "[loop_gf_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              EXIT(12);
-            }
+          {
+            fprintf(stderr, "[loop_gf_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(12);
+          }
 
-            if ( check_propagator_residual ) {
-              check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], lmzzinv[_OP_ID_UP], 1 );
-            }
+          if ( check_propagator_residual ) {
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], lmzzinv[_OP_ID_UP], 1 );
+          }
 
-            /* tm-rotate stochastic propagator at sink */
-            if( g_fermion_type == _TM_FERMION ) {
-              spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
-            }
+          /* tm-rotate stochastic propagator at sink */
+          if( g_fermion_type == _TM_FERMION ) {
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
+          }
 
-            /* field out, field in, quda parameters, update resident gaugeFlowed
-             * here:never update gauge */
+          /* field out, field in, quda parameters, update resident gaugeFlowed
+           * here:never update gauge */
 
-	    if ( gf_niter * gf_dt > 0. )
+          /* cumulative flow time */
+          double gf_tau = 0;
+
+          /* loop on GF steps */
+          for ( int igf = 0; igf < gf_nstep; igf++ )
+          {
+            int const gf_niter   = gf_niter_list[igf];
+            double const gf_dt   = gf_dt_list[igf];
+	    double const gf_dtau = gf_niter * gf_dt;
+            gf_tau += gf_dtau;
+ 
+            if ( gf_dtau > 0. )
 	    {
               gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef _GFLOW_QUDA
@@ -675,6 +676,12 @@ int main(int argc, char **argv) {
               smear_param.epsilon       = gf_dt;
               smear_param.meas_interval = 1;
               smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+
+              /***************************************************************************
+	       * flow the stochastic source
+	       *
+	       * do not update the gauge field
+               ***************************************************************************/
 
               _performGFlownStep ( spinor_work[0], spinor_work[0], &smear_param, 0 );
 
@@ -693,55 +700,33 @@ int main(int argc, char **argv) {
 
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
-              /* if final run for, then update resident gaugeFlowed */
-#if _USE_TIME_DILUTION
-              if ( timeslice == T_global - 1 && ispin == 3 && icol == 2 )
-#else
-              if ( ( ispin == 3 ) && ( icol == 2 ) )
-#endif
-              {
-                gettimeofday ( &ta, (struct timezone *)NULL );
-                /* if final run for, then update resident gaugeFlowed */
-#ifdef _GFLOW_QUDA
-                _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 1 );
 
-                /* TEST PLAQUETTE */
-                saveGaugeQuda ( h_gauge, &gauge_param );
-                gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
+              /***************************************************************************
+	       * flow the stochastic propagators
+	       *
+	       * update the gauge field
+               ***************************************************************************/
+
+              gettimeofday ( &ta, (struct timezone *)NULL );
+              /* update resident gaugeFlowed */
+#ifdef _GFLOW_QUDA
+              _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 1 );
+
+              /* TEST PLAQUETTE */
+              saveGaugeQuda ( h_gauge, &gauge_param );
+              gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
 #ifdef HAVE_MPI
-                xchange_gauge_field( gauge_field_aux );
+              xchange_gauge_field( gauge_field_aux );
 #endif
-                plaquetteria  ( gauge_field_aux );
-		/* END TEST PLAQUETTE */
+              plaquetteria  ( gauge_field_aux );
+              /* END TEST PLAQUETTE */
 
 #elif defined _GFLOW_CVC
-                flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[1], gf_niter, gf_dt, 1, 1, 1 );
+              flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[1], gf_niter, gf_dt, 1, 1, 1 );
 #endif
-                gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
+              gettimeofday ( &tb, (struct timezone *)NULL );
+              show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
 
-              } else {
-                /* intermediate run, do not update resident gaugeFlowed */
-                gettimeofday ( &ta, (struct timezone *)NULL );
-#ifdef _GFLOW_QUDA
-                _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 0 );
-
-                /* TEST PLAQUETTE */
-                saveGaugeQuda ( h_gauge, &gauge_param );
-                gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
-#ifdef HAVE_MPI
-                xchange_gauge_field( gauge_field_aux );
-#endif
-                plaquetteria  ( gauge_field_aux );
-		/* END TEST PLAQUETTE */
-
-#elif defined _GFLOW_CVC
-                flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[1], gf_niter, gf_dt, 1, 1, 0 );
-#endif
-                gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
-
-              }
 	    }  /* end of if do any flow */
 
             /***************************************************************************
@@ -764,7 +749,7 @@ int main(int argc, char **argv) {
               {
                 for ( int lsc = 0; lsc < 12; lsc++ ) {
  
-                  loop[ix][ksc][lsc] +=
+                  loop[igf][ix][ksc][lsc] +=
                       /* 
                        * complex conjugate of source vector element 
                        */
@@ -780,14 +765,25 @@ int main(int argc, char **argv) {
              gettimeofday ( &tb, (struct timezone *)NULL );
              show_time ( &ta, &tb, "loop_gf_invert_contract", "loop-matrix-accumulate", g_cart_id == 0 );
 
+          }  /* end of loop on GF steps  */
 
-          }  /* end of loop on color dilution component */
+        }  /* end of loop on color dilution component */
 
-        }  /* end of loop on spin dilution component */
+      }  /* end of loop on spin dilution component */
 
 #if _USE_TIME_DILUTION
-      }  /* end of loop on timeslices */
+    }  /* end of loop on timeslices */
 #endif
+
+    double gf_tau = 0;
+
+    /* loop on GF steps */
+    for ( int igf = 0; igf < gf_nstep; igf++ )
+    {
+      int const gf_niter   = gf_niter_list[igf];
+      double const gf_dt   = gf_dt_list[igf];
+      double const gf_dtau = gf_niter * gf_dt;
+      gf_tau += gf_dtau;
 
       /***************************************************************************
        * write loop field to lime file
@@ -797,16 +793,15 @@ int main(int argc, char **argv) {
 
       sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
 
-      exitstatus = write_lime_contraction( (double*)(loop[0][0]), filename, 64, 144, loop_type, Nconf, 0);
+      exitstatus = write_lime_contraction( (double*)(loop[igf][0][0]), filename, 64, 144, loop_type, Nconf, 0);
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
       }
 
-
-      fini_3level_ztable ( &loop );
-
     }  /* end of loop on GF steps  */
+
+    fini_4level_ztable ( &loop );
 
   }  /* end of loop on samples */
 
