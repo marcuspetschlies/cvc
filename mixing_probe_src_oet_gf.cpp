@@ -800,6 +800,36 @@ int main(int argc, char **argv) {
       EXIT(3);
     }
 
+    int pf[3] = {0,0,0};  /* sink mometum is always zero */
+    char tag[100];
+
+    /***************************************************************************
+     * Contractions with mixing operators at source and sink, zero flowtime
+     ***************************************************************************/
+
+    sprintf ( tag, "/mx/f%d-4-f%d-4/b", 0, 0 );
+    contract_twopoint ( contr, 4, 4, propagator[1], propagator[0], spin_dilution, color_dilution );
+
+    exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    sprintf ( tag, "/mx/f%d-5-f%d-5/b", 0, 0 );
+    contract_twopoint ( contr, 5, 5, propagator[1], propagator[0], spin_dilution, color_dilution );
+
+    exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+    if(exitstatus != 0) {
+      fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+
+    /***************************************************************************
+     * Contractions with 4-quark operators, non-zero flowtime
+     ***************************************************************************/
+
     double _Complex *** loop = init_3level_ztable ( VOLUME, 12, 12 );
     if ( loop  == NULL ) {
       fprintf ( stderr, "[mixing_probe_src_oet_gf] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
@@ -843,9 +873,6 @@ int main(int argc, char **argv) {
         EXIT(12);
       }
 
-      int pf[3] = {0,0,0};
-      char tag[100];
-  
       /***********************************************************
        * Gradient flow parameters
        ***********************************************************/
@@ -899,7 +926,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with g5 at source
            ***********************************************************/
-          sprintf ( tag, "/qb/f%d-%s-f%d-5/b", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-5/b", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 5, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -911,7 +938,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with id at source
            ***********************************************************/
-          sprintf ( tag, "/qb/f%d-%s-f%d-4/b", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-4/b", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -928,7 +955,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with g5 at source
            ***********************************************************/
-          sprintf ( tag, "/cc/f%d-%s-f%d-5/b", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-5/b", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 5, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -940,7 +967,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with id at source
            ***********************************************************/
-          sprintf ( tag, "/cc/f%d-%s-f%d-4/b", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-4/b", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -970,7 +997,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with g5 at source
            ***********************************************************/
-          sprintf ( tag, "/qb/f%d-%s-f%d-5/d", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-5/d", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 5, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -982,7 +1009,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with id at source
            ***********************************************************/
-          sprintf ( tag, "/qb/f%d-%s-f%d-4/d", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-4/d", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -999,7 +1026,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with g5 at source
            ***********************************************************/
-          sprintf ( tag, "/cc/f%d-%s-f%d-5/d", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-5/d", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 5, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
@@ -1011,7 +1038,7 @@ int main(int argc, char **argv) {
           /***********************************************************
            * contract with id at source
            ***********************************************************/
-          sprintf ( tag, "/cc/f%d-%s-f%d-4/d", iflavor, gamma_tag[igamma], iflavor );
+          sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-4/d", gf_tau, iflavor, gamma_tag[igamma], iflavor );
           contract_twopoint ( contr, 4, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
   
           exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
