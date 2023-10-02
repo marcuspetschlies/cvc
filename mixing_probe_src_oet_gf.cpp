@@ -83,11 +83,14 @@ using namespace cvc;
  ***************************************************************************/
 inline void  b_glg ( double _Complex *** const lout, double _Complex *** const lin, gamma_matrix_type * g )
 {
-  memset ( lout[0][0], 0, 144 * VOLUME * sizeof(double _Complex) );
+
+  unsigned int const N = VOLUME;
+
+  memset ( lout[0][0], 0, 144 * N * sizeof(double _Complex) );
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+  for ( unsigned int ix = 0; ix < N; ix++ )
   {
     double _Complex ** const _lin  = lin[ix];
     double _Complex ** const _lout = lout[ix];
@@ -128,11 +131,14 @@ inline void  b_glg ( double _Complex *** const lout, double _Complex *** const l
  ***************************************************************************/
 inline void  d_glg ( double _Complex *** const lout, double _Complex *** const lin, gamma_matrix_type * g )
 {
-  memset ( lout[0][0], 0, 144 * VOLUME * sizeof(double _Complex) );
+
+  unsigned int const N = VOLUME;
+
+  memset ( lout[0][0], 0, 144 * N * sizeof(double _Complex) );
 #ifdef HAVE_OPENMP
 #pragma omp parallel for
 #endif
-  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+  for ( unsigned int ix = 0; ix < N; ix++ )
   {
     double _Complex ** const _lin  = lin[ix];
     double _Complex ** const _lout = lout[ix];
@@ -145,20 +151,21 @@ inline void  d_glg ( double _Complex *** const lout, double _Complex *** const l
         {
           for ( int is = 0; is < 3; is++ )
           {
-            double _Complex w = 0.;
-
-            for ( int ic = 0; ic < 4; ic++ )
+            for( int mu = 0; mu < 4; mu++ )
             {
-              for ( int id = 0; id < 4; id++ )
+              double _Complex w = 0.;
+
+              for ( int ic = 0; ic < 4; ic++ )
               {
-                for( int mu = 0; mu < 4; mu++ )
+                for ( int id = 0; id < 4; id++ )
                 {
-                  w += g[mu].m[ia][ib] * _lin[3*ic+ir][3*id*is] * g[mu].m[id][ic];
+                  w +=  _lin[3*ic+ir][3*id+is] * g[mu].m[id][ic];
                 }
               }
-            }
 
-            _lout[ia][ib] += w;
+              _lout[3*ia+ir][3*ib+is] += w * g[mu].m[ia][ib];
+
+            }
 
           }
         }
@@ -172,15 +179,17 @@ inline void  d_glg ( double _Complex *** const lout, double _Complex *** const l
 /***********************************************************
  * qb loop x prop
  ***********************************************************/
-inline void qb_glg_prop ( double ** const pout, double ** const pin, double _Complex *** lin , int const n )
+inline void qb_glg_prop ( double ** const pout, double ** const pin, double _Complex *** lin , int const nsc )
 {
-  for ( int isc = 0; isc < n; isc++ )
+  unsigned int const N = VOLUME;
+
+  for ( int isc = 0; isc < nsc; isc++ )
   {
 #pragma omp parallel for
-    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    for ( unsigned int ix = 0; ix < N; ix++ )
     {
       double _Complex ** const _lin = lin[ix];
-            
+
       double * const _pin  = pin[isc] + _GSI(ix);
       double * const _pout = pout[isc] + _GSI(ix);
 
@@ -206,12 +215,14 @@ inline void qb_glg_prop ( double ** const pout, double ** const pin, double _Com
 /***********************************************************
  * cc loop x prop
  ***********************************************************/
-inline void cc_glg_prop ( double ** const pout, double ** const pin, double _Complex *** lin , int const n )
+inline void cc_glg_prop ( double ** const pout, double ** const pin, double _Complex *** lin , int const nsc )
 {
-  for ( int isc = 0; isc < n ; isc++ )
+  unsigned int const N = VOLUME;
+
+  for ( int isc = 0; isc < nsc ; isc++ )
   {
 #pragma omp parallel for
-    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    for ( unsigned int ix = 0; ix < N; ix++ )
     {
       double _Complex ** const _lin = lin[ix];
 
