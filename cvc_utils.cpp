@@ -3226,6 +3226,7 @@ void cm_proj_iterate(double *A, double *B, int maxiter, double tol) {
 void contract_twopoint ( double * const contr, const int idsource, const int idsink, double ** const chi, double ** const phi, int const n_s, int const n_c )
 {
 
+  int const reduce = 1;
 #ifdef HAVE_OPENMP
   omp_lock_t writelock;
 #endif
