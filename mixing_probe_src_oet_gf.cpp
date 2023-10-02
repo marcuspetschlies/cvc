@@ -838,24 +838,27 @@ int main(int argc, char **argv) {
       /***********************************************************
        * Gradient flow parameters
        ***********************************************************/
+      if ( gf_dtau > 0. )
+      {
 #ifdef _GFLOW_QUDA
-      QudaGaugeSmearParam smear_param;
-      smear_param.n_steps       = gf_niter;
-      smear_param.epsilon       = gf_dt;
-      smear_param.meas_interval = 1;
-      smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+        QudaGaugeSmearParam smear_param;
+        smear_param.n_steps       = gf_niter;
+        smear_param.epsilon       = gf_dt;
+        smear_param.meas_interval = 1;
+        smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
 #endif
 
-      for ( int iflavor = 0; iflavor < 2; iflavor++ )
-      {
-        for ( int isc = 0; isc < spin_color_dilution; isc++ )
+        for ( int iflavor = 0; iflavor < 2; iflavor++ )
         {
-          int const update_gauge = ( iflavor == 1 ) && (isc == spin_color_dilution - 1 );
+          for ( int isc = 0; isc < spin_color_dilution; isc++ )
+          {
+            int const update_gauge = ( iflavor == 1 ) && (isc == spin_color_dilution - 1 );
 #ifdef _GFLOW_QUDA
-          _performGFlownStep ( propagator_gf[iflavor][isc], propagator_gf[iflavor][isc], &smear_param, update_gauge );
+            _performGFlownStep ( propagator_gf[iflavor][isc], propagator_gf[iflavor][isc], &smear_param, update_gauge );
 #elif defined _GFLOW_CVC
-          flow_fwd_gauge_spinor_field ( gauge_field_gf, propagator_gf[iflavor][isc], gf_niter, gf_dt, 1, 1, update_gauge );
+            flow_fwd_gauge_spinor_field ( gauge_field_gf, propagator_gf[iflavor][isc], gf_niter, gf_dt, 1, 1, update_gauge );
 #endif
+          }
         }
       }
 
