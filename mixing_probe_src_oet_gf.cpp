@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "srch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "rh?f:s:c:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
