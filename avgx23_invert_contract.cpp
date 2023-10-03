@@ -66,8 +66,8 @@ extern "C"
 #define _OP_ID_DN 1
 #define _OP_ID_ST 2
 
-#define _AVGX2 1
-#define _AVGX3 0
+#define _AVGX2 0
+#define _AVGX3 1
 
 using namespace cvc;
 
@@ -717,14 +717,14 @@ int main(int argc, char **argv) {
        *****************************************************************/
       gettimeofday ( &ta, (struct timezone *)NULL );
   
-#if _AVGX2
+#if _AVGX2 || _AVGX3
       double ***** stochastic_propagator_zero_ddispl_list = init_5level_dtable (12, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
       if ( stochastic_propagator_zero_ddispl_list == NULL )
       {
         fprintf( stderr, "[avgx23_invert_contract] Error from init_5level_dtable  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
-#endif  /* of if _AVGX2 */
+#endif  /* of if _AVGX2 or _AVGX3 */
   
 #if _AVGX3
       double ****** stochastic_propagator_zero_dddispl_list = init_6level_dtable (24, 2, 2, 2, spin_color_dilution, _GSI ( VOLUME ) );
@@ -1200,11 +1200,13 @@ int main(int argc, char **argv) {
              * contractions for covariant displacement insertion
              *****************************************************************/
                     
+#if _AVGX2
             double ***** contr_dd = init_5level_dtable ( 12, 2, 2, 2, 2*T );
             if ( contr_dd == NULL ) {
               fprintf(stderr, "[avgx23_invert_contract] Error from init_5level_dtable %s %d\n", __FILE__, __LINE__ );
               EXIT(47);
             }
+#endif
   
 #if _AVGX3
             double ***** contr_ddd = init_5level_dtable ( 24, 2, 2, 2, 2*T );
@@ -1229,7 +1231,7 @@ int main(int argc, char **argv) {
               {
                 for ( int ifbwd2 = 0; ifbwd2 <= 1; ifbwd2++ )
                 {
-  
+#if _AVGX2
                   int ikappa = -1;
                   for ( int kappa = 0; kappa < 4; kappa++)
                   {
@@ -1271,6 +1273,7 @@ int main(int argc, char **argv) {
               
 #endif
                   }  /* end of loop on kappa => current gamma */
+#endif  /* _AVGX2 */
   
 #if _AVGX3
                   /*****************************************************************
@@ -1338,6 +1341,7 @@ int main(int argc, char **argv) {
             /*****************************************************************/
             /*****************************************************************/
   
+#if _AVGX2
             gettimeofday ( &ta, (struct timezone *)NULL );
   
             if ( io_proc > 0 ) 
@@ -1405,7 +1409,9 @@ int main(int argc, char **argv) {
   
             gettimeofday ( &tb, (struct timezone *)NULL );
             show_time ( &ta, &tb, "avgx23_invert_contract", "io-gdd-threep", g_cart_id == 0 );
-  
+
+#endif  /* of _AVGX2 */
+
             /*****************************************************************/
             /*****************************************************************/
 #if _AVGX3
@@ -1482,10 +1488,13 @@ int main(int argc, char **argv) {
             /*****************************************************************/
             /*****************************************************************/
   
+#if _AVGX2
             fini_5level_dtable ( &contr_dd );
+#endif  /* of if _AVGX2  */
+
 #if _AVGX3
             fini_5level_dtable ( &contr_ddd );
-#endif
+#endif  /* of if _AVGX3  */
   
             fini_2level_dtable ( &sequential_propagator_list );
   
@@ -1502,8 +1511,9 @@ int main(int argc, char **argv) {
       /*****************************************************************/
       /*****************************************************************/
 
-
+#if _AVGX2 || _AVGX3
       fini_5level_dtable ( &stochastic_propagator_zero_ddispl_list );
+#endif
   
 #if _AVGX3
       fini_6level_dtable ( &stochastic_propagator_zero_dddispl_list );
