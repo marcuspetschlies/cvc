@@ -653,13 +653,23 @@ int main(int argc, char **argv) {
             spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
           }
 
-          /* field out, field in, quda parameters, update resident gaugeFlowed
-           * here:never update gauge */
+ 
+     	  /***************************************************************************
+          '* (re-)set gauge field to flowtime zero
+     	   ***************************************************************************/
+#ifdef _GFLOW_QUDA
+          /* reset: upload original gauge field to device */
+          loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+#elif defined _GFLOW_CVC
+          memcpy ( gauge_field_gf, gauge_field_with_phase, sizeof_gauge_field );
+#endif
 
           /* cumulative flow time */
           double gf_tau = 0;
 
-          /* loop on GF steps */
+          /***************************************************************************
+           * loop on GF steps
+           ***************************************************************************/
           for ( int igf = 0; igf < gf_nstep; igf++ )
           {
             int const gf_niter   = gf_niter_list[igf];
