@@ -856,6 +856,16 @@ int main(int argc, char **argv) {
     }
 
     /***********************************************************
+     * (re-)set the gauge field to flowtime zero field
+     ***********************************************************/
+#ifdef _GFLOW_QUDA
+     /* upload to device */
+    loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+#elif defined _GFLOW_CVC
+    memcpy ( gauge_field_gf, gauge_field_with_phase, sizeof_gauge_field );
+#endif
+
+    /***********************************************************
      * loop on gradient flow steps
      ***********************************************************/
     for ( int igf = 0; igf < gf_nstep; igf++ ) 
