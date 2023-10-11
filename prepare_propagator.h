@@ -43,5 +43,7 @@ int check_residuum_full ( double **source, double **prop, double *gauge_field, d
 
 int check_residuum_eo ( double **source_e, double **source_o, double **prop_e, double **prop_o, double *gauge_field, double **mzz, double **mzzinv, int const nfields );
 
+int point_source_propagator (double ** const prop, int const gsx[4], int const op_id, int const smear_source, int const smear_sink, double * const gauge_field_smeared, int const check_residual, double * const gauge_field, double ** mzz[2], double ** mzzinv[2] );
+
 }  /* end of namespace cvc */
 #endif

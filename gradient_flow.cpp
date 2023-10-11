@@ -208,7 +208,7 @@ void apply_laplace ( double * const s, double * const r_in, double * const g ) {
 /******************************************************************
  * using 4-dimensional isotropic stout smearing as kernel
  ******************************************************************/
-void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigned int const niter, double const dt, int const flow_gauge, int const flow_spinor ) {
+void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigned int const niter, double const dt, int const flow_gauge, int const flow_spinor , int const update_gauge ) {
 
   size_t const sizeof_gauge_field  = 72 * VOLUME * sizeof ( double );
   size_t const sizeof_spinor_field = _GSI(VOLUME) * sizeof ( double );
@@ -347,9 +347,6 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
       /* phi2 <- phi2 -dt 2/9 phi0 = phi0 + dt 8/9 Delta1 phi1 - 2/9 Delta0 phi0 */
       spinor_field_pl_eq_spinor_field_ti_re ( phi[2], phi[0],  -dt*2./9., VOLUME );
 
-      /* TEST */
-      /* memcpy ( phi[3], phi[2], sizeof_spinor_field ); */
-
     }
 
 
@@ -388,12 +385,12 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
 
       apply_ZX ( w, z, dt );
     }
-#if 0
-#endif
+
+
 
   }  /* end of loop on iterations */
 
-  if ( flow_gauge ) {
+  if ( flow_gauge && update_gauge ) {
     memcpy ( g, w, sizeof_gauge_field );
   }
   if ( flow_spinor ) {

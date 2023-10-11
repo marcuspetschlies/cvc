@@ -1828,6 +1828,10 @@ int write_h5_contraction_parallel ( void * const contr, char * const afilename, 
 #endif  /* of if HAVE_MPI */
 #endif
 
+
+
+
+
 #endif  /* if def HAVE_HDF5 */
 
 /***************************************************************************/

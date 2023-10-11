@@ -344,7 +344,22 @@ int main(int argc, char **argv) {
     /***************************************************************************
      * prepare a volume source
      ***************************************************************************/
+#if 0
     prepare_volume_source ( stochastic_source, VOLUME );
+
+    sprintf ( filename, "stochastic_source.%d", isample );
+    if ( ( exitstatus = write_propagator( stochastic_source, filename, 0, g_propagator_precision) ) != 0 ) {
+      fprintf(stderr, "[zchi] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+#endif
+    sprintf ( filename, "stochastic_source.%d", isample );
+    if ( ( exitstatus = read_lime_spinor( stochastic_source, filename, 0 ) ) != 0 ) {
+      fprintf(stderr, "[zchi] Error from read_lime_spinor, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(2);
+    }
+
+
 
     double ** spinor_work  = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
     if ( spinor_work == NULL ) {
@@ -402,6 +417,7 @@ int main(int argc, char **argv) {
           int const ncdim = 1;
           int const cdim[1] = {2};
           char tag[100];
+          sprintf(filename, "%s.c%d.h5", outfile_prefix, Nconf );
           sprintf ( tag, "/s%d/%s/mu%d", isample, flavor_tag[iflavor], mu );
 
           write_h5_contraction ( &w, NULL, filename, tag, "double", ncdim, cdim );
