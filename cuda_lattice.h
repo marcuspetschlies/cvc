@@ -2,6 +2,7 @@
 #define CUDA_LATTICE_H
 
 #include <cuda_runtime.h>
+#include <cuda_profiler_api.h>
 #include <cstdio>
 #include "KQED.h"
 
@@ -45,12 +46,12 @@ void cu_spinor_field_eq_gamma_ti_spinor_field(
 void cu_g5_phi(double* out, size_t len);
 void cu_dzu_dzsu(
     double* d_dzu, double* d_dzsu, const double* fwd_src, const double* fwd_y,
-    int iflavor, Coord proc_coords, Coord gsx, IdxComb idx_comb,
+    int iflavor, Coord proc_coords, Coord gsx,
     Geom global_geom, Geom local_geom);
 void cu_4pt_contraction(
     double* d_kernel_sum, const double* d_g_dzu, const double* d_g_dzsu,
     const double* fwd_src, const double* fwd_y, int iflavor, Coord proc_coords,
-    Coord gsx, Pair xunit, Coord yv, IdxComb idx_comb, QED_kernel_temps kqed_t,
+    Coord gsx, Pair xunit, Coord yv, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom);
 
 

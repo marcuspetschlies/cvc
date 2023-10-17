@@ -49,6 +49,15 @@ __device__ __constant__ int gamma_sign[16][24] = {
   {-1, -1, -1, -1, -1, -1, +1, +1, +1, +1, +1, +1, -1, -1, -1, -1, -1, -1, +1, +1, +1, +1, +1, +1},
   {-1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1, -1, +1}
 };
+__device__ __constant__ IdxComb idx_comb {
+  .comb = {
+    {0,1},
+    {0,2},
+    {0,3},
+    {1,2},
+    {1,3},
+    {2,3}
+  }};
 
 
 /**
@@ -125,7 +134,7 @@ __device__ int coord_map_zerohalf(int xi, int Li) {
  */
 __global__ void ker_dzu_dzsu(
     double* _RESTR dzu, double* _RESTR dzsu, const double* _RESTR fwd_src, const double* _RESTR fwd_y,
-    int iflavor, Coord g_proc_coords, Coord gsx, IdxComb idx_comb,
+    int iflavor, Coord g_proc_coords, Coord gsx,
     Geom global_geom, Geom local_geom) {
 
   // Coord origin = get_thread_origin(local_geom);
@@ -248,7 +257,7 @@ __global__
 void ker_4pt_contraction(
     double* _RESTR kernel_sum, const double* _RESTR g_dzu, const double* _RESTR g_dzsu,
     const double* _RESTR fwd_src, const double* _RESTR fwd_y, int iflavor, Coord g_proc_coords,
-    Coord gsx, Pair xunit, Coord yv, IdxComb idx_comb, QED_kernel_temps kqed_t,
+    Coord gsx, Pair xunit, Coord yv, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom) {
 
   // Coord origin = get_thread_origin(local_geom);
@@ -261,6 +270,10 @@ void ker_4pt_contraction(
   // double corr_I[6 * 4 * 4 * 4 * 2];
   // double corr_II[6 * 4 * 4 * 4 * 2];
   // double dxu[4 * 12 * 12 * 2];
+  // __shared__ double corr_I_shared[CUDA_THREAD_DIM_1D * 6 * 4 * 4 * 4];
+  // __shared__ double corr_II_shared[CUDA_THREAD_DIM_1D * 6 * 4 * 4 * 4];
+  // double* corr_I_re = &corr_I_shared[threadIdx.x * 6 * 4 * 4 * 4];
+  // double* corr_II_re = &corr_II_shared[threadIdx.x * 6 * 4 * 4 * 4];
   double corr_I_re[6 * 4 * 4 * 4];
   double corr_II_re[6 * 4 * 4 * 4];
 
@@ -277,6 +290,7 @@ void ker_4pt_contraction(
     const int zz = coord.z;
     int coord_arr[4] = {tt, xx, yy, zz};
     int xv[4], xvzh[4];
+    #pragma unroll
     for (int rho = 0; rho < 4; ++rho) {
       int xrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsx_arr[rho];
       xrho = (xrho + global_geom_arr[rho]) % global_geom_arr[rho];
@@ -284,7 +298,9 @@ void ker_4pt_contraction(
       xvzh[rho] = coord_map_zerohalf(xrho, global_geom_arr[rho]);
     }
 
+    #pragma unroll
     for (int mu = 0; mu < 4; ++mu) {
+      /// COMPUTE DXU v1
       double dxu[12 * 12 * 2] = { 0 };
       for (int ia = 0; ia < 12; ++ia) {
         const double* _d = &fwd_src[((1-iflavor) * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
@@ -304,21 +320,43 @@ void ker_4pt_contraction(
           }
         }
       }
-      
+
+      #pragma unroll
       for (int k = 0; k < 6; ++k) {
         const int sigma = idx_comb.comb[k][1];
         const int rho = idx_comb.comb[k][0];
+        #pragma unroll
         for (int nu = 0; nu < 4; ++nu) {
+          #pragma unroll
           for (int lambda = 0; lambda < 4; ++lambda) {
             double *_corr_I_re = &corr_I_re[((k * 4 + mu) * 4 + nu) * 4 + lambda];
             double *_corr_II_re = &corr_II_re[((k * 4 + mu) * 4 + nu) * 4 + lambda];
             _corr_I_re[0] = 0.0;
             _corr_II_re[0] = 0.0;
             for (int ia = 0; ia < 12; ++ia) {
-              double *_t = spinor_work_0;
-              double *_g_dxu = spinor_work_1;
+              /// COMPUTE DXU v2
+              // double dxu[12 * 2];
+              // const double* _u = &fwd_y[(iflavor * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
+              // for (int ic = 0; ic < 12; ++ic) {
+              //   const double* _d = &fwd_src[((1-iflavor) * 12 + ic) * _GSI(VOLUME) + _GSI(ix)];
+              //   double* _t = spinor_work_1;
+              //   _fv_eq_gamma_ti_fv(_t, mu, _d);
+              //   _fv_ti_eq_g5(_t);
+              //   for (int i = 0; i < 12; ++i) {
+              //     double _t_re = _t[2*i];
+              //     double _t_im = _t[2*i+1];
+              //     double _u_re = _u[2*i];
+              //     double _u_im = _u[2*i+1];
+              //     /* -1 factor due to (g5 gmu)^+ = -g5 gmu */
+              //     dxu[2*ic] += -(_t_re * _u_re + _t_im * _u_im);
+              //     dxu[2*ic+1] += -(_t_re * _u_im - _t_im * _u_re);
+              //   }
+              // }
+              // double *_dxu = &dxu[0];
               double *_dxu = &dxu[ia * 12 * 2];
+              double *_t = spinor_work_0;
               _fv_eq_gamma_ti_fv(_t, 5, _dxu);
+              double *_g_dxu = spinor_work_1;
               _fv_eq_gamma_ti_fv(_g_dxu, lambda, _t);
               for (int ib = 0; ib < 12; ++ib) {
                 double u_re = _g_dxu[2*ib];
@@ -442,7 +480,7 @@ void cu_g5_phi(double* spinor, size_t len) {
 
 void cu_dzu_dzsu(
     double* d_dzu, double* d_dzsu, const double* fwd_src, const double* fwd_y,
-    int iflavor, Coord proc_coords, Coord gsx, IdxComb idx_comb,
+    int iflavor, Coord proc_coords, Coord gsx,
     Geom global_geom, Geom local_geom) {
   size_t T = local_geom.T;
   size_t LX = local_geom.LX;
@@ -460,14 +498,14 @@ void cu_dzu_dzsu(
   // dim3 kernel_nblocks(nx, ny, nz);
   // dim3 kernel_nthreads(CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D);
   ker_dzu_dzsu<<<kernel_nblocks, kernel_nthreads>>>(
-      d_dzu, d_dzsu, fwd_src, fwd_y, iflavor, proc_coords, gsx, idx_comb,
+      d_dzu, d_dzsu, fwd_src, fwd_y, iflavor, proc_coords, gsx,
       global_geom, local_geom);
 }
 
 void cu_4pt_contraction(
     double* d_kernel_sum, const double* d_g_dzu, const double* d_g_dzsu,
     const double* fwd_src, const double* fwd_y, int iflavor, Coord proc_coords,
-    Coord gsx, Pair xunit, Coord yv, IdxComb idx_comb, QED_kernel_temps kqed_t,
+    Coord gsx, Pair xunit, Coord yv, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom) {
   size_t T = local_geom.T;
   size_t LX = local_geom.LX;
@@ -486,7 +524,7 @@ void cu_4pt_contraction(
   // dim3 kernel_nthreads(CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D, CUDA_THREAD_DIM_4D);
   ker_4pt_contraction<<<kernel_nblocks, kernel_nthreads>>>(
       d_kernel_sum, d_g_dzu, d_g_dzsu, fwd_src, fwd_y, iflavor, proc_coords,
-      gsx, xunit, yv, idx_comb, kqed_t, global_geom, local_geom);
+      gsx, xunit, yv, kqed_t, global_geom, local_geom);
 }
 
 

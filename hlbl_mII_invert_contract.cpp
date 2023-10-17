@@ -162,12 +162,10 @@ inline g_prop_t init_g_prop(unsigned VOLUME) {
   return x;
 }
 inline void fini_prop(prop_t* x) {
-  printf("fini_prop %p\n", *x);
   checkCudaErrors(cudaFree(*x));
   *x = NULL;
 }
 inline void fini_g_prop(g_prop_t* x) {
-  printf("fini_g_prop %p\n", *x);
   checkCudaErrors(cudaFree(*x));
   *x = NULL;
 }
@@ -246,15 +244,16 @@ inline void compute_dzu_dzsu(
   };
   Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
   Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
-  IdxComb d_idx_comb;
-  for (int i = 0; i < 6; ++i) {
-    d_idx_comb.comb[i][0] = idx_comb[i][0];
-    d_idx_comb.comb[i][1] = idx_comb[i][1];
-  }
+  // IdxComb d_idx_comb;
+  // for (int i = 0; i < 6; ++i) {
+  //   d_idx_comb.comb[i][0] = idx_comb[i][0];
+  //   d_idx_comb.comb[i][1] = idx_comb[i][1];
+  // }
   Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
   cu_dzu_dzsu(
       d_dzu, d_dzsu, fwd_src, fwd_y, iflavor, d_proc_coords, d_gsx,
-      d_idx_comb, global_geom, local_geom);
+      global_geom, local_geom);
+  checkCudaErrors(cudaDeviceSynchronize());
   checkCudaErrors(cudaMemcpy(
       (void*)local_dzu, (const void*)d_dzu, sizeof_dzu, cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaMemcpy(
@@ -351,24 +350,22 @@ inline void compute_4pt_contraction(
   };
   Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
   Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
-  IdxComb d_idx_comb;
-  for (int i = 0; i < 6; ++i) {
-    d_idx_comb.comb[i][0] = idx_comb[i][0];
-    d_idx_comb.comb[i][1] = idx_comb[i][1];
-  }
+  // IdxComb d_idx_comb;
+  // for (int i = 0; i < 6; ++i) {
+  //   d_idx_comb.comb[i][0] = idx_comb[i][0];
+  //   d_idx_comb.comb[i][1] = idx_comb[i][1];
+  // }
   Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
   Coord d_yv = { .t = yv[0], .x = yv[1], .y = yv[2], .z = yv[3] };
   Pair d_xunit = { .a = xunit[0], .b = xunit[1] };
 
-  fprintf(stdout, "[hlbl_mII_invert_contract] cu_4pt_contraction start %d \n", g_cart_id);
   cu_4pt_contraction(
       d_kernel_sum, d_g_dzu, d_g_dzsu, fwd_src, fwd_y, iflavor, d_proc_coords,
-      d_gsx, d_xunit, d_yv, d_idx_comb, kqed_t, global_geom, local_geom);
+      d_gsx, d_xunit, d_yv, kqed_t, global_geom, local_geom);
 
   checkCudaErrors(cudaMemcpy(
       &kernel_sum[0], d_kernel_sum, 4*sizeof(double), cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaFree(d_kernel_sum));
-  fprintf(stdout, "[hlbl_mII_invert_contract] cu_4pt_contraction complete %d \n", g_cart_id);
 
   checkCudaErrors(cudaFree(d_g_dzu));
   checkCudaErrors(cudaFree(d_g_dzsu));
@@ -1369,6 +1366,9 @@ int main(int argc, char **argv) {
         /***********************************************************/
         /***********************************************************/
 
+#if _WITH_TIMER
+        gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
         for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
         {
  
@@ -1385,7 +1385,7 @@ int main(int argc, char **argv) {
             {
               spinor_work[0][_GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) + 2*i ] = 1.;
             }
-      
+
             exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor );
     
             if(exitstatus < 0) {
@@ -1418,6 +1418,10 @@ int main(int argc, char **argv) {
             
           }  /* end of loop on spin-color components */
         }  /* end of loop on flavor for fwd_y */
+#if _WITH_TIMER
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "hlbl_mII_invert_contract", "invert-y", io_proc == 2 );
+#endif
 
         /***********************************************************/
         /***********************************************************/
