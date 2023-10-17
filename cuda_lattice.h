@@ -32,14 +32,14 @@ struct Pair {
 };
 
 /**
- * NOTE: 3D kernel must act over MPI subvolume T x LX x LY x LZ. We map this into
- * 3D kernel launches by taking (x, y, z) = global thread (x*BS % LX, y*BS, z*BS)
- * coord with t = global thread (x*BS / LX)*BS. Then each thread gets a local
- * volume of BS^4 to operate on.
+ * NOTE: Both 1D and 4D kernels use a grid-stride pattern, dividing up
+ * neighboring lattice indices in the local geometry and stepping forward by one
+ * grid size each iteration.
  */
 #define CUDA_BLOCK_SIZE 4
 #define CUDA_THREAD_DIM_1D 32
-// #define CUDA_THREAD_DIM_4D 4
+
+#define CUDA_N_QED_KERNEL 2
 
 void cu_spinor_field_eq_gamma_ti_spinor_field(
     double* out, int mu, const double* in, size_t len);

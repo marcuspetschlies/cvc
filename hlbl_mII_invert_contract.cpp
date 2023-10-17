@@ -68,6 +68,18 @@ extern "C"
 
 #define _WITH_TIMER 1
 
+#define kernel_n 2
+#ifdef CUDA_N_QED_KERNEL
+#if CUDA_N_QED_KERNEL != kernel_n
+#error "Mismatch between number of QED kernels with CUDA and CPU"
+#endif
+#endif
+
+void QED_kernel_L0P4( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] )
+{
+  QED_Mkernel_L2(0.4, xv, yv, t, kerv);
+}
+
 
 using namespace cvc;
 
@@ -325,7 +337,7 @@ inline void compute_4pt_contraction(
     const prop_t fwd_src, const prop_t fwd_y,
     double **** const g_dzu, double **** const g_dzsu,
     const int* gsx, int iflavor, const double xunit[2], const int yv[4],
-    double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
+    double kernel_sum[kernel_n], QED_kernel_temps kqed_t, unsigned VOLUME) {
   constexpr size_t n_g_dzu = 6 * 4 * 12 * 24;
   constexpr size_t n_g_dzsu = 4 * 4 * 12 * 24;
   size_t sizeof_g_dzu = n_g_dzu * sizeof(double);
@@ -339,8 +351,8 @@ inline void compute_4pt_contraction(
   checkCudaErrors(cudaMemcpy(
       d_g_dzsu, &g_dzsu[0][0][0][0], sizeof_g_dzsu, cudaMemcpyHostToDevice));
   double* d_kernel_sum = NULL;
-  checkCudaErrors(cudaMalloc((void**)&d_kernel_sum, 4*sizeof(double)));
-  checkCudaErrors(cudaMemset(d_kernel_sum, 0, 4*sizeof(double)));
+  checkCudaErrors(cudaMalloc((void**)&d_kernel_sum, kernel_n*sizeof(double)));
+  checkCudaErrors(cudaMemset(d_kernel_sum, 0, kernel_n*sizeof(double)));
   
   Coord d_proc_coords {
     .t = g_proc_coords[0],
@@ -364,7 +376,7 @@ inline void compute_4pt_contraction(
       d_gsx, d_xunit, d_yv, kqed_t, global_geom, local_geom);
 
   checkCudaErrors(cudaMemcpy(
-      &kernel_sum[0], d_kernel_sum, 4*sizeof(double), cudaMemcpyDeviceToHost));
+      &kernel_sum[0], d_kernel_sum, kernel_n*sizeof(double), cudaMemcpyDeviceToHost));
   checkCudaErrors(cudaFree(d_kernel_sum));
 
   checkCudaErrors(cudaFree(d_g_dzu));
@@ -536,13 +548,13 @@ inline void compute_4pt_contraction(
     const prop_t fwd_src, const prop_t fwd_y,
     double **** const g_dzu, double **** const g_dzsu,
     const int* gsx, int iflavor, const double xunit[2], const int yv[4],
-    double kernel_sum[4], QED_kernel_temps kqed_t, unsigned VOLUME) {
+    double kernel_sum[kernel_n], QED_kernel_temps kqed_t, unsigned VOLUME) {
 
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
 #endif
-  double kernel_sum_thread[4] = { 0., 0., 0., 0. };
+  double kernel_sum_thread[kernel_n] = { 0 };
 
   double **** corr_I  = init_4level_dtable ( 6, 4, 4, 8 );
   double **** corr_II = init_4level_dtable ( 6, 4, 4, 8 );
@@ -561,11 +573,10 @@ inline void compute_4pt_contraction(
   double kerv2[6][4][4][4] KQED_ALIGN ;
   double kerv3[6][4][4][4] KQED_ALIGN ;
 
-  QED_kernel_LX_ptr KQED_LX[4] = {
-    QED_kernel_L0,
-    QED_kernel_L1,
-    QED_kernel_L2,
-    QED_kernel_L3 };
+  QED_kernel_LX_ptr KQED_LX[kernel_n] = {
+    QED_kernel_L3,
+    QED_kernel_L0P4
+  };
   
 
   /***********************************************************
@@ -756,7 +767,7 @@ inline void compute_4pt_contraction(
     /***********************************************************
      * loop on kernsl
      ***********************************************************/
-    for ( int ikernel = 0; ikernel < 4; ikernel++ )
+    for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
     {
 
       KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
@@ -865,10 +876,10 @@ inline void compute_4pt_contraction(
 {
 #endif
 
-  kernel_sum[0] += kernel_sum_thread[0];
-  kernel_sum[1] += kernel_sum_thread[1];
-  kernel_sum[2] += kernel_sum_thread[2];
-  kernel_sum[3] += kernel_sum_thread[3];
+  for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
+  {
+    kernel_sum[ikernel] += kernel_sum_thread[ikernel];
+  }
 
 #ifdef HAVE_OPENMP
    /***********************************************************/
@@ -1248,7 +1259,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * local kernel sum
      ***********************************************************/
-    double **** kernel_sum = init_4level_dtable ( 2, ymax + 1, ysign_num, 4 );
+    double **** kernel_sum = init_4level_dtable ( 2, ymax + 1, ysign_num, kernel_n );
     if ( kernel_sum == NULL ) 
     {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1331,7 +1342,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * loop on y = iy ( 1,1,1,1)
      ***********************************************************/
-    for ( int iy = 1; iy <= ymax; iy++ )
+    for ( int iy = 5; iy <= ymax; iy++ )
     {
 
       /***********************************************************
@@ -1528,22 +1539,13 @@ int main(int argc, char **argv) {
           /***********************************************************
            * TEST WRITE local kernel_sum
            ***********************************************************/
-          fprintf(
-              stdout,
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 0: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][0]);
-          fprintf(
-              stdout,
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 1: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][1]);
-          fprintf(
-              stdout,
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 2: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][2]);
-          fprintf(
-              stdout,
-              "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d 3: %f\n",
-              iflavor, iy, isign, kernel_sum[iflavor][iy][isign][3]);
+          for (int ikernel = 0; ikernel < kernel_n; ++ikernel) {
+            fprintf(
+                stdout,
+                "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d %d: %f\n",
+                iflavor, iy, isign, ikernel,
+                kernel_sum[iflavor][iy][isign][ikernel]);
+          }
           /***********************************************************
            * END OF TEST
            ***********************************************************/
@@ -1570,7 +1572,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * sum over MPI processes
      ***********************************************************/
-    int const nitem = 2 * 4 * ( ymax + 1 ) * ysign_num;
+    int const nitem = 2 * kernel_n * ( ymax + 1 ) * ysign_num;
     double * mbuffer = init_1level_dtable ( nitem );
 
     memcpy ( mbuffer, kernel_sum[0][0][0], nitem * sizeof ( double ) );
@@ -1612,14 +1614,14 @@ int main(int argc, char **argv) {
     if ( io_proc == 2 )
     {
       int ncdim = 4;
-      int cdim[4] = { 2, ymax+1, ysign_num, 4 };
+      int cdim[4] = { 2, ymax+1, ysign_num, kernel_n };
       char key[100];
       sprintf (key, "t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
 
       exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
       if ( exitstatus != 0 )
       {
-        fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
+        fprintf (stderr, "[hlbl_mII_invert_contract] Error from write_h5_contraction  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
     }

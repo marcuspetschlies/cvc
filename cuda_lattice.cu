@@ -242,14 +242,14 @@ __device__
 void KQED_LX(
     int ikernel, const double xm[4], const double ym[4],
     const struct QED_kernel_temps kqed_t, double kerv[6][4][4][4]) {
+#if CUDA_N_QED_KERNEL != 2
+  #error "Number of QED kernels does not match implementation"
+#endif
   if (ikernel == 0) {
-    QED_kernel_L0( xm, ym, kqed_t, kerv );
-  } else if (ikernel == 1) {
-    QED_kernel_L1( xm, ym, kqed_t, kerv );
-  } else if (ikernel == 2) {
-    QED_kernel_L2( xm, ym, kqed_t, kerv );
-  } else {
     QED_kernel_L3( xm, ym, kqed_t, kerv );
+  }
+  else {
+    QED_Mkernel_L2( 0.4, xm, ym, kqed_t, kerv );
   }
 }
 
@@ -277,7 +277,7 @@ void ker_4pt_contraction(
   double corr_I_re[6 * 4 * 4 * 4];
   double corr_II_re[6 * 4 * 4 * 4];
 
-  double kernel_sum_work[4] = { 0 };
+  double kernel_sum_work[CUDA_N_QED_KERNEL] = { 0 };
   double spinor_work_0[24], spinor_work_1[24];
   double kerv[6][4][4][4] KQED_ALIGN = { 0 };
 
@@ -399,8 +399,7 @@ void ker_4pt_contraction(
       xm[2] - ym[2],
       xm[3] - ym[3] };
 
-    // TODO: Better kernel parameterization / loop?
-    for (int ikernel = 0; ikernel < 4; ++ikernel) {
+    for (int ikernel = 0; ikernel < CUDA_N_QED_KERNEL; ++ikernel) {
       // dtmp += (
       //     kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda]
       //     - kerv3[k][lambda][nu][mu] ) * _corr_I[2*i]
@@ -453,7 +452,7 @@ void ker_4pt_contraction(
   } // end coord loop
 
   // reduce (TODO faster reduce algo?)
-  for (int ikernel = 0; ikernel < 4; ++ikernel) {
+  for (int ikernel = 0; ikernel < CUDA_N_QED_KERNEL; ++ikernel) {
     atomicAdd_system(&kernel_sum[ikernel], kernel_sum_work[ikernel]);
   }
 }
