@@ -59,6 +59,7 @@ extern "C"
 #include "prepare_propagator.h"
 #include "table_init_z.h"
 #include "table_init_d.h"
+#include "table_init_i.h"
 #include "dummy_solver.h"
 #include "clover.h"
 #include "scalar_products.h"
@@ -68,6 +69,19 @@ extern "C"
 
 #define _WITH_TIMER 1
 
+using namespace cvc;
+
+/***********************************************************
+ * KQED kernel function pointer
+ ***********************************************************/
+/* void QED_kernel_L0( const double xv[4] , const double yv[4] , const struct QED_kernel_temps t , double kerv[6][4][4][4] ) ; */
+typedef void (*QED_kernel_LX_ptr)( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] );
+
+
+/***********************************************************
+ * choice of KQED kernels
+ * NOTE: Must be consistently updated between here and CUDA.
+ ***********************************************************/
 #define kernel_n 2
 #ifdef CUDA_N_QED_KERNEL
 #if CUDA_N_QED_KERNEL != kernel_n
@@ -80,14 +94,14 @@ void QED_kernel_L0P4( const double xv[4], const double yv[4], const struct QED_k
   QED_Mkernel_L2(0.4, xv, yv, t, kerv);
 }
 
+QED_kernel_LX_ptr KQED_LX[kernel_n] = {
+  QED_kernel_L3,
+  QED_kernel_L0P4
+};
+const char * KQED_NAME[kernel_n] = {
+  "L3", "LLambda0.4"
+};
 
-using namespace cvc;
-
-/***********************************************************
- * KQED kernel function pointer
- ***********************************************************/
-/* void QED_kernel_L0( const double xv[4] , const double yv[4] , const struct QED_kernel_temps t , double kerv[6][4][4][4] ) ; */
-typedef void (*QED_kernel_LX_ptr)( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] );
 
 /***********************************************************
  * x must be in { 0, ..., L-1 }
@@ -119,7 +133,7 @@ inline void site_map_zerohalf (int xv[4], int const x[4] )
 /***********************************************************
  * useful constants
  ***********************************************************/
-const int ysign_num = 4;
+const int ysign_num = 2;
 const int ysign_comb[16][4] = {
   { 1, 1, 1, 1},
   { 1, 1,-1,-1},
@@ -238,8 +252,10 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
  * gnu g5 D_y^+ g5 gmu U_y
  ***********************************************************/
 inline void compute_2p2_pieces(
-    const prop_t fwd_y, double ***** P1, const int* gsy, int iflavor, int io_proc,
-    double ** spinor_work, unsigned VOLUME)
+    const prop_t fwd_y, double ***** P1, double ****** P2, double ****** P3,
+    const int* gsw, int iflavor, int io_proc, int n_y, int ** gsy,
+    const double xunit[2], double ** spinor_work, QED_kernel_temps kqed_t,
+    unsigned VOLUME)
 {
   // TODO
 }
@@ -452,12 +468,11 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
 // inline void fini_lexic2coords(l2c_t* d_lexic2coords) {
 // }
 
-/***********************************************************
- * gnu g5 D_y^+ g5 gmu U_y
- ***********************************************************/
 inline void compute_2p2_pieces(
-    const prop_t fwd_y, double ***** P1, const int* gsy, int iflavor, int io_proc,
-    double ** spinor_work, unsigned VOLUME) {
+    const prop_t fwd_y, double ***** P1, double ****** P2, double ****** P3,
+    const int* gsw, int iflavor, int io_proc, int n_y, int ** gsy,
+    const double xunit[2], double ** spinor_work, QED_kernel_temps kqed_t,
+    unsigned VOLUME) {
 
   struct timeval ta, tb;
   
@@ -465,6 +480,9 @@ inline void compute_2p2_pieces(
   gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
 
+  /***********************************************************
+   * Pi_{mu,nu} = gnu g5 D_y^+ g5 gmu U_y
+   ***********************************************************/
   twopt_t pimn = init_twopt ( VOLUME );
   clear_twopt ( pimn, VOLUME );
   for ( int nu = 0; nu < 4; nu++ )
@@ -505,6 +523,14 @@ inline void compute_2p2_pieces(
   show_time ( &ta, &tb, "hlbl_mII_invert_contract", "pimn", io_proc == 2 );
 #endif
 
+#if _WITH_TIMER
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
+  /***********************************************************
+   * P1_{rsn}(zeta)
+   *   = sum_z delta(z_r - zeta) Pi_{sn}(z)
+   ***********************************************************/
   int n_P1t = 4 * 4 * T_global;
   int n_P1x = 4 * 4 * LX_global;
   int n_P1y = 4 * 4 * LY_global;
@@ -527,13 +553,13 @@ inline void compute_2p2_pieces(
     for ( int nu = 0; nu < 4; nu++ )
     {
       // TODO: Parallelize over non-summed coordinate?
-      for ( int iz = 0; iz < VOLUME; iz++ )
+      for ( unsigned int iz = 0; iz < VOLUME; iz++ )
       {
         int const z[4] = {
-          ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsy[0] + T_global  ) % T_global,
-          ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsy[1] + LX_global ) % LX_global,
-          ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsy[2] + LY_global ) % LY_global,
-          ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsy[3] + LZ_global ) % LZ_global };
+          ( g_lexic2coords[iz][0] + g_proc_coords[0] * T  - gsw[0] + T_global  ) % T_global,
+          ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsw[1] + LX_global ) % LX_global,
+          ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsw[2] + LY_global ) % LY_global,
+          ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsw[3] + LZ_global ) % LZ_global };
         local_P1t[sigma][nu][z[0]] += pimn[sigma][nu][iz];
         local_P1x[sigma][nu][z[1]] += pimn[sigma][nu][iz];
         local_P1y[sigma][nu][z[2]] += pimn[sigma][nu][iz];
@@ -571,7 +597,144 @@ inline void compute_2p2_pieces(
   fini_3level_dtable ( &local_P1y );
   fini_3level_dtable ( &local_P1z );
 
-  // TODO: Construct and reduce P2, P3
+#if _WITH_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "P1", io_proc == 2 );
+#endif
+
+#if _WITH_TIMER
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
+  /***********************************************************
+   * P2_{rsn}(y)
+   *   = sum_x (L_[r,s];mnl(x,y) + L_[r,s];nml(y,x)) Pi_{ml}(x)
+   * P3_{rsn}(y)
+   *   = sum_x (L_[r,s];mln(x+y,y) Pi_{ml}(x)
+   ***********************************************************/
+  int n_P2 = n_y * kernel_n * 4 * 4 * 4;
+  int n_P3 = n_y * kernel_n * 4 * 4 * 4;
+  double ***** local_P2 = init_5level_dtable ( n_y, kernel_n, 4, 4, 4 );
+  double ***** local_P3 = init_5level_dtable ( n_y, kernel_n, 4, 4, 4 );
+  double ***** all_P2 = init_5level_dtable ( n_y, kernel_n, 4, 4, 4 );
+  double ***** all_P3 = init_5level_dtable ( n_y, kernel_n, 4, 4, 4 );
+  if ( local_P2 == NULL || local_P3 == NULL || all_P2 == NULL || all_P3 == NULL )
+  {
+    fprintf ( stderr, "Error alloc local_P2,3 or all_P2,3\n" );
+    exit ( 57 );
+  }
+  memset ( (void*)local_P2[0][0][0][0], 0, sizeof(double)*n_P2 );
+  memset ( (void*)local_P3[0][0][0][0], 0, sizeof(double)*n_P3 );
+
+  
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for ( int yi = 0; yi < n_y; yi++ )
+  {
+    double kerv1[6][4][4][4] KQED_ALIGN ;
+    double kerv2[6][4][4][4] KQED_ALIGN ;
+    double kerv3[6][4][4][4] KQED_ALIGN ;
+
+    int * const y = gsy[yi];
+    int yv[4];
+    site_map ( yv, y );
+    for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+    {
+      int const x[4] = {
+        ( g_lexic2coords[ix][0] + g_proc_coords[0] * T  - gsw[0] + T_global  ) % T_global,
+        ( g_lexic2coords[ix][1] + g_proc_coords[1] * LX - gsw[1] + LX_global ) % LX_global,
+        ( g_lexic2coords[ix][2] + g_proc_coords[2] * LY - gsw[2] + LY_global ) % LY_global,
+        ( g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsw[3] + LZ_global ) % LZ_global };
+
+      int xv[4];
+      site_map ( xv, x );
+
+      double const xm[4] = {
+        xv[0] * xunit[0],
+        xv[1] * xunit[0],
+        xv[2] * xunit[0],
+        xv[3] * xunit[0] };
+
+      double const ym[4] = {
+        yv[0] * xunit[0],
+        yv[1] * xunit[0],
+        yv[2] * xunit[0],
+        yv[3] * xunit[0] };
+        
+      double const xm_pl_ym[4] = {
+        xm[0] + ym[0],
+        xm[1] + ym[1],
+        xm[2] + ym[2],
+        xm[3] + ym[3] };
+
+      for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
+      {
+        KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
+        KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
+        KQED_LX[ikernel]( xm, xm_pl_ym, kqed_t, kerv3 );
+        for( int k = 0; k < 6; k++ )
+        {
+          int const sigma = idx_comb[k][1];
+          int const rho   = idx_comb[k][0];
+          for ( int mu = 0; mu < 4; mu++ )
+          {
+            for ( int nu = 0; nu < 4; nu++ )
+            {
+              for ( int lambda = 0; lambda < 4; lambda++ )
+              {
+
+                local_P2[yi][ikernel][rho][sigma][nu] +=
+                    (kerv1[k][mu][nu][lambda] + kerv2[k][nu][mu][lambda]) *
+                    pimn[mu][lambda][ix];
+
+                local_P3[yi][ikernel][rho][sigma][nu] +=
+                    kerv3[k][mu][lambda][nu] * pimn[mu][lambda][ix];
+
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+#ifdef HAVE_MPI
+  if ( MPI_Allreduce(local_P2[0][0][0][0], all_P2[0][0][0][0], n_P2, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+  if ( MPI_Allreduce(local_P3[0][0][0][0], all_P3[0][0][0][0], n_P3, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+#else
+  memcpy((void*)all_P2[0][0][0][0], (void*)local_P2[0][0][0][0], sizeof(double)*n_P2);
+  memcpy((void*)all_P3[0][0][0][0], (void*)local_P3[0][0][0][0], sizeof(double)*n_P3);
+#endif
+
+  for ( int yi = 0; yi < n_y; yi++ )
+  {
+    for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
+    {
+      memcpy(
+          (void*)P2[yi][ikernel][iflavor][0][0],
+          (void*)all_P2[yi][ikernel][0][0], sizeof(double)*4*4*4);
+      memcpy(
+          (void*)P3[yi][ikernel][iflavor][0][0],
+          (void*)all_P3[yi][ikernel][0][0], sizeof(double)*4*4*4);
+    }
+  }
+
+  fini_5level_dtable ( &local_P2 );
+  fini_5level_dtable ( &local_P3 );
+  fini_5level_dtable ( &all_P2 );
+  fini_5level_dtable ( &all_P3 );
+
+#if _WITH_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "P2-P3", io_proc == 2 );
+#endif
 
   fini_twopt ( &pimn );
 }
@@ -730,11 +893,6 @@ inline void compute_4pt_contraction(
   double kerv1[6][4][4][4] KQED_ALIGN ;
   double kerv2[6][4][4][4] KQED_ALIGN ;
   double kerv3[6][4][4][4] KQED_ALIGN ;
-
-  QED_kernel_LX_ptr KQED_LX[kernel_n] = {
-    QED_kernel_L3,
-    QED_kernel_L0P4
-  };
   
 
   /***********************************************************
@@ -1356,6 +1514,26 @@ int main(int argc, char **argv) {
   }
   memset ( (void*)P1[0][0][0][0], 0, sizeof(double)*2*4*4*4*Lmax );
 
+  /***********************************************************
+   * P2/3_{rho,sigma,nu}
+   ***********************************************************/
+  // TODO: real y grid
+  int n_yp = 2;
+  int ** yp = init_2level_itable ( n_yp, 4 );
+  if ( yp == NULL )
+  {
+    fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_itable  %s %d\n", __FILE__, __LINE__ );
+    EXIT(123);
+  }
+  yp[0][0] = 1; yp[0][1] = 1; yp[0][2] = 1; yp[0][3] = 1;
+  yp[1][0] = 2; yp[1][1] = 2; yp[1][2] = 2; yp[1][3] = 2;
+  double ****** P2 = init_6level_dtable ( n_yp, kernel_n, 2, 4, 4, 4 );
+  double ****** P3 = init_6level_dtable ( n_yp, kernel_n, 2, 4, 4, 4 );
+  if ( P2 == NULL || P3 == NULL )
+  {
+    fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_dtable  %s %d\n", __FILE__, __LINE__ );
+    EXIT(123);
+  }
 
   /***********************************************************
    * unit for x, y
@@ -1434,7 +1612,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * local kernel sum
      ***********************************************************/
-    double **** kernel_sum = init_4level_dtable ( 2, ymax + 1, ysign_num, kernel_n );
+    double **** kernel_sum = init_4level_dtable ( kernel_n, 2, ymax + 1, ysign_num );
     if ( kernel_sum == NULL ) 
     {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -1517,7 +1695,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * loop on y = iy ( 1,1,1,1)
      ***********************************************************/
-    for ( int iy = 5; iy <= ymax; iy++ )
+    for ( int iy = 1; iy <= ymax; iy++ )
     {
 
       /***********************************************************
@@ -1542,6 +1720,8 @@ int main(int argc, char **argv) {
           EXIT(123);
         }
 
+        /* TODO: Should we site_map this? Shouldn't wrap for standard
+         * configurations, but who knows? */
         int const yv[4] = {
             iy * ysign_comb[isign][0],
             iy * ysign_comb[isign][1],
@@ -1616,10 +1796,11 @@ int main(int argc, char **argv) {
         for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
         {
           /***********************************************************
-           * gnu g5 D_y^+ g5 gmu U_y
+           * P1, P2, P3
            ***********************************************************/
           compute_2p2_pieces(
-              fwd_y, P1, gsy, iflavor, io_proc, spinor_work, VOLUME);
+              fwd_y, P1, P2, P3, gsy, iflavor, io_proc, n_yp, yp,
+              xunit, spinor_work, kqed_t, VOLUME);
 
           /***********************************************************
            * D_y^+ z g5 gsigma U_src
@@ -1702,9 +1883,14 @@ int main(int argc, char **argv) {
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
 
+          double local_kernel_sum[kernel_n];
           compute_4pt_contraction(
               fwd_src, fwd_y, g_dzu, g_dzsu, gsx, iflavor, xunit, yv,
-              kernel_sum[iflavor][iy][isign], kqed_t, VOLUME);
+              local_kernel_sum, kqed_t, VOLUME);
+          for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
+          {
+            kernel_sum[ikernel][iflavor][iy][isign] = local_kernel_sum[ikernel];
+          }
 
 #if _WITH_TIMER
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -1724,7 +1910,7 @@ int main(int argc, char **argv) {
                 stdout,
                 "# [hlbl_mII_invert_contract] kernel_sum iflavor=%d iy=%d isign=%d %d: %f\n",
                 iflavor, iy, isign, ikernel,
-                kernel_sum[iflavor][iy][isign][ikernel]);
+                kernel_sum[ikernel][iflavor][iy][isign]);
           }
           /***********************************************************
            * END OF TEST
@@ -1759,6 +1945,45 @@ int main(int argc, char **argv) {
             EXIT(12);
           }
         }
+        if ( io_proc == 2 )
+        {
+          int ncdim = 4;
+          int cdim[4] = { 2, 4, 4, 4 };
+          char key[100];
+          for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
+          {
+            for ( int iyp = 0; iyp < n_yp; iyp++ )
+            {
+              sprintf (key, "/P2/t%dx%dy%dz%d/t%dx%dy%dz%d/%s",
+                       gsy[0], gsy[1], gsy[2], gsy[3],
+                       yp[iyp][0], yp[iyp][1], yp[iyp][2], yp[iyp][3],
+                       KQED_NAME[ikernel] );
+            
+              exitstatus = write_h5_contraction (
+                  P2[iyp][ikernel][0][0][0], NULL, output_filename, key,
+                  "double", ncdim, cdim );
+              if ( exitstatus != 0 )
+              {
+                fprintf (stderr, "[hlbl_mII_invert_contract] Error from write_h5_contraction  %s %d\n", __FILE__, __LINE__ );
+                EXIT(12);
+              }
+
+              sprintf (key, "/P3/t%dx%dy%dz%d/t%dx%dy%dz%d/%s",
+                       gsy[0], gsy[1], gsy[2], gsy[3],
+                       yp[iyp][0], yp[iyp][1], yp[iyp][2], yp[iyp][3],
+                       KQED_NAME[ikernel] );
+            
+              exitstatus = write_h5_contraction (
+                  P3[iyp][ikernel][0][0][0], NULL, output_filename, key,
+                  "double", ncdim, cdim );
+              if ( exitstatus != 0 )
+              {
+                fprintf (stderr, "[hlbl_mII_invert_contract] Error from write_h5_contraction  %s %d\n", __FILE__, __LINE__ );
+                EXIT(12);
+              }
+            }
+          }
+        }
 
       }  /* end of loop on signs */
 
@@ -1770,7 +1995,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * sum over MPI processes
      ***********************************************************/
-    int const nitem = 2 * kernel_n * ( ymax + 1 ) * ysign_num;
+    int const nitem = kernel_n * 2 * ( ymax + 1 ) * ysign_num;
     double * mbuffer = init_1level_dtable ( nitem );
 
     memcpy ( mbuffer, kernel_sum[0][0][0], nitem * sizeof ( double ) );
@@ -1788,14 +2013,14 @@ int main(int argc, char **argv) {
      * TEST WRITE total kernel_sum
      ***********************************************************/
     if (g_cart_id == 0) {
-      for (int iflavor = 0; iflavor < 2; ++iflavor)  {
-        for (int iy = 0; iy < ymax+1; ++iy) {
-          for (int isign = 0; isign < ysign_num; ++isign) {
-            for (int jker = 0; jker < 4; ++jker) {
+      for (int jker = 0; jker < kernel_n; ++jker) {
+        for (int iflavor = 0; iflavor < 2; ++iflavor)  {
+          for (int iy = 0; iy < ymax+1; ++iy) {
+            for (int isign = 0; isign < ysign_num; ++isign) {
               fprintf(
                   stdout,
                   "# [hlbl_mII_invert_contract] final kernel_sum iflavor=%d iy=%d isign=%d %d: %.18g\n",
-                  iflavor, iy, isign, jker, kernel_sum[iflavor][iy][isign][jker]);
+                  iflavor, iy, isign, jker, kernel_sum[jker][iflavor][iy][isign]);
             }
           }
         }
@@ -1811,19 +2036,22 @@ int main(int argc, char **argv) {
 
     if ( io_proc == 2 )
     {
-      int ncdim = 4;
-      int cdim[4] = { 2, ymax+1, ysign_num, kernel_n };
+      int ncdim = 3;
+      int cdim[3] = { 2, ymax+1, ysign_num };
       char key[100];
-      sprintf (key, "t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
-
-      exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
-      if ( exitstatus != 0 )
+      for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
       {
-        fprintf (stderr, "[hlbl_mII_invert_contract] Error from write_h5_contraction  %s %d\n", __FILE__, __LINE__ );
-        EXIT(12);
+        sprintf (key, "t%dx%dy%dz%d/%s", gsx[0], gsx[1], gsx[2], gsx[3], KQED_NAME[ikernel] );
+
+        exitstatus = write_h5_contraction ( kernel_sum[ikernel][0][0], NULL, output_filename, key, "double", ncdim, cdim );
+        if ( exitstatus != 0 )
+        {
+          fprintf (stderr, "[hlbl_mII_invert_contract] Error from write_h5_contraction  %s %d\n", __FILE__, __LINE__ );
+          EXIT(12);
+        }
       }
     }
-
+      
     fini_4level_dtable ( &kernel_sum );
 
   }  /* end of loop on source locations */
