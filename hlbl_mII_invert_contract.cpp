@@ -255,7 +255,7 @@ inline void compute_2p2_pieces(
     const prop_t fwd_y, double ***** P1, double ****** P2, double ****** P3,
     const int* gsw, int iflavor, int io_proc, int n_y, int ** gsy,
     const double xunit[2], double ** spinor_work, QED_kernel_temps kqed_t,
-    unsigned VOLUME)
+    unsigned VOLUME, int Nconf)
 {
   // TODO
 }
@@ -296,11 +296,6 @@ inline void compute_dzu_dzsu(
   };
   Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
   Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
-  // IdxComb d_idx_comb;
-  // for (int i = 0; i < 6; ++i) {
-  //   d_idx_comb.comb[i][0] = idx_comb[i][0];
-  //   d_idx_comb.comb[i][1] = idx_comb[i][1];
-  // }
   Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
   cu_dzu_dzsu(
       d_dzu, d_dzsu, fwd_src, fwd_y, iflavor, d_proc_coords, d_gsx,
@@ -402,11 +397,6 @@ inline void compute_4pt_contraction(
   };
   Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
   Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
-  // IdxComb d_idx_comb;
-  // for (int i = 0; i < 6; ++i) {
-  //   d_idx_comb.comb[i][0] = idx_comb[i][0];
-  //   d_idx_comb.comb[i][1] = idx_comb[i][1];
-  // }
   Coord d_gsx = { .t = gsx[0], .x = gsx[1], .y = gsx[2], .z = gsx[3] };
   Coord d_yv = { .t = yv[0], .x = yv[1], .y = yv[2], .z = yv[3] };
   Pair d_xunit = { .a = xunit[0], .b = xunit[1] };
@@ -470,9 +460,9 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
 
 inline void compute_2p2_pieces(
     const prop_t fwd_y, double ***** P1, double ****** P2, double ****** P3,
-    const int* gsw, int iflavor, int io_proc, int n_y, int ** gsy,
+    const int* gsw, int iflavor, int io_proc, int n_y, int ** ycoords,
     const double xunit[2], double ** spinor_work, QED_kernel_temps kqed_t,
-    unsigned VOLUME) {
+    unsigned VOLUME, int Nconf) {
 
   struct timeval ta, tb;
   
@@ -518,6 +508,23 @@ inline void compute_2p2_pieces(
     }
   }
 
+#if 0
+  /***********************************************************
+   * output
+   ***********************************************************/
+  char output_filename[400], type[200];
+  sprintf ( output_filename, "%s.%d.T%d_X%d_Y%d_Z%d.lime", g_outfile_prefix, Nconf, gsw[0], gsw[1], gsw[2], gsw[3] );
+  sprintf ( type, "polarization-tensor-position-space" );
+
+  int exitstatus = write_lime_contraction ( pimn[0][0], output_filename, 64, 8, type, Nconf,  0);
+  if ( exitstatus != 0 )
+  {
+    fprintf ( stderr, "# [hlbl_2p2_invert_contract] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );
+    EXIT(12);
+  }
+#endif
+  
+
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
   show_time ( &ta, &tb, "hlbl_mII_invert_contract", "pimn", io_proc == 2 );
@@ -531,23 +538,25 @@ inline void compute_2p2_pieces(
    * P1_{rsn}(zeta)
    *   = sum_z delta(z_r - zeta) Pi_{sn}(z)
    ***********************************************************/
-  int n_P1t = 4 * 4 * T_global;
-  int n_P1x = 4 * 4 * LX_global;
-  int n_P1y = 4 * 4 * LY_global;
-  int n_P1z = 4 * 4 * LZ_global;
-  double *** local_P1t = init_3level_dtable ( 4, 4, T_global );
-  double *** local_P1x = init_3level_dtable ( 4, 4, LX_global );
-  double *** local_P1y = init_3level_dtable ( 4, 4, LY_global );
-  double *** local_P1z = init_3level_dtable ( 4, 4, LZ_global );
+  int Lmax = 0;
+  if ( T_global >= Lmax ) Lmax = T_global;
+  if ( LX_global >= Lmax ) Lmax = LX_global;
+  if ( LY_global >= Lmax ) Lmax = LY_global;
+  if ( LZ_global >= Lmax ) Lmax = LZ_global;
+  int n_P1 = 4 * 4 * Lmax;
+  double *** local_P1t = init_3level_dtable ( 4, 4, Lmax );
+  double *** local_P1x = init_3level_dtable ( 4, 4, Lmax );
+  double *** local_P1y = init_3level_dtable ( 4, 4, Lmax );
+  double *** local_P1z = init_3level_dtable ( 4, 4, Lmax );
   if ( local_P1t == NULL || local_P1x == NULL || local_P1y == NULL || local_P1z == NULL )
   {
     fprintf ( stderr, "Error alloc local_P1\n" );
     exit ( 57 );
   }
-  memset((void*)local_P1t[0][0], 0, sizeof(double)*n_P1t);
-  memset((void*)local_P1x[0][0], 0, sizeof(double)*n_P1x);
-  memset((void*)local_P1y[0][0], 0, sizeof(double)*n_P1y);
-  memset((void*)local_P1z[0][0], 0, sizeof(double)*n_P1z);
+  memset((void*)local_P1t[0][0], 0, sizeof(double)*n_P1);
+  memset((void*)local_P1x[0][0], 0, sizeof(double)*n_P1);
+  memset((void*)local_P1y[0][0], 0, sizeof(double)*n_P1);
+  memset((void*)local_P1z[0][0], 0, sizeof(double)*n_P1);
   for ( int sigma = 0; sigma < 4; sigma++ )
   {
     for ( int nu = 0; nu < 4; nu++ )
@@ -569,27 +578,28 @@ inline void compute_2p2_pieces(
   }
 
 #ifdef HAVE_MPI
-  if ( MPI_Allreduce(local_P1t[0][0], P1[iflavor][0][0][0], n_P1t, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+  // TODO: just MPI_Reduce?
+  if ( MPI_Allreduce(local_P1t[0][0], P1[iflavor][0][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
        != MPI_SUCCESS ) {
     if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
   }
-  if ( MPI_Allreduce(local_P1x[0][0], P1[iflavor][1][0][0], n_P1x, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+  if ( MPI_Allreduce(local_P1x[0][0], P1[iflavor][1][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
        != MPI_SUCCESS ) {
     if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
   }
-  if ( MPI_Allreduce(local_P1y[0][0], P1[iflavor][2][0][0], n_P1y, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+  if ( MPI_Allreduce(local_P1y[0][0], P1[iflavor][2][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
        != MPI_SUCCESS ) {
     if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
   }
-  if ( MPI_Allreduce(local_P1z[0][0], P1[iflavor][3][0][0], n_P1z, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+  if ( MPI_Allreduce(local_P1z[0][0], P1[iflavor][3][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
        != MPI_SUCCESS ) {
     if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
   }
 #else
-  memcpy((void*)P1[iflavor][0][0][0], (void*)local_P1t[0][0], sizeof(double)*n_P1t);
-  memcpy((void*)P1[iflavor][1][0][0], (void*)local_P1x[0][0], sizeof(double)*n_P1x);
-  memcpy((void*)P1[iflavor][2][0][0], (void*)local_P1y[0][0], sizeof(double)*n_P1y);
-  memcpy((void*)P1[iflavor][3][0][0], (void*)local_P1z[0][0], sizeof(double)*n_P1z);
+  memcpy((void*)P1[iflavor][0][0][0], (void*)local_P1t[0][0], sizeof(double)*n_P1);
+  memcpy((void*)P1[iflavor][1][0][0], (void*)local_P1x[0][0], sizeof(double)*n_P1);
+  memcpy((void*)P1[iflavor][2][0][0], (void*)local_P1y[0][0], sizeof(double)*n_P1);
+  memcpy((void*)P1[iflavor][3][0][0], (void*)local_P1z[0][0], sizeof(double)*n_P1);
 #endif
 
   fini_3level_dtable ( &local_P1t );
@@ -636,9 +646,9 @@ inline void compute_2p2_pieces(
     double kerv2[6][4][4][4] KQED_ALIGN ;
     double kerv3[6][4][4][4] KQED_ALIGN ;
 
-    int * const y = gsy[yi];
+    int * const y = ycoords[yi];
     int yv[4];
-    site_map ( yv, y );
+    site_map_zerohalf ( yv, y );
     for ( unsigned int ix = 0; ix < VOLUME; ix++ )
     {
       int const x[4] = {
@@ -648,7 +658,7 @@ inline void compute_2p2_pieces(
         ( g_lexic2coords[ix][3] + g_proc_coords[3] * LZ - gsw[3] + LZ_global ) % LZ_global };
 
       int xv[4];
-      site_map ( xv, x );
+      site_map_zerohalf ( xv, x );
 
       double const xm[4] = {
         xv[0] * xunit[0],
@@ -661,22 +671,30 @@ inline void compute_2p2_pieces(
         yv[1] * xunit[0],
         yv[2] * xunit[0],
         yv[3] * xunit[0] };
-        
+
+      int const x_pl_y[4] = {
+        x[0] + y[0],
+        x[1] + y[1],
+        x[2] + y[2],
+        x[3] + y[3] };
+      int xv_pl_yv[4];
+      site_map_zerohalf(xv_pl_yv, x_pl_y);
+
       double const xm_pl_ym[4] = {
-        xm[0] + ym[0],
-        xm[1] + ym[1],
-        xm[2] + ym[2],
-        xm[3] + ym[3] };
+        xv_pl_yv[0] * xunit[0],
+        xv_pl_yv[1] * xunit[0],
+        xv_pl_yv[2] * xunit[0],
+        xv_pl_yv[3] * xunit[0] };
 
       for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
       {
         KQED_LX[ikernel]( xm, ym,       kqed_t, kerv1 );
         KQED_LX[ikernel]( ym, xm,       kqed_t, kerv2 );
-        KQED_LX[ikernel]( xm, xm_pl_ym, kqed_t, kerv3 );
+        KQED_LX[ikernel]( xm_pl_ym, ym, kqed_t, kerv3 );
         for( int k = 0; k < 6; k++ )
         {
-          int const sigma = idx_comb[k][1];
           int const rho   = idx_comb[k][0];
+          int const sigma = idx_comb[k][1];
           for ( int mu = 0; mu < 4; mu++ )
           {
             for ( int nu = 0; nu < 4; nu++ )
@@ -1518,15 +1536,18 @@ int main(int argc, char **argv) {
    * P2/3_{rho,sigma,nu}
    ***********************************************************/
   // TODO: real y grid
-  int n_yp = 2;
+  int n_yp = 5;
   int ** yp = init_2level_itable ( n_yp, 4 );
   if ( yp == NULL )
   {
     fprintf(stderr, "[hlbl_mII_invert_contract] Error from init_Xlevel_itable  %s %d\n", __FILE__, __LINE__ );
     EXIT(123);
   }
-  yp[0][0] = 1; yp[0][1] = 1; yp[0][2] = 1; yp[0][3] = 1;
-  yp[1][0] = 2; yp[1][1] = 2; yp[1][2] = 2; yp[1][3] = 2;
+  yp[0][0] = 0; yp[0][1] = 0; yp[0][2] = 0; yp[0][3] = 0;
+  yp[1][0] = 1; yp[1][1] = 1; yp[1][2] = 1; yp[1][3] = 1;
+  yp[2][0] = 2; yp[2][1] = 2; yp[2][2] = 2; yp[2][3] = 2;
+  yp[3][0] = -1; yp[3][1] = -1; yp[3][2] = -1; yp[3][3] = -1;
+  yp[4][0] = -2; yp[4][1] = -2; yp[4][2] = -2; yp[4][3] = -2;
   double ****** P2 = init_6level_dtable ( n_yp, kernel_n, 2, 4, 4, 4 );
   double ****** P3 = init_6level_dtable ( n_yp, kernel_n, 2, 4, 4, 4 );
   if ( P2 == NULL || P3 == NULL )
@@ -1800,7 +1821,7 @@ int main(int argc, char **argv) {
            ***********************************************************/
           compute_2p2_pieces(
               fwd_y, P1, P2, P3, gsy, iflavor, io_proc, n_yp, yp,
-              xunit, spinor_work, kqed_t, VOLUME);
+              xunit, spinor_work, kqed_t, VOLUME, Nconf);
 
           /***********************************************************
            * D_y^+ z g5 gsigma U_src
@@ -1956,7 +1977,11 @@ int main(int argc, char **argv) {
             {
               sprintf (key, "/P2/t%dx%dy%dz%d/t%dx%dy%dz%d/%s",
                        gsy[0], gsy[1], gsy[2], gsy[3],
-                       yp[iyp][0], yp[iyp][1], yp[iyp][2], yp[iyp][3],
+                       // TODO: Update yp coord system
+                       (gsy[0]+yp[iyp][0]+T_global) % T_global,
+                       (gsy[1]+yp[iyp][1]+LX_global) % LX_global,
+                       (gsy[2]+yp[iyp][2]+LY_global) % LY_global,
+                       (gsy[3]+yp[iyp][3]+LZ_global) % LZ_global,
                        KQED_NAME[ikernel] );
             
               exitstatus = write_h5_contraction (
@@ -1970,7 +1995,11 @@ int main(int argc, char **argv) {
 
               sprintf (key, "/P3/t%dx%dy%dz%d/t%dx%dy%dz%d/%s",
                        gsy[0], gsy[1], gsy[2], gsy[3],
-                       yp[iyp][0], yp[iyp][1], yp[iyp][2], yp[iyp][3],
+                       // TODO: Update yp coord system
+                       (gsy[0]-yp[iyp][0]+T_global) % T_global,
+                       (gsy[1]-yp[iyp][1]+LX_global) % LX_global,
+                       (gsy[2]-yp[iyp][2]+LY_global) % LY_global,
+                       (gsy[3]-yp[iyp][3]+LZ_global) % LZ_global,
                        KQED_NAME[ikernel] );
             
               exitstatus = write_h5_contraction (
