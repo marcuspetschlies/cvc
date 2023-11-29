@@ -527,7 +527,113 @@ void ker_2p2_pieces(
       }
     }
 
-    // TODO: P2, P3
+    for (int yi = 0; yi < n_y; yi++) {
+      // TODO: clear kerv
+      int const y[4] = { ycoords[yi].t, ycoords[yi].x, ycoords[yi].y, ycoords[yi].z };
+      int const yv[4] = {
+        coord_map_zerohalf(y[0], global_geom.T),
+        coord_map_zerohalf(y[1], global_geom.LX),
+        coord_map_zerohalf(y[2], global_geom.LY),
+        coord_map_zerohalf(y[3], global_geom.LZ)
+      };
+      double const ym[4] = {
+        yv[0] * xunit.a,
+        yv[1] * xunit.a,
+        yv[2] * xunit.a,
+        yv[3] * xunit.a };
+      
+      int const xv[4] = {
+        coord_map_zerohalf(z[0], global_geom_arr[0]),
+        coord_map_zerohalf(z[1], global_geom_arr[1]),
+        coord_map_zerohalf(z[2], global_geom_arr[2]),
+        coord_map_zerohalf(z[3], global_geom_arr[3])
+      };
+      double const xm[4] = {
+        xv[0] * xunit.a,
+        xv[1] * xunit.a,
+        xv[2] * xunit.a,
+        xv[3] * xunit.a };
+        
+
+      int const x_pl_y[4] = {
+        z[0] + y[0],
+        z[1] + y[1],
+        z[2] + y[2],
+        z[3] + y[3]
+      };
+      int xv_pl_yv[4] = {
+        coord_map_zerohalf(x_pl_y[0], global_geom_arr[0]),
+        coord_map_zerohalf(x_pl_y[1], global_geom_arr[1]),
+        coord_map_zerohalf(x_pl_y[2], global_geom_arr[2]),
+        coord_map_zerohalf(x_pl_y[3], global_geom_arr[3])
+      };
+      double const xm_pl_ym[4] = {
+        xv_pl_yv[0] * xunit.a,
+        xv_pl_yv[1] * xunit.a,
+        xv_pl_yv[2] * xunit.a,
+        xv_pl_yv[3] * xunit.a
+      };
+
+      for (int ikernel = 0; ikernel < CUDA_N_QED_KERNEL; ++ikernel) {
+        double local_P2[4][4][4] = { 0 };
+        double local_P3[4][4][4] = { 0 };
+        KQED_LX( ikernel, xm, ym, kqed_t, kerv );
+        for( int k = 0; k < 6; k++ ) {
+          int const rho = idx_comb.comb[k][0];
+          int const sigma = idx_comb.comb[k][1];
+          for ( int nu = 0; nu < 4; nu++ ) {
+            local_P2[rho][sigma][nu] = 0.0;
+            for ( int mu = 0; mu < 4; mu++ ) {
+              for ( int lambda = 0; lambda < 4; lambda++ ) {
+                // kerv[k][mu][nu][lambda] += (xm[k]-ym[nu])*pimn[mu][lambda];
+                local_P2[rho][sigma][nu] += kerv[k][mu][nu][lambda] * pimn[mu][lambda];
+              }
+            }
+          }
+        }
+        KQED_LX( ikernel, ym, xm,       kqed_t, kerv );
+        for( int k = 0; k < 6; k++ ) {
+          int const rho = idx_comb.comb[k][0];
+          int const sigma = idx_comb.comb[k][1];
+          for ( int mu = 0; mu < 4; mu++ ) {
+            for ( int nu = 0; nu < 4; nu++ ) {
+              for ( int lambda = 0; lambda < 4; lambda++ ) {
+                // kerv[k][mu][nu][lambda] += (ym[k]-xm[nu])*pimn[mu][lambda];
+                local_P2[rho][sigma][nu] += kerv[k][nu][mu][lambda] * pimn[mu][lambda];
+              }
+            }
+          }
+        }
+        KQED_LX( ikernel, xm_pl_ym, ym, kqed_t, kerv );
+        for( int k = 0; k < 6; k++ ) {
+          int const rho = idx_comb.comb[k][0];
+          int const sigma = idx_comb.comb[k][1];
+          for ( int nu = 0; nu < 4; nu++ ) {
+            local_P3[rho][sigma][nu] = 0.0;
+            for ( int mu = 0; mu < 4; mu++ ) {
+              for ( int lambda = 0; lambda < 4; lambda++ ) {
+                // kerv[k][mu][nu][lambda] += (xm_pl_ym[k]*ym[nu])*pimn[mu][lambda];
+                local_P3[rho][sigma][nu] += kerv[k][mu][lambda][nu] * pimn[mu][lambda];
+              }
+            }
+          }
+        }
+
+        for (int rho = 0; rho < 4; ++rho) {
+          for (int sigma = 0; sigma < 4; ++sigma) {
+            for (int nu = 0; nu < 4; ++nu) {
+              atomicAdd_system(
+                  &P2[(((yi * CUDA_N_QED_KERNEL + ikernel) * 4 + rho) * 4 + sigma) * 4 + nu],
+                  local_P2[rho][sigma][nu]);
+              atomicAdd_system(
+                  &P3[(((yi * CUDA_N_QED_KERNEL + ikernel) * 4 + rho) * 4 + sigma) * 4 + nu],
+                  local_P3[rho][sigma][nu]);
+            }
+          }
+        }
+
+      }
+    }
   }
 }
 
