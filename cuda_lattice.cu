@@ -457,6 +457,80 @@ void ker_4pt_contraction(
   }
 }
 
+__global__
+void ker_2p2_pieces(
+    double* _RESTR P1, double* _RESTR P2, double* _RESTR P3,
+    const double* _RESTR fwd_y, int iflavor, Coord g_proc_coords,
+    Coord gsw, int n_y, Coord* ycoords, Pair xunit, QED_kernel_temps kqed_t,
+    Geom global_geom, Geom local_geom, int Lmax) {
+  int gsw_arr[4] = {gsw.t, gsw.x, gsw.y, gsw.z};
+  size_t VOLUME = local_geom.T * local_geom.LX * local_geom.LY * local_geom.LZ;
+  int local_geom_arr[4] = {local_geom.T, local_geom.LX, local_geom.LY, local_geom.LZ};
+  int global_geom_arr[4] = {global_geom.T, global_geom.LX, global_geom.LY, global_geom.LZ};
+  int proc_coord_arr[4] = {g_proc_coords.t, g_proc_coords.x, g_proc_coords.y, g_proc_coords.z};
+
+  double pimn[4][4];
+  double spinor_work_0[24], spinor_work_1[24];
+  double kerv[6][4][4][4] KQED_ALIGN = { 0 };
+
+  for (int ix = blockIdx.x * blockDim.x + threadIdx.x;
+       ix < VOLUME; ix += blockDim.x * gridDim.x) {
+    Coord coord = lexic2coord(ix, local_geom);
+    int coord_arr[4] = {coord.t, coord.x, coord.y, coord.z};
+
+    for (int nu = 0; nu < 4; ++nu) {
+      for (int mu = 0; mu < 4; ++mu) {
+        pimn[mu][nu] = 0.0;
+        for (int ia = 0; ia < 12; ++ia) {
+          const double* _u = &fwd_y[(iflavor * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
+          double* _t = spinor_work_0;
+          _fv_eq_gamma_ti_fv(_t, mu, _u);
+          _fv_ti_eq_g5(_t);
+          double* _s = spinor_work_1;
+          for (int ib = 0; ib < 12; ++ib) {
+            const double* _d = &fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(ix)];
+            double w_re = 0.0;
+            double w_im = 0.0;
+            for (int i = 0; i < 12; ++i) {
+              const double _t_re = _t[2*i];
+              const double _t_im = _t[2*i+1];
+              const double _d_re = _d[2*i];
+              const double _d_im = _d[2*i+1];
+              w_re += _d_re * _t_re + _d_im * _t_im;
+              w_im += _d_re * _t_im - _d_im * _t_re;
+            }
+            _s[2*ib] = w_re;
+            _s[2*ib+1] = w_im;
+          }
+          _fv_ti_eq_g5(_s);
+          _fv_eq_gamma_ti_fv(_t, nu, _s);
+          // real part
+          pimn[mu][nu] += _t[2*ia];
+        }
+      }
+    }
+
+    int z[4];
+    #pragma unroll
+    for (int rho = 0; rho < 4; ++rho) {
+      int zrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsw_arr[rho];
+      z[rho] = (zrho + global_geom_arr[rho]) % global_geom_arr[rho];
+    }
+    for (int sigma = 0; sigma < 4; ++sigma) {
+      for (int nu = 0; nu < 4; ++nu) {
+        for (int rho = 0; rho < 4; ++rho) {
+          // TODO: Better reduction strategy
+          atomicAdd_system(
+              &P1[(((rho * 4) + sigma) * 4 + nu) * Lmax + z[rho]],
+              pimn[sigma][nu]);
+        }
+      }
+    }
+
+    // TODO: P2, P3
+  }
+}
+
 /**
  * Top-level operations.
  */
@@ -524,6 +598,27 @@ void cu_4pt_contraction(
   ker_4pt_contraction<<<kernel_nblocks, kernel_nthreads>>>(
       d_kernel_sum, d_g_dzu, d_g_dzsu, fwd_src, fwd_y, iflavor, proc_coords,
       gsx, xunit, yv, kqed_t, global_geom, local_geom);
+}
+
+void cu_2p2_pieces(
+    double* d_P1, double* d_P2, double* d_P3, const double* fwd_y, int iflavor,
+    Coord proc_coords, Coord gsw, int n_y, Coord* ycoords, Pair xunit,
+    QED_kernel_temps kqed_t, Geom global_geom, Geom local_geom) {
+  size_t T = local_geom.T;
+  size_t LX = local_geom.LX;
+  size_t LY = local_geom.LY;
+  size_t LZ = local_geom.LZ;
+  size_t VOLUME = T * LX * LY * LZ;
+  size_t kernel_nthreads = CUDA_THREAD_DIM_1D;
+  size_t kernel_nblocks = (VOLUME + kernel_nthreads - 1) / kernel_nthreads;
+  int Lmax = 0;
+  if (global_geom.T >= Lmax) Lmax = global_geom.T;
+  if (global_geom.LX >= Lmax) Lmax = global_geom.LX;
+  if (global_geom.LY >= Lmax) Lmax = global_geom.LY;
+  if (global_geom.LZ >= Lmax) Lmax = global_geom.LZ;
+  ker_2p2_pieces<<<kernel_nblocks, kernel_nthreads>>>(
+      d_P1, d_P2, d_P3, fwd_y, iflavor, proc_coords, gsw, n_y, ycoords, xunit,
+      kqed_t, global_geom, local_geom, Lmax);
 }
 
 

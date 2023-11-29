@@ -251,26 +251,140 @@ inline void g5_gmu_prop(g_prop_t y, prop_t x, int iflavor, int mu, int ib, unsig
   // free(y_check);
   // free(x_check);
 }
-// inline l2c_t init_lexic2coords(int ** g_lexic2coords, unsigned VOLUME) {
-//   int* d_lexic2coords;
-//   checkCudaErrors(cudaMalloc((void**)&d_lexic2coords, 4*VOLUME*sizeof(int)));
-//   return d_lexic2coords;
-// }
-// inline void fini_lexic2coords(l2c_t* d_lexic2coords) {
-//   checkCudaErrors(cudaFree(*d_lexic2coords));
-//   *d_lexic2coords = NULL;
-// }
 
 /***********************************************************
  * gnu g5 D_y^+ g5 gmu U_y
  ***********************************************************/
 inline void compute_2p2_pieces(
     const prop_t fwd_y, double ***** P1, double ****** P2, double ****** P3,
-    const int* gsw, int iflavor, int io_proc, int n_y, int ** gsy,
+    const int* gsw, int iflavor, int io_proc, int n_y, int ** ycoords,
     const double xunit[2], double ** spinor_work, QED_kernel_temps kqed_t,
-    unsigned VOLUME, int Nconf)
-{
-  // TODO
+    unsigned VOLUME, int Nconf) {
+
+  struct timeval ta, tb;
+  
+#if _WITH_TIMER
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+
+  double* d_P1 = NULL;
+  double* d_P2 = NULL;
+  double* d_P3 = NULL;
+  const int Lmax = get_Lmax();
+  const size_t n_P1 = 4 * 4 * 4 * Lmax;
+  const size_t n_P2 = n_y * kernel_n * 4 * 4 * 4;
+  const size_t n_P3 = n_y * kernel_n * 4 * 4 * 4;
+  const size_t sizeof_P1 = n_P1 * sizeof(double);
+  const size_t sizeof_P2 = n_P2 * sizeof(double);
+  const size_t sizeof_P3 = n_P3 * sizeof(double);
+  checkCudaErrors(cudaMalloc((void**)&d_P1, sizeof_P1));
+  checkCudaErrors(cudaMalloc((void**)&d_P2, sizeof_P2));
+  checkCudaErrors(cudaMalloc((void**)&d_P3, sizeof_P3));
+  checkCudaErrors(cudaMemset(d_P1, 0, sizeof_P1));
+  checkCudaErrors(cudaMemset(d_P2, 0, sizeof_P2));
+  checkCudaErrors(cudaMemset(d_P3, 0, sizeof_P3));
+  
+  Coord d_proc_coords {
+    .t = g_proc_coords[0],
+    .x = g_proc_coords[1],
+    .y = g_proc_coords[2],
+    .z = g_proc_coords[3]
+  };
+  Geom local_geom { .T = T, .LX = LX, .LY = LY, .LZ = LZ };
+  Geom global_geom { .T = T_global, .LX = LX_global, .LY = LY_global, .LZ = LZ_global };
+  Coord d_gsw = { .t = gsw[0], .x = gsw[1], .y = gsw[2], .z = gsw[3] };
+  Pair d_xunit = { .a = xunit[0], .b = xunit[1] };
+  Coord* ycoords_structs = (Coord*)malloc(n_y*sizeof(Coord));
+  for ( int iy = 0; iy < n_y; iy++ )
+  {
+    ycoords_structs[iy].t = ycoords[iy][0];
+    ycoords_structs[iy].x = ycoords[iy][1];
+    ycoords_structs[iy].y = ycoords[iy][2];
+    ycoords_structs[iy].z = ycoords[iy][3];
+  }
+  Coord* d_ycoords = NULL;
+  checkCudaErrors(cudaMalloc((void**)&d_ycoords, n_y*sizeof(Coord)));
+  checkCudaErrors(cudaMemcpy(
+      (void*)d_ycoords, (const void*)ycoords_structs, n_y*sizeof(Coord), cudaMemcpyHostToDevice));
+  free(ycoords_structs);
+
+  cu_2p2_pieces(
+      d_P1, d_P2, d_P3, fwd_y, iflavor, d_proc_coords, d_gsw, n_y, d_ycoords,
+      d_xunit, kqed_t, global_geom, local_geom);
+
+  double* local_P1 = (double*)malloc(sizeof_P1);
+  double* local_P2 = (double*)malloc(sizeof_P2);
+  double* local_P3 = (double*)malloc(sizeof_P3);
+  double ***** all_P2 = init_5level_dtable ( n_y, kernel_n, 4, 4, 4 );
+  double ***** all_P3 = init_5level_dtable ( n_y, kernel_n, 4, 4, 4 );
+  if ( local_P1 == NULL || local_P2 == NULL || local_P3 == NULL ||
+       all_P2 == NULL || all_P3 == NULL )
+  {
+    fprintf ( stderr, "Error alloc local_P1,2,3 or all_P2,3\n" );
+    exit ( 57 );
+  }
+  
+  checkCudaErrors(cudaMemcpy(
+      (void*)local_P1, (const void*)d_P1, sizeof_P1, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(
+      (void*)local_P2, (const void*)d_P2, sizeof_P2, cudaMemcpyDeviceToHost));
+  checkCudaErrors(cudaMemcpy(
+      (void*)local_P3, (const void*)d_P3, sizeof_P3, cudaMemcpyDeviceToHost));
+
+  fprintf(stdout, "[DEBUG] rank %d iflavor %d t%dx%dy%dz%d local_P1[0..7] = %f %f %f %f %f %f %f %f\n",
+          g_cart_id, iflavor, gsw[0], gsw[1], gsw[2], gsw[3],
+          local_P1[0], local_P1[1], local_P1[2], local_P1[3],
+          local_P1[4], local_P1[5], local_P1[6], local_P1[7]);
+
+#ifdef HAVE_MPI
+  // TODO: just MPI_Reduce?
+  if ( MPI_Allreduce(local_P1, P1[iflavor][0][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+  if ( MPI_Allreduce(local_P2, all_P2[0][0][0][0], n_P2, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+  if ( MPI_Allreduce(local_P3, all_P3[0][0][0][0], n_P3, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+       != MPI_SUCCESS ) {
+    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
+  }
+#else
+  memcpy((void*)P1[iflavor][0][0][0], (void*)local_P1, sizeof_P1);
+  memcpy((void*)all_P2[0][0][0][0], (void*)local_P2, sizeof_P2);
+  memcpy((void*)all_P3[0][0][0][0], (void*)local_P3, sizeof_P3);
+#endif
+
+  // interleave data into output array
+  for ( int yi = 0; yi < n_y; yi++ )
+  {
+    for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
+    {
+      memcpy(
+          (void*)P2[yi][ikernel][iflavor][0][0],
+          (void*)all_P2[yi][ikernel][0][0], sizeof(double)*4*4*4);
+      memcpy(
+          (void*)P3[yi][ikernel][iflavor][0][0],
+          (void*)all_P3[yi][ikernel][0][0], sizeof(double)*4*4*4);
+    }
+  }
+
+  free(local_P1);
+  free(local_P2);
+  free(local_P3);
+  fini_5level_dtable ( &all_P2 );
+  fini_5level_dtable ( &all_P3 );
+
+  checkCudaErrors(cudaFree(d_P1));
+  checkCudaErrors(cudaFree(d_P2));
+  checkCudaErrors(cudaFree(d_P3));
+  checkCudaErrors(cudaFree(d_ycoords));
+
+#if _WITH_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "2+2 pieces", io_proc == 2 );
+#endif
 }
 
 
