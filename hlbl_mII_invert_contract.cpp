@@ -102,6 +102,19 @@ const char * KQED_NAME[kernel_n] = {
   "L3", "LLambda0.4"
 };
 
+/***********************************************************
+ * max lattice side length
+ ***********************************************************/
+inline int get_Lmax()
+{
+  int Lmax = 0;
+  if ( T_global >= Lmax ) Lmax = T_global;
+  if ( LX_global >= Lmax ) Lmax = LX_global;
+  if ( LY_global >= Lmax ) Lmax = LY_global;
+  if ( LZ_global >= Lmax ) Lmax = LZ_global;
+  return Lmax;
+}
+
 
 /***********************************************************
  * x must be in { 0, ..., L-1 }
@@ -538,25 +551,15 @@ inline void compute_2p2_pieces(
    * P1_{rsn}(zeta)
    *   = sum_z delta(z_r - zeta) Pi_{sn}(z)
    ***********************************************************/
-  int Lmax = 0;
-  if ( T_global >= Lmax ) Lmax = T_global;
-  if ( LX_global >= Lmax ) Lmax = LX_global;
-  if ( LY_global >= Lmax ) Lmax = LY_global;
-  if ( LZ_global >= Lmax ) Lmax = LZ_global;
-  int n_P1 = 4 * 4 * Lmax;
-  double *** local_P1t = init_3level_dtable ( 4, 4, Lmax );
-  double *** local_P1x = init_3level_dtable ( 4, 4, Lmax );
-  double *** local_P1y = init_3level_dtable ( 4, 4, Lmax );
-  double *** local_P1z = init_3level_dtable ( 4, 4, Lmax );
-  if ( local_P1t == NULL || local_P1x == NULL || local_P1y == NULL || local_P1z == NULL )
+  const int Lmax = get_Lmax();
+  const int n_P1 = 4 * 4 * 4 * Lmax;
+  double **** local_P1 = init_4level_dtable ( 4, 4, 4, Lmax );
+  if ( local_P1 == NULL )
   {
     fprintf ( stderr, "Error alloc local_P1\n" );
     exit ( 57 );
   }
-  memset((void*)local_P1t[0][0], 0, sizeof(double)*n_P1);
-  memset((void*)local_P1x[0][0], 0, sizeof(double)*n_P1);
-  memset((void*)local_P1y[0][0], 0, sizeof(double)*n_P1);
-  memset((void*)local_P1z[0][0], 0, sizeof(double)*n_P1);
+  memset((void*)local_P1[0][0][0], 0, sizeof(double)*n_P1);
   for ( int sigma = 0; sigma < 4; sigma++ )
   {
     for ( int nu = 0; nu < 4; nu++ )
@@ -569,47 +572,29 @@ inline void compute_2p2_pieces(
           ( g_lexic2coords[iz][1] + g_proc_coords[1] * LX - gsw[1] + LX_global ) % LX_global,
           ( g_lexic2coords[iz][2] + g_proc_coords[2] * LY - gsw[2] + LY_global ) % LY_global,
           ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsw[3] + LZ_global ) % LZ_global };
-        local_P1t[sigma][nu][z[0]] += pimn[sigma][nu][iz];
-        local_P1x[sigma][nu][z[1]] += pimn[sigma][nu][iz];
-        local_P1y[sigma][nu][z[2]] += pimn[sigma][nu][iz];
-        local_P1z[sigma][nu][z[3]] += pimn[sigma][nu][iz];
+        for ( int rho = 0; rho < 4; rho++ )
+        {
+          local_P1[rho][sigma][nu][z[rho]] += pimn[sigma][nu][iz];
+        }
       }
     }
   }
 
 #ifdef HAVE_MPI
   // TODO: just MPI_Reduce?
-  if ( MPI_Allreduce(local_P1t[0][0], P1[iflavor][0][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
-       != MPI_SUCCESS ) {
-    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
-  }
-  if ( MPI_Allreduce(local_P1x[0][0], P1[iflavor][1][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
-       != MPI_SUCCESS ) {
-    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
-  }
-  if ( MPI_Allreduce(local_P1y[0][0], P1[iflavor][2][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
-       != MPI_SUCCESS ) {
-    if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
-  }
-  if ( MPI_Allreduce(local_P1z[0][0], P1[iflavor][3][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
+  if ( MPI_Allreduce(local_P1[0][0][0], P1[iflavor][0][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
        != MPI_SUCCESS ) {
     if ( g_cart_id == 0 ) fprintf ( stderr, "[] Error from MPI_Allreduce %s %d\n", __FILE__, __LINE__ );
   }
 #else
-  memcpy((void*)P1[iflavor][0][0][0], (void*)local_P1t[0][0], sizeof(double)*n_P1);
-  memcpy((void*)P1[iflavor][1][0][0], (void*)local_P1x[0][0], sizeof(double)*n_P1);
-  memcpy((void*)P1[iflavor][2][0][0], (void*)local_P1y[0][0], sizeof(double)*n_P1);
-  memcpy((void*)P1[iflavor][3][0][0], (void*)local_P1z[0][0], sizeof(double)*n_P1);
+  memcpy((void*)P1[iflavor][0][0][0], (void*)local_P1[0][0][0], sizeof(double)*n_P1);
 #endif
 
-  fini_3level_dtable ( &local_P1t );
-  fini_3level_dtable ( &local_P1x );
-  fini_3level_dtable ( &local_P1y );
-  fini_3level_dtable ( &local_P1z );
+  fini_4level_dtable ( &local_P1 );
 
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "P1", io_proc == 2 );
+  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "2+2 pieces (P1)", io_proc == 2 );
 #endif
 
 #if _WITH_TIMER
@@ -731,6 +716,7 @@ inline void compute_2p2_pieces(
   memcpy((void*)all_P3[0][0][0][0], (void*)local_P3[0][0][0][0], sizeof(double)*n_P3);
 #endif
 
+  // interleave data into output array
   for ( int yi = 0; yi < n_y; yi++ )
   {
     for ( int ikernel = 0; ikernel < kernel_n; ikernel++ )
@@ -751,7 +737,7 @@ inline void compute_2p2_pieces(
 
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
-  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "P2-P3", io_proc == 2 );
+  show_time ( &ta, &tb, "hlbl_mII_invert_contract", "2+2 pieces (P2-P3)", io_proc == 2 );
 #endif
 
   fini_twopt ( &pimn );
@@ -930,8 +916,6 @@ inline void compute_4pt_contraction(
                  g_proc_coords[1]*LX + g_lexic2coords[ix][1],
                  g_proc_coords[2]*LY + g_lexic2coords[ix][2],
                  g_proc_coords[3]*LZ + g_lexic2coords[ix][3] };
-
-    unsigned int rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
 
     x[0] = ( x[0] - gsx[0] + T_global  ) % T_global;
     x[1] = ( x[1] - gsx[1] + LX_global ) % LX_global;
@@ -1134,6 +1118,8 @@ inline void compute_4pt_contraction(
 #if 0
 #pragma omp critical
       {
+        unsigned int rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
+
         for ( int mu = 0; mu < 4; mu++ )
         {
           for ( int nu = 0; nu < 4; nu++ )
@@ -1172,6 +1158,8 @@ inline void compute_4pt_contraction(
      ***********************************************************/
 #pragma omp critical
     {
+      unsigned int rank = ( ( x[0] * LX_global + x[1] ) * LY_global + x[2] ) * LZ_global + x[3];
+
       for ( int mu = 0; mu < 4; mu++ )
       {
         for ( int nu = 0; nu < 4; nu++ )
@@ -1518,12 +1506,7 @@ int main(int argc, char **argv) {
   /***********************************************************
    * P1_{rho,sigma,nu}
    ***********************************************************/
-  int Lmax = 0;
-  if ( T_global >= Lmax ) Lmax = T_global;
-  if ( LX_global >= Lmax ) Lmax = LX_global;
-  if ( LY_global >= Lmax ) Lmax = LY_global;
-  if ( LZ_global >= Lmax ) Lmax = LZ_global;
-
+  const int Lmax = get_Lmax();
   double ***** P1 = init_5level_dtable ( 2, 4, 4, 4, Lmax );
   if ( P1 == NULL )
   {
