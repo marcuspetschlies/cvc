@@ -121,6 +121,9 @@ __global__ void ker_g5_phi(double* spinor, size_t len) {
   }
 }
 
+/**
+ * Wrap coords to [-L/2, L/2]. Assumes inputs are in [0, ..., L-1]
+ */
 __device__ int coord_map(int xi, int Li) {
   return (xi >= Li / 2) ? (xi - Li) : xi;
 }
@@ -461,7 +464,7 @@ __global__
 void ker_2p2_pieces(
     double* _RESTR P1, double* _RESTR P2, double* _RESTR P3,
     const double* _RESTR fwd_y, int iflavor, Coord g_proc_coords,
-    Coord gsw, int n_y, Coord* ycoords, Pair xunit, QED_kernel_temps kqed_t,
+    Coord gsw, int n_y, Coord* gycoords, Pair xunit, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom, int Lmax) {
   int gsw_arr[4] = {gsw.t, gsw.x, gsw.y, gsw.z};
   size_t VOLUME = local_geom.T * local_geom.LX * local_geom.LY * local_geom.LZ;
@@ -516,10 +519,10 @@ void ker_2p2_pieces(
       int zrho = coord_arr[rho] + proc_coord_arr[rho] * local_geom_arr[rho] - gsw_arr[rho];
       z[rho] = (zrho + global_geom_arr[rho]) % global_geom_arr[rho];
     }
+    // reduce (TODO faster reduce algo?)
     for (int sigma = 0; sigma < 4; ++sigma) {
       for (int nu = 0; nu < 4; ++nu) {
         for (int rho = 0; rho < 4; ++rho) {
-          // TODO: Better reduction strategy
           atomicAdd_system(
               &P1[(((rho * 4) + sigma) * 4 + nu) * Lmax + z[rho]],
               pimn[sigma][nu]);
@@ -528,8 +531,16 @@ void ker_2p2_pieces(
     }
 
     for (int yi = 0; yi < n_y; yi++) {
-      // TODO: clear kerv
-      int const y[4] = { ycoords[yi].t, ycoords[yi].x, ycoords[yi].y, ycoords[yi].z };
+      // For P2: y = (gsy - gsw)
+      // For P3: y = (gsw - gsy)
+      // We define y = (gsy - gsw) and use -y as input for P3.
+      int const gsy_arr[4] = { gycoords[yi].t, gycoords[yi].x, gycoords[yi].y, gycoords[yi].z };
+      int const y[4] = {
+        (gsy_arr[0] - gsw_arr[0] + global_geom_arr[0]) % global_geom_arr[0],
+        (gsy_arr[1] - gsw_arr[1] + global_geom_arr[1]) % global_geom_arr[1],
+        (gsy_arr[2] - gsw_arr[2] + global_geom_arr[2]) % global_geom_arr[2],
+        (gsy_arr[3] - gsw_arr[3] + global_geom_arr[3]) % global_geom_arr[3]
+      };
       int const yv[4] = {
         coord_map_zerohalf(y[0], global_geom.T),
         coord_map_zerohalf(y[1], global_geom.LX),
@@ -541,6 +552,11 @@ void ker_2p2_pieces(
         yv[1] * xunit.a,
         yv[2] * xunit.a,
         yv[3] * xunit.a };
+      double const ym_minus[4] = {
+        -yv[0] * xunit.a,
+        -yv[1] * xunit.a,
+        -yv[2] * xunit.a,
+        -yv[3] * xunit.a };
       
       int const xv[4] = {
         coord_map_zerohalf(z[0], global_geom_arr[0]),
@@ -555,23 +571,23 @@ void ker_2p2_pieces(
         xv[3] * xunit.a };
         
 
-      int const x_pl_y[4] = {
-        z[0] + y[0],
-        z[1] + y[1],
-        z[2] + y[2],
-        z[3] + y[3]
+      int const x_mi_y[4] = {
+        (z[0] - y[0] + global_geom_arr[0]) % global_geom_arr[0],
+        (z[1] - y[1] + global_geom_arr[1]) % global_geom_arr[1],
+        (z[2] - y[2] + global_geom_arr[2]) % global_geom_arr[2],
+        (z[3] - y[3] + global_geom_arr[2]) % global_geom_arr[3]
       };
-      int xv_pl_yv[4] = {
-        coord_map_zerohalf(x_pl_y[0], global_geom_arr[0]),
-        coord_map_zerohalf(x_pl_y[1], global_geom_arr[1]),
-        coord_map_zerohalf(x_pl_y[2], global_geom_arr[2]),
-        coord_map_zerohalf(x_pl_y[3], global_geom_arr[3])
+      int xv_mi_yv[4] = {
+        coord_map_zerohalf(x_mi_y[0], global_geom_arr[0]),
+        coord_map_zerohalf(x_mi_y[1], global_geom_arr[1]),
+        coord_map_zerohalf(x_mi_y[2], global_geom_arr[2]),
+        coord_map_zerohalf(x_mi_y[3], global_geom_arr[3])
       };
-      double const xm_pl_ym[4] = {
-        xv_pl_yv[0] * xunit.a,
-        xv_pl_yv[1] * xunit.a,
-        xv_pl_yv[2] * xunit.a,
-        xv_pl_yv[3] * xunit.a
+      double const xm_mi_ym[4] = {
+        xv_mi_yv[0] * xunit.a,
+        xv_mi_yv[1] * xunit.a,
+        xv_mi_yv[2] * xunit.a,
+        xv_mi_yv[3] * xunit.a
       };
 
       for (int ikernel = 0; ikernel < CUDA_N_QED_KERNEL; ++ikernel) {
@@ -585,26 +601,24 @@ void ker_2p2_pieces(
             local_P2[rho][sigma][nu] = 0.0;
             for ( int mu = 0; mu < 4; mu++ ) {
               for ( int lambda = 0; lambda < 4; lambda++ ) {
-                // kerv[k][mu][nu][lambda] += (xm[k]-ym[nu])*pimn[mu][lambda];
                 local_P2[rho][sigma][nu] += kerv[k][mu][nu][lambda] * pimn[mu][lambda];
               }
             }
           }
         }
-        KQED_LX( ikernel, ym, xm,       kqed_t, kerv );
+        KQED_LX( ikernel, ym, xm, kqed_t, kerv );
         for( int k = 0; k < 6; k++ ) {
           int const rho = idx_comb.comb[k][0];
           int const sigma = idx_comb.comb[k][1];
           for ( int mu = 0; mu < 4; mu++ ) {
             for ( int nu = 0; nu < 4; nu++ ) {
               for ( int lambda = 0; lambda < 4; lambda++ ) {
-                // kerv[k][mu][nu][lambda] += (ym[k]-xm[nu])*pimn[mu][lambda];
                 local_P2[rho][sigma][nu] += kerv[k][nu][mu][lambda] * pimn[mu][lambda];
               }
             }
           }
         }
-        KQED_LX( ikernel, xm_pl_ym, ym, kqed_t, kerv );
+        KQED_LX( ikernel, xm_mi_ym, ym_minus, kqed_t, kerv );
         for( int k = 0; k < 6; k++ ) {
           int const rho = idx_comb.comb[k][0];
           int const sigma = idx_comb.comb[k][1];
@@ -612,13 +626,13 @@ void ker_2p2_pieces(
             local_P3[rho][sigma][nu] = 0.0;
             for ( int mu = 0; mu < 4; mu++ ) {
               for ( int lambda = 0; lambda < 4; lambda++ ) {
-                // kerv[k][mu][nu][lambda] += (xm_pl_ym[k]*ym[nu])*pimn[mu][lambda];
                 local_P3[rho][sigma][nu] += kerv[k][mu][lambda][nu] * pimn[mu][lambda];
               }
             }
           }
         }
 
+        // reduce (TODO faster reduce algo?)
         for (int rho = 0; rho < 4; ++rho) {
           for (int sigma = 0; sigma < 4; ++sigma) {
             for (int nu = 0; nu < 4; ++nu) {
@@ -708,7 +722,7 @@ void cu_4pt_contraction(
 
 void cu_2p2_pieces(
     double* d_P1, double* d_P2, double* d_P3, const double* fwd_y, int iflavor,
-    Coord proc_coords, Coord gsw, int n_y, Coord* ycoords, Pair xunit,
+    Coord proc_coords, Coord gsw, int n_y, Coord* d_ycoords, Pair xunit,
     QED_kernel_temps kqed_t, Geom global_geom, Geom local_geom) {
   size_t T = local_geom.T;
   size_t LX = local_geom.LX;
@@ -723,7 +737,7 @@ void cu_2p2_pieces(
   if (global_geom.LY >= Lmax) Lmax = global_geom.LY;
   if (global_geom.LZ >= Lmax) Lmax = global_geom.LZ;
   ker_2p2_pieces<<<kernel_nblocks, kernel_nthreads>>>(
-      d_P1, d_P2, d_P3, fwd_y, iflavor, proc_coords, gsw, n_y, ycoords, xunit,
+      d_P1, d_P2, d_P3, fwd_y, iflavor, proc_coords, gsw, n_y, d_ycoords, xunit,
       kqed_t, global_geom, local_geom, Lmax);
 }
 

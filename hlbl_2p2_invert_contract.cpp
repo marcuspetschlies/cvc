@@ -639,7 +639,12 @@ int main(int argc, char **argv) {
 
       // Updated to apply site_map_zerohalf to y = src2 - src
       // and to compute y_minus = src - src2
-      int const y[4] = { csx[0] - gsx[0], csx[1] - gsx[1], csx[2] - gsx[2], csx[3] - gsx[3] };
+      int const y[4] = {
+        (csx[0] - gsx[0] + T_global) % T_global,
+        (csx[1] - gsx[1] + LX_global) % LX_global,
+        (csx[2] - gsx[2] + LY_global) % LY_global,
+        (csx[3] - gsx[3] + LZ_global) % LZ_global
+      };
       int yv[4];
       site_map_zerohalf(yv, y);
 
@@ -692,10 +697,11 @@ int main(int argc, char **argv) {
 
             // Updated to also compute x - y
             int const x_mi_y[4] = {
-              x[0] - y[0],
-              x[1] - y[1],
-              x[2] - y[2],
-              x[3] - y[3] };
+              (x[0] - y[0] + T_global) % T_global,
+              (x[1] - y[1] + LX_global) % LX_global,
+              (x[2] - y[2] + LY_global) % LY_global,
+              (x[3] - y[3] + LZ_global) % LZ_global
+            };
 
             int xv_mi_yv[4];
             site_map_zerohalf ( xv_mi_yv, x_mi_y );
