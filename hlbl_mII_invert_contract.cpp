@@ -1710,6 +1710,12 @@ int main(int argc, char **argv) {
     }
 
 
+    if ( g_cart_id == 0 )
+    {
+      fprintf(stdout, "[hlbl_mII_invert_contract] Running source = %d,%d,%d,%d\n",
+              gsx[0], gsx[1], gsx[2], gsx[3]);
+    }
+    
     /***********************************************************
      * local kernel sum
      ***********************************************************/
@@ -1808,6 +1814,13 @@ int main(int argc, char **argv) {
       gsy[2] = ( iy * ydir * yvec[2] + gsx[2] + LY_global ) % LY_global;
       gsy[3] = ( iy * ydir * yvec[3] + gsx[3] + LZ_global ) % LZ_global;
 
+      if ( g_cart_id == 0 )
+      {
+        fprintf(stdout, "[hlbl_mII_invert_contract] Running y point = %d,%d,%d,%d\n",
+                gsy[0], gsy[1], gsy[2], gsy[3]);
+      }
+      
+
       int source_proc_id_y = -1;
       exitstatus = get_point_source_info (gsy, sy, &source_proc_id_y);
       if( exitstatus != 0 ) {
@@ -1892,10 +1905,11 @@ int main(int argc, char **argv) {
       /***********************************************************
        * 2+2 pieces (P1, P2, P3) per source y and target yp
        ***********************************************************/
-      {
-        // Two-point function is identical between TM flavors, so only use one
-        // TODO: remove iflavor index from P1, P2, P3
-        int iflavor = 0;
+      // Two-point function is identical between TM flavors, so only use one
+      // TODO: remove iflavor index from P1, P2, P3
+      // NOTE: need to move block to function for convenient control flow if
+      // we remove the iflavor loop.
+      for ( int iflavor = 0; iflavor <= 0; iflavor++ ) {
         int ipair = -1;
         for ( int jpair = 0; jpair < g_source_pair_tgt_number; jpair++ )
         {
@@ -1908,6 +1922,13 @@ int main(int argc, char **argv) {
             break;
           }
         }
+        if ( ipair == -1 )
+        {
+          fprintf(stdout, "[hlbl_mII_invert_contract] no yp targets for this coord, "
+                  "skipping 2+2 pieces\n");
+          break;
+        }
+        
         int n_yp = g_source_pair_targets_number[ipair];
         const int * gyp = (const int*) g_source_pair_targets_list[ipair];
         P2 = init_6level_dtable ( n_yp, kernel_n, 2, 4, 4, 4 );
