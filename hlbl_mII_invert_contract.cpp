@@ -313,11 +313,6 @@ inline void compute_2p2_pieces(
   checkCudaErrors(cudaMemcpy(
       (void*)local_P3, (const void*)d_P3, sizeof_P3, cudaMemcpyDeviceToHost));
 
-  fprintf(stdout, "[DEBUG] rank %d iflavor %d t%dx%dy%dz%d local_P1[0..7] = %f %f %f %f %f %f %f %f\n",
-          g_cart_id, iflavor, gsw[0], gsw[1], gsw[2], gsw[3],
-          local_P1[0], local_P1[1], local_P1[2], local_P1[3],
-          local_P1[4], local_P1[5], local_P1[6], local_P1[7]);
-
 #ifdef HAVE_MPI
   // TODO: just MPI_Reduce?
   if ( MPI_Allreduce(local_P1, P1[iflavor][0][0][0], n_P1, MPI_DOUBLE, MPI_SUM, g_cart_grid)
@@ -362,6 +357,11 @@ inline void compute_2p2_pieces(
   checkCudaErrors(cudaFree(d_P2));
   checkCudaErrors(cudaFree(d_P3));
   checkCudaErrors(cudaFree(d_gycoords));
+
+  if ( g_cart_id == 0 )
+  {
+    fprintf ( stdout, "[hlbl_mII_invert_contract] Finished 2+2 pieces for n_y = %d other y points\n", n_y );
+  }
 
 #if _WITH_TIMER
   gettimeofday ( &tb, (struct timezone *)NULL );
