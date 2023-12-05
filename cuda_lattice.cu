@@ -484,6 +484,35 @@ void ker_2p2_pieces(
     for (int nu = 0; nu < 4; ++nu) {
       for (int mu = 0; mu < 4; ++mu) {
         pimn[mu][nu] = 0.0;
+        // V2: Sparse summation using properties of gamma matrices
+        for (int ib = 0; ib < 12; ++ib) {
+          int ia = (gamma_permutation[nu][2*ib]) / 2;
+          int sign_re = ((ib >= 6) ? -1 : 1) * gamma_sign[nu][2*ib];
+          int sign_im = ((ib >= 6) ? -1 : 1) * gamma_sign[nu][2*ib+1];
+          bool re_im_swap = gamma_permutation[nu][2*ib] % 2 == 1;
+          
+          const double* _u = &fwd_y[(iflavor * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
+          double* _t = spinor_work_0;
+          _fv_eq_gamma_ti_fv(_t, mu, _u);
+          _fv_ti_eq_g5(_t);
+
+          const double* _d = &fwd_y[((1-iflavor) * 12 + ib) * _GSI(VOLUME) + _GSI(ix)];
+          for (int i = 0; i < 12; ++i) {
+            const double _t_re = _t[2*i];
+            const double _t_im = _t[2*i+1];
+            const double _d_re = _d[2*i];
+            const double _d_im = _d[2*i+1];
+            if (!re_im_swap) {
+              pimn[mu][nu] += sign_re * (_d_re * _t_re + _d_im * _t_im);
+            }
+            else {
+              pimn[mu][nu] += sign_im * (_d_re * _t_im - _d_im * _t_re);
+            }
+          }
+        }
+        
+        // V1: Direct loop and trace
+        /*
         for (int ia = 0; ia < 12; ++ia) {
           const double* _u = &fwd_y[(iflavor * 12 + ia) * _GSI(VOLUME) + _GSI(ix)];
           double* _t = spinor_work_0;
@@ -510,6 +539,7 @@ void ker_2p2_pieces(
           // real part
           pimn[mu][nu] += _t[2*ia];
         }
+        */
       }
     }
 
