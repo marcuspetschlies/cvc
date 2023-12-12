@@ -243,7 +243,7 @@ inline void compute_2p2_pieces(
     const double xunit[2], double ** spinor_work, QED_kernel_temps kqed_t,
     unsigned VOLUME, int Nconf) {
 
-  struct timeval ta, tb;
+  struct timeval ta, tb, ta2, tb2;
   
 #if _WITH_TIMER
   gettimeofday ( &ta, (struct timezone *)NULL );
@@ -290,9 +290,20 @@ inline void compute_2p2_pieces(
       (void*)d_gycoords, (const void*)gycoords_structs, n_y*sizeof(Coord), cudaMemcpyHostToDevice));
   free(gycoords_structs);
 
+#if _WITH_TIMER
+  gettimeofday ( &ta2, (struct timezone *)NULL );
+#endif
+
   cu_2p2_pieces(
       d_P1, d_P2, d_P3, fwd_y, iflavor, d_proc_coords, d_gsw, n_y, d_gycoords,
       d_xunit, kqed_t, global_geom, local_geom);
+
+#if _WITH_TIMER
+  checkCudaErrors(cudaDeviceSynchronize());
+  gettimeofday ( &tb2, (struct timezone *)NULL );
+  show_time ( &ta2, &tb2, "hlbl_mII_invert_contract", "2+2 pieces kernel", io_proc == 2 );
+#endif
+
 
   double* local_P1 = (double*)malloc(sizeof_P1);
   double* local_P2 = (double*)malloc(sizeof_P2);
