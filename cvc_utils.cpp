@@ -6093,7 +6093,8 @@ int fermion_propagator_field_tm_rotation(fermion_propagator_type *s, fermion_pro
  *
  * safe, if s = r
  ***************************************************/
-int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, unsigned int N) {
+int spinor_field_tm_rotation ( double * const s, double * const r, int const sign, int const fermion_type, unsigned int const N) 
+{
 
   const double norm = 1. / sqrt(2.);
 
@@ -6102,13 +6103,12 @@ int spinor_field_tm_rotation(double*s, double*r, int sign, int fermion_type, uns
 #pragma omp parallel
 {
 #endif
-    unsigned int ix;
     double sp1[_GSI(1)], sp2[_GSI(1)], *s_, *r_;
   
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-    for(ix=0; ix<N; ix++) {
+    for ( unsigned int ix=0; ix<N; ix++) {
 
       s_ = s + _GSI(ix);
       r_ = r + _GSI(ix);
