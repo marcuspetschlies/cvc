@@ -939,8 +939,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp for
 #endif
-      /* for ( unsigned int ix = 0; ix < VOLUME; ix++ ) */
-      for ( unsigned int ix = 2; ix < 3; ix++ )
+      for ( unsigned int ix = 0; ix < VOLUME; ix++ )
       {
         
 
@@ -1108,9 +1107,9 @@ int main(int argc, char **argv) {
 
 
         pm_print ( aux2[0], "pDp_s_u_tsu", ofs );
-        pm_print ( aux2[0], "pDp_p_u_tpu", ofs );
-        pm_print ( aux2[0], "pDp_v_u_tvu", ofs );
-        pm_print ( aux2[0], "pDp_a_u_tau", ofs );
+        pm_print ( aux2[1], "pDp_p_u_tpu", ofs );
+        pm_print ( aux2[2], "pDp_v_u_tvu", ofs );
+        pm_print ( aux2[3], "pDp_a_u_tau", ofs );
 
         /* END */
 #endif
@@ -1176,6 +1175,7 @@ int main(int argc, char **argv) {
         pm_eq_gamma_ti_pm_dag ( pm, &(gamma_p[0]), gdg );
         pm_eq_pm_ti_pm ( pm2, up, pm );
         pm_eq_gamma_ti_pm ( pm, &(gamma_p[0]), pm2 );
+        // pm_eq_pm_ti_pm_dag ( pm, up, dn );
         corr[it][16] += co_eq_tr_pm ( pm );
 
         /* Tr [ Id U Id g5 D^+ g5 ] */
