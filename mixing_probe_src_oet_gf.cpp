@@ -76,9 +76,9 @@ extern "C"
 
 #define MAX_NUM_GF_NSTEP 100
 
-#define _USE_STOCHASTIC_OET 0
+#define _USE_STOCHASTIC_OET 1
 
-#define _USE_POINT_SOURCE 1
+#define _USE_POINT_SOURCE 0
 
 #if _USE_POINT_SOURCE
 #warning "using point-source method"
@@ -811,8 +811,7 @@ int main(int argc, char **argv) {
      ***************************************************************************/
     double dts;
     ranlxd ( &dts , 1 );
-    // int gts = (int)(dts * T_global);
-    int gts = g_source_coords_list[isample][0];
+    int gts = (int)(dts * T_global);
 
 #ifdef HAVE_MPI
     if (  MPI_Bcast( &gts, 1, MPI_INT, 0, g_cart_grid ) != MPI_SUCCESS ) {
