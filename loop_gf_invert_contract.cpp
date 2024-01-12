@@ -37,7 +37,7 @@ extern "C"
 
 #define MAIN_PROGRAM
 
-#include "cvc_complex.h"
+// #include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -539,13 +539,13 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  gf_nstep = 3;
+  gf_nstep = 1;
   gf_niter_list[0] = 0;
-  gf_niter_list[1] = 3;
-  gf_niter_list[2] = 3;
+//  gf_niter_list[1] = 3;
+//  gf_niter_list[2] = 3;
   gf_dt_list[0] = 0.01;
-  gf_dt_list[1] = 0.01;
-  gf_dt_list[2] = 0.01;
+//  gf_dt_list[1] = 0.01;
+//  gf_dt_list[2] = 0.01;
 
 
   /***************************************************************************
@@ -597,6 +597,7 @@ int main(int argc, char **argv) {
 
           memset ( spinor_work[0], 0, sizeof_spinor_field );
           memset ( spinor_work[1], 0, sizeof_spinor_field );
+          memset ( spinor_work[2], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
           if ( timeslice / T == g_proc_coords[0] ) {
@@ -624,16 +625,14 @@ int main(int argc, char **argv) {
             spinor_work[0][ iy + 1] = scalar_field[isample][ 2 * ix + 1 ];
           }
 #endif
+
           /* tm-rotate stochastic propagator at source, in-place */
           if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
+            spinor_field_tm_rotation(spinor_work[2], spinor_work[0], 1, g_fermion_type, VOLUME);
           }
 
-	  /* keep a copy of the sources field to later check of residual */
-          memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
-
           /* call to (external/dummy) inverter / solver */
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[2], _OP_ID_UP );
 #  if ( defined GPU_DIRECT_SOLVER )
           if(exitstatus < 0)
 #  else
@@ -653,7 +652,6 @@ int main(int argc, char **argv) {
             spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
           }
 
- 
      	  /***************************************************************************
           '* (re-)set gauge field to flowtime zero
      	   ***************************************************************************/
@@ -679,6 +677,7 @@ int main(int argc, char **argv) {
  
             if ( gf_dtau > 0. )
 	    {
+              if ( g_cart_id == 0 ) fprintf(stdout, "# [loop_gf_invert_contract] GF for dtau = %e\n", gf_dtau );
               gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef _GFLOW_QUDA
               QudaGaugeSmearParam smear_param;
@@ -737,6 +736,10 @@ int main(int argc, char **argv) {
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
 
+            } else {
+
+              if ( g_cart_id == 0 ) fprintf(stdout, "# [loop_gf_invert_contract] no GF\n" );
+
 	    }  /* end of if do any flow */
 
             /***************************************************************************
@@ -757,17 +760,19 @@ int main(int argc, char **argv) {
 
               for ( int ksc = 0; ksc < 12; ksc++ ) 
               {
-                for ( int lsc = 0; lsc < 12; lsc++ ) {
- 
-                  loop[igf][ix][ksc][lsc] +=
-                      /* 
-                       * complex conjugate of source vector element 
-                       */
-                        ( spinor_work[0][ iy + 2 * lsc ] - I * spinor_work[0][ iy + 2 * lsc + 1] )
-                        /* 
-                         * times prop vector element
-                         */
-                      * ( spinor_work[1][ iy + 2 * ksc ] + I * spinor_work[1][ iy + 2 * ksc + 1 ] );
+                /* 
+                 * times prop vector element
+                 */
+                double _Complex const a = spinor_work[1][ iy + 2 * ksc ] + I * spinor_work[1][ iy + 2 * ksc + 1 ];
+
+                for ( int lsc = 0; lsc < 12; lsc++ ) 
+                {
+                 /* 
+                  * complex conjugate of source vector element 
+                  */
+                  double _Complex const b = spinor_work[0][ iy + 2 * lsc ] - I * spinor_work[0][ iy + 2 * lsc + 1];
+
+                  loop[igf][ix][ksc][lsc] += a * b;
                   }
                 }
               }  /* end of loop on volume */
@@ -776,6 +781,11 @@ int main(int argc, char **argv) {
              show_time ( &ta, &tb, "loop_gf_invert_contract", "loop-matrix-accumulate", g_cart_id == 0 );
 
           }  /* end of loop on GF steps  */
+
+#if defined _GFLOW_CVC
+          flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0, 0, 0, 0 );
+#endif
+
 
         }  /* end of loop on color dilution component */
 
