@@ -775,12 +775,12 @@ int main(int argc, char **argv) {
    * TEST choice of gf iterations and discretization
    *
    ***************************************************************************/
-  gf_nstep = 1;
+  gf_nstep = 2;
   gf_niter_list[0] = 0;
-  //gf_niter_list[1] = 3;
+  gf_niter_list[1] = 3;
   //gf_niter_list[2] = 3;
   gf_dt_list[0] = 0.01;
-  //gf_dt_list[1] = 0.01;
+  gf_dt_list[1] = 0.01;
   //gf_dt_list[2] = 0.01;
 
 
@@ -1067,14 +1067,6 @@ int main(int argc, char **argv) {
       double const gf_dtau = gf_niter * gf_dt;
       gf_tau += gf_dtau;
 
-      sprintf ( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, g_nsample, gf_tau );
-        
-      exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 144, 0 );
-      if ( exitstatus != 0  ) {
-        fprintf ( stderr, "[loop_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(12);
-      }
-
       /***********************************************************
        * Gradient flow parameters
        ***********************************************************/
@@ -1128,293 +1120,298 @@ int main(int argc, char **argv) {
       /***************************************************************************/
       /***************************************************************************/
 
-      /***************************************************************************
-       * loop on flavor combinations for 4q-mx correlators;
-       *
-       * up-type is enough
-       *
-       * for dn, the loop would need to be treated as g5 loop-up^+ g5
-       ***************************************************************************/
-      for ( int iflavor = 0; iflavor < 1; iflavor++ )
+      for ( int iloop_sample = 0; iloop_sample < g_nsample; iloop_sample++ )
       {
+        sprintf ( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, iloop_sample, gf_tau );
+        
+        exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 144, 0 );
+        if ( exitstatus != 0  ) {
+          fprintf ( stderr, "[loop_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(12);
+        }
 
-        /***********************************************************/
-        /***********************************************************/
-
-        for ( int igamma = 0; igamma < 2; igamma++ )
+        /***************************************************************************
+         * loop on flavor combinations for 4q-mx correlators;
+         *
+         * up-type is enough
+         *
+         * for dn, the loop would need to be treated as g5 loop-up^+ g5
+         ***************************************************************************/
+        for ( int iflavor = 0; iflavor < 1; iflavor++ )
         {
+          /***********************************************************/
+          /***********************************************************/
 
-          /***********************************************************
-           ***********************************************************
-           **
-           ** B diagrams
-           **
-           ***********************************************************
-           ***********************************************************/
-
-          /***********************************************************
-           * qb: build gamma_mu L gamma_mu
-           ***********************************************************/
-          qb_b_glg ( gloopg, loop, gamma_list[igamma] );
-  
-          /***********************************************************
-           * qb: loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg, spin_color_dilution );
-  
-          for ( int igx = 4; igx <= 5; igx++ )
+          for ( int igamma = 0; igamma < 2; igamma++ )
           {
             /***********************************************************
-             * qb: contract with igx at source, neutral
+             ***********************************************************
+             **
+             ** B diagrams
+             **
+             ***********************************************************
              ***********************************************************/
-            sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-%s/b", gf_tau, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+
+            /***********************************************************
+             * qb: build gamma_mu L gamma_mu
+             ***********************************************************/
+            qb_b_glg ( gloopg, loop, gamma_list[igamma] );
   
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
+            /***********************************************************
+             * qb: loop x prop
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg, spin_color_dilution );
+  
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * qb: contract with igx at source, neutral
+               ***********************************************************/
+              sprintf ( tag, "/qb/tau%6.4f/ns%d/f%d-%s-f%d-%s/b", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+  
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+              /***********************************************************
+               * qb: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/qb/tau%6.4f/ns%d/f%d-%s-f%d-%s/b", gf_tau, iloop_sample, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+  
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+          
             }
 
             /***********************************************************
-             * qb: contract with igx at source, charged
+             * qb: loop x prop
              ***********************************************************/
-            sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-%s/b", gf_tau, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg, spin_color_dilution );
   
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * qb: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/qb/tau%6.4f/ns%d/f%d-%s-f%d-%s/b", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+            }
+
+            /***********************************************************
+             * cc: build gamma_mu tr_{color} [L] gamma_mu
+             ***********************************************************/
+            cc_b_glg ( gloopg, loop, gamma_list[igamma] );
+  
+            /***********************************************************
+             * cc: loop x prop
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg , spin_color_dilution );
+    
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * cc: contract with igx at source, neutral
+               ***********************************************************/
+              sprintf ( tag, "/cc/tau%6.4f/ns%d/f%d-%s-f%d-%s/b", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+  
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+              /***********************************************************
+               * cc: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/cc/tau%6.4f/ns%d/f%d-%s-f%d-%s/b", gf_tau, iloop_sample, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+  
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+            }
+
+            /***********************************************************
+             * cc: loop x prop
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg , spin_color_dilution );
+ 
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * cc: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/cc/tau%6.4f/ns%d/f%d-%s-f%d-%s/b", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+            }
+
+            /***********************************************************
+             ***********************************************************
+             **
+             ** D diagrams
+             **
+             ***********************************************************
+             ***********************************************************/
+
+            /***********************************************************
+             * qb: build tr_{spin,color} [ gamma_mu L ] gamma_mu
+             ***********************************************************/
+            qb_d_glg ( gloopg, loop, gamma_list[igamma] );
+  
+            /***********************************************************
+             * qb D diagram loop x prop 
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg, spin_color_dilution );
+  
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * qb: contract with igx at source, neutral
+               ***********************************************************/
+              sprintf ( tag, "/qb/tau%6.4f/ns%d/f%d-%s-f%d-%s/d", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+    
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+              /***********************************************************
+               * qb: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/qb/tau%6.4f/ns%d/f%d-%s-f%d-%s/d", gf_tau, iloop_sample, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+    
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+            }
+
+            /***********************************************************
+             * qb D diagram loop x prop
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg, spin_color_dilution );
+
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * qb: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/qb/tau%6.4f/ns%d/f%d-%s-f%d-%s/d", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+
+            }
+
+            /***********************************************************
+             * cc: build tr_{spin} [ gamma_mu L ] gamma_mu
+             ***********************************************************/
+            cc_d_glg ( gloopg, loop, gamma_list[igamma] );
+  
+            /***********************************************************
+             * cc: loop x prop
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg, spin_color_dilution );
+    
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * cc: contract with igx at source, neutral
+               ***********************************************************/
+              sprintf ( tag, "/cc/tau%6.4f/ns%d/f%d-%s-f%d-%s/d", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+    
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+  
+              /***********************************************************
+               * cc: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/cc/tau%6.4f/ns%d/f%d-%s-f%d-%s/d", gf_tau, iloop_sample, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+    
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+  
+            }
+  
+            /***********************************************************
+             * cc: loop x prop
+             ***********************************************************/
+            xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg, spin_color_dilution );
+  
+            for ( int igx = 4; igx <= 5; igx++ )
+            {
+              /***********************************************************
+               * cc: contract with igx at source, charged
+               ***********************************************************/
+              sprintf ( tag, "/cc/tau%6.4f/ns%d/f%d-%s-f%d-%s/d", gf_tau, iloop_sample, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
+              memset( contr, 0, 2 * T * sizeof(double) );
+              contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
+  
+              exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
+              if(exitstatus != 0) {
+                fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                return(3);
+              }
+  
             }
           
-          }
-
-          /***********************************************************
-           * qb: loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg, spin_color_dilution );
-
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * qb: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-%s/b", gf_tau, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-
-
+          }  /* end of loop on gamma */
   
-          /***********************************************************
-           * cc: build gamma_mu tr_{color} [L] gamma_mu
-           ***********************************************************/
-          cc_b_glg ( gloopg, loop, gamma_list[igamma] );
-  
-          /***********************************************************
-           * cc: loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg , spin_color_dilution );
-  
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * cc: contract with igx at source, neutral
-             ***********************************************************/
-            sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-%s/b", gf_tau, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-  
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
+        }  /* end of loop on flavor */
 
-            /***********************************************************
-             * cc: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-%s/b", gf_tau, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-  
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-
-          /***********************************************************
-           * cc: loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg , spin_color_dilution );
-
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * cc: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-%s/b", gf_tau, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-
-
-  
-          /***********************************************************
-           ***********************************************************
-           **
-           ** D diagrams
-           **
-           ***********************************************************
-           ***********************************************************/
-
-          /***********************************************************
-           * qb: build tr_{spin,color} [ gamma_mu L ] gamma_mu
-           ***********************************************************/
-          qb_d_glg ( gloopg, loop, gamma_list[igamma] );
-  
-          /***********************************************************
-           * qb D diagram loop x prop 
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg, spin_color_dilution );
-  
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * qb: contract with igx at source, neutral
-             ***********************************************************/
-            sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-%s/d", gf_tau, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-    
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-            /***********************************************************
-             * qb: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-%s/d", gf_tau, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-    
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-
-          /***********************************************************
-           * qb D diagram loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg, spin_color_dilution );
-
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * qb: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/qb/tau%6.4f/f%d-%s-f%d-%s/d", gf_tau, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-
-          /***********************************************************
-           * cc: build tr_{spin} [ gamma_mu L ] gamma_mu
-           ***********************************************************/
-          cc_d_glg ( gloopg, loop, gamma_list[igamma] );
-
-          /***********************************************************
-           * cc: loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[iflavor], gloopg, spin_color_dilution );
-  
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * cc: contract with igx at source, neutral
-             ***********************************************************/
-            sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-%s/d", gf_tau, iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-  
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-            /***********************************************************
-             * cc: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-%s/d", gf_tau, 1-iflavor, gamma_tag[igamma], iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-  
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-
-          /***********************************************************
-           * cc: loop x prop
-           ***********************************************************/
-          xx_glg_prop ( b_propagator_gf[iflavor], propagator_gf[1-iflavor], gloopg, spin_color_dilution );
-
-          for ( int igx = 4; igx <= 5; igx++ )
-          {
-            /***********************************************************
-             * cc: contract with igx at source, charged
-             ***********************************************************/
-            sprintf ( tag, "/cc/tau%6.4f/f%d-%s-f%d-%s/d", gf_tau, iflavor, gamma_tag[igamma], 1-iflavor, gamma_id_to_ascii[igx] );
-            memset( contr, 0, 2 * T * sizeof(double) );
-            contract_twopoint ( contr, igx, 4, propagator_gf[1-iflavor], b_propagator_gf[iflavor], spin_dilution, color_dilution );
-
-            exitstatus = contract_write_to_h5_file ( &contr, output_filename, tag, &pf, 1, io_proc );
-            if(exitstatus != 0) {
-              fprintf(stderr, "[mixing_probe_src_oet_gf] Error from contract_write_to_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-              return(3);
-            }
-
-          }
-        
-        }  /* end of loop on gamma */
-
-      }  /* end of loop on flavor */
+      }  /* end of loop on samples */
 
     }  /* end of loop on gf steps */
 
