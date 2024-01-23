@@ -412,14 +412,15 @@ int main(int argc, char **argv) {
      * write loop field to lime file
      ***************************************************************************/
     if ( write_scalar_field ) {
-      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample );
       
       char field_type[2000];
 
       sprintf( field_type, "<source_type>%d</source_type><noise_type>binary real</noise_type><coherent_sources>%d</coherent_sources>", g_source_type , g_coherent_source_number );
 
       for ( int i = 0; i < g_nsample; i++ ) {
-        exitstatus = write_lime_contraction( scalar_field[i], filename, 64, 1, field_type, Nconf, ( i > 0 ) );
+        sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, i );
+
+        exitstatus = write_lime_contraction( scalar_field[i], filename, 64, 1, field_type, Nconf, 0 );
         if ( exitstatus != 0  ) {
           fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(12);
@@ -428,10 +429,11 @@ int main(int argc, char **argv) {
     }  /* end of if write_scalar_field */
 
   } else {
-    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample );
       
     for ( int i = 0; i < g_nsample; i++ ) {
-      exitstatus = read_lime_contraction ( scalar_field[i], filename, 1, i );
+      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, i );
+
+      exitstatus = read_lime_contraction ( scalar_field[i], filename, 1, 0 );
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[loop_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
@@ -819,7 +821,7 @@ int main(int argc, char **argv) {
 
       sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
 
-      exitstatus = write_lime_contraction( (double*)(loop[igf][0][0]), filename, 64, 144, loop_type, Nconf, isample );
+      exitstatus = write_lime_contraction( (double*)(loop[igf][0][0]), filename, 64, 144, loop_type, Nconf, 0);
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
