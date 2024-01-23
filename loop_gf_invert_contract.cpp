@@ -75,6 +75,12 @@ extern "C"
 #define _USE_TIME_DILUTION 1
 #endif
 
+#if _USE_TIME_DILUTION
+#warning "[loop_gf_invert_contract] building WITH time dilution"
+#else
+#warning "[loop_gf_invert_contract] building WITHOUT time dilution"
+#endif
+
 #define MAX_NUM_GF_NSTEP 100
 
 using namespace cvc;
@@ -387,32 +393,32 @@ int main(int argc, char **argv) {
 
   double ** scalar_field = NULL;
 
-  if ( g_nsample_oet > 0 ) {
-    scalar_field = init_2level_dtable ( g_nsample_oet, 2*VOLUME );
+  if ( g_nsample > 0 ) {
+    scalar_field = init_2level_dtable ( g_nsample, 2*VOLUME );
     if( scalar_field == NULL ) {
       fprintf(stderr, "[loop_gf_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(132);
     }
   }
 
-  if ( ! read_scalar_field  && ( g_nsample_oet > 0 ) ) {
+  if ( ! read_scalar_field  && ( g_nsample > 0 ) ) {
 
     /***************************************************************************
      * draw a stochastic binary source (real, +/1 one per site )
      ***************************************************************************/
-    ranbinary ( scalar_field[0], 2 * g_nsample_oet * VOLUME );
+    ranbinary ( scalar_field[0], 2 * g_nsample * VOLUME );
 
     /***************************************************************************
      * write loop field to lime file
      ***************************************************************************/
     if ( write_scalar_field ) {
-      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
+      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample );
       
       char field_type[2000];
 
       sprintf( field_type, "<source_type>%d</source_type><noise_type>binary real</noise_type><coherent_sources>%d</coherent_sources>", g_source_type , g_coherent_source_number );
 
-      for ( int i = 0; i < g_nsample_oet; i++ ) {
+      for ( int i = 0; i < g_nsample; i++ ) {
         exitstatus = write_lime_contraction( scalar_field[i], filename, 64, 1, field_type, Nconf, ( i > 0 ) );
         if ( exitstatus != 0  ) {
           fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -422,9 +428,9 @@ int main(int argc, char **argv) {
     }  /* end of if write_scalar_field */
 
   } else {
-    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
+    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample );
       
-    for ( int i = 0; i < g_nsample_oet; i++ ) {
+    for ( int i = 0; i < g_nsample; i++ ) {
       exitstatus = read_lime_contraction ( scalar_field[i], filename, 1, i );
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[loop_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -539,12 +545,12 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  gf_nstep = 1;
+  gf_nstep = 2;
   gf_niter_list[0] = 0;
-//  gf_niter_list[1] = 3;
+  gf_niter_list[1] = 3;
 //  gf_niter_list[2] = 3;
   gf_dt_list[0] = 0.01;
-//  gf_dt_list[1] = 0.01;
+  gf_dt_list[1] = 0.01;
 //  gf_dt_list[2] = 0.01;
 
 
@@ -808,12 +814,12 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * write loop field to lime file
        ***************************************************************************/
-      sprintf( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, g_nsample, gf_tau );
+      sprintf( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, isample, gf_tau );
       char loop_type[2000];
 
       sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
 
-      exitstatus = write_lime_contraction( (double*)(loop[igf][0][0]), filename, 64, 144, loop_type, Nconf, 0);
+      exitstatus = write_lime_contraction( (double*)(loop[igf][0][0]), filename, 64, 144, loop_type, Nconf, isample );
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
