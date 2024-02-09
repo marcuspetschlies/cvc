@@ -48,10 +48,10 @@
 #define _TWOP_CYD_H5 0
 #define _TWOP_CYD    0
 #define _TWOP_AFF    0
-#define _TWOP_H5     0
-#define _TWOP_AVGX_H5 1
+#define _TWOP_H5     1
+#define _TWOP_AVGX_H5 0
 
-#define _LOOP_ANALYSIS 1
+#define _LOOP_ANALYSIS 0
 
 #define _LOOP_CY       0
 #define _LOOP_CVC      1
@@ -761,19 +761,19 @@ int main(int argc, char **argv) {
       char data_filename[500];
       char key[400];
     
-      /* sprintf( data_filename, "stream_%c/%s/corr.%.4d.t%d.h5",
+      sprintf( data_filename, "stream_%c/%s/%d/corr.%.4d.t%d.h5",
           conf_src_list[iconf][isrc][0],
           filename_prefix,
           conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2] ); 
-      */
 
-
+/*
       sprintf( data_filename, "%s/r%c/corr.%.4d.t%d.h5",
           filename_prefix, conf_src_list[iconf][isrc][0],
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2] );
-
+*/
       if ( g_verbose > 1 ) {
         fprintf ( stdout, "# [avxn_conn_analyse] reading from data filename %s %s %d\n", data_filename, __FILE__, __LINE__ );
         fflush(stdout);
@@ -1021,6 +1021,33 @@ int main(int argc, char **argv) {
   show_time ( &ta, &tb, "avxg_analyse", "read-twop-avgx-h5", g_cart_id == 0 );
 
 #endif  /* end of if _TWOP_AVGX_H5 */
+
+  /**********************************************************
+   * write source-averaged data
+   **********************************************************/
+  for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ )
+  {
+    sprintf ( filename, "twop.src.gf%d.gi%d.PX%d_PY%d_PZ%d.corr",
+        g_sink_gamma_id_list[0],
+        g_source_gamma_id_list[0],
+        g_sink_momentum_list[ipf][0], g_sink_momentum_list[ipf][1], g_sink_momentum_list[ipf][2] );
+
+    FILE * fs = fopen ( filename, "w" );
+
+    for ( int iconf = 0; iconf < num_conf; iconf++ ) 
+    {
+      for ( int isrc = 0; isrc < num_src_per_conf; isrc++ )
+      {
+        for ( int it = 0; it < T_global; it++ ) 
+        {
+          fprintf( fs, "%4d %25.16e %25.16e  %c %6d %4d\n", it, twop[ipf][iconf][isrc][0][it][0], twop[ipf][iconf][isrc][0][it][1],
+              conf_src_list[iconf][isrc][0], conf_src_list[iconf][isrc][1], conf_src_list[iconf][isrc][2] );
+        }
+      }
+    }
+  
+    fclose ( fs );
+  }
 
   /**********************************************************
    * write source-averaged data
