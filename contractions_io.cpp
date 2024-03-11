@@ -1541,7 +1541,7 @@ int write_h5_contraction ( void * const contr, void * const awriter, void * cons
 /***************************************************************************/
 
 
-
+#if 0
 #ifdef HAVE_MPI
 /***************************************************************************
  * parallel write contraction data to file
@@ -1824,7 +1824,8 @@ int write_h5_contraction_parallel ( void * const contr, char * const afilename, 
 
 }  /* end of write_h5_contraction_parallel */
 
-#endif
+#endif  /* of if HAVE_MPI */
+#endif  /* if 0 */
 
 
 #endif  /* if def HAVE_HDF5 */
