@@ -13,7 +13,7 @@ namespace cvc {
 
 int read_input (char *filename);
 
-int alloc_gauge_field(double **gauge, const int V);
+int alloc_gauge_field( double **gauge, unsigned int const V );
 int alloc_gauge_field_dbl(double **gauge, const int N);
 int alloc_gauge_field_flt(float **gauge, const int N);
 
@@ -96,7 +96,8 @@ void free_sp_field(spinor_propagator_type **fp);
 
 void free_fp_field(fermion_propagator_type **fp);
   
-int unit_gauge_field(double*g, unsigned int N);
+int unit_gauge_field(double * const g, unsigned int const N);
+
 int write_contraction2 (double *s, char *filename, int Nmu, unsigned int items, int write_ascii, int append);
 void printf_fp(fermion_propagator_type f, char*name, FILE*ofs);
 void printf_sp(spinor_propagator_type f, char*name, FILE*ofs);
