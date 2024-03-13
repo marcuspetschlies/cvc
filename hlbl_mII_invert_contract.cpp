@@ -408,12 +408,6 @@ int main(int argc, char **argv) {
   double const xunit[2] = { mmuon * alat[0], mmuon * alat[1] };
 
   /***********************************************************
-   * output filename
-   ***********************************************************/
-  char output_filename[400];
-  sprintf ( output_filename, "%s.%d.h5", g_outfile_prefix, Nconf );
-
-  /***********************************************************
    * set up QED Kernel package
    ***********************************************************/
   struct QED_kernel_temps kqed_t ;
@@ -446,6 +440,13 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[p2gg_invert_contract_local] Error from get_point_source_info status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
       EXIT(123);
     }
+
+    /***********************************************************
+     * output filename
+     ***********************************************************/
+    char output_filename[400];
+    sprintf ( output_filename, "%s.%d.T%dX%dY%dZ%d.h5", g_outfile_prefix, Nconf,
+       gsx[0], gsx[1], gsx[2], gsx[3] );
 
 
     /***********************************************************
