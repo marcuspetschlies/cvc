@@ -455,7 +455,7 @@ int main(int argc, char **argv) {
       show_time ( &ta, &te, "hlbl_lm_contract", "spinor_scalar_product_co", g_cart_id == 0 );
 #endif
 
-      fprintf (stdout, "# [hlbl_lm_contract] sp %3d %3d  %25.16e %25.16e\n", iw, iv, w.re, w.im);
+      if ( io_proc == 2 ) fprintf (stdout, "# [hlbl_lm_contract] sp %3d %3d  %25.16e %25.16e\n", iw, iv, w.re, w.im);
     }
   }
 
