@@ -39,7 +39,8 @@ struct Pair {
 #define CUDA_BLOCK_SIZE 4
 #define CUDA_THREAD_DIM_1D 32
 
-#define CUDA_N_QED_KERNEL 2
+#define CUDA_N_QED_KERNEL 3
+#define CUDA_N_QED_GEOM 5
 
 void cu_spinor_field_eq_gamma_ti_spinor_field(
     double* out, int mu, const double* in, size_t len);
@@ -54,7 +55,7 @@ void cu_4pt_contraction(
     Coord gsx, Pair xunit, Coord yv, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom);
 void cu_2p2_pieces(
-    double* d_P1, double* d_P2, double* d_P3, const double* fwd_y, int iflavor,
+    double* d_P1, double* d_P23x, const double* fwd_y, int iflavor,
     Coord proc_coords, Coord gsw, int n_y, Coord* d_gycoords, Pair xunit,
     QED_kernel_temps kqed_t, Geom global_geom, Geom local_geom);
 

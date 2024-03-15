@@ -245,10 +245,13 @@ __device__
 void KQED_LX(
     int ikernel, const double xm[4], const double ym[4],
     const struct QED_kernel_temps kqed_t, double kerv[6][4][4][4]) {
-#if CUDA_N_QED_KERNEL != 2
+#if CUDA_N_QED_KERNEL != 3
   #error "Number of QED kernels does not match implementation"
 #endif
   if (ikernel == 0) {
+    QED_kernel_L0( xm, ym, kqed_t, kerv );
+  }
+  else if (ikernel == 1) {
     QED_kernel_L3( xm, ym, kqed_t, kerv );
   }
   else {
@@ -462,7 +465,7 @@ void ker_4pt_contraction(
 
 __global__
 void ker_2p2_pieces(
-    double* _RESTR P1, double* _RESTR P2, double* _RESTR P3,
+    double* _RESTR P1, double* _RESTR P23x,
     const double* _RESTR fwd_y, int iflavor, Coord g_proc_coords,
     Coord gsw, int n_y, Coord* gycoords, Pair xunit, QED_kernel_temps kqed_t,
     Geom global_geom, Geom local_geom, int Lmax) {
@@ -562,8 +565,8 @@ void ker_2p2_pieces(
 
     for (int yi = 0; yi < n_y; yi++) {
       // For P2: y = (gsy - gsw)
-      // For P3: y = (gsw - gsy)
-      // We define y = (gsy - gsw) and use -y as input for P3.
+      // For P3, P4, P5: y' = (gsw - gsy)
+      // We define y = (gsy - gsw) and use -y as input for P3, P4, P5.
       int const gsy_arr[4] = { gycoords[yi].t, gycoords[yi].x, gycoords[yi].y, gycoords[yi].z };
       int const y[4] = {
         (gsy_arr[0] - gsw_arr[0] + global_geom_arr[0]) % global_geom_arr[0],
@@ -599,39 +602,56 @@ void ker_2p2_pieces(
         xv[1] * xunit.a,
         xv[2] * xunit.a,
         xv[3] * xunit.a };
+      double const xm_minus[4] = {
+        -xv[0] * xunit.a,
+        -xv[1] * xunit.a,
+        -xv[2] * xunit.a,
+        -xv[3] * xunit.a };
         
-
-      int const x_mi_y[4] = {
-        (z[0] - y[0] + global_geom_arr[0]) % global_geom_arr[0],
-        (z[1] - y[1] + global_geom_arr[1]) % global_geom_arr[1],
-        (z[2] - y[2] + global_geom_arr[2]) % global_geom_arr[2],
-        (z[3] - y[3] + global_geom_arr[2]) % global_geom_arr[3]
-      };
-      int xv_mi_yv[4] = {
-        coord_map_zerohalf(x_mi_y[0], global_geom_arr[0]),
-        coord_map_zerohalf(x_mi_y[1], global_geom_arr[1]),
-        coord_map_zerohalf(x_mi_y[2], global_geom_arr[2]),
-        coord_map_zerohalf(x_mi_y[3], global_geom_arr[3])
-      };
+      // int const x_mi_y[4] = {
+      //   (z[0] - y[0] + global_geom_arr[0]) % global_geom_arr[0],
+      //   (z[1] - y[1] + global_geom_arr[1]) % global_geom_arr[1],
+      //   (z[2] - y[2] + global_geom_arr[2]) % global_geom_arr[2],
+      //   (z[3] - y[3] + global_geom_arr[2]) % global_geom_arr[3]
+      // };
+      // int xv_mi_yv[4] = {
+      //   coord_map_zerohalf(x_mi_y[0], global_geom_arr[0]),
+      //   coord_map_zerohalf(x_mi_y[1], global_geom_arr[1]),
+      //   coord_map_zerohalf(x_mi_y[2], global_geom_arr[2]),
+      //   coord_map_zerohalf(x_mi_y[3], global_geom_arr[3])
+      // };
+      // double const xm_mi_ym[4] = {
+      //   xv_mi_yv[0] * xunit.a,
+      //   xv_mi_yv[1] * xunit.a,
+      //   xv_mi_yv[2] * xunit.a,
+      //   xv_mi_yv[3] * xunit.a
+      // };
       double const xm_mi_ym[4] = {
-        xv_mi_yv[0] * xunit.a,
-        xv_mi_yv[1] * xunit.a,
-        xv_mi_yv[2] * xunit.a,
-        xv_mi_yv[3] * xunit.a
-      };
+        xm[0] - ym[0],
+        xm[1] - ym[1],
+        xm[2] - ym[2],
+        xm[3] - ym[3] };
+      double const ym_mi_xm[4] = {
+        ym[0] - xm[0],
+        ym[1] - xm[1],
+        ym[2] - xm[2],
+        ym[3] - xm[3] };
 
       for (int ikernel = 0; ikernel < CUDA_N_QED_KERNEL; ++ikernel) {
-        double local_P2[4][4][4] = { 0 };
+        double local_P2_0[4][4][4] = { 0 };
+        double local_P2_1[4][4][4] = { 0 };
         double local_P3[4][4][4] = { 0 };
+        double local_P4_0[4][4][4] = { 0 };
+        double local_P4_1[4][4][4] = { 0 };
         KQED_LX( ikernel, xm, ym, kqed_t, kerv );
         for( int k = 0; k < 6; k++ ) {
           int const rho = idx_comb.comb[k][0];
           int const sigma = idx_comb.comb[k][1];
           for ( int nu = 0; nu < 4; nu++ ) {
-            local_P2[rho][sigma][nu] = 0.0;
+            local_P2_0[rho][sigma][nu] = 0.0;
             for ( int mu = 0; mu < 4; mu++ ) {
               for ( int lambda = 0; lambda < 4; lambda++ ) {
-                local_P2[rho][sigma][nu] += kerv[k][mu][nu][lambda] * pimn[mu][lambda];
+                local_P2_0[rho][sigma][nu] += kerv[k][mu][nu][lambda] * pimn[mu][lambda];
               }
             }
           }
@@ -640,10 +660,11 @@ void ker_2p2_pieces(
         for( int k = 0; k < 6; k++ ) {
           int const rho = idx_comb.comb[k][0];
           int const sigma = idx_comb.comb[k][1];
-          for ( int mu = 0; mu < 4; mu++ ) {
-            for ( int nu = 0; nu < 4; nu++ ) {
+          for ( int nu = 0; nu < 4; nu++ ) {
+            local_P2_1[rho][sigma][nu] = 0.0;
+            for ( int mu = 0; mu < 4; mu++ ) {
               for ( int lambda = 0; lambda < 4; lambda++ ) {
-                local_P2[rho][sigma][nu] += kerv[k][nu][mu][lambda] * pimn[mu][lambda];
+                local_P2_1[rho][sigma][nu] += kerv[k][nu][mu][lambda] * pimn[mu][lambda];
               }
             }
           }
@@ -661,17 +682,40 @@ void ker_2p2_pieces(
             }
           }
         }
+        KQED_LX( ikernel, ym_mi_xm, xm_minus, kqed_t, kerv );
+        for( int k = 0; k < 6; k++ ) {
+          int const rho = idx_comb.comb[k][0];
+          int const sigma = idx_comb.comb[k][1];
+          for ( int nu = 0; nu < 4; nu++ ) {
+            local_P4_0[rho][sigma][nu] = 0.0;
+            for ( int mu = 0; mu < 4; mu++ ) {
+              for ( int lambda = 0; lambda < 4; lambda++ ) {
+                local_P4_0[rho][sigma][nu] += kerv[k][nu][lambda][mu] * pimn[mu][lambda];
+              }
+            }
+            local_P4_1[rho][sigma][nu] = local_P4_0[rho][sigma][nu] * (yv[rho]-xv[rho]);
+            local_P4_1[sigma][rho][nu] = -local_P4_0[rho][sigma][nu] * (yv[sigma]-xv[sigma]);
+          }
+        }
 
         // reduce (TODO faster reduce algo?)
+        int ind;
         for (int rho = 0; rho < 4; ++rho) {
           for (int sigma = 0; sigma < 4; ++sigma) {
             for (int nu = 0; nu < 4; ++nu) {
-              atomicAdd_system(
-                  &P2[(((yi * CUDA_N_QED_KERNEL + ikernel) * 4 + rho) * 4 + sigma) * 4 + nu],
-                  local_P2[rho][sigma][nu]);
-              atomicAdd_system(
-                  &P3[(((yi * CUDA_N_QED_KERNEL + ikernel) * 4 + rho) * 4 + sigma) * 4 + nu],
-                  local_P3[rho][sigma][nu]);
+              #if CUDA_N_QED_GEOM != 5
+              #error "Number of QED kernel geometries does not match implementation"
+              #endif
+              ind = ((((yi*CUDA_N_QED_KERNEL + ikernel)*CUDA_N_QED_GEOM + 0)*4 + rho)*4 + sigma)*4 + nu;
+              atomicAdd_system(&P23x[ind], local_P2_0[rho][sigma][nu]);
+              ind = ((((yi*CUDA_N_QED_KERNEL + ikernel)*CUDA_N_QED_GEOM + 1)*4 + rho)*4 + sigma)*4 + nu;
+              atomicAdd_system(&P23x[ind], local_P2_1[rho][sigma][nu]);
+              ind = ((((yi*CUDA_N_QED_KERNEL + ikernel)*CUDA_N_QED_GEOM + 2)*4 + rho)*4 + sigma)*4 + nu;
+              atomicAdd_system(&P23x[ind], local_P3[rho][sigma][nu]);
+              ind = ((((yi*CUDA_N_QED_KERNEL + ikernel)*CUDA_N_QED_GEOM + 3)*4 + rho)*4 + sigma)*4 + nu;
+              atomicAdd_system(&P23x[ind], local_P4_0[rho][sigma][nu]);
+              ind = ((((yi*CUDA_N_QED_KERNEL + ikernel)*CUDA_N_QED_GEOM + 4)*4 + rho)*4 + sigma)*4 + nu;
+              atomicAdd_system(&P23x[ind], local_P4_1[rho][sigma][nu]);
             }
           }
         }
@@ -751,7 +795,7 @@ void cu_4pt_contraction(
 }
 
 void cu_2p2_pieces(
-    double* d_P1, double* d_P2, double* d_P3, const double* fwd_y, int iflavor,
+    double* d_P1, double* d_P23x, const double* fwd_y, int iflavor,
     Coord proc_coords, Coord gsw, int n_y, Coord* d_ycoords, Pair xunit,
     QED_kernel_temps kqed_t, Geom global_geom, Geom local_geom) {
   size_t T = local_geom.T;
@@ -767,7 +811,7 @@ void cu_2p2_pieces(
   if (global_geom.LY >= Lmax) Lmax = global_geom.LY;
   if (global_geom.LZ >= Lmax) Lmax = global_geom.LZ;
   ker_2p2_pieces<<<kernel_nblocks, kernel_nthreads>>>(
-      d_P1, d_P2, d_P3, fwd_y, iflavor, proc_coords, gsw, n_y, d_ycoords, xunit,
+      d_P1, d_P23x, fwd_y, iflavor, proc_coords, gsw, n_y, d_ycoords, xunit,
       kqed_t, global_geom, local_geom, Lmax);
 }
 
