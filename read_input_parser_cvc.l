@@ -1166,7 +1166,10 @@ namespace cvc {
     fprintf(stderr, "[read_input_parser] Error, too many source locations\n");
     exit(1);
   } else {
-    fprintf(stdout, "# [read_input_parser] extracting source coords %d\n", cvc::g_source_location_number);
+    if(cvc::myverbose!=0)
+      fprintf(
+          stdout, "# [read_input_parser] extracting source coords %d\n",
+          cvc::g_source_location_number);
   }
 
   sscanf(yytext, "%d,%d,%d,%d",
@@ -1176,7 +1179,10 @@ namespace cvc {
     cvc::g_source_coords_list[cvc::g_source_location_number]+3);
 
   cvc::g_source_location_number++;
-  if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
+  if(cvc::myverbose!=0)
+    printf(
+        "# [read_input_parser] source coords no. %d set to %s\n",
+        cvc::g_source_location_number, yytext);
 }
 
 <SOURCEDIRS>{STRING} {
@@ -1185,7 +1191,9 @@ namespace cvc {
     fprintf(stderr, "[read_input_parser] Error, too many source directions\n");
     exit(1);
   } else {
-    fprintf(stdout, "# [read_input_parser] extracting source dir %d\n", cvc::g_source_dir_number);
+    if(cvc::myverbose!=0)
+      fprintf(stdout, "# [read_input_parser] extracting source dir %d\n",
+              cvc::g_source_dir_number);
   }
 
   if ( yytext[0] == 'f' ) {
@@ -1209,7 +1217,10 @@ namespace cvc {
     fprintf(stderr, "[read_input_parser] Error, too many source pairs\n");
     exit(1);
   } else {
-    fprintf(stdout, "# [read_input_parser] extracting source pair origins %d\n", cvc::g_source_pair_og_number);
+    if(cvc::myverbose!=0)
+      fprintf(
+          stdout, "# [read_input_parser] extracting source pair origins %d\n",
+          cvc::g_source_pair_og_number);
   }
 
   sscanf(yytext, "%d,%d,%d,%d",
@@ -1219,7 +1230,10 @@ namespace cvc {
     cvc::g_source_pair_origins_list[cvc::g_source_pair_og_number]+3);
 
   cvc::g_source_pair_og_number++;
-  if(cvc::myverbose!=0) printf("# [read_input_parser] source pair origins no. %d set to %s\n", cvc::g_source_pair_og_number, yytext);
+  if(cvc::myverbose!=0)
+    printf(
+        "# [read_input_parser] source pair origins no. %d set to %s\n",
+        cvc::g_source_pair_og_number, yytext);
 }
 
 <SOURCEPAIRSTARGETS>{CORRCONFIG} {
@@ -1228,7 +1242,10 @@ namespace cvc {
     fprintf(stderr, "[read_input_parser] Error, too many source pairs\n");
     exit(1);
   } else {
-    fprintf(stdout, "# [read_input_parser] extracting source pair targets %d\n", cvc::g_source_pair_tgt_number);
+    if(cvc::myverbose!=0)
+      fprintf(
+          stdout, "# [read_input_parser] extracting source pair targets %d\n",
+          cvc::g_source_pair_tgt_number);
   }
 
   const char* yyptr = yytext;
