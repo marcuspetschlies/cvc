@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <complex.h>
 #include <time.h>
 #include <sys/time.h>
 #ifdef HAVE_MPI
@@ -39,7 +40,8 @@ extern "C"
 
 #define MAIN_PROGRAM
 
-#include "cvc_complex.h"
+// #include "cvc_complex.h"
+#include "iblas.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -156,6 +158,8 @@ int main(int argc, char **argv) {
   int first_solve_dummy = 0;
   struct timeval start_time, end_time;
   int ymax = 0;
+  int evec_num =  0;
+  int evec_test = 0;
 
   struct timeval ta, te;
 
@@ -163,7 +167,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:y:")) != -1) {
+  while ((c = getopt(argc, argv, "tch?f:y:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -174,6 +178,12 @@ int main(int argc, char **argv) {
       break;
     case 'y':
       ymax = atoi ( optarg );
+      break;
+    case 'n':
+      evec_num = atoi ( optarg );
+      break;
+    case 't':
+      evec_test = 1;
       break;
     case 'h':
     case '?':
@@ -366,17 +376,26 @@ int main(int argc, char **argv) {
   char output_filename[400];
   sprintf ( output_filename, "%s.%d.h5", g_outfile_prefix, Nconf );
 
+  /***********************************************************
+   * space for eigenvectors
+   ***********************************************************/
+  double ** evec_field = init_2level_dtable ( evec_num, _GSI( (size_t)(VOLUME) ));
+  if( evec_field == NULL ) 
+  {
+    fprintf(stderr, "[hlbl_lm_contract] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+    EXIT(123);
+  }
 
   /***********************************************************
    * read eigenvectors from file
    ***********************************************************/
-  for ( int ievec = 0; ievec <= 1; ievec++ )
+  for ( int ievec = 0; ievec < evec_num; ievec++ )
   {
     sprintf (filename, "%s/eigVec_eV%d", filename_prefix, ievec);
 #if _WITH_TIMER
     gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-    exitstatus = read_lime_spinor ( spinor_field[ievec], filename, 0);
+    exitstatus = read_lime_spinor ( evec_field[ievec], filename, 0);
 #if _WITH_TIMER
     gettimeofday ( &te, (struct timezone *)NULL );
     show_time ( &ta, &te, "hlbl_lm_contract", "read_lime_spinor", g_cart_id == 0 );
@@ -386,78 +405,162 @@ int main(int argc, char **argv) {
       fprintf( stderr, "[hlbl_lm_contract] Error from read_lime_spinor, status %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(1);
     }
-
   }
 
   /***********************************************************
-   * apply g5 D
+   * test eigenpair properties
    ***********************************************************/
-  double ** eo_spinor_work = init_2level_dtable (5, _GSI( (VOLUME+RAND)/2 ) );
-  if ( eo_spinor_work == NULL )
+  if ( evec_test )
   {
-    fprintf(stderr, "[hlbl_lm_contract] Error from init_2level_buffer  %s %d\n", __FILE__, __LINE__ );
-    EXIT(1);
-  }
 
-  /* rotate from ukqcd to cvc gamma basis */
-  memcpy ( spinor_field[2], spinor_field[0], sizeof_spinor_field );
-#if _WITH_TIMER
-  gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-  rotate_propagator_ETMC_UKQCD ( spinor_field[2], VOLUME );
-#if _WITH_TIMER
-  gettimeofday ( &te, (struct timezone *)NULL );
-  show_time ( &ta, &te, "hlbl_lm_contract", "rotate_propagator_ETMC_UKQCD", g_cart_id == 0 );
-#endif
-
-
-  /* Q_clover_phi_matrix_eo */
-  spinor_field_lexic2eo ( spinor_field[2], eo_spinor_work[0], eo_spinor_work[1] );
-#if _WITH_TIMER
-  gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-  Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[4], mzz[0] );
-#if _WITH_TIMER
-  gettimeofday ( &te, (struct timezone *)NULL );
-  show_time ( &ta, &te, "hlbl_lm_contract", "Q_clover_phi_matrix_eo", g_cart_id == 0 );
-#endif
-
-  spinor_field_eo2lexic ( spinor_field[2], eo_spinor_work[2], eo_spinor_work[3] );
-
-  /* g5 application */
-  g5_phi ( spinor_field[2], VOLUME );
-
-  /* rotate from cvc back to ukqcd gamma basis */
-#if _WITH_TIMER
-  gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-  rotate_propagator_ETMC_UKQCD ( spinor_field[2], VOLUME );
-#if _WITH_TIMER
-  gettimeofday ( &te, (struct timezone *)NULL );
-  show_time ( &ta, &te, "hlbl_lm_contract", "rotate_propagator_ETMC_UKQCD", g_cart_id == 0 );
-#endif
-
-  // deacllocate
-  fini_2level_dtable ( &eo_spinor_work );
-
-  for ( int iv = 0; iv <= 2; iv++ )
-  {
-    for ( int iw = 0; iw <= 2; iw++ )
+    double ** vv = init_2level_dtable ( evec_num, 2*evec_num );
+    if ( vv == NULL ) 
     {
-      complex w = {0., 0.};
+      fprintf(stderr, "[hlbl_lm_contract] Error from init_2level_ztable  %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
 
+
+    /* work fields, even-odd */
+    double ** eo_spinor_work = init_2level_dtable (5, _GSI( (VOLUME+RAND)/2 ) );
+    if ( eo_spinor_work == NULL )
+    {
+      fprintf(stderr, "[hlbl_lm_contract] Error from init_2level_buffer  %s %d\n", __FILE__, __LINE__ );
+      EXIT(1);
+    }
+
+    for ( int iv = 0; iv < evec_num; iv++ )
+    {
+      /* rotate from ukqcd to cvc gamma basis */
+      memcpy ( spinor_field[0], evec_field[iv], sizeof_spinor_field );
 #if _WITH_TIMER
       gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-      spinor_scalar_product_co ( &w, spinor_field[iw], spinor_field[iv], VOLUME );
+      rotate_propagator_ETMC_UKQCD ( spinor_field[0], VOLUME );
 #if _WITH_TIMER
       gettimeofday ( &te, (struct timezone *)NULL );
-      show_time ( &ta, &te, "hlbl_lm_contract", "spinor_scalar_product_co", g_cart_id == 0 );
+      show_time ( &ta, &te, "hlbl_lm_contract", "rotate_propagator_ETMC_UKQCD", g_cart_id == 0 );
 #endif
 
-      if ( io_proc == 2 ) fprintf (stdout, "# [hlbl_lm_contract] sp %3d %3d  %25.16e %25.16e\n", iw, iv, w.re, w.im);
+    /* Q_clover_phi_matrix_eo */
+      spinor_field_lexic2eo ( spinor_field[0], eo_spinor_work[0], eo_spinor_work[1] );
+#if _WITH_TIMER
+      gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+      Q_clover_phi_matrix_eo ( eo_spinor_work[2], eo_spinor_work[3], eo_spinor_work[0], eo_spinor_work[1], gauge_field_with_phase, eo_spinor_work[4], mzz[0] );
+#if _WITH_TIMER
+      gettimeofday ( &te, (struct timezone *)NULL );
+      show_time ( &ta, &te, "hlbl_lm_contract", "Q_clover_phi_matrix_eo", g_cart_id == 0 );
+#endif
+
+      spinor_field_eo2lexic ( spinor_field[0], eo_spinor_work[2], eo_spinor_work[3] );
+
+      /* g5 application */
+      g5_phi ( spinor_field[0], VOLUME );
+
+      /* rotate from cvc back to ukqcd gamma basis */
+#if _WITH_TIMER
+      gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+      rotate_propagator_ETMC_UKQCD ( spinor_field[0], VOLUME );
+#if _WITH_TIMER
+      gettimeofday ( &te, (struct timezone *)NULL );
+      show_time ( &ta, &te, "hlbl_lm_contract", "rotate_propagator_ETMC_UKQCD", g_cart_id == 0 );
+#endif
+
+      /* V x v_iv */
+      double _Complex * p = init_1level_ztable ( evec_num );
+      if ( p == NULL )
+      {
+        fprintf(stderr, "[hlbl_lm_contract] Error from init_1level_ztable  %s %d\n", __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      /* projection on V-basis */
+      double _Complex BLAS_ALPHA  = 1.;
+      double _Complex BLAS_BETA   = 0.;
+      char BLAS_TRANSA = 'C';
+      char BLAS_TRANSB = 'N';
+      int BLAS_M      = evec_num;
+      int BLAS_K      = 12 * VOLUME;
+      int BLAS_N      = 1;
+      double _Complex * BLAS_A      = (double _Complex*)evec_field[0];
+      double _Complex * BLAS_B      = (double _Complex*)(spinor_field[0]);
+      double _Complex * BLAS_C      = p;
+      int BLAS_LDA    = BLAS_K;
+      int BLAS_LDB    = BLAS_K;
+      int BLAS_LDC    = BLAS_M;
+
+      _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+#ifdef HAVE_MPI
+      /* allreduce across all processes */
+      if( (p_buffer = (double _Complex*)malloc( bytes_p )) == NULL ) {
+        fprintf(stderr, "[project_propagator_field] Error from malloc\n");
+        return(2);
+      }
+
+      memcpy(p_buffer, p, bytes_p);
+      status = MPI_Allreduce(p_buffer, p, 2*items_p, MPI_DOUBLE, MPI_SUM, g_cart_grid);
+      if (status != MPI_SUCCESS) {
+        fprintf(stderr, "[project_propagator_field] Error from MPI_Allreduce, status was %d\n", status);
+        return(1);
+      }
+      free(p_buffer); p_buffer = NULL;
+#endif
+
+      for ( int k = 0; k < evec_num; k++ )
+      {
+        vv[iv][2*k  ] = creal ( p[k] );
+        vv[iv][2*k+1] = cimag ( p[k] );
+      }
+
+      fini_1level_ztable ( &p );
+    }   /* end of loop on evecs */
+
+//     for ( int iv = 0; iv <= 2; iv++ )
+//     {
+//       for ( int iw = 0; iw <= 2; iw++ )
+//       {
+//         complex w = {0., 0.};
+// 
+// #if _WITH_TIMER
+//         gettimeofday ( &ta, (struct timezone *)NULL );
+// #endif
+//         spinor_scalar_product_co ( &w, spinor_field[iw], spinor_field[iv], VOLUME );
+// #if _WITH_TIMER
+//         gettimeofday ( &te, (struct timezone *)NULL );
+//         show_time ( &ta, &te, "hlbl_lm_contract", "spinor_scalar_product_co", g_cart_id == 0 );
+// #endif
+// 
+//         if ( io_proc == 2 ) fprintf (stdout, "# [hlbl_lm_contract] sp %3d %3d  %25.16e %25.16e\n", iw, iv, w.re, w.im);
+//       }
+//     }
+
+    /* deacllocate */
+    fini_2level_dtable ( &eo_spinor_work );
+
+
+    if ( io_proc == 2 )
+    {
+      sprintf ( filename, "vv.%d", Nconf );
+      FILE * fs = fopen ( filename, "w" );
+
+      for ( int k = 0; k < evec_num; k++ )
+      {
+        for ( int l = 0; l < evec_num; l++ )
+        {
+          fprintf( fs, "%4d %4d %25.16e %25.16e\n", k, l, vv[k][2*l], vv[k][2*l+1] );
+        }
+      }
+
+      fclose ( fs );
     }
-  }
+
+
+    fini_2level_dtable ( &vv );
+
+  }  /* end of if evec_test */
 
 #if 0
 #endif  /* if 0 */
@@ -466,6 +569,7 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***********************************************************/
           
+  fini_2level_dtable ( &evec_field );
   fini_2level_dtable ( &spinor_field );
 
 
