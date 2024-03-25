@@ -407,6 +407,19 @@ int main(int argc, char **argv) {
      * draw a stochastic binary source (real, +/1 one per site )
      ***************************************************************************/
     ranbinary ( scalar_field[0], 2 * g_nsample * VOLUME );
+    //for ( unsigned int ix = 0; ix < g_nsample * VOLUME; ix++ )
+    //{
+    //  scalar_field[0][2*ix] = 1.;
+    //}
+    // set a single site to non-zero value
+    //int snk_crds[4] = {
+    //  ( g_source_coords_list[0][0] + 2 + T_global  ) % T_global,
+    //  ( g_source_coords_list[0][1] - 2 + LX_global ) % LX_global,
+    //  ( g_source_coords_list[0][2] - 2 + LY_global ) % LY_global,
+    //  ( g_source_coords_list[0][3] - 2 + LZ_global ) % LZ_global  };
+    //memset ( scalar_field[0], 0, g_nsample * 2 * VOLUME * sizeof (double ) );
+    //scalar_field[0][2 * g_ipt[snk_crds[0]][snk_crds[1]][snk_crds[2]][snk_crds[3]] ] = 1.;
+
 
     /***************************************************************************
      * write loop field to lime file
@@ -635,8 +648,11 @@ int main(int argc, char **argv) {
 #endif
 
           /* tm-rotate stochastic propagator at source, in-place */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[2], spinor_work[0], 1, g_fermion_type, VOLUME);
+          if( g_fermion_type == _TM_FERMION ) 
+          {
+            int const tm_rotation_sign = ( ( g_mu > 0 ) ? 1 : -1 ) * ( 1 - 2 * (_OP_ID_UP ) ) ;
+            if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [loop_gf_invert_contract] tm_rotation_sign = %d   %s %d\n", tm_rotation_sign, __FILE__, __LINE__ );
+            spinor_field_tm_rotation(spinor_work[2], spinor_work[0], tm_rotation_sign, g_fermion_type, VOLUME);
           }
 
           /* call to (external/dummy) inverter / solver */
@@ -656,8 +672,11 @@ int main(int argc, char **argv) {
           }
 
           /* tm-rotate stochastic propagator at sink */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
+          if( g_fermion_type == _TM_FERMION ) 
+          {
+            int const tm_rotation_sign = ( ( g_mu > 0 ) ? 1 : -1 ) * ( 1 - 2 * (_OP_ID_UP ) ) ;
+            if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [loop_gf_invert_contract] tm_rotation_sign = %d   %s %d\n", tm_rotation_sign, __FILE__, __LINE__ );
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], tm_rotation_sign, g_fermion_type, VOLUME);
           }
 
      	  /***************************************************************************
