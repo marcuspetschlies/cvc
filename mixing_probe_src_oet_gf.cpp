@@ -76,9 +76,9 @@ extern "C"
 
 #define MAX_NUM_GF_NSTEP 100
 
-#define _USE_STOCHASTIC_OET 1
+#define _USE_STOCHASTIC_OET 0
 
-#define _USE_POINT_SOURCE 0
+#define _USE_POINT_SOURCE 1
 
 #if _USE_POINT_SOURCE
 #warning "using point-source method"
@@ -766,7 +766,7 @@ int main(int argc, char **argv) {
   double * gauge_field_gf = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
   if ( gauge_field_gf == NULL )
   {
-    fprintf(stderr, "[loop_gf_invert_contract] Error from init_1level_dtable   %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[mixing_probe_src_oet_gf] Error from init_1level_dtable   %s %d\n", __FILE__, __LINE__);
     EXIT(12);
   }
 #endif
