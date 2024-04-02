@@ -18,7 +18,14 @@
 #endif
 #include <getopt.h>
 
+#ifdef _GFLOW_QUDA
+
+#warning "including quda header file quda.h directly "
+#include "quda.h"
+
+
 #include "global.h"
+
 
 namespace cvc {
 
@@ -129,4 +136,87 @@ void gauge_field_qdp_to_cvc ( double * g_cvc, double ** g_qdp )
   return;
 }  /* end of gauge_field_cvc_to_qdp */
 
+
+
+/***************************************************************************
+ * Begin of gauge_param initialization
+ ***************************************************************************/
+void init_gauge_param (QudaGaugeParam * const gauge_param )
+{
+
+  gauge_param->struct_size = sizeof ( QudaGaugeParam );
+ 
+  /* gauge_param->location = QUDA_CUDA_FIELD_LOCATION; */
+  gauge_param->location = QUDA_CPU_FIELD_LOCATION;
+
+  gauge_param->X[0] = LX;
+  gauge_param->X[1] = LY;
+  gauge_param->X[2] = LZ;
+  gauge_param->X[3] = T;
+
+  gauge_param->anisotropy    = 1.0;
+  gauge_param->tadpole_coeff = 0.0;
+  gauge_param->scale         = 0.0;
+
+  gauge_param->type = QUDA_FLOWED_LINKS;
+  gauge_param->gauge_order = QUDA_QDP_GAUGE_ORDER;  /* expect *gauge[mu], even-odd, spacetime, row-column color */
+
+  gauge_param->t_boundary = QUDA_PERIODIC_T; 
+
+  gauge_param->cpu_prec = QUDA_DOUBLE_PRECISION;
+
+  gauge_param->cuda_prec   = QUDA_DOUBLE_PRECISION;
+  gauge_param->reconstruct = QUDA_RECONSTRUCT_NO;
+
+  gauge_param->cuda_prec_sloppy   = QUDA_DOUBLE_PRECISION;
+  gauge_param->reconstruct_sloppy = QUDA_RECONSTRUCT_NO;
+
+  gauge_param->cuda_prec_refinement_sloppy   = QUDA_DOUBLE_PRECISION;
+  gauge_param->reconstruct_refinement_sloppy = QUDA_RECONSTRUCT_NO;
+
+  gauge_param->cuda_prec_precondition   = QUDA_DOUBLE_PRECISION;
+  gauge_param->reconstruct_precondition = QUDA_RECONSTRUCT_NO;
+
+  gauge_param->cuda_prec_eigensolver   = QUDA_DOUBLE_PRECISION;
+  gauge_param->reconstruct_eigensolver = QUDA_RECONSTRUCT_NO;
+
+  gauge_param->gauge_fix = QUDA_GAUGE_FIXED_NO;
+
+  gauge_param->ga_pad = get_gauge_padding ( gauge_param->X );
+
+  gauge_param->site_ga_pad = 0;
+
+  gauge_param->staple_pad   = 0;
+  gauge_param->llfat_ga_pad = 0;
+  gauge_param->mom_ga_pad   = 0;
+  
+  gauge_param->staggered_phase_type = QUDA_STAGGERED_PHASE_NO;
+  
+  gauge_param->staggered_phase_applied = QUDA_STAGGERED_PHASE_NO;
+
+  gauge_param->i_mu = 0.;
+
+  gauge_param->overlap = 0;
+
+  gauge_param->overwrite_mom = false;
+
+  gauge_param->use_resident_gauge  = false;
+  gauge_param->use_resident_mom    = false;
+  gauge_param->make_resident_gauge = false;
+  gauge_param->make_resident_mom   = false;
+  gauge_param->return_result_gauge = false;
+  gauge_param->return_result_mom   = false;
+
+  gauge_param->gauge_offset = 0;
+  gauge_param->mom_offset   = 0;
+
+  /***************************************************************************
+   * End of gauge_param initialization
+   ***************************************************************************/
+
+  return;
+}  /* end of init_gauge_param */
+
 }  /* end of namespace cvc */
+
+#endif  /* ifdef _GFLOW_QUDA */
