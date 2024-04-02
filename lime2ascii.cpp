@@ -310,7 +310,8 @@ int main(int argc, char **argv) {
 
 
       for ( int i = 0; i < nc; i++ ) {
-        fprintf ( ofs, "s %3d  %25.16e + %25.16e I\n", i, field[ix][2*i], field[ix][2*i+1] );
+        // fprintf ( ofs, "s %3d  %25.16e + %25.16e I\n", i, field[ix][2*i], field[ix][2*i+1] );
+        fprintf ( ofs, "%25.16e   %25.16e\n", field[ix][2*i], field[ix][2*i+1] );
       }
 
     }}}}

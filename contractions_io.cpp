@@ -1825,8 +1825,12 @@ int write_h5_contraction_parallel ( void * const contr, char * const afilename, 
 
 }  /* end of write_h5_contraction_parallel */
 
+#endif  /* of if HAVE_MPI */
 #endif
-#endif
+
+
+
+
 
 #endif  /* if def HAVE_HDF5 */
 

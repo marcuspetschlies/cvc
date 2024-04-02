@@ -37,7 +37,7 @@ extern "C"
 
 #define MAIN_PROGRAM
 
-#include "cvc_complex.h"
+// #include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "cvc_geometry.h"
@@ -73,6 +73,12 @@ extern "C"
 
 #ifndef _USE_TIME_DILUTION
 #define _USE_TIME_DILUTION 1
+#endif
+
+#if _USE_TIME_DILUTION
+#warning "[loop_gf_invert_contract] building WITH time dilution"
+#else
+#warning "[loop_gf_invert_contract] building WITHOUT time dilution"
 #endif
 
 #define MAX_NUM_GF_NSTEP 100
@@ -387,33 +393,47 @@ int main(int argc, char **argv) {
 
   double ** scalar_field = NULL;
 
-  if ( g_nsample_oet > 0 ) {
-    scalar_field = init_2level_dtable ( g_nsample_oet, 2*VOLUME );
+  if ( g_nsample > 0 ) {
+    scalar_field = init_2level_dtable ( g_nsample, 2*VOLUME );
     if( scalar_field == NULL ) {
       fprintf(stderr, "[loop_gf_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__);
       EXIT(132);
     }
   }
 
-  if ( ! read_scalar_field  && ( g_nsample_oet > 0 ) ) {
+  if ( ! read_scalar_field  && ( g_nsample > 0 ) ) {
 
     /***************************************************************************
      * draw a stochastic binary source (real, +/1 one per site )
      ***************************************************************************/
-    ranbinary ( scalar_field[0], 2 * g_nsample_oet * VOLUME );
+    ranbinary ( scalar_field[0], 2 * g_nsample * VOLUME );
+    //for ( unsigned int ix = 0; ix < g_nsample * VOLUME; ix++ )
+    //{
+    //  scalar_field[0][2*ix] = 1.;
+    //}
+    // set a single site to non-zero value
+    //int snk_crds[4] = {
+    //  ( g_source_coords_list[0][0] + 2 + T_global  ) % T_global,
+    //  ( g_source_coords_list[0][1] - 2 + LX_global ) % LX_global,
+    //  ( g_source_coords_list[0][2] - 2 + LY_global ) % LY_global,
+    //  ( g_source_coords_list[0][3] - 2 + LZ_global ) % LZ_global  };
+    //memset ( scalar_field[0], 0, g_nsample * 2 * VOLUME * sizeof (double ) );
+    //scalar_field[0][2 * g_ipt[snk_crds[0]][snk_crds[1]][snk_crds[2]][snk_crds[3]] ] = 1.;
+
 
     /***************************************************************************
      * write loop field to lime file
      ***************************************************************************/
     if ( write_scalar_field ) {
-      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
       
       char field_type[2000];
 
       sprintf( field_type, "<source_type>%d</source_type><noise_type>binary real</noise_type><coherent_sources>%d</coherent_sources>", g_source_type , g_coherent_source_number );
 
-      for ( int i = 0; i < g_nsample_oet; i++ ) {
-        exitstatus = write_lime_contraction( scalar_field[i], filename, 64, 1, field_type, Nconf, ( i > 0 ) );
+      for ( int i = 0; i < g_nsample; i++ ) {
+        sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, i );
+
+        exitstatus = write_lime_contraction( scalar_field[i], filename, 64, 1, field_type, Nconf, 0 );
         if ( exitstatus != 0  ) {
           fprintf ( stderr, "[loop_gf_invert_contract] Error write_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
           EXIT(12);
@@ -422,10 +442,11 @@ int main(int argc, char **argv) {
     }  /* end of if write_scalar_field */
 
   } else {
-    sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, g_nsample_oet );
       
-    for ( int i = 0; i < g_nsample_oet; i++ ) {
-      exitstatus = read_lime_contraction ( scalar_field[i], filename, 1, i );
+    for ( int i = 0; i < g_nsample; i++ ) {
+      sprintf( filename, "scalar_field.c%d.N%d.lime", Nconf, i );
+
+      exitstatus = read_lime_contraction ( scalar_field[i], filename, 1, 0 );
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[loop_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
         EXIT(12);
@@ -539,13 +560,13 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  gf_nstep = 3;
+  gf_nstep = 2;
   gf_niter_list[0] = 0;
   gf_niter_list[1] = 3;
-  gf_niter_list[2] = 3;
+//  gf_niter_list[2] = 3;
   gf_dt_list[0] = 0.01;
   gf_dt_list[1] = 0.01;
-  gf_dt_list[2] = 0.01;
+//  gf_dt_list[2] = 0.01;
 
 
   /***************************************************************************
@@ -597,6 +618,7 @@ int main(int argc, char **argv) {
 
           memset ( spinor_work[0], 0, sizeof_spinor_field );
           memset ( spinor_work[1], 0, sizeof_spinor_field );
+          memset ( spinor_work[2], 0, sizeof_spinor_field );
  
 #if _USE_TIME_DILUTION
           if ( timeslice / T == g_proc_coords[0] ) {
@@ -624,16 +646,17 @@ int main(int argc, char **argv) {
             spinor_work[0][ iy + 1] = scalar_field[isample][ 2 * ix + 1 ];
           }
 #endif
+
           /* tm-rotate stochastic propagator at source, in-place */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[0], spinor_work[0], 1, g_fermion_type, VOLUME);
+          if( g_fermion_type == _TM_FERMION ) 
+          {
+            int const tm_rotation_sign = ( ( g_mu > 0 ) ? 1 : -1 ) * ( 1 - 2 * (_OP_ID_UP ) ) ;
+            if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [loop_gf_invert_contract] tm_rotation_sign = %d   %s %d\n", tm_rotation_sign, __FILE__, __LINE__ );
+            spinor_field_tm_rotation(spinor_work[2], spinor_work[0], tm_rotation_sign, g_fermion_type, VOLUME);
           }
 
-	  /* keep a copy of the sources field to later check of residual */
-          memcpy ( spinor_work[2], spinor_work[0], sizeof_spinor_field );
-
           /* call to (external/dummy) inverter / solver */
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], _OP_ID_UP );
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[2], _OP_ID_UP );
 #  if ( defined GPU_DIRECT_SOLVER )
           if(exitstatus < 0)
 #  else
@@ -649,11 +672,13 @@ int main(int argc, char **argv) {
           }
 
           /* tm-rotate stochastic propagator at sink */
-          if( g_fermion_type == _TM_FERMION ) {
-            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], 1, g_fermion_type, VOLUME);
+          if( g_fermion_type == _TM_FERMION ) 
+          {
+            int const tm_rotation_sign = ( ( g_mu > 0 ) ? 1 : -1 ) * ( 1 - 2 * (_OP_ID_UP ) ) ;
+            if ( g_cart_id == 0 && g_verbose > 2 ) fprintf(stdout, "# [loop_gf_invert_contract] tm_rotation_sign = %d   %s %d\n", tm_rotation_sign, __FILE__, __LINE__ );
+            spinor_field_tm_rotation(spinor_work[1], spinor_work[1], tm_rotation_sign, g_fermion_type, VOLUME);
           }
 
- 
      	  /***************************************************************************
           '* (re-)set gauge field to flowtime zero
      	   ***************************************************************************/
@@ -679,6 +704,7 @@ int main(int argc, char **argv) {
  
             if ( gf_dtau > 0. )
 	    {
+              if ( g_cart_id == 0 ) fprintf(stdout, "# [loop_gf_invert_contract] GF for dtau = %e\n", gf_dtau );
               gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef _GFLOW_QUDA
               QudaGaugeSmearParam smear_param;
@@ -737,6 +763,10 @@ int main(int argc, char **argv) {
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
 
+            } else {
+
+              if ( g_cart_id == 0 ) fprintf(stdout, "# [loop_gf_invert_contract] no GF\n" );
+
 	    }  /* end of if do any flow */
 
             /***************************************************************************
@@ -757,17 +787,19 @@ int main(int argc, char **argv) {
 
               for ( int ksc = 0; ksc < 12; ksc++ ) 
               {
-                for ( int lsc = 0; lsc < 12; lsc++ ) {
- 
-                  loop[igf][ix][ksc][lsc] +=
-                      /* 
-                       * complex conjugate of source vector element 
-                       */
-                        ( spinor_work[0][ iy + 2 * lsc ] - I * spinor_work[0][ iy + 2 * lsc + 1] )
-                        /* 
-                         * times prop vector element
-                         */
-                      * ( spinor_work[1][ iy + 2 * ksc ] + I * spinor_work[1][ iy + 2 * ksc + 1 ] );
+                /* 
+                 * times prop vector element
+                 */
+                double _Complex const a = spinor_work[1][ iy + 2 * ksc ] + I * spinor_work[1][ iy + 2 * ksc + 1 ];
+
+                for ( int lsc = 0; lsc < 12; lsc++ ) 
+                {
+                 /* 
+                  * complex conjugate of source vector element 
+                  */
+                  double _Complex const b = spinor_work[0][ iy + 2 * lsc ] - I * spinor_work[0][ iy + 2 * lsc + 1];
+
+                  loop[igf][ix][ksc][lsc] += a * b;
                   }
                 }
               }  /* end of loop on volume */
@@ -776,6 +808,11 @@ int main(int argc, char **argv) {
              show_time ( &ta, &tb, "loop_gf_invert_contract", "loop-matrix-accumulate", g_cart_id == 0 );
 
           }  /* end of loop on GF steps  */
+
+#if defined _GFLOW_CVC
+          flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0, 0, 0, 0 );
+#endif
+
 
         }  /* end of loop on color dilution component */
 
@@ -798,7 +835,7 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * write loop field to lime file
        ***************************************************************************/
-      sprintf( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, g_nsample, gf_tau );
+      sprintf( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, isample, gf_tau );
       char loop_type[2000];
 
       sprintf( loop_type, "<source_type>%d</source_type><noise_type>%d</noise_type><dilution_type>spin-color</dilution_type>", g_source_type, g_noise_type );
