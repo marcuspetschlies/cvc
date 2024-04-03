@@ -1198,7 +1198,7 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_MPI
         double _Complex * W_buffer = (double _Complex*)malloc ( 96*evec_num*evec_num * sizeof(double _Complex) );
-        memcpy ( W_buffer, X[0][0][0][0], 96*evec_num*evec_num * sizeof(double _Complex) );
+        memcpy ( W_buffer, W[0][0][0][0], 96*evec_num*evec_num * sizeof(double _Complex) );
 
         if ( MPI_Allreduce ( W_buffer, W[0][0][0][0], 192*evec_num*evec_num, MPI_DOUBLE, MPI_SUM, g_cart_grid) != 0 )
         {
