@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
   double const alat[2] = { 0.07957, 0.00013 };  /* fm */
 
 
-  int const ysign_num = 4;
+  int const ysign_num = 2;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
     { 1, 1,-1,-1},
@@ -190,15 +190,12 @@ int main(int argc, char **argv) {
   int filename_set = 0;
   int exitstatus;
   int io_proc = -1;
-  int check_propagator_residual = 0;
   char filename[400];
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
-  int first_solve_dummy = 0;
   struct timeval start_time, end_time;
   int ymax = 0;
   int evec_num =  0;
-  int evec_test = 0;
 
   struct timeval ta, te;
 
@@ -209,23 +206,17 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "tch?f:y:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:y:n:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'c':
-      check_propagator_residual = 1;
       break;
     case 'y':
       ymax = atoi ( optarg );
       break;
     case 'n':
       evec_num = atoi ( optarg );
-      break;
-    case 't':
-      evec_test = 1;
       break;
     case 'h':
     case '?':
@@ -434,6 +425,7 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
 
+#if 0
   /***********************************************************
    * read eigenvectors from file
    ***********************************************************/
@@ -480,6 +472,8 @@ int main(int argc, char **argv) {
 //#endif
     fini_2level_dtable ( &spinor_field );
   }
+#endif // of if 0
+
 
   /***********************************************************
    * test eigenpair properties
@@ -799,7 +793,7 @@ int main(int argc, char **argv) {
        ***********************************************************/
 #pragma omp parallel
 {
-      double sp[24], sp2[24];
+      double sp[24];
 #pragma omp for
       for ( size_t ix = 0; ix < VOLUME; ix++ )
       {
@@ -975,9 +969,6 @@ int main(int argc, char **argv) {
 
             for ( int icomb = 0; icomb < 6; icomb++ )
             {  
-              int const irho   = idx_comb[icomb][0];
-              int const isigma = idx_comb[icomb][1];
-
               for ( int inu = 0; inu < 4; inu++ )
               {
                 for ( int ilam = 0; ilam < 4; ilam++ )
@@ -1049,16 +1040,15 @@ int main(int argc, char **argv) {
 
         fini_5level_ztable ( &X );
         fini_1level_ztable ( &p );
-        fini_2level_itable ( &xv );
     
       }  // end of loop on y directions
     
     }  // end of loop on y distances
 
     fini_2level_dtable ( &spinor_field );
+    fini_2level_itable ( &xv );
 
   }  // of loop on source locations
-
 
   /***********************************************************/
   /***********************************************************/
@@ -1164,9 +1154,6 @@ int main(int argc, char **argv) {
 
             for ( int icomb = 0; icomb < 6; icomb++ )
             {  
-              int const irho   = idx_comb[icomb][0];
-              int const isigma = idx_comb[icomb][1];
-
               for ( int inu = 0; inu < 4; inu++ )
               {
                 for ( int ilam = 0; ilam < 4; ilam++ )
@@ -1238,13 +1225,13 @@ int main(int argc, char **argv) {
 
         fini_5level_ztable ( &W );
         fini_1level_ztable ( &p );
-        fini_2level_itable ( &xv );
     
       }  // end of loop on y directions
     
     }  // end of loop on y distances
 
     fini_2level_dtable ( &spinor_field );
+    fini_2level_itable ( &xv );
 
   }  // of loop on source locations
 
@@ -1253,6 +1240,10 @@ int main(int argc, char **argv) {
    ***********************************************************/
 
   fini_2level_dtable ( &evec_field );
+
+#ifdef HAVE_KQED
+  free_QED_temps( &kqed_t  );
+#endif
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
