@@ -57,6 +57,7 @@ extern "C"
 #include "table_init_d.h"
 #include "table_init_i.h"
 #include "clover.h"
+#include "prepare_source.h"
 
 
 #define _WITH_TIMER 1
@@ -154,7 +155,7 @@ int main(int argc, char **argv) {
   double const alat[2] = { 0.07957, 0.00013 };  /* fm */
 
 
-  int const ysign_num = 2;
+  int const ysign_num = 4;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
     { 1, 1,-1,-1},
@@ -181,10 +182,9 @@ int main(int argc, char **argv) {
         {1,2},
         {1,3},
         {2,3} };
-
-  int const gamma_map_id[4] = { 0, 0, 0, 0 };
-
-  double const gamma_map_sign[4] = { 1., 1., 1., 1. };
+  /*                                -0_5, +0_1, +0_2, +0_3     */
+  int    const gamma_map_id[4]   = {   6,   10,   11,  12 };
+  double const gamma_map_sign[4] = { -1.,  +1.,  +1.,  +1. };
 
   int c;
   int filename_set = 0;
@@ -425,7 +425,7 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
 
-#if 0
+
   /***********************************************************
    * read eigenvectors from file
    ***********************************************************/
@@ -438,11 +438,20 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
+    // TEST
+    // random evec fields
+    // prepare_volume_source ( spinor_field[0], VOLUME );
+
     sprintf (filename, "%s/eigVec_eV%d", filename_prefix, ievec);
 #if _WITH_TIMER
     gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
     exitstatus = read_lime_spinor ( spinor_field[0], filename, 0);
+
+    // TEST
+    // write evec to file
+    // exitstatus = write_propagator ( spinor_field[0], filename, 0, 64 );
+
 #if _WITH_TIMER
     gettimeofday ( &te, (struct timezone *)NULL );
     show_time ( &ta, &te, "hlbl_lm_contract", "read_lime_spinor", g_cart_id == 0 );
@@ -452,26 +461,12 @@ int main(int argc, char **argv) {
       fprintf( stderr, "[hlbl_lm_contract] Error from read_lime_spinor, status %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
       EXIT(1);
     }
-//#if _EVEC_TEST
+
     memcpy ( evec_field[ievec], spinor_field[0], sizeof_spinor_field );
-//#else
-    // reshape, leading spin
-//    for( int k = 0; k < 4; k++ )
-//    {
-//      double * const _evec_field   = evec_field[k][ievec];
-//      double * const _spinor_field = spinor_field[0] + 6 * k;
-//
-//      size_t const bytes  = 6 * sizeof(double);
-//
-//#pragma omp parallel for
-//      for ( size_t ix = 0; ix < 6*VOLUME; ix += 6 )
-//      {
-//        memcpy ( _evec_field + ix, spinor_field[0] + 4 * ix, bytes );
-//      }
-//    }
-//#endif
+
     fini_2level_dtable ( &spinor_field );
   }
+#if 0
 #endif // of if 0
 
 
@@ -618,7 +613,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   /***********************************************************
    * Y contractions
    *
@@ -667,6 +662,19 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[hlbl_lm_contract] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
         EXIT(1);
       }
+
+      double ** evec_point = init_2level_dtable ( evec_num, _GSI(1) );
+      if ( evec_point == NULL  )
+      {
+        fprintf(stderr, "[hlbl_lm_contract] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
+        EXIT(1);
+      }
+
+      for ( int k = 0; k < evec_num; k++ )
+      {
+        _fv_eq_fv ( evec_point[k], evec_field[k] + _GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) );
+      }
+
       
       for ( int igamma = 0; igamma < 4; igamma++ )
       {  
@@ -683,7 +691,7 @@ int main(int argc, char **argv) {
 #if _WITH_TIMER
             gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-            project ( p, (double _Complex*)evec_field[0], (double _Complex*)sp, evec_num, 1, 12 );
+            project ( p, (double _Complex*)evec_point[0], (double _Complex*)sp, evec_num, 1, 12 );
 
 #if _WITH_TIMER
             gettimeofday ( &te, (struct timezone *)NULL );
@@ -720,16 +728,18 @@ int main(int argc, char **argv) {
 #endif
       fini_3level_ztable ( &Y );
       fini_1level_ztable ( &p );
+      fini_2level_dtable ( &evec_point );
 
     }  // end of loop on direction
 
     }  // end of loop on iy
 
   }  // of loop on source locations
+#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   /***********************************************************
    * Z contractions
    *
@@ -776,6 +786,9 @@ int main(int argc, char **argv) {
                     ( g_lexic2coords[iz][3] + g_proc_coords[3] * LZ - gsx[3] + LZ_global ) % LZ_global };
 
       site_map_zerohalf ( zv[iz], z );
+
+      //fprintf(stdout, "zv %6d   %3d %3d %3d %3d\n", iz, 
+      //    zv[iz][0], zv[iz][1], zv[iz][2], zv[iz][3] );
     }
 
     double _Complex *** Z = init_3level_ztable ( 6, evec_num, evec_num );
@@ -809,7 +822,7 @@ int main(int argc, char **argv) {
           _fv_eq_fv_ti_re ( _sf, sp, zv[ix][irho] * gamma_map_sign[isigma] ); 
 
           _fv_eq_gamma_ti_fv ( sp, gamma_map_id[irho], _ev );
-          _fv_ti_eq_re ( sp, gamma_map_sign[isigma] );
+          _fv_ti_eq_re ( sp, zv[ix][isigma] * gamma_map_sign[irho] );
           _fv_mi_eq_fv ( _sf, sp ); 
 
         }  // end of loop on icomb
@@ -826,7 +839,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
         for ( unsigned int k = 0; k < evec_num; k++ )
         {
-          Z[icomb][k][iv] += p[evec_num * icomb + k];
+          Z[icomb][k][iv] = p[evec_num * icomb + k];
         }
       }
     }  // of loop on evec
@@ -864,6 +877,7 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &zv );
 
   }  // of loop on source locations
+#endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
@@ -937,7 +951,15 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[hlbl_lm_contract] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
-      
+ 
+        // TEST
+        // file pointer for kernel values
+        sprintf ( filename, "kerv.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
+            gsx[0], gsx[1], gsx[2], gsx[3], 
+            yv[0], yv[1], yv[2], yv[3] ) ;
+        FILE * kfs = fopen ( filename, "w" );
+        // END OF TEST
+
         for ( int iv = 0; iv < evec_num; iv++ )
         {
           /***********************************************************
@@ -958,6 +980,26 @@ int main(int argc, char **argv) {
                 xv[ix][3] * xunit[0] };
 
             KQED_LX[0]( xm, ym, kqed_t, kerv );
+
+            // TEST
+            // print out kernel values
+            if ( iv == 0 ) 
+            {
+              for ( int ia = 0; ia < 6; ia++ )
+              {
+                for ( int ib = 0; ib < 4; ib++ )
+                {
+                  for ( int ic = 0; ic < 4; ic++ )
+                 {
+                  for ( int id = 0; id < 4; id++ )
+                  {
+                    fprintf (kfs, "%6d %d %d %d %d    %25.16e\n", ix, ia, ib, ic, id, kerv[ia][ib][ic][id] );
+                  }
+                 }
+               }
+              }
+            }
+            // END OF TEST
 
             double * const _ev = evec_field[iv] + _GSI(ix);
 
@@ -1011,6 +1053,11 @@ int main(int argc, char **argv) {
           }
         }  // end of loop on evec
 
+        // TEST
+        // close kernel value file pointer
+        fclose ( kfs );
+        // END OF TEST
+
 #ifdef HAVE_MPI
         double _Complex * X_buffer = (double _Complex*)malloc ( 96*evec_num*evec_num * sizeof(double _Complex) );
         memcpy ( X_buffer, X[0][0][0][0], 96*evec_num*evec_num * sizeof(double _Complex) );
@@ -1052,7 +1099,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   /***********************************************************
    * W contractions
    ***********************************************************/
@@ -1234,7 +1281,7 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
-
+#endif
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
