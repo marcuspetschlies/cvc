@@ -613,7 +613,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-#if 0
+
   /***********************************************************
    * Y contractions
    *
@@ -735,11 +735,12 @@ int main(int argc, char **argv) {
     }  // end of loop on iy
 
   }  // of loop on source locations
+#if 0
 #endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
-#if 0
+
   /***********************************************************
    * Z contractions
    *
@@ -877,6 +878,7 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &zv );
 
   }  // of loop on source locations
+#if 0
 #endif  // of if 0
 
   /***********************************************************/
@@ -954,10 +956,10 @@ int main(int argc, char **argv) {
  
         // TEST
         // file pointer for kernel values
-        sprintf ( filename, "kerv.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
-            gsx[0], gsx[1], gsx[2], gsx[3], 
-            yv[0], yv[1], yv[2], yv[3] ) ;
-        FILE * kfs = fopen ( filename, "w" );
+        //sprintf ( filename, "kerv.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
+        //    gsx[0], gsx[1], gsx[2], gsx[3], 
+        //    yv[0], yv[1], yv[2], yv[3] ) ;
+        //FILE * kfs = fopen ( filename, "w" );
         // END OF TEST
 
         for ( int iv = 0; iv < evec_num; iv++ )
@@ -983,7 +985,7 @@ int main(int argc, char **argv) {
 
             // TEST
             // print out kernel values
-            if ( iv == 0 ) 
+            /*if ( iv == 0 ) 
             {
               for ( int ia = 0; ia < 6; ia++ )
               {
@@ -998,7 +1000,7 @@ int main(int argc, char **argv) {
                  }
                }
               }
-            }
+            }*/
             // END OF TEST
 
             double * const _ev = evec_field[iv] + _GSI(ix);
@@ -1055,7 +1057,7 @@ int main(int argc, char **argv) {
 
         // TEST
         // close kernel value file pointer
-        fclose ( kfs );
+        //fclose ( kfs );
         // END OF TEST
 
 #ifdef HAVE_MPI
@@ -1096,10 +1098,11 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
-
-  /***********************************************************/
-  /***********************************************************/
 #if 0
+#endif  // of if 0
+  /***********************************************************/
+  /***********************************************************/
+
   /***********************************************************
    * W contractions
    ***********************************************************/
@@ -1170,6 +1173,15 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
       
+        
+        // TEST
+        // file pointer for kernel values
+        //sprintf ( filename, "kerv.W.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
+        //    gsx[0], gsx[1], gsx[2], gsx[3], 
+        //    yv[0], yv[1], yv[2], yv[3] ) ;
+        //FILE * kfs = fopen ( filename, "w" );
+        // END OF TEST
+
         for ( int iv = 0; iv < evec_num; iv++ )
         {
           /***********************************************************
@@ -1190,6 +1202,28 @@ int main(int argc, char **argv) {
                 xv[ix][3] * xunit[0] };
 
             KQED_LX[0]( ym, xm, kqed_t, kerv );
+
+            // TEST
+            // print out kernel values
+            /*if ( iv == 0 )
+            {
+              for ( int ia = 0; ia < 6; ia++ )
+              {
+                for ( int ib = 0; ib < 4; ib++ )
+                {
+                  for ( int ic = 0; ic < 4; ic++ )
+                 {
+                  for ( int id = 0; id < 4; id++ )
+                  {
+                    fprintf (kfs, "%6d %d %d %d %d    %25.16e\n", ix, ia, ib, ic, id, kerv[ia][ib][ic][id] );
+                  }
+                 }
+               }
+              }
+            } */
+            // END OF TEST
+
+
 
             double * const _ev = evec_field[iv] + _GSI(ix);
 
@@ -1243,6 +1277,11 @@ int main(int argc, char **argv) {
           }
         }  // end of loop on evec
 
+        // TEST
+        // close kernel value file pointer
+        // fclose ( kfs );
+        // END OF TEST
+
 #ifdef HAVE_MPI
         double _Complex * W_buffer = (double _Complex*)malloc ( 96*evec_num*evec_num * sizeof(double _Complex) );
         memcpy ( W_buffer, W[0][0][0][0], 96*evec_num*evec_num * sizeof(double _Complex) );
@@ -1281,7 +1320,7 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
-#endif
+
   /***********************************************************
    * free the allocated memory, finalize
    ***********************************************************/
