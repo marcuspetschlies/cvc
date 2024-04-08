@@ -62,7 +62,7 @@ extern "C"
 
 #define _WITH_TIMER 1
 
-#define _EVEC_TEST 1
+#define _EVEC_TEST 0
 
 using namespace cvc;
 
@@ -670,20 +670,20 @@ int main(int argc, char **argv) {
         EXIT(1);
       }
 
-      for ( int k = 0; k < evec_num; k++ )
+      if ( source_proc_id_y == g_cart_id )
       {
-        _fv_eq_fv ( evec_point[k], evec_field[k] + _GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) );
-      }
-
       
-      for ( int igamma = 0; igamma < 4; igamma++ )
-      {  
-        memset ( p, 0,  evec_num * sizeof(double _Complex) );
-
-        double sp[24];
-        
-        if ( source_proc_id_y == g_cart_id )
+        for ( int k = 0; k < evec_num; k++ )
         {
+          _fv_eq_fv ( evec_point[k], evec_field[k] + _GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) );
+        }
+
+        for ( int igamma = 0; igamma < 4; igamma++ )
+        {  
+          memset ( p, 0,  evec_num * sizeof(double _Complex) );
+
+          double sp[24];
+        
           for ( int iv = 0; iv < evec_num; iv++ )
           {
             _fv_eq_gamma_ti_fv ( sp, gamma_map_id[igamma], evec_field[iv] + _GSI(g_ipt[sy[0]][sy[1]][sy[2]][sy[3]]) );
@@ -705,12 +705,8 @@ int main(int argc, char **argv) {
         
           }  // of loop on evecs
   
-        }  // of if source_prod_id
+        }  // of loop on gamma
 
-      }  // of loop on gamma
-
-      if ( source_proc_id == g_cart_id )
-      {
         int const ndim = 4;
         int const cdim[4] = { 4, evec_num, evec_num, 2};
         char tag[400];
@@ -721,7 +717,7 @@ int main(int argc, char **argv) {
           fprintf ( stderr, "[hlbl_lm_contract] Error from write_h5_contraction   %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
-      }
+      }  // of if source_prod_id_y
 
 #ifdef HAVE_MPI
       MPI_Barrier( g_cart_grid );
@@ -1098,8 +1094,10 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
+
 #if 0
 #endif  // of if 0
+
   /***********************************************************/
   /***********************************************************/
 
@@ -1320,6 +1318,9 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
+
+#if 0
+#endif  // of if 0
 
   /***********************************************************
    * free the allocated memory, finalize
