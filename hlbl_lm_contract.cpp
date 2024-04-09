@@ -614,6 +614,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
 
 #if _WITH_TIMER
   struct timeval Y_timer[2];
@@ -741,11 +742,12 @@ int main(int argc, char **argv) {
   show_time ( Y_timer, Y_timer+1, "hlbl_lm_contract", "Y-total", g_cart_id == 0 );
 #endif
 
-#if 0
 #endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
+
+#if 0
 
 #if _WITH_TIMER
   struct timeval Z_timer[2];
@@ -893,7 +895,6 @@ int main(int argc, char **argv) {
   show_time ( Z_timer, Z_timer+1, "hlbl_lm_contract", "Z-total", g_cart_id == 0 );
 #endif
 
-#if 0
 #endif  // of if 0
 
   /***********************************************************/
@@ -1028,7 +1029,7 @@ int main(int argc, char **argv) {
           gettimeofday ( &ta, (struct timezone *)NULL );
 #pragma omp parallel
 {
-          double sp[4][24];
+          double sp[4][24], spsum[24];
           // double kerv[6][4][4][4] KQED_ALIGN;
 #pragma omp for
           for ( size_t ix = 0; ix < VOLUME; ix++ )
@@ -1079,7 +1080,7 @@ int main(int argc, char **argv) {
                 {
                   int const k = 4 * ( 4 * icomb + inu ) + ilam;
                   double * const _ksf = spinor_field[k] + _GSI(ix);
-
+/*
                   _fv_eq_fv_ti_re ( _ksf, sp[0], kervx[ix][icomb][0][inu][ilam] );
 
                   _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[1], kervx[ix][icomb][1][inu][ilam] );
@@ -1087,7 +1088,13 @@ int main(int argc, char **argv) {
                   _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[2], kervx[ix][icomb][2][inu][ilam] );
 
                   _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[3], kervx[ix][icomb][3][inu][ilam] );
-  
+*/
+                  memset (spsum, 0, 24*sizeof(double) );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[0], kervx[ix][icomb][0][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[1], kervx[ix][icomb][1][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[2], kervx[ix][icomb][2][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[3], kervx[ix][icomb][3][inu][ilam] );
+                  memcpy ( _ksf, spsum, 24*sizeof(double) );
                 }  // end of loop on lambda
               }  // end of loop on nu
             }  // end of loop on icomb
@@ -1191,7 +1198,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   /***********************************************************
    * W contractions
    ***********************************************************/
@@ -1409,8 +1416,6 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
-
-#if 0
 #endif  // of if 0
 
   /***********************************************************
