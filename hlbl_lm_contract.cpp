@@ -956,6 +956,13 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
+    double *** spinor_work = init_3level_dtable ( VOLUME, 4, _GSI(1) );
+    if( spinor_work == NULL )
+    {
+      fprintf(stderr, "[hlbl_lm_contract] Error from init_level_table %s %d\n", __FILE__, __LINE__);
+      EXIT(123);
+    }
+
     for ( int iy = 1; iy <= ymax; iy++ ) 
     {
       for ( int isign = 0; isign < ysign_num; isign++ )
@@ -984,7 +991,6 @@ int main(int argc, char **argv) {
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-        // double ***** kervx = init_5level_dtable ( VOLUME, 6, 4, 4, 4 ); // KQED_ALIGN;
         kerv_type * kervx = (kerv_type*) malloc ( VOLUME * sizeof ( kerv_type ) );
         if ( kervx == NULL )
         {
@@ -995,7 +1001,6 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
         for ( size_t ix = 0; ix < VOLUME; ix++ )
         {
-          // kerv_type  _kervx = kervx[ix];
 
           double const xm[4] = {
                 xv[ix][0] * xunit[0],
@@ -1010,66 +1015,44 @@ int main(int argc, char **argv) {
         show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-kervx", g_cart_id == 0 );
 #endif
 
-
-        // TEST
-        // file pointer for kernel values
-        //sprintf ( filename, "kerv.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
-        //    gsx[0], gsx[1], gsx[2], gsx[3], 
-        //    yv[0], yv[1], yv[2], yv[3] ) ;
-        //FILE * kfs = fopen ( filename, "w" );
-        // END OF TEST
-
         for ( int iv = 0; iv < evec_num; iv++ )
         {
+
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+          for ( int imu = 0; imu < 4; imu++ )
+          {
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+            for ( size_t ix = 0; ix < VOLUME; ix++ )
+            {
+              double * const _ev = evec_field[iv] + _GSI(ix);
+              double * const _sw = spinor_work[ix][imu];
+
+              _fv_eq_gamma_ti_fv ( _sw, gamma_map_id[imu], _ev );
+              _fv_ti_eq_re ( _sw, gamma_map_sign[imu] ); 
+            }
+          }
+#if _WITH_TIMER
+          gettimeofday ( &te, (struct timezone *)NULL );
+          show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-gv", g_cart_id == 0 );
+#endif
+
           /***********************************************************
            * multiply by gamma and kernel
            ***********************************************************/
 
+          memset ( spinor_field[0], 0, 96 * sizeof_spinor_field );
+
+#if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
-#pragma omp parallel
-{
-          double sp[4][24];
-          // double kerv[6][4][4][4] KQED_ALIGN;
-#pragma omp for
-          for ( size_t ix = 0; ix < VOLUME; ix++ )
-          {
-            //double const xm[4] = {
-            //    xv[ix][0] * xunit[0],
-            //    xv[ix][1] * xunit[0],
-            //    xv[ix][2] * xunit[0],
-            //    xv[ix][3] * xunit[0] };
-            //
-            //KQED_LX[0]( xm, ym, kqed_t, kerv );
-
-            // kerv_type _kervx = kervx[ix];
-
-            // TEST
-            // print out kernel values
-            /*if ( iv == 0 ) 
-            {
-              for ( int ia = 0; ia < 6; ia++ )
-              {
-                for ( int ib = 0; ib < 4; ib++ )
-                {
-                  for ( int ic = 0; ic < 4; ic++ )
-                 {
-                  for ( int id = 0; id < 4; id++ )
-                  {
-                    fprintf (kfs, "%6d %d %d %d %d    %25.16e\n", ix, ia, ib, ic, id, kerv[ia][ib][ic][id] );
-                  }
-                 }
-               }
-              }
-            }*/
-            // END OF TEST
-
-            double * const _ev = evec_field[iv] + _GSI(ix);
-
-            for ( int imu = 0; imu < 4; imu++)
-            {
-              _fv_eq_gamma_ti_fv ( sp[imu], gamma_map_id[imu], _ev );
-              _fv_ti_eq_re ( sp[imu], gamma_map_sign[imu] ); 
-            }
+#endif
+#pragma omp parallel for
+         for ( size_t ix = 0; ix < VOLUME; ix++ )
+         {
+            double ** const _sw = spinor_work[ix];
 
             for ( int icomb = 0; icomb < 6; icomb++ )
             {  
@@ -1078,23 +1061,18 @@ int main(int argc, char **argv) {
                 for ( int ilam = 0; ilam < 4; ilam++ )
                 {
                   int const k = 4 * ( 4 * icomb + inu ) + ilam;
+
                   double * const _ksf = spinor_field[k] + _GSI(ix);
+                    
+                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[0], kervx[ix][icomb][0][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[1], kervx[ix][icomb][1][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[2], kervx[ix][icomb][2][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[3], kervx[ix][icomb][3][inu][ilam] );
 
-                  _fv_eq_fv_ti_re ( _ksf, sp[0], kervx[ix][icomb][0][inu][ilam] );
-
-                  _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[1], kervx[ix][icomb][1][inu][ilam] );
-
-                  _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[2], kervx[ix][icomb][2][inu][ilam] );
-
-                  _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[3], kervx[ix][icomb][3][inu][ilam] );
-  
                 }  // end of loop on lambda
               }  // end of loop on nu
             }  // end of loop on icomb
-
           }  // loop on VOLUME
-}  // end of parallel region
-
 #if _WITH_TIMER
           gettimeofday ( &te, (struct timezone *)NULL );
           show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-ev", g_cart_id == 0 );
@@ -1137,7 +1115,6 @@ int main(int argc, char **argv) {
         }  // end of loop on evec
 
 
-        // fini_5level_dtable ( &kervx );
         free ( kervx ); kervx = NULL;
 
         // TEST
@@ -1179,6 +1156,7 @@ int main(int argc, char **argv) {
     
     }  // end of loop on y distances
 
+    fini_3level_dtable ( &spinor_work );
     fini_2level_dtable ( &spinor_field );
     fini_2level_itable ( &xv );
 
