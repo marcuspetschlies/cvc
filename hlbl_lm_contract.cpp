@@ -1170,6 +1170,10 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if _WITH_TIMER
+  struct timeval W_timer[2];
+  gettimeofday ( W_timer, (struct timezone *)NULL );
+#endif
   /***********************************************************
    * W contractions
    ***********************************************************/
@@ -1387,6 +1391,10 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
+#if _WITH_TIMER
+  gettimeofday ( W_timer+1, (struct timezone *)NULL );
+  show_time ( W_timer, W_timer+1, "hlbl_lm_contract", "W-total", g_cart_id == 0 );
+#endif
 
 #if 0
 #endif  // of if 0
