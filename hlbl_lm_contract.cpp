@@ -614,6 +614,7 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
+#if 0
 
 #if _WITH_TIMER
   struct timeval Y_timer[2];
@@ -741,11 +742,12 @@ int main(int argc, char **argv) {
   show_time ( Y_timer, Y_timer+1, "hlbl_lm_contract", "Y-total", g_cart_id == 0 );
 #endif
 
-#if 0
 #endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
+
+#if 0
 
 #if _WITH_TIMER
   struct timeval Z_timer[2];
@@ -893,7 +895,6 @@ int main(int argc, char **argv) {
   show_time ( Z_timer, Z_timer+1, "hlbl_lm_contract", "Z-total", g_cart_id == 0 );
 #endif
 
-#if 0
 #endif  // of if 0
 
   /***********************************************************/
@@ -956,13 +957,6 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-    double *** spinor_work = init_3level_dtable ( VOLUME, 4, _GSI(1) );
-    if( spinor_work == NULL )
-    {
-      fprintf(stderr, "[hlbl_lm_contract] Error from init_level_table %s %d\n", __FILE__, __LINE__);
-      EXIT(123);
-    }
-
     for ( int iy = 1; iy <= ymax; iy++ ) 
     {
       for ( int isign = 0; isign < ysign_num; isign++ )
@@ -1018,28 +1012,6 @@ int main(int argc, char **argv) {
         for ( int iv = 0; iv < evec_num; iv++ )
         {
 
-#if _WITH_TIMER
-          gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-          for ( int imu = 0; imu < 4; imu++ )
-          {
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
-            for ( size_t ix = 0; ix < VOLUME; ix++ )
-            {
-              double * const _ev = evec_field[iv] + _GSI(ix);
-              double * const _sw = spinor_work[ix][imu];
-
-              _fv_eq_gamma_ti_fv ( _sw, gamma_map_id[imu], _ev );
-              _fv_ti_eq_re ( _sw, gamma_map_sign[imu] ); 
-            }
-          }
-#if _WITH_TIMER
-          gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-gv", g_cart_id == 0 );
-#endif
-
           /***********************************************************
            * multiply by gamma and kernel
            ***********************************************************/
@@ -1049,10 +1021,19 @@ int main(int argc, char **argv) {
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-#pragma omp parallel for
-         for ( size_t ix = 0; ix < VOLUME; ix++ )
-         {
-            double ** const _sw = spinor_work[ix];
+#pragma omp parallel
+{
+          double sp[4][24], spsum[24];
+#pragma omp for
+          for ( size_t ix = 0; ix < VOLUME; ix++ )
+          {
+            double * const _ev = evec_field[iv] + _GSI(ix);
+
+            for ( int imu = 0; imu < 4; imu++)
+            {
+              _fv_eq_gamma_ti_fv ( sp[imu], gamma_map_id[imu], _ev );
+              _fv_ti_eq_re ( sp[imu], gamma_map_sign[imu] ); 
+            }
 
             for ( int icomb = 0; icomb < 6; icomb++ )
             {  
@@ -1063,16 +1044,28 @@ int main(int argc, char **argv) {
                   int const k = 4 * ( 4 * icomb + inu ) + ilam;
 
                   double * const _ksf = spinor_field[k] + _GSI(ix);
-                    
-                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[0], kervx[ix][icomb][0][inu][ilam] );
-                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[1], kervx[ix][icomb][1][inu][ilam] );
-                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[2], kervx[ix][icomb][2][inu][ilam] );
-                  _fv_pl_eq_fv_ti_re ( _ksf, _sw[3], kervx[ix][icomb][3][inu][ilam] );
+/*
+                  _fv_eq_fv_ti_re ( _ksf, sp[0], kervx[ix][icomb][0][inu][ilam] );
 
+                  _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[1], kervx[ix][icomb][1][inu][ilam] );
+
+                  _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[2], kervx[ix][icomb][2][inu][ilam] );
+
+                  _fv_eq_fv_pl_fv_ti_re ( _ksf, _ksf, sp[3], kervx[ix][icomb][3][inu][ilam] );
+*/
+                  memset (spsum, 0, 24*sizeof(double) );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[0], kervx[ix][icomb][0][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[1], kervx[ix][icomb][1][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[2], kervx[ix][icomb][2][inu][ilam] );
+                  _fv_pl_eq_fv_ti_re ( spsum, sp[3], kervx[ix][icomb][3][inu][ilam] );
+                  memcpy ( _ksf, spsum, 24*sizeof(double) );
                 }  // end of loop on lambda
               }  // end of loop on nu
             }  // end of loop on icomb
           }  // loop on VOLUME
+
+}  // end of parallel region
+
 #if _WITH_TIMER
           gettimeofday ( &te, (struct timezone *)NULL );
           show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-ev", g_cart_id == 0 );
@@ -1117,11 +1110,6 @@ int main(int argc, char **argv) {
 
         free ( kervx ); kervx = NULL;
 
-        // TEST
-        // close kernel value file pointer
-        //fclose ( kfs );
-        // END OF TEST
-
 #ifdef HAVE_MPI
         double _Complex * X_buffer = (double _Complex*)malloc ( 96*evec_num*evec_num * sizeof(double _Complex) );
         memcpy ( X_buffer, X[0][0][0][0], 96*evec_num*evec_num * sizeof(double _Complex) );
@@ -1156,7 +1144,6 @@ int main(int argc, char **argv) {
     
     }  // end of loop on y distances
 
-    fini_3level_dtable ( &spinor_work );
     fini_2level_dtable ( &spinor_field );
     fini_2level_itable ( &xv );
 
@@ -1169,7 +1156,7 @@ int main(int argc, char **argv) {
 
   /***********************************************************/
   /***********************************************************/
-
+#if 0
   /***********************************************************
    * W contractions
    ***********************************************************/
@@ -1387,8 +1374,6 @@ int main(int argc, char **argv) {
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
-
-#if 0
 #endif  // of if 0
 
   /***********************************************************
