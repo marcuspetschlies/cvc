@@ -217,6 +217,48 @@ void init_gauge_param (QudaGaugeParam * const gauge_param )
   return;
 }  /* end of init_gauge_param */
 
+
+/***************************************************************************
+ * reordering fermion field to quda data layout
+ *
+ * in: s
+ * out: r
+ ***************************************************************************/
+void spinor_field_cvc_to_quda ( double * const r, double * const s ) 
+{
+  size_t const sizeof_spinor_field = _GSI(VOLUME) * sizeof (double);
+  size_t bytes = _GSI(1) * sizeof(double);
+
+  double aux = (double *)malloc ( sizeof_spinor_field );
+  
+  memcpy ( aux, s, sizeof_spinor_field );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+  for( unsigned int ix = 0; ix < VOLUME; ix++ )
+  {
+    int const x0 = g_lexic2coords[ix][0];
+    int const x1 = g_lexic2coords[ix][1];
+    int const x2 = g_lexic2coords[ix][2];
+    int const x3 = g_lexic2coords[ix][3];
+      
+    /* index running t,z,y,x */
+    unsigned int const j = x1 + LX * ( x2 + LY * ( x3 + LZ * x0 ) );
+    /* index running t, x, y, z */
+    unsigned int const k = x3 + LZ * ( x2 + LY * ( x1 + LX * x0 ) );
+
+    int b = (x0+x1+x2+x3) & 1;
+    unsigned int qidx = _GSI( b * VOLUME / 2 + j / 2 );
+
+    memcpy( r + qidx, aux + _GSI(k), bytes );
+  }
+  
+  free ( aux );
+
+}  /* end of spinor_field_cvc_to_quda */
+
+
 }  /* end of namespace cvc */
 
 #endif  /* ifdef _GFLOW_QUDA */
