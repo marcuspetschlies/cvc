@@ -64,6 +64,7 @@ extern "C"
 
 #include "gradient_flow.h"
 #ifdef _GFLOW_QUDA
+#include "quda.h"
 #include "gauge_quda.h"
 #endif
 
@@ -580,8 +581,8 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * normalize to 1/2 x [ fwd deriv + bwd deriv ] / ( T x L^3 )
          ***************************************************************************/
-        w.re *= 0.5 / (double)VOLUME;
-        w.im *= 0.5 / (double)VOLUME;
+        w.re *= 0.5 / ( (double)VOLUME * g_nproc );
+        w.im *= 0.5 / ( (double)VOLUME * g_nproc );
 
         w_total.re += w.re;
         w_total.im += w.im;
