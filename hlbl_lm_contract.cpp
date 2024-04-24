@@ -622,7 +622,6 @@ int main(int argc, char **argv) {
   /***********************************************************/
   /***********************************************************/
 
-#if 0
 
 #if _WITH_TIMER
   struct timeval Y_timer[2];
@@ -750,12 +749,12 @@ int main(int argc, char **argv) {
   show_time ( Y_timer, Y_timer+1, "hlbl_lm_contract", "Y-total", g_cart_id == 0 );
 #endif
 
+#if 0
 #endif  // of if 0
 
   /***********************************************************/
   /***********************************************************/
 
-#if 0
 
 #if _WITH_TIMER
   struct timeval Z_timer[2];
@@ -903,6 +902,7 @@ int main(int argc, char **argv) {
   show_time ( Z_timer, Z_timer+1, "hlbl_lm_contract", "Z-total", g_cart_id == 0 );
 #endif
 
+#if 0
 #endif  // of if 0
 
   /***********************************************************/
@@ -1252,10 +1252,10 @@ int main(int argc, char **argv) {
 
         // TEST
         // file pointer for kernel values
-        sprintf ( filename, "kerv.W.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
-            gsx[0], gsx[1], gsx[2], gsx[3], 
-            yv[0], yv[1], yv[2], yv[3] ) ;
-        FILE * kfs = fopen ( filename, "w" );
+        //sprintf ( filename, "kerv.W.wt%d_wx%d_wy%d_wz%d.yt%d_yx%d_yy%d_yz%d", 
+        //    gsx[0], gsx[1], gsx[2], gsx[3], 
+        //    yv[0], yv[1], yv[2], yv[3] ) ;
+        //FILE * kfs = fopen ( filename, "w" );
         // END OF TEST
 
 #pragma omp parallel for
@@ -1272,7 +1272,7 @@ int main(int argc, char **argv) {
 
           // TEST
           // print out kernel values
-          for ( int ia = 0; ia < 6; ia++ )
+          /* for ( int ia = 0; ia < 6; ia++ )
           {
             for ( int ib = 0; ib < 4; ib++ )
             {
@@ -1284,14 +1284,14 @@ int main(int argc, char **argv) {
               }
              }
            }
-          }
+          }*/
           // END OF TEST
 
         }  // end of loop on VOLUME
 
         // TEST
         // close kernel value file pointer
-        fclose ( kfs );
+        //fclose ( kfs );
         // END OF TEST
 
 #if _WITH_TIMER
