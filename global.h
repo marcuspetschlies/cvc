@@ -101,6 +101,11 @@
 #define MAX_PARAM_NUMBER 100
 #define MAX_SMEARING_LEVEL_NUMBER 40
 
+//#ifdef HAVE_CUDA
+//#define CHECK_CUDA_ERROR(func)                                                                                         \
+//  cuda::set_runtime_error(func, #func, __func__, __FILE__, __STRINGIFY__(__LINE__));
+//#endif
+
 namespace cvc {
 
 typedef struct momentum_info_struct {
@@ -137,6 +142,7 @@ EXTERN int g_proc_id, g_nproc;
 EXTERN int g_cart_id;
 EXTERN int g_nb_list[8];
 EXTERN int g_proc_coords[4];
+EXTERN int g_device_id;
 
 #ifdef HAVE_MPI
 EXTERN MPI_Comm g_cart_grid;
