@@ -56,6 +56,7 @@ extern "C"
 #include "table_init_z.h"
 #include "table_init_d.h"
 #include "table_init_i.h"
+#include "table_init_c.h"
 #include "clover.h"
 #include "prepare_source.h"
 
@@ -317,7 +318,7 @@ int main(int argc, char **argv) {
     g_device_id = 0;
 #ifdef HAVE_MPI
     int hostname_len;
-    char * hostname[MPI_MAX_PROCESSOR_NAME];
+    char hostname[MPI_MAX_PROCESSOR_NAME];
     char ** hostname_list = init_2level_ctable (g_nproc, MPI_MAX_PROCESSOR_NAME );
     if ( hostname_list == NULL )
     {
@@ -327,18 +328,18 @@ int main(int argc, char **argv) {
     
     MPI_Get_processor_name ( hostname, &hostname_len );
 
-    if ( g_verbose > 2 ) fprintf (stdout, "# [hlbl_lm_contract_gpu] proc %4d hostname %s   %s %d\n", g_cart_id, hostanme, __FILE__, __LINE__ );
+    if ( g_verbose > 2 ) fprintf (stdout, "# [hlbl_lm_contract_gpu] proc %4d hostname %s   %s %d\n", g_cart_id, hostname, __FILE__, __LINE__ );
 
     MPI_Allgather ( hostname, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, hostname_list, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, g_cart_grid );
 
     for ( int i = 0; i < g_cart_id; i++) {
-      if (!strncmp( hostname, &(hostname_list[MPI_MAX_PROCESSOR_NAME * i], MPI_MAX_PROCESSOR_NAME) ) { g_device_id++; }
+      if (!strncmp( hostname, hostname_list[i], MPI_MAX_PROCESSOR_NAME) ) { g_device_id++; }
     }
 
     // exit with error is not necessary here; but needs check on how to over-use gpus by more than one mpi process
     if ( g_device_id >= device_count )
     {
-      fprintf (stderr, "[hlbl_lm_contract_gpu] proc %4d device id %d >= number of devices found    %s %d\n", g_cart_id, g_device_id, device_count,
+      fprintf (stderr, "[hlbl_lm_contract_gpu] proc %4d device id %d >= number of devices found %d   %s %d\n", g_cart_id, g_device_id, device_count,
          __FILE__, __LINE__  );
       EXIT (1);
     }
@@ -760,10 +761,10 @@ int main(int argc, char **argv) {
            ***********************************************************/
           for ( int i = 0; i < 96; i++ )
           {
-            for ( unsigned int k = 0; k < evec_num; k++ )
+            for ( int k = 0; k < evec_num; k++ )
             {
-              double const a[2] = { creal(   p[ evec_num * i + k ] ), cimagl(   p[ evec_num * i + k ] ) };
-              double const b[2] = { creal( h_p[ evec_num * i + k ] ), cimagl( h_p[ evec_num * i + k ] ) };
+              double const a[2] = { creal(   p[ evec_num * i + k ] ), cimag(   p[ evec_num * i + k ] ) };
+              double const b[2] = { creal( h_p[ evec_num * i + k ] ), cimag( h_p[ evec_num * i + k ] ) };
 
               double const diff[2] = { fabs ( a[0] - b[0] ), fabs( a[1] - b[1] ) };
               
