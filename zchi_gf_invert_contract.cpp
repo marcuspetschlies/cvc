@@ -537,7 +537,10 @@ int main(int argc, char **argv) {
       } else {
 
         if ( g_cart_id == 0 ) fprintf(stdout, "# [zchi_gf_invert_contract] no GF\n" );
-#ifdef _GFLOW_CVC
+#ifdef _GFLOW_QUDA
+        saveGaugeQuda ( h_gauge, &gauge_param );
+        gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
+#elif defined _GFLOW_CVC
         memcpy ( gauge_field_aux, gauge_field_gf, sizeof_gauge_field );
 #endif
 
@@ -580,8 +583,8 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * normalize to 1/2 x [ fwd deriv + bwd deriv ] / ( T x L^3 )
          ***************************************************************************/
-        w.re *= 0.5 / (double)VOLUME;
-        w.im *= 0.5 / (double)VOLUME;
+        w.re *= 0.5 / (double)VOLUME / (double)g_nproc;
+        w.im *= 0.5 / (double)VOLUME / (double)g_nproc;
 
         w_total.re += w.re;
         w_total.im += w.im;
