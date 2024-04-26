@@ -3,6 +3,11 @@
 
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#include <cuComplex.h>
+#include <cublas_v2.h>
+#include <cublas_api.h>
+
+using cuda_data_type = cuDoubleComplex;
 
 /****************************************************
  * hlbl_lm_cuda
@@ -29,7 +34,11 @@
     } while (0)
 
 
-
+#if 0
 int hlbl_lm_reduce ( void * const h_p, void * const h_v, void * const h_s, const int nv, const int nx, const int ns );
+#endif  // end of if 0
+
+int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p,
+    cuda_data_type * const d_v, cuda_data_type * const d_s, const int nv, const int nx, const int ns );
 
 #endif

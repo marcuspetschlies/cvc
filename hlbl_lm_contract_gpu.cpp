@@ -115,6 +115,38 @@ inline void site_map_zerohalf (int xv[4], int const x[4] )
   return;
 }
 
+/***********************************************************/
+/***********************************************************/
+
+/***********************************************************
+ * compute p = V^H s
+ *
+ * V is nv x nx (C) = nx x nv (F)
+ * s is ns x nx (C) = nx x ns (F)
+ *
+ * p is [nx x nv]^H x [nx x ns] = nv x ns (F) = ns x nv (C)
+ ***********************************************************/
+inline void project (double _Complex * const p, double _Complex * const V, double _Complex * const s, int const nv, int const ns, int const nx )
+{
+  double _Complex * BLAS_A = V;
+  double _Complex * BLAS_B = s;
+  double _Complex * BLAS_C = p;
+
+  double _Complex BLAS_ALPHA  = 1.;
+  double _Complex BLAS_BETA   = 0.;
+  char BLAS_TRANSA = 'C';
+  char BLAS_TRANSB = 'N';
+  int BLAS_M      = nv;
+  int BLAS_K      = nx;
+  int BLAS_N      = ns;
+  int BLAS_LDA    = BLAS_K;
+  int BLAS_LDB    = BLAS_K;
+  int BLAS_LDC    = BLAS_M;
+
+  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
+
+  return;
+}
 
 /***********************************************************/
 /***********************************************************/
@@ -176,6 +208,11 @@ int main(int argc, char **argv) {
   int evec_num =  0;
 
   struct timeval ta, te;
+
+#ifdef HAVE_CUDA
+  cublasHandle_t cublasH = NULL;
+  cudaStream_t stream = NULL;
+#endif
 
   // QED_kernel_LX_ptr KQED_LX[1] = { QED_kernel_L2 };
   QED_kernel_LX_ptr KQED_LX[1] = { QED_kernel_L0P4 };
@@ -311,6 +348,12 @@ int main(int argc, char **argv) {
 
     CUDA_CHECK ( cudaSetDevice ( g_device_id ) );
 
+    /* create cublas handle, bind a stream */
+    CUBLAS_CHECK ( cublasCreate(&cublasH) );
+
+    CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
+    CUBLAS_CHECK ( cublasSetStream(cublasH, stream) );
+
   }
 #endif  // of HAVE_CUDA
 
@@ -367,7 +410,7 @@ int main(int argc, char **argv) {
   }
 #if _WITH_TIMER
   gettimeofday ( &te, (struct timezone *)NULL );
-  show_time ( &ta, &te, "hlbl_lm_contract", "gauge_field_eq_gauge_field_ti_phase", g_cart_id == 0 );
+  show_time ( &ta, &te, __FILE__, "gauge_field_eq_gauge_field_ti_phase", g_cart_id == 0 );
 #endif
 
 
@@ -381,7 +424,7 @@ int main(int argc, char **argv) {
   }
 #if _WITH_TIMER
   gettimeofday ( &te, (struct timezone *)NULL );
-  show_time ( &ta, &te, "hlbl_lm_contract", "plaquetteria", g_cart_id == 0 );
+  show_time ( &ta, &te, __FILE__ , "plaquetteria", g_cart_id == 0 );
 #endif
 
   /***********************************************
@@ -399,7 +442,7 @@ int main(int argc, char **argv) {
   }
 #if _WITH_TIMER
   gettimeofday ( &te, (struct timezone *)NULL );
-  show_time ( &ta, &te, "hlbl_lm_contract", "init_clover", g_cart_id == 0 );
+  show_time ( &ta, &te, __FILE__ , "init_clover", g_cart_id == 0 );
 #endif
 
 
@@ -473,7 +516,7 @@ int main(int argc, char **argv) {
 
 #if _WITH_TIMER
     gettimeofday ( &te, (struct timezone *)NULL );
-    show_time ( &ta, &te, "hlbl_lm_contract", "read_lime_spinor", g_cart_id == 0 );
+    show_time ( &ta, &te, __FILE__ , "read_lime_spinor", g_cart_id == 0 );
 #endif
     if ( exitstatus != 0 )
     {
@@ -485,6 +528,19 @@ int main(int argc, char **argv) {
 
     fini_2level_dtable ( &spinor_field );
   }
+
+#ifdef HAVE_CUDA
+  /***********************************************************
+   * evec field on device
+   ***********************************************************/
+
+  /* step 2: copy data to device */
+  cuda_data_type * d_v = nullptr;
+  CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(cuda_data_type) * evec_num * 12*VOLUME ) );
+   
+  CUDA_CHECK(cudaMemcpyAsync( d_v, evec_field[0], sizeof(cuda_data_type) * evec_num * 12*VOLUME, cudaMemcpyHostToDevice, stream));
+
+#endif
 
   /***********************************************************/
   /***********************************************************/
@@ -535,7 +591,7 @@ int main(int argc, char **argv) {
     }
 #if _WITH_TIMER
     gettimeofday ( &te, (struct timezone *)NULL );
-    show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-xv", g_cart_id == 0 );
+    show_time ( &ta, &te, __FILE__ , "X-prepare-xv", g_cart_id == 0 );
 #endif
 
 
@@ -545,6 +601,14 @@ int main(int argc, char **argv) {
       fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table %s %d\n", __FILE__, __LINE__);
       EXIT(123);
     }
+
+#ifdef HAVE_CUDA
+    cuda_data_type *d_s = nullptr;
+    size_t nelem = 96 * 12 * VOLUME;
+
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof ( cuda_data_type ) * nelem ) );
+#endif
+
 
     for ( int iy = 1; iy <= ymax; iy++ ) 
     {
@@ -570,7 +634,15 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
- 
+#ifdef HAVE_CUDA
+        double _Complex * h_p = init_1level_ztable ( evec_num * 96 );
+        if ( h_p == NULL )
+        {
+          fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
+          EXIT(1);
+        }
+#endif
+
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -595,7 +667,7 @@ int main(int argc, char **argv) {
         }
 #if _WITH_TIMER
         gettimeofday ( &te, (struct timezone *)NULL );
-        show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-kervx", g_cart_id == 0 );
+        show_time ( &ta, &te, __FILE__ , "X-prepare-kervx", g_cart_id == 0 );
 #endif
 
         for ( int iv = 0; iv < evec_num; iv++ )
@@ -649,8 +721,12 @@ int main(int argc, char **argv) {
 
 #if _WITH_TIMER
           gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, "hlbl_lm_contract", "X-prepare-ev", g_cart_id == 0 );
+          show_time ( &ta, &te, __FILE__ , "X-prepare-ev", g_cart_id == 0 );
 #endif
+
+#ifdef HAVE_CUDA
+          size_t bytes = sizeof(cuda_data_type) * 96 * 12*VOLUME;
+          CUDA_CHECK ( cudaMemcpyAsync(d_s, spinor_field[0], bytes, cudaMemcpyHostToDevice, stream));
 
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
@@ -658,13 +734,50 @@ int main(int argc, char **argv) {
           /***********************************************************
            * project on GPU
            ***********************************************************/
-          hlbl_lm_reduce ( p, evec_field[0], spinor_field[0], evec_num, 12*VOLUME, 96 );
+          hlbl_lm_reduce ( stream, cublasH, h_p, d_v, d_s, evec_num, 12*VOLUME, 96 );
 
 #if _WITH_TIMER
           gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, "hlbl_lm_contract", "X-hlbl_lm_reduce", g_cart_id == 0 );
+          show_time ( &ta, &te, __FILE__ , "X-hlbl_lm_reduce", g_cart_id == 0 );
+#endif
+#endif  // of if HAVE_CUDA
+
+#if _WITH_TIMER
+          gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+          /***********************************************************
+           * project on CPU
+           ***********************************************************/
+          project ( p, (double _Complex *)(evec_field[0]), (double _Complex*)(spinor_field[0] ), evec_num, 96, 12*VOLUME );
+
+#if _WITH_TIMER
+          gettimeofday ( &te, (struct timezone *)NULL );
+          show_time ( &ta, &te, __FILE__ , "X-project-ev", g_cart_id == 0 );
 #endif
 
+          /***********************************************************
+           * TEST compare
+           ***********************************************************/
+          for ( int i = 0; i < 96; i++ )
+          {
+            for ( unsigned int k = 0; k < evec_num; k++ )
+            {
+              double const a[2] = { creal(   p[ evec_num * i + k ] ), cimagl(   p[ evec_num * i + k ] ) };
+              double const b[2] = { creal( h_p[ evec_num * i + k ] ), cimagl( h_p[ evec_num * i + k ] ) };
+
+              double const diff[2] = { fabs ( a[0] - b[0] ), fabs( a[1] - b[1] ) };
+              
+              double const ndiff[2] = {
+                2. * diff[0] / ( fabs (a[0]) + fabs (b[0]) ),
+                2. * diff[1] / ( fabs (a[1]) + fabs (b[1]) ) 
+              };
+
+              fprintf(stdout, "diff proc%.4d   %3d %4d   %25.16e %25.16e   %25.16e %25.16e   %25.16e %25.16e   %25.16e %25.16e\n", g_cart_id, i, k,
+                  a[0], a[1], b[0], b[1], diff[0], diff[1], ndiff[0], ndiff[1] );
+
+            }
+          }
+         
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -687,7 +800,7 @@ int main(int argc, char **argv) {
           }
 #if _WITH_TIMER
           gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, "hlbl_lm_contract", "X-update-X", g_cart_id == 0 );
+          show_time ( &ta, &te, __FILE__ , "X-update-X", g_cart_id == 0 );
 #endif
 
         }  // end of loop on evec
@@ -724,11 +837,17 @@ int main(int argc, char **argv) {
 
         fini_5level_ztable ( &X );
         fini_1level_ztable ( &p );
+#ifdef HAVE_CUDA
+        fini_1level_ztable ( &h_p );
+#endif
     
       }  // end of loop on y directions
     
     }  // end of loop on y distances
 
+#ifdef HAVE_CUDA
+    CUDA_CHECK(cudaFree(d_s));
+#endif
     fini_2level_dtable ( &spinor_field );
     fini_2level_itable ( &xv );
 
@@ -736,7 +855,7 @@ int main(int argc, char **argv) {
 
 #if _WITH_TIMER
   gettimeofday ( X_timer+1, (struct timezone *)NULL );
-  show_time ( X_timer, X_timer+1, "hlbl_lm_contract", "X-total", g_cart_id == 0 );
+  show_time ( X_timer, X_timer+1, __FILE__ , "X-total", g_cart_id == 0 );
 #endif
 
   /***********************************************************/
@@ -761,6 +880,10 @@ int main(int argc, char **argv) {
   free_geometry();
 
 #if HAVE_CUDA
+  CUDA_CHECK(cudaFree(d_v));
+  CUBLAS_CHECK(cublasDestroy(cublasH));
+  CUDA_CHECK(cudaStreamDestroy(stream));
+
   // end this CUDA context
   CUDA_CHECK ( cudaDeviceReset() );
 #endif
@@ -773,7 +896,8 @@ int main(int argc, char **argv) {
 #endif
 
   gettimeofday ( &end_time, (struct timezone *)NULL );
-  show_time ( &start_time, &end_time, "hlbl_lm_contract", "runtime", g_cart_id == 0 );
+  // show_time ( &start_time, &end_time, "hlbl_lm_contract_gpu", "runtime", g_cart_id == 0 );
+  show_time ( &start_time, &end_time, __FILE__, "runtime", g_cart_id == 0 );
 
   return(0);
 }
