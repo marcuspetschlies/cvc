@@ -101,11 +101,6 @@
 #define MAX_PARAM_NUMBER 100
 #define MAX_SMEARING_LEVEL_NUMBER 40
 
-//#ifdef HAVE_CUDA
-//#define CHECK_CUDA_ERROR(func)                                                                                         \
-//  cuda::set_runtime_error(func, #func, __func__, __FILE__, __STRINGIFY__(__LINE__));
-//#endif
-
 namespace cvc {
 
 typedef struct momentum_info_struct {
