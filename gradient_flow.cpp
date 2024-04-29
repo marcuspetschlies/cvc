@@ -5,7 +5,7 @@
 #ifdef HAVE_MPI
 #include <mpi.h>  
 #endif
-#include "cvc_complex.h"
+// #include "cvc_complex.h"
 #include "cvc_linalg.h"
 #include "global.h"
 #include "mpi_init.h"
@@ -14,6 +14,7 @@
 #include "cvc_utils.h"
 #include "smearing_techniques.h"
 #include "gradient_flow.h"
+#include "scalar_products.h"
 
 namespace cvc {
 
@@ -387,7 +388,6 @@ void flow_fwd_gauge_spinor_field ( double * const g, double * const chi, unsigne
     }
 
 
-
   }  /* end of loop on iterations */
 
   if ( flow_gauge && update_gauge ) {
@@ -432,7 +432,7 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
      
      w = NULL; z = NULL; lambda = NULL;
 
-    fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] clean up done %s %d\n", __FILE__, __LINE__ );
+    if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] clean up done %s %d\n", __FILE__, __LINE__ );
     return;
   }
 
@@ -476,7 +476,10 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
 
   if ( flow_gauge ) {
 
-    if ( g_verbose > 2 ) fprintf ( stdout,"# [flow_adjoint_step_gauge_spinor_field] flow gauge field for %u iterations %s %d\n", niter, __FILE__, __LINE__ );
+    if ( g_verbose > 2 )
+    {
+      if (g_cart_id == 0 ) fprintf ( stdout,"# [flow_adjoint_step_gauge_spinor_field] flow gauge field for %u iterations %s %d\n", niter, __FILE__, __LINE__ );
+    }
 
     /******************************************************************
      * apply niter full iterations of gradient flow applications
@@ -520,7 +523,7 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
       if ( g_verbose > 2 ) {
         double plaq;
         plaquette2 ( &plaq, w[0] );
-        fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] niter %3u iter %3u plaquette %25.16e %s %d\n", niter, i, plaq, __FILE__, __LINE__ );
+        if ( g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] niter %3u iter %3u plaquette %25.16e %s %d\n", niter, i, plaq, __FILE__, __LINE__ );
       }
 
 
@@ -528,7 +531,7 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
 
     if ( ! flow_spinor ) {
       if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] flow = %d %d, copy gauge %s %d\n", flow_gauge, flow_spinor, __FILE__, __LINE__ );
+        if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] flow = %d %d, copy gauge %s %d\n", flow_gauge, flow_spinor, __FILE__, __LINE__ );
       }
 
       /* g = w[0] ; w_0 is the result of the iterations */
@@ -549,10 +552,13 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
     if ( g_verbose > 2 ) {
       double plaq;
       plaquette2 ( &plaq, w[0] );
-      fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] start spinor flow at plaquette %25.16e %s %d\n", plaq, __FILE__, __LINE__ );
+      if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] start spinor flow at plaquette %25.16e %s %d\n", plaq, __FILE__, __LINE__ );
     }
 
-    if ( g_verbose > 2 ) fprintf ( stdout,"# [flow_adjoint_step_gauge_spinor_field] flow spinor field for single step %s %d\n",  __FILE__, __LINE__ );
+    if ( g_verbose > 2 )
+    {
+     if (g_cart_id == 0 ) fprintf ( stdout,"# [flow_adjoint_step_gauge_spinor_field] flow spinor field for single step %s %d\n",  __FILE__, __LINE__ );
+    }
 
     /******************************************************************
      * STEP 0
@@ -606,9 +612,22 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
     /* lambda_1 = lambda_3 */
     memcpy ( lambda[1], lambda[3], sizeof_spinor_field );
 
-    /* lambda_3 <- Delta_2 lambda_3 in-place */
-    apply_laplace ( lambda[3], lambda[3], w[2] );
+    if ( g_verbose > 2 ) 
+    {
+      double plaq[3] = {0., 0., 0.};
+      plaquette2 ( plaq, w[0] );
+      plaquette2 ( plaq+1, w[1] );
+      plaquette2 ( plaq+2, w[2] );
+      if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_step_gauge_spinor_field] Laplace2 at plaquettes %25.16e %25.16e %25.16e\n",
+          plaq[0], plaq[1] , plaq[2] );
+    }
 
+
+    /* lambda_3 <- Delta_2 lambda_3 in-place */
+    apply_laplace ( lambda[2], lambda[3], w[2] );
+
+    memcpy ( chi, lambda[2], sizeof_spinor_field );
+#if 0
     /* lambda_2 <- lambda_2 + 3/4 dt lambda_3 = 3/4 dt lambda_3 , lambda_2 = 0 initially */
     spinor_field_pl_eq_spinor_field_ti_re ( lambda[2], lambda[3],  3./4. * dt, VOLUME );
 
@@ -635,7 +654,7 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
 
     /* chi = lambda_0 */
     memcpy ( chi, lambda[0], sizeof_spinor_field );
-
+#endif
   }  /* end of flow_spinor */
 
   return;
@@ -650,8 +669,9 @@ void flow_adjoint_gauge_spinor_field ( double ** const g, double * const chi, do
 
   size_t const sizeof_gauge_field  = 72 * VOLUME * sizeof ( double );
 
-  if ( g_verbose > 2 ) {
-    fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] entering level %d nb %3d mb %3d  %s %d\n", store, nb, mb, __FILE__, __LINE__ );
+  if ( g_verbose > 2 ) 
+  {
+    if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] entering level %d nb %3d mb %3d  %s %d\n", store, nb, mb, __FILE__, __LINE__ );
   }
 
   if ( store == 0 ) {
@@ -660,14 +680,24 @@ void flow_adjoint_gauge_spinor_field ( double ** const g, double * const chi, do
      * flow from current level
      ******************************************************************/
 
-    if ( g_verbose > 2 ) {
-      fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] finish level %d nb %3d mb %3d %s %d\n", store, nb, mb, __FILE__, __LINE__ );
+    if ( g_verbose > 2 )
+    {
+      if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] finish level %d nb %3d mb %3d %s %d\n", store, nb, mb, __FILE__, __LINE__ );
     }
 
 
-    for ( unsigned int i = 0; i < mb; i++ ) {
+    for ( unsigned int i = 0; i < mb; i++ ) 
+    {
+      double normb = 0.;
+      spinor_scalar_product_re ( &normb, chi, chi, VOLUME );
+
       unsigned int const niter = mb - 1 - i;
       flow_adjoint_step_gauge_spinor_field ( g[store], chi, niter, dt, 1, 1 );
+
+      double norma = 0.;
+      spinor_scalar_product_re ( &norma, chi, chi, VOLUME );
+      if ( g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] chi %d nb %3d mb %3d i %3d norm before %25.16e after %25.16e\n", store, nb, mb, i, normb, norma );
+
     }
 
   } else {
@@ -696,27 +726,33 @@ void flow_adjoint_gauge_spinor_field ( double ** const g, double * const chi, do
 
       memcpy ( g[store-1], g[store], sizeof_gauge_field );
 
-      if ( g_verbose > 2 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] store %d block %3d  kb %3d lb %3d mb_new %3d   %s %d\n",
+      if ( g_verbose > 2 )
+      {
+        if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] store %d block %3d  kb %3d lb %3d mb_new %3d   %s %d\n",
           store, ib, kb, lb, mb_new, __FILE__, __LINE__ );
+      }
 
       double plaq;
       plaquette2 ( &plaq, g[store-1]);
-      if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] plaquette before %25.16e %s %d\n", plaq, __FILE__, __LINE__ );
+      if ( g_verbose > 2 )
+      {
+        if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] plaquette before %25.16e %s %d\n", plaq, __FILE__, __LINE__ );
       }
 
       flow_adjoint_step_gauge_spinor_field ( g[store-1], NULL, niter, dt, 1, 0 );
 
       plaquette2 ( &plaq, g[store-1]);
-      if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] plaquette afer niter %u %25.16e %s %d\n", niter, plaq, __FILE__, __LINE__ );
+      if ( g_verbose > 2 ) 
+      {
+        if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] plaquette afer niter %u %25.16e %s %d\n", niter, plaq, __FILE__, __LINE__ );
       }
 
       /******************************************************************
        * continue with blocking
        ******************************************************************/
-      if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] descend level %d ---> %d  %s %d\n", store, store-1, __FILE__, __LINE__ );
+      if ( g_verbose > 2 )
+      {
+        if (g_cart_id == 0 ) fprintf ( stdout, "# [flow_adjoint_gauge_spinor_field] descend level %d ---> %d  %s %d\n", store, store-1, __FILE__, __LINE__ );
       }
 
       /* function recalls itself with next lower level gauge field */

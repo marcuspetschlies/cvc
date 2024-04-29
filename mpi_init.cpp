@@ -163,7 +163,8 @@ MPI_Datatype contraction_z_slice_cont;
 void mpi_init(int argc,char *argv[]) {
 
 #ifdef HAVE_MPI
-  int reorder=1;
+  /* int reorder=1; */
+  int reorder=0;
   int namelen;
   int dims[4], periods[4]={1,1,1,1};
   char processor_name[MPI_MAX_PROCESSOR_NAME];

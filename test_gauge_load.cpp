@@ -884,7 +884,7 @@ int main(int argc, char **argv) {
 
     memcpy ( spinor_field[2], spinor_field[0], sizeof_spinor_field );
  
-    flow_fwd_gauge_spinor_field ( gauge_field_smeared_cpu, spinor_field[2], gf_niter, gf_dt, 1, 1 , 1);
+    flow_fwd_gauge_spinor_field ( gauge_field_smeared_cpu, spinor_field[2], gf_niter, gf_dt, 1, 1, 1 );
  
 #if 0 
     sprintf ( filename, "gauge_field.cpuflow" );
