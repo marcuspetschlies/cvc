@@ -884,7 +884,7 @@ int main(int argc, char **argv) {
 
     memcpy ( spinor_field[2], spinor_field[0], sizeof_spinor_field );
  
-    flow_fwd_gauge_spinor_field ( gauge_field_smeared_cpu, spinor_field[2], gf_niter, gf_dt, 1, 1 );
+    flow_fwd_gauge_spinor_field ( gauge_field_smeared_cpu, spinor_field[2], gf_niter, gf_dt, 1, 1 , 1);
  
 #if 0 
     sprintf ( filename, "gauge_field.cpuflow" );
@@ -947,9 +947,17 @@ int main(int argc, char **argv) {
     double sfdiff = 0.;
     spinor_scalar_product_re ( &sfdiff, spinor_field[3], spinor_field[3], VOLUME );
     sfdiff = sqrt ( sfdiff );
+    
+    double sfnorm = 0.;
+    spinor_scalar_product_re ( &sfnorm, spinor_field[2], spinor_field[2], VOLUME );
+    sfnorm = sqrt ( sfnorm );
+    
+    double sfnorm2 = 0.;
+    spinor_scalar_product_re ( &sfnorm2, spinor_field[1], spinor_field[1], VOLUME );
+    sfnorm2 = sqrt ( sfnorm2 );
 
-    if ( io_proc == 2 ) fprintf (stdout, "# [test_gauge_field] diff %2d %16.7e   gauge  %16.7e   spinor %16.7e   %s %d\n", 
-        gf_niter, gf_dt, normdiff, sfdiff, __FILE__, __LINE__ );
+    if ( io_proc == 2 ) fprintf (stdout, "# [test_gauge_field] diff %2d %16.7e   gauge  %16.7e   spinor %16.7e   %16.7e   %16.7e   %s %d\n", 
+        gf_niter, gf_dt, normdiff, sfdiff, sfnorm, sfnorm2, __FILE__, __LINE__ );
 
 #if 0
     /* show original and flowed gauge fields in plain text for comparison */
