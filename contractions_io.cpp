@@ -210,8 +210,8 @@ int write_binary_contraction_data(double * const s, LimeWriter * limewriter, con
 #elif (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ)
   if(g_cart_id == 0) {
     fprintf(stderr, "[write_binary_contraction_data] this is at least 2-dim. parallel; use lemon\n");
-    return(4);
   }
+  return(4);
 #endif
 
   free(tmp2);
