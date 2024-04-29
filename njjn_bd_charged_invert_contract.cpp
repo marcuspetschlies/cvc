@@ -72,7 +72,7 @@ extern "C"
 #define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
 
 #ifndef _USE_TIME_DILUTION
-#define _USE_TIME_DILUTION 0
+#define _USE_TIME_DILUTION 1
 #endif
 
 
