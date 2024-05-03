@@ -281,7 +281,6 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_CUDA
 
-
   /******************************************************
    * initialize cuda device
    ******************************************************/
@@ -293,14 +292,15 @@ int main(int argc, char **argv) {
   {
     int driver_version;
     CUDA_CHECK( cudaDriverGetVersion(&driver_version) );
-    if ( !g_cart_id ) printf ( "# [hlbl_lm_contract_gpu] CUDA Driver version = %d\n", driver_version);
+    if ( g_cart_id == 0 ) printf ( "# [hlbl_lm_contract_gpu] CUDA Driver version = %d\n", driver_version);
 
     int runtime_version;
     CUDA_CHECK( cudaRuntimeGetVersion(&runtime_version) );
-    if ( !g_cart_id ) printf ("# [hlbl_lm_contract_gpu] CUDA Runtime version = %d\n", runtime_version);
+    if ( g_cart_id == 0 ) printf ("# [hlbl_lm_contract_gpu] CUDA Runtime version = %d\n", runtime_version);
 
     int device_count = 0;
     CUDA_CHECK ( cudaGetDeviceCount(&device_count) );
+    if ( g_cart_id == 0 ) printf ("# [hlbl_lm_contract_gpu] CUDA device count = %d\n", device_count );
     if (device_count == 0) fprintf(stderr, "[hlbl_lm_contract_gpu] No CUDA devices found");
 
 
@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
 
     if ( g_verbose > 2 ) fprintf (stdout, "# [hlbl_lm_contract_gpu] proc %4d hostname %s   %s %d\n", g_cart_id, hostname, __FILE__, __LINE__ );
 
-    MPI_Allgather ( hostname, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, hostname_list, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, g_cart_grid );
+    MPI_Allgather ( hostname, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, hostname_list[0], MPI_MAX_PROCESSOR_NAME, MPI_CHAR, g_cart_grid );
 
     for ( int i = 0; i < g_cart_id; i++) {
       if (!strncmp( hostname, hostname_list[i], MPI_MAX_PROCESSOR_NAME) ) { g_device_id++; }
@@ -356,8 +356,8 @@ int main(int argc, char **argv) {
     CUBLAS_CHECK ( cublasSetStream(cublasH, stream) );
 
   }
-#endif  // of HAVE_CUDA
 
+#endif  // of HAVE_CUDA
 
   /******************************************************
    * set up lattice geometry fields
@@ -377,6 +377,7 @@ int main(int argc, char **argv) {
   mpi_init_xchange_eo_spinor();
   mpi_init_xchange_eo_propagator();
 
+
   /******************************************************
    * init gauge field
    ******************************************************/
@@ -394,7 +395,6 @@ int main(int argc, char **argv) {
     if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_lm_contract_gpu] initializing unit matrices\n");
     exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
   }
-
 
   /***********************************************************
    * multiply the phase to the gauge field
@@ -447,6 +447,7 @@ int main(int argc, char **argv) {
 #endif
 
 
+
   /***********************************************
    * set io process
    ***********************************************/
@@ -456,6 +457,7 @@ int main(int argc, char **argv) {
     EXIT(14);
   }
   fprintf(stdout, "# [hlbl_lm_contract_gpu] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+
 
   /***********************************************************
    * unit for x, y
@@ -743,6 +745,7 @@ int main(int argc, char **argv) {
 #endif
 #endif  // of if HAVE_CUDA
 
+#if 0
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -778,7 +781,8 @@ int main(int argc, char **argv) {
 
             }
           }
-         
+#endif  // of if 0         
+
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -794,7 +798,8 @@ int main(int argc, char **argv) {
                 {
                   unsigned int const i = 4 * ( 4 * icomb + inu ) + ilam;
 
-                  X[icomb][inu][ilam][k][iv] += p[ evec_num * i + k ];
+                  // X[icomb][inu][ilam][k][iv] +=   p[ evec_num * i + k ];
+                  X[icomb][inu][ilam][k][iv] += h_p[ evec_num * i + k ];
                 }
               }
             }
@@ -866,20 +871,6 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***********************************************************/
 
-  fini_2level_dtable ( &evec_field );
-
-#ifdef HAVE_KQED
-  free_QED_temps( &kqed_t  );
-#endif
-
-  free(g_gauge_field);
-  free( gauge_field_with_phase );
-
-  /* free clover matrix terms */
-  fini_clover ( &mzz, &mzzinv );
-
-  free_geometry();
-
 #if HAVE_CUDA
   CUDA_CHECK(cudaFree(d_v));
   CUBLAS_CHECK(cublasDestroy(cublasH));
@@ -888,6 +879,23 @@ int main(int argc, char **argv) {
   // end this CUDA context
   CUDA_CHECK ( cudaDeviceReset() );
 #endif
+
+#if 0
+#endif  // of if 0
+
+#ifdef HAVE_KQED
+  free_QED_temps( &kqed_t  );
+#endif
+
+  fini_2level_dtable ( &evec_field );
+
+  free(g_gauge_field);
+  free( gauge_field_with_phase );
+
+  /* free clover matrix terms */
+  fini_clover ( &mzz, &mzzinv );
+
+  free_geometry();
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
