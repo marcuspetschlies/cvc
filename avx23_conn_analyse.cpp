@@ -48,7 +48,7 @@
 
 #define _TWOP_AVGX_H5   1
 
-#define _THREEP_AVGX_H5 0
+#define _THREEP_AVGX_H5 1
 
 using namespace cvc;
 
@@ -387,8 +387,9 @@ int main(int argc, char **argv) {
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3] );
       */
-      sprintf( data_filename, "stream_%c/%s.%.4d.t%d.s%d.h5",
+      sprintf( data_filename, "stream_%c/%d/%s.%.4d.t%d.s%d.h5",
           conf_src_list[iconf][isrc][0],
+          conf_src_list[iconf][isrc][1],
           filename_prefix2,
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
@@ -715,8 +716,9 @@ int main(int argc, char **argv) {
             conf_src_list[iconf][isrc][3] );
           */
  
-        sprintf( data_filename, "stream_%c/%s.%.4d.t%d.s%d.h5",
+        sprintf( data_filename, "stream_%c/%d/%s.%.4d.t%d.s%d.h5",
             conf_src_list[iconf][isrc][0],
+            conf_src_list[iconf][isrc][1],
             filename_prefix2,
             conf_src_list[iconf][isrc][1],
             conf_src_list[iconf][isrc][2],
@@ -779,7 +781,7 @@ int main(int argc, char **argv) {
                 flavor_type_3pt[flavor_id_3pt],
                 muval_3pt_list[0], muval_3pt_list[1], -muval_3pt_list[2],
                 g_sequential_source_timeslice_list[idt],
-                pf[0], pf[1], pf[2] );
+                -pf[0], -pf[1], -pf[2] );
 
             if ( g_verbose > 3 ) fprintf ( stdout, "# [avx23_conn_analyse] key = %s %s %d\n", key, __FILE__, __LINE__ );
    
@@ -872,8 +874,16 @@ int main(int argc, char **argv) {
                   }  /* end of loop on real and imag part  */
                 }  /* end of loop on k = 2 parity partners */
   
-                threep[ipf][iconf][isrc][idx][it][0] = ( twop_weight[0] * dtmp[0][0] + parity_sign * twop_weight[1] * dtmp[1][0] ) * threep_norm;
+                /* threep[ipf][iconf][isrc][idx][it][0] = ( twop_weight[0] * dtmp[0][0] + parity_sign * twop_weight[1] * dtmp[1][0] ) * threep_norm;
                 threep[ipf][iconf][isrc][idx][it][1] = ( twop_weight[0] * dtmp[0][1] + parity_sign * twop_weight[1] * dtmp[1][1] ) * threep_norm;
+                */
+                threep[ipf][iconf][isrc][idx][it][0] = threep_norm * (
+                      twop_weight[0] * 0.5 * ( 1 + parity_sign ) * dtmp[0][0] 
+                    + twop_weight[1] * 0.5 * ( 1 + parity_sign ) * dtmp[1][0] ) ;
+
+                threep[ipf][iconf][isrc][idx][it][1] = threep_norm * (
+                      twop_weight[0] * 0.5 * ( 1 - parity_sign ) * dtmp[0][1] 
+                    - twop_weight[1] * 0.5 * ( 1 - parity_sign ) * dtmp[1][1] );
               }  /* end of loop on timeslices */
             }  /* end of loop on igc, gamma */
   
@@ -1062,25 +1072,47 @@ int main(int argc, char **argv) {
             for ( int ireim = 0; ireim < 2; ireim++ )
             {
               double dtmp = 0.;
+              int counter = 0.;
+
               for ( int imom = 0; imom < g_sink_momentum_number; imom++ )
               {
-                double const p[4] = {1.,
-                    g_sink_momentum_list[imom][0] * 2. * M_PI / (double)LX_global,
-                    g_sink_momentum_list[imom][1] * 2. * M_PI / (double)LY_global,
-                    g_sink_momentum_list[imom][2] * 2. * M_PI / (double)LZ_global };
+                
+                double const ip[4] = {1,
+                    g_sink_momentum_list[imom][0],
+                    g_sink_momentum_list[imom][1],
+                    g_sink_momentum_list[imom][2] };
 
-                dtmp += p[idx_map[idx_perm[i][0]][0]] * p[idx_map[idx_perm[i][0]][1]] * p[idx_map[idx_perm[i][0]][2]] \
-                        * threep_sym[imom][iconf][isrc][i][it][ireim];
+                if ( ip[idx_map[idx_perm[i][0]][0]] * ip[idx_map[idx_perm[i][0]][1]] * ip[idx_map[idx_perm[i][0]][2]] == 0 )
+                {
+                  if ( g_verbose > 2 ) fprintf ( stdout, "# [] skip p = %3d %3d %3d for i = %d\n", 
+                      ip[1], ip[2], ip[3], i );
+                  continue;
+                } else {
+                  counter++;
+
+                  double const p[4] = {ip[0],
+                    ip[1] * 2. * M_PI / (double)LX_global,
+                    ip[2] * 2. * M_PI / (double)LY_global,
+                    ip[3] * 2. * M_PI / (double)LZ_global };
+
+                  double const norm = p[idx_map[idx_perm[i][0]][0]] * p[idx_map[idx_perm[i][0]][1]] * p[idx_map[idx_perm[i][0]][2]];
+
+                  dtmp += threep_sym[imom][iconf][isrc][i][it][ireim] / norm;
+                }
+            
+
               }
 
-              double const q[3] = {
+              /* double const q[3] = {
                     g_sink_momentum_list[0][0] * 2. * M_PI / (double)LX_global,
                     g_sink_momentum_list[0][1] * 2. * M_PI / (double)LY_global,
                     g_sink_momentum_list[0][2] * 2. * M_PI / (double)LZ_global };
 
               double const qq = q[0] * q[0] + q[1] * q[1] + q[2] * q[2];
 
-              threep_orbit[iconf][isrc][i][it][ireim] = dtmp / ( (double)g_sink_momentum_number * qq * qq );
+              threep_orbit[iconf][isrc][i][it][ireim] = dtmp / ( (double)g_sink_momentum_number * qq * qq ); */
+
+              threep_orbit[iconf][isrc][i][it][ireim] = dtmp / (double)counter;
             }
           }
         }
