@@ -2,7 +2,8 @@
 #define _GAUGE_IO_H
 
 
-#include"dml.h"
+#include "dml.h"
+#include "lime.h"
 
 namespace cvc {
 int write_lime_gauge_field(char * filename, const double plaq, const int counter, const int prec);
