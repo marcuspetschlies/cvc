@@ -658,17 +658,6 @@ int main(int argc, char **argv) {
       { 3, 2, 1, 0 }   /* 23 */
     };
 
-    int const idx_perm[4][6] = {
-      /* 0, 1, 2 */
-      {  0,  2,  6,  8, 12, 14 },
-      /* 0, 1, 3 */
-      {  1,  4,  7, 10, 18, 20 },
-      /* 0, 2, 3 */
-      {  3,  5, 13, 16, 19, 22 },
-      /* 1, 2, 3 */
-      {  9, 11, 15, 17, 21, 23 }
-    };
-
     double ****** threep = init_6level_dtable ( g_sink_momentum_number, num_conf, num_src_per_conf, idx_num, T_global, 2 );
     if ( threep == NULL ) {
       fprintf( stderr, "[avx3_conn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
@@ -861,9 +850,10 @@ int main(int argc, char **argv) {
                         /*
                          * (2)
                          *   <-- <-- <--
-                         * +  D   D   D
+                         * -  D   D   D
                          *
                          */
+                       - ( 
                        + buffer[k][itt][iddd][0][0][0+ireim]
                        - buffer[k][itt][iddd][0][0][2+ireim]
                        - buffer[k][itt][iddd][1][0][0+ireim]
@@ -872,13 +862,14 @@ int main(int argc, char **argv) {
                        + buffer[k][itt][iddd][0][1][2+ireim]
                        + buffer[k][itt][iddd][1][1][0+ireim]
                        - buffer[k][itt][iddd][1][1][2+ireim]
+                       )
                         /*
                          * (3)
                          *   <-- --> -->
                          * -  D   D   D
                          *
                          */
-                       
+                       - (
                        + buffer[k][itt_pl_nu_pl_lda][iddd][1][1][0+ireim]
                        - buffer[k][itt_pl_nu_pl_lda][iddd][1][1][2+ireim]
                        - buffer[k][itt_pl_nu_mi_lda][iddd][0][1][0+ireim]
@@ -887,10 +878,11 @@ int main(int argc, char **argv) {
                        + buffer[k][itt_mi_nu_pl_lda][iddd][1][0][2+ireim]
                        + buffer[k][itt_mi_nu_mi_lda][iddd][0][0][0+ireim]
                        - buffer[k][itt_mi_nu_mi_lda][iddd][0][0][2+ireim]
+                       )
                         /*
                          * (4)
                          *   <-- <-- -->
-                         * -  D   D   D
+                         * +  D   D   D
                          *
                          */
                        + buffer[k][itt_pl_lda][iddd][1][0][0+ireim]
@@ -907,6 +899,7 @@ int main(int argc, char **argv) {
                          * -  D   D   D
                          *
                          */
+                       - (
                        + buffer[k][itt_pl_mu_pl_lda][iddd][1][0][2+ireim]
                        - buffer[k][itt_pl_mu_mi_lda][iddd][0][0][2+ireim]
                        - buffer[k][itt_pl_mu_pl_lda][iddd][1][1][2+ireim]
@@ -915,12 +908,14 @@ int main(int argc, char **argv) {
                        + buffer[k][itt_mi_mu_mi_lda][iddd][0][0][0+ireim]
                        + buffer[k][itt_mi_mu_pl_lda][iddd][1][1][0+ireim]
                        - buffer[k][itt_mi_mu_mi_lda][iddd][0][1][0+ireim]
+                       )
                         /*
                          * (6)
                          *   --> --> <--
                          * -  D   D   D
                          *
                          */
+                       - (
                        + buffer[k][itt_pl_mu_pl_nu][iddd][0][1][2+ireim]
                        - buffer[k][itt_pl_mu_pl_nu][iddd][1][1][2+ireim]
                        - buffer[k][itt_pl_mu_mi_nu][iddd][0][0][2+ireim]
@@ -929,10 +924,11 @@ int main(int argc, char **argv) {
                        + buffer[k][itt_mi_mu_pl_nu][iddd][1][1][0+ireim]
                        + buffer[k][itt_mi_mu_mi_nu][iddd][0][0][0+ireim]
                        - buffer[k][itt_mi_mu_mi_nu][iddd][1][0][0+ireim]
+                       )
                         /*
                          * (7)
                          *   --> <-- <--
-                         * -  D   D   D
+                         * +  D   D   D
                          *
                          */
                        + buffer[k][itt_pl_mu][iddd][0][0][2+ireim]
@@ -946,7 +942,7 @@ int main(int argc, char **argv) {
                         /*
                          * (8)
                          *   <-- --> <--
-                         * -  D   D   D
+                         * +  D   D   D
                          *
                          */
                        + buffer[k][itt_pl_nu][iddd][0][1][0+ireim]
@@ -1100,7 +1096,7 @@ int main(int argc, char **argv) {
           {
             sprintf ( filename, "threep_sym.%s.conn.gddd%d%d%d%d.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
                   flavor_type_3pt[flavor_id_3pt],
-                  idx_perm[0][0], idx_perm[0][0], idx_perm[0][2], idx_perm[0][3],
+                  idx_map[0][0], idx_map[0][0], idx_map[0][2], idx_map[0][3],
                   g_sequential_source_timeslice_list[idt],
                   g_sink_momentum_list[imom][0],
                   g_sink_momentum_list[imom][1],
@@ -1191,7 +1187,7 @@ int main(int argc, char **argv) {
         char obs_name[100];
         sprintf ( obs_name, "threep_orbit.%s.conn.gddd%d%d%d%d.dtsnk%d.PX%d_PY%d_PZ%d.%s",
               flavor_type_3pt[flavor_id_3pt],
-              idx_perm[0][0], idx_perm[0][1], idx_perm[0][2], idx_perm[0][3],
+              idx_map[0][0], idx_map[0][1], idx_map[0][2], idx_map[0][3],
               g_sequential_source_timeslice_list[idt],
               g_sink_momentum_list[0][0],
               g_sink_momentum_list[0][1],
