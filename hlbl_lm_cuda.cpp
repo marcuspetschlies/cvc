@@ -146,3 +146,45 @@ int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Comple
   return(0);
 }  // end of hlbl_lm_reduce
 
+/***********************************************************
+ * compute p = V^H s
+ *
+ * V is nv x nx (C) = nx x nv (F)
+ * s is nx x ns (C) = ns x nx (F) NOT TRUE ANYMORE
+ *
+ * p is [nx x nv]^H x [nx x ns] = nv x ns (F) = ns x nv (C)
+ *
+ ***********************************************************/
+int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p, 
+    cuDoubleComplex * const d_v, const double * kervx, const int nv, const int nx ) 
+{
+  cuDoubleComplex * d_p = nullptr;
+STOPPED HERE
+  // like in cpu version projec(...)
+  const int lda = nx;
+  const int ldb = nx;
+  const int ldc = nv;
+
+  const cuda_data_type alpha = { 1.0, 0.0 };
+  const cuda_data_type beta  = { 0.0, 0.0 };
+
+  cublasOperation_t transa = CUBLAS_OP_C;
+  cublasOperation_t transb = CUBLAS_OP_N;
+
+  /* copy data to device */
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuda_data_type) * ns * nv ) );
+
+  /* linear algebra computation */
+  CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, nv, ns, nx, &alpha, d_v, lda, d_s, ldb, &beta, d_p, ldc));
+
+  /* step 4: copy data to host */
+  CUDA_CHECK(cudaMemcpyAsync( h_p, d_p, sizeof(cuda_data_type) * ns * nv, cudaMemcpyDeviceToHost, stream));
+
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+  /* free resources */
+  CUDA_CHECK(cudaFree(d_p));
+
+  return(0);
+}  // end of hlbl_lm_reduce
+
