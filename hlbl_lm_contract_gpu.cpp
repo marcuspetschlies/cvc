@@ -116,6 +116,32 @@ inline void site_map_zerohalf (int xv[4], int const x[4] )
   return;
 }
 
+/***********************************************************
+ * improve that as need be
+ *
+ * NOTE: the permutation of the mu, nu, lambda indices
+ * mu runs fastest for summation in X
+ ***********************************************************/
+inline void set_kernel_pointx ( double * const kx, double kerv[6][4][4][4] )
+{
+  for ( int irhosigma = 0; irhosigma < 6; irhosigma++ )
+  {
+    for ( int imu = 0; imu < 4; imu++ )
+    {
+      for ( int inu = 0; inu < 4; inu++ )
+      {
+        for ( int ilambda = 0; ilambda < 4; ilambda++ )
+        {
+          int const idx = ( ( 4 * irhosigma + inu ) * 4 + ilambda ) * 4 + imu;
+          kx[idx] = kerv[irhosigma][imu][inu][ilambda];
+        }
+      }
+    }
+  }
+  return;
+} 
+
+
 /***********************************************************/
 /***********************************************************/
 
@@ -537,11 +563,16 @@ int main(int argc, char **argv) {
    * evec field on device
    ***********************************************************/
 
-  /* step 2: copy data to device */
+  /* allocate eigenvector field on device */
   cuda_data_type * d_v = nullptr;
   CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(cuda_data_type) * evec_num * 12*VOLUME ) );
    
+  /* copy data from host to device */
   CUDA_CHECK(cudaMemcpyAsync( d_v, evec_field[0], sizeof(cuda_data_type) * evec_num * 12*VOLUME, cudaMemcpyHostToDevice, stream));
+
+  /* allocate kernel field on device */
+  double * d_kervx =  nullptr;
+  CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_kervx), sizeof(double) * 384 * VOLUME ) );
 
 #endif
 
@@ -606,10 +637,12 @@ int main(int argc, char **argv) {
     }
 
 #ifdef HAVE_CUDA
+    /* memory for vertex x eigenvector on device */
     cuda_data_type *d_s = nullptr;
     size_t nelem = 96 * 12 * VOLUME;
 
     CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof ( cuda_data_type ) * nelem ) );
+
 #endif
 
 
@@ -649,16 +682,19 @@ int main(int argc, char **argv) {
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-        kerv_type * kervx = (kerv_type*) malloc ( VOLUME * sizeof ( kerv_type ) );
+        double * kervx = (double*) malloc ( VOLUME * sizeof ( double ) );
         if ( kervx == NULL )
         {
           fprintf(stderr, "[hlbl_lm_contract_gpu] Error from malloc   %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
 
-#pragma omp parallel for
+#pragma omp parallel
+{
+#pragma omp for
         for ( size_t ix = 0; ix < VOLUME; ix++ )
         {
+          double kerv[6][4][4][4] KQED_ALIGN ;
 
           double const xm[4] = {
                 xv[ix][0] * xunit[0],
@@ -666,16 +702,23 @@ int main(int argc, char **argv) {
                 xv[ix][2] * xunit[0],
                 xv[ix][3] * xunit[0] };
 
-          KQED_LX[0]( xm, ym, kqed_t, kervx[ix] );
+          KQED_LX[0]( xm, ym, kqed_t, kerv );
+          set_kernel_pointx ( kervx+384*ix, kerv );
         }
+}  // end parallel region
 #if _WITH_TIMER
         gettimeofday ( &te, (struct timezone *)NULL );
         show_time ( &ta, &te, __FILE__ , "X-prepare-kervx", g_cart_id == 0 );
+#endif
+#ifdef HAVE_CUDA
+        /* copy kerv field to device */
+        CUDA_CHECK(cudaMemcpyAsync( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice, stream));
 #endif
 
         for ( int iv = 0; iv < evec_num; iv++ )
         {
 
+#if 0
           /***********************************************************
            * multiply by gamma and kernel
            ***********************************************************/
@@ -726,10 +769,9 @@ int main(int argc, char **argv) {
           gettimeofday ( &te, (struct timezone *)NULL );
           show_time ( &ta, &te, __FILE__ , "X-prepare-ev", g_cart_id == 0 );
 #endif
+#endif  // of if 0
 
 #ifdef HAVE_CUDA
-          size_t bytes = sizeof(cuda_data_type) * 96 * 12*VOLUME;
-          CUDA_CHECK ( cudaMemcpyAsync(d_s, spinor_field[0], bytes, cudaMemcpyHostToDevice, stream));
 
 #if _WITH_TIMER
           gettimeofday ( &ta, (struct timezone *)NULL );
@@ -873,6 +915,7 @@ int main(int argc, char **argv) {
 
 #if HAVE_CUDA
   CUDA_CHECK(cudaFree(d_v));
+  CUDA_CHECK(cudaFree(d_kervx));
   CUBLAS_CHECK(cublasDestroy(cublasH));
   CUDA_CHECK(cudaStreamDestroy(stream));
 
