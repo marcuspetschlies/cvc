@@ -94,6 +94,8 @@
 #define MAX_M_M_2PT_NUM 16
 #define MAX_MXB_MXB_2PT_NUM 16
 #define MAX_SOURCE_LOCATION_NUMBER 280
+#define MAX_SOURCE_PAIR_NUMBER 1000
+#define MAX_SOURCE_PAIR_TARGET_NUMBER 1000
 
 #define MAX_MOMENTUM_NUMBER 4000
 #define MAX_SEQUENTIAL_SOURCE_TIMESLICE_NUMBER 128
@@ -185,7 +187,11 @@ EXTERN double g_gamma_transposed_sign[16];
 
 
 EXTERN int g_resume, g_subtract;
-EXTERN int g_source_location, g_source_coords_list[MAX_SOURCE_LOCATION_NUMBER][4], g_source_location_number;
+EXTERN int g_source_location, g_source_coords_list[MAX_SOURCE_LOCATION_NUMBER][4], g_source_location_number, \
+         g_source_dirs_list[MAX_SOURCE_LOCATION_NUMBER], g_source_dir_number;
+EXTERN int g_source_pair_origins_list[MAX_SOURCE_PAIR_NUMBER][4], g_source_pair_og_number, \
+         g_source_pair_targets_list[MAX_SOURCE_PAIR_NUMBER][MAX_SOURCE_PAIR_TARGET_NUMBER][4], \
+         g_source_pair_tgt_number, g_source_pair_targets_number[MAX_SOURCE_PAIR_NUMBER];
 
 EXTERN unsigned int g_seed;
 EXTERN int g_noise_type, g_source_type;

@@ -291,6 +291,9 @@ void set_default_input_values(void) {
 
   g_fermion_type = _default_fermion_type;
   g_source_location_number = _default_source_location_number;
+  g_source_dir_number = _default_source_dir_number;
+  g_source_pair_og_number = _default_source_pair_og_number;
+  g_source_pair_tgt_number = _default_source_pair_tgt_number;
 
   g_coherent_source_number = _default_coherent_source_number;
 
