@@ -89,8 +89,6 @@ int main(int argc, char **argv) {
   
   char const reim_str[2][3] = { "re", "im" };
 
-  char const threep_tag[1][12] = { "4ikl" };
-
   char const fbwd_str[2][4] = { "fwd", "bwd" };
 
   char const flavor_type_2pt[3][12] = { "l-gf-l-gi", "l-gf-s-gi",  "s-gf-l-gi" };
@@ -1096,7 +1094,7 @@ int main(int argc, char **argv) {
           {
             sprintf ( filename, "threep_sym.%s.conn.gddd%d%d%d%d.dtsnk%d.PX%d_PY%d_PZ%d.%s.corr",
                   flavor_type_3pt[flavor_id_3pt],
-                  idx_map[0][0], idx_map[0][0], idx_map[0][2], idx_map[0][3],
+                  idx_map[0][0], idx_map[0][1], idx_map[0][2], idx_map[0][3],
                   g_sequential_source_timeslice_list[idt],
                   g_sink_momentum_list[imom][0],
                   g_sink_momentum_list[imom][1],
