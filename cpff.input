@@ -22,7 +22,7 @@ filename_prefix = stochastic_source_oet
 gaugefilename_prefix = conf
 
 
-outfile_prefix =./
+outfile_prefix =./tmp_out
 
 # taken from tmLQCD if wrapper is used
 #NrTProcs = 2
@@ -38,10 +38,10 @@ num_threads = 2
 ###########################
 read_source                 = no
 #  read_propagator             = no;  not used at the moment
-write_source                = yes
-write_propagator            = yes
+write_source                = no
+write_propagator            = no
 
-write_sequential_source     = yes
+write_sequential_source     = no
 write_sequential_propagator = no
 
 ###########################
