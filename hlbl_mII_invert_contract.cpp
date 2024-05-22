@@ -64,6 +64,8 @@ extern "C"
 
 #define _WITH_TIMER 1
 
+#define _HLBL_NEUTRAL 0
+#define _HLBL_CHARGED 1
 
 using namespace cvc;
 
@@ -389,6 +391,16 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
 
+#if _HLBL_NEUTRAL
+  int const nflavor = 2;
+  int const flavor_index[2] = { 0, 1 };
+#warning "building for hlbl neutral"
+#elif _HLBL_CHARGED
+  int const nflavor = 1;
+  int const flavor_index[2] = { 0, 0 };
+#warning "building for hlbl charged"
+#endif
+
   double *** fwd_src = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
   
   double *** fwd_y   = init_3level_dtable ( 2, 12, _GSI( (size_t)VOLUME ) );
@@ -451,7 +463,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * local kernel sum
      ***********************************************************/
-    double **** kernel_sum = init_4level_dtable ( 2, ymax + 1, ysign_num, 4 );
+    double **** kernel_sum = init_4level_dtable ( nflavor, ymax + 1, ysign_num, 4 );
     if ( kernel_sum == NULL ) 
     {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -462,7 +474,7 @@ int main(int argc, char **argv) {
     * forward proapgators from source
     ***********************************************************/
 
-    for ( int iflavor = 0; iflavor <= 1; iflavor ++ ) 
+    for ( int iflavor = 0; iflavor < nflavor; iflavor ++ ) 
     {
       for ( int i = 0; i < 12; i++ ) 
       {
@@ -474,7 +486,7 @@ int main(int argc, char **argv) {
           spinor_work[0][_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]]) + 2*i ] = 1.;
         }
 
-        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor );
+        exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], flavor_index[iflavor] );
 
         if(exitstatus < 0) {
           fprintf(stderr, "[hlbl_mII_invert_contract] Error from _TMLQCD_INVERT, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -484,18 +496,19 @@ int main(int argc, char **argv) {
         /* check residuum */
         if ( check_propagator_residual )
         {
-          exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1);
+          exitstatus = check_residual_clover (&(spinor_work[1]) , &(spinor_work[0]), gauge_field_with_phase, 
+              mzz[flavor_index[iflavor]], mzzinv[flavor_index[iflavor]], 1);
           if(exitstatus != 0) {
             fprintf(stderr, "[hlbl_mII_invert_contract] Error from check_residual_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(19);
           }
         }
 
-        memcpy ( fwd_src[iflavor][i], spinor_work[1], sizeof_spinor_field );
+        memcpy ( fwd_src[flavor_index[iflavor]][i], spinor_work[1], sizeof_spinor_field );
      
         if ( g_write_propagator ) 
         {
-          sprintf ( filename, "fwd_0.f%d.t%dx%dy%dz%d.sc%d.lime", iflavor, gsx[0] , gsx[1] ,gsx[2] , gsx[3], i );
+          sprintf ( filename, "fwd_0.f%d.t%dx%dy%dz%d.sc%d.lime", flavor_index[iflavor], gsx[0] , gsx[1] ,gsx[2] , gsx[3], i );
 
           if ( ( exitstatus = write_propagator( spinor_work[1], filename, 0, g_propagator_precision) ) != 0 ) {
             fprintf(stderr, "[hlbl_mII_invert_contract] Error from write_propagator for %s, status was %d   %s %d\n", filename, exitstatus, __FILE__, __LINE__);
@@ -512,16 +525,23 @@ int main(int argc, char **argv) {
 
 
     /***********************************************************
-     * g5 gsigma fwd
+     * for neutral case:
+     *   g5 gsigma fwd from g5-hermiticity
+     *
+     * for charged case:
+     *   gsigma fwd, from g5-hermiticity
+     *   X^+ g5 ( g5 gsigma fwd ) = X^+ gsigma fwd
      ***********************************************************/
-    for ( int iflavor = 0; iflavor < 2; iflavor++ )
+    for ( int iflavor = 0; iflavor < nflavor; iflavor++ )
     {
       for( int mu = 0; mu < 4; mu++ )
       {
         for ( int ib = 0; ib < 12; ib++)
         {
-          spinor_field_eq_gamma_ti_spinor_field ( g_fwd_src[iflavor][mu][ib], mu, fwd_src[iflavor][ib], VOLUME );
+          spinor_field_eq_gamma_ti_spinor_field ( g_fwd_src[flavor_index[iflavor]][mu][ib], mu, fwd_src[flavor_index[iflavor]][ib], VOLUME );
+#if _HLBL_NEUTRAL
           g5_phi ( g_fwd_src[iflavor][mu][ib], VOLUME );
+#endif
         }
       }
     }
@@ -568,7 +588,7 @@ int main(int argc, char **argv) {
         /***********************************************************/
         /***********************************************************/
 
-        for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
+        for ( int iflavor = 0; iflavor < nflavor; iflavor++ ) 
         {
  
           /***********************************************************
@@ -622,7 +642,7 @@ int main(int argc, char **argv) {
         /***********************************************************/
 
 
-        for ( int iflavor = 0; iflavor <= 1; iflavor++ ) 
+        for ( int iflavor = 0; iflavor < nflavor; iflavor++ ) 
         {
 
           /***********************************************************
@@ -652,7 +672,7 @@ int main(int argc, char **argv) {
 #endif
               for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
               {
-                double * const _u = g_fwd_src[iflavor][sigma][ia] + _GSI(iz);
+                double * const _u = g_fwd_src[flavor_index[iflavor]][sigma][ia] + _GSI(iz);
                 double * const _s = spinor_work[0] + _GSI(iz);
 
                 int const z[4] = {
@@ -672,7 +692,7 @@ int main(int argc, char **argv) {
 #endif
               for ( unsigned int iz = 0; iz < VOLUME; iz++ ) 
               {
-                double * const _u = g_fwd_src[iflavor][rho  ][ia] + _GSI(iz);
+                double * const _u = g_fwd_src[flavor_index[iflavor]][rho  ][ia] + _GSI(iz);
                 double * const _s = spinor_work[0] + _GSI(iz);
 
                 int const z[4] = {
@@ -690,7 +710,7 @@ int main(int argc, char **argv) {
               for(int ib = 0; ib < 12; ib++ )
               {
                 complex w = {0.,0.};
-                spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], spinor_work[0], VOLUME );
+                spinor_scalar_product_co ( &w, fwd_y[flavor_index[1-iflavor]][ib], spinor_work[0], VOLUME );
 
                 dzu[k][ia][2*ib  ] = w.re;
                 dzu[k][ia][2*ib+1] = w.im;
@@ -705,7 +725,7 @@ int main(int argc, char **argv) {
 
               for(int ib = 0; ib < 12; ib++ )
               {
-                spinor_scalar_product_co ( &w, fwd_y[1-iflavor][ib], g_fwd_src[iflavor][sigma][ia], VOLUME );
+                spinor_scalar_product_co ( &w, fwd_y[flavor_index[1-iflavor]][ib], g_fwd_src[flavor_index[iflavor]][sigma][ia], VOLUME );
                 dzsu[sigma][ia][2*ib  ] = w.re;
                 dzsu[sigma][ia][2*ib+1] = w.im;
               }
@@ -726,7 +746,7 @@ int main(int argc, char **argv) {
               double const g5sign = 1. - 2. * ( (ib/3) > 1 );
 
               fprintf ( stdout, "seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
-                  iflavor, yv[0], yv[1], yv[2], yv[3], k, ib, ia, 
+                  flavor_index[iflavor], yv[0], yv[1], yv[2], yv[3], k, ib, ia, 
                   g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );
             }}
           }
@@ -862,7 +882,7 @@ int main(int argc, char **argv) {
 
             for ( int ib = 0; ib < 12; ib++) 
             {
-              double * const _u = fwd_y[iflavor][ib] + _GSI(ix);
+              double * const _u = fwd_y[flavor_index[iflavor]][ib] + _GSI(ix);
 
               for ( int mu = 0; mu < 4; mu++ )
               {
@@ -870,7 +890,7 @@ int main(int argc, char **argv) {
                 for ( int ia = 0; ia < 12; ia++) 
                 {
                 
-                  double * const _d = g_fwd_src[1-iflavor][mu][ia] + _GSI(ix);
+                  double * const _d = g_fwd_src[flavor_index[1-iflavor]][mu][ia] + _GSI(ix);
                   complex w;
 
                   _co_eq_fv_dag_ti_fv ( &w ,_d, _u );
@@ -1047,7 +1067,7 @@ int main(int argc, char **argv) {
                           rank,
                           xv[0], xv[1], xv[2], xv[3],
                           yv[0], yv[1], yv[2], yv[3],
-                          iflavor,
+                          flavor_index[iflavor],
                           ikernel,
                           mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
                           kerv1[k][mu][nu][lambda],
@@ -1113,7 +1133,7 @@ int main(int argc, char **argv) {
                         ysign_comb[isign][1],
                         ysign_comb[isign][2],
                         ysign_comb[isign][3],
-                        iflavor,
+                        flavor_index[iflavor],
                         rank,
                         mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
                         corr_I[k][mu][nu][2*lambda  ], corr_I[k][mu][nu][2*lambda+1] );
