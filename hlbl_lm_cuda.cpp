@@ -155,11 +155,12 @@ int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Comple
  * p is [nx x nv]^H x [nx x ns] = nv x ns (F) = ns x nv (C)
  *
  ***********************************************************/
+#if 0
 int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p, 
     cuDoubleComplex * const d_v, const double * kervx, const int nv, const int nx ) 
 {
   cuDoubleComplex * d_p = nullptr;
-STOPPED HERE
+
   // like in cpu version projec(...)
   const int lda = nx;
   const int ldb = nx;
@@ -187,4 +188,4 @@ STOPPED HERE
 
   return(0);
 }  // end of hlbl_lm_reduce
-
+#endif  /* end of if 0 */
