@@ -19,7 +19,8 @@
 
 // using data_type = cuDoubleComplex;
 
-#include "hlbl_lm_cuda.h"
+#include "hlbl_kernel.cuh"
+#include "hlbl_lm_cuda.cuh"
 
 /***********************************************************/
 /***********************************************************/
@@ -147,45 +148,70 @@ int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Comple
 }  // end of hlbl_lm_reduce
 
 /***********************************************************
- * compute p = V^H s
+ * compute p = V^H x S^T
  *
  * V is nv x nx (C) = nx x nv (F)
- * s is nx x ns (C) = ns x nx (F) NOT TRUE ANYMORE
+ * S is nx x ns (C) = ns x nx (F) NOT TRUE ANYMORE
  *
- * p is [nx x nv]^H x [nx x ns] = nv x ns (F) = ns x nv (C)
+ * p is   [nx x nv]^H x [ns x nx]^T  = [nv x nx]^* x [nx x ns]
+ *      = [nv x ns] (F)
+ *      = [ns x nv] (C)
  *
+ * NOTE: nx is the number of sites!
+ *       NOT the number of fermion field components
  ***********************************************************/
-#if 0
 int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p, 
-    cuDoubleComplex * const d_v, const double * kervx, const int nv, const int nx ) 
+    const double * d_v, const double * kervx, const int nv, const int nx ) 
 {
-  cuDoubleComplex * d_p = nullptr;
+  dim3 blockSize(CUDA_BLOCK_SIZE);
+  dim3 gridSize( ( (nx + CUDA_BLOCK_SIZE - 1 ) / CUDA_BLOCK_SIZE) );
 
-  // like in cpu version projec(...)
-  const int lda = nx;
-  const int ldb = nx;
+  cuDoubleComplex * d_p = nullptr;
+  cuDoubleComplex * d_s = nullptr;
+  
+  /* number of components; here for X */
+  const int ns = 96;
+
+  // like in cpu version project(...)
+  const int lda = 12*nx;
+  const int ldb = ns;
   const int ldc = nv;
 
-  const cuda_data_type alpha = { 1.0, 0.0 };
-  const cuda_data_type beta  = { 0.0, 0.0 };
+  /* C <- alpha A x B + beta C */
+  const cuDoubleComplex alpha = { 1.0, 0.0 };
+  const cuDoubleComplex beta  = { 0.0, 0.0 };
 
+  /* reshaping of matrices */
   cublasOperation_t transa = CUBLAS_OP_C;
-  cublasOperation_t transb = CUBLAS_OP_N;
+  cublasOperation_t transb = CUBLAS_OP_T;
 
-  /* copy data to device */
-  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuda_data_type) * ns * nv ) );
+  /* device memory for projection coefficients */
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuDoubleComplex) * ns * nv ) );
 
-  /* linear algebra computation */
-  CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, nv, ns, nx, &alpha, d_v, lda, d_s, ldb, &beta, d_p, ldc));
+  /* device memory for s
+   * s is a fermion field with V x 12 [spin-color] x 96 [kernel components] */
+  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof(cuDoubleComplex) * ns * 12 * nx ) );
 
-  /* step 4: copy data to host */
-  CUDA_CHECK(cudaMemcpyAsync( h_p, d_p, sizeof(cuda_data_type) * ns * nv, cudaMemcpyDeviceToHost, stream));
+  /* loop on vectors */
+  for ( int iv = 0; iv < nv; iv++ )
+  {
+    /* prepare s, i.e. apply vertex 
+     * kernel call, add parallelization info to call */
+    ker_X_prepare_ev<<< gridSize, blockSize >>>( d_s, d_v + iv*24*nx, kervx, nx );
+
+    /* linear algebra computation */
+    CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, nv, ns, 12*nx, &alpha, reinterpret_cast<const cuDoubleComplex *>(d_v), lda, d_s, ldb, &beta, d_p, ldc));
+
+    /* copy data to host */
+    CUDA_CHECK(cudaMemcpyAsync( h_p + iv * ns*nv, d_p, sizeof(cuDoubleComplex) * ns * nv, cudaMemcpyDeviceToHost, stream));
+
+  }  /* end of loop on eigenvectors */
 
   CUDA_CHECK(cudaStreamSynchronize(stream));
 
   /* free resources */
   CUDA_CHECK(cudaFree(d_p));
+  CUDA_CHECK(cudaFree(d_s));
 
   return(0);
-}  // end of hlbl_lm_reduce
-#endif  /* end of if 0 */
+}  // end of project_v_dag_g_v

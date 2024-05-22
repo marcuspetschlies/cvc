@@ -61,7 +61,7 @@ extern "C"
 #include "prepare_source.h"
 
 #ifdef HAVE_CUDA
-#include "hlbl_lm_cuda.h"
+#include "hlbl_lm_cuda.cuh"
 #endif
 
 #define _WITH_TIMER 1
@@ -564,11 +564,11 @@ int main(int argc, char **argv) {
    ***********************************************************/
 
   /* allocate eigenvector field on device */
-  cuda_data_type * d_v = nullptr;
-  CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(cuda_data_type) * evec_num * 12*VOLUME ) );
+  double * d_v = nullptr;
+  CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(double) * evec_num * 24 * VOLUME ) );
    
   /* copy data from host to device */
-  CUDA_CHECK(cudaMemcpyAsync( d_v, evec_field[0], sizeof(cuda_data_type) * evec_num * 12*VOLUME, cudaMemcpyHostToDevice, stream));
+  CUDA_CHECK(cudaMemcpyAsync( d_v, evec_field[0], sizeof(double) * evec_num * 24*VOLUME, cudaMemcpyHostToDevice, stream));
 
   /* allocate kernel field on device */
   double * d_kervx =  nullptr;
@@ -636,15 +636,6 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
-#ifdef HAVE_CUDA
-    /* memory for vertex x eigenvector on device */
-    cuda_data_type *d_s = nullptr;
-    size_t nelem = 96 * 12 * VOLUME;
-
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof ( cuda_data_type ) * nelem ) );
-
-#endif
-
 
     for ( int iy = 1; iy <= ymax; iy++ ) 
     {
@@ -671,7 +662,7 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 #ifdef HAVE_CUDA
-        double _Complex * h_p = init_1level_ztable ( evec_num * 96 );
+        double _Complex * h_p = init_1level_ztable ( evec_num * evec_num * 96 );
         if ( h_p == NULL )
         {
           fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
@@ -715,144 +706,55 @@ int main(int argc, char **argv) {
         CUDA_CHECK(cudaMemcpyAsync( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice, stream));
 #endif
 
-        for ( int iv = 0; iv < evec_num; iv++ )
-        {
-
-#if 0
-          /***********************************************************
-           * multiply by gamma and kernel
-           ***********************************************************/
-
-          memset ( spinor_field[0], 0, 96 * sizeof_spinor_field );
+        /***********************************************************
+         * X vertex application and eigenvector subspace projection
+         * for all eigenvectors
+         ***********************************************************/
+#if _WITH_TIMER
+        gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+        project_v_dag_g_v ( stream, cublasH, h_p, d_v, d_kervx, evec_num, VOLUME );
 
 #if _WITH_TIMER
-          gettimeofday ( &ta, (struct timezone *)NULL );
+        gettimeofday ( &te, (struct timezone *)NULL );
+        show_time ( &ta, &te, __FILE__ , "X-update-X", g_cart_id == 0 );
 #endif
-#pragma omp parallel
-{
-          double sp[4][24], spsum[24];
-#pragma omp for
-          for ( size_t ix = 0; ix < VOLUME; ix++ )
-          {
-            double * const _ev = evec_field[iv] + _GSI(ix);
-
-            for ( int imu = 0; imu < 4; imu++)
-            {
-              _fv_eq_gamma_ti_fv ( sp[imu], gamma_map_id[imu], _ev );
-              _fv_ti_eq_re ( sp[imu], gamma_map_sign[imu] ); 
-            }
-
-            for ( int icomb = 0; icomb < 6; icomb++ )
-            {  
-              for ( int inu = 0; inu < 4; inu++ )
-              {
-                for ( int ilam = 0; ilam < 4; ilam++ )
-                {
-                  int const k = 4 * ( 4 * icomb + inu ) + ilam;
-
-                  double * const _ksf = spinor_field[k] + _GSI(ix);
-
-                  memset (spsum, 0, 24*sizeof(double) );
-                  _fv_pl_eq_fv_ti_re ( spsum, sp[0], kervx[ix][icomb][0][inu][ilam] );
-                  _fv_pl_eq_fv_ti_re ( spsum, sp[1], kervx[ix][icomb][1][inu][ilam] );
-                  _fv_pl_eq_fv_ti_re ( spsum, sp[2], kervx[ix][icomb][2][inu][ilam] );
-                  _fv_pl_eq_fv_ti_re ( spsum, sp[3], kervx[ix][icomb][3][inu][ilam] );
-                  memcpy ( _ksf, spsum, 24*sizeof(double) );
-                }  // end of loop on lambda
-              }  // end of loop on nu
-            }  // end of loop on icomb
-          }  // loop on VOLUME
-
-}  // end of parallel region
 
 #if _WITH_TIMER
-          gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, __FILE__ , "X-prepare-ev", g_cart_id == 0 );
-#endif
-#endif  // of if 0
-
-#ifdef HAVE_CUDA
-
-#if _WITH_TIMER
-          gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-          /***********************************************************
-           * project on GPU
-           ***********************************************************/
-          hlbl_lm_reduce ( stream, cublasH, h_p, d_v, d_s, evec_num, 12*VOLUME, 96 );
-
-#if _WITH_TIMER
-          gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, __FILE__ , "X-hlbl_lm_reduce", g_cart_id == 0 );
-#endif
-#endif  // of if HAVE_CUDA
-
-#if 0
-#if _WITH_TIMER
-          gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-          /***********************************************************
-           * project on CPU
-           ***********************************************************/
-          project ( p, (double _Complex *)(evec_field[0]), (double _Complex*)(spinor_field[0] ), evec_num, 96, 12*VOLUME );
-
-#if _WITH_TIMER
-          gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, __FILE__ , "X-project-ev", g_cart_id == 0 );
+        gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
 
-          /***********************************************************
-           * TEST compare
-           ***********************************************************/
-          for ( int i = 0; i < 96; i++ )
-          {
-            for ( int k = 0; k < evec_num; k++ )
-            {
-              double const a[2] = { creal(   p[ evec_num * i + k ] ), cimag(   p[ evec_num * i + k ] ) };
-              double const b[2] = { creal( h_p[ evec_num * i + k ] ), cimag( h_p[ evec_num * i + k ] ) };
-
-              double const diff[2] = { fabs ( a[0] - b[0] ), fabs( a[1] - b[1] ) };
-              
-              double const ndiff[2] = {
-                2. * diff[0] / ( fabs (a[0]) + fabs (b[0]) ),
-                2. * diff[1] / ( fabs (a[1]) + fabs (b[1]) ) 
-              };
-
-              fprintf(stdout, "diff proc%.4d   %3d %4d   %25.16e %25.16e   %25.16e %25.16e   %25.16e %25.16e   %25.16e %25.16e\n", g_cart_id, i, k,
-                  a[0], a[1], b[0], b[1], diff[0], diff[1], ndiff[0], ndiff[1] );
-
-            }
-          }
-#endif  // of if 0         
-
-#if _WITH_TIMER
-          gettimeofday ( &ta, (struct timezone *)NULL );
-#endif
-
+        /***********************************************************
+         * add h_p to X field for V^H Gamma S
+         *
+         * outer evec loop counter iv for s in S field
+         * inner evec loop counter iv2 for v in V field
+         ***********************************************************/
 #pragma omp parallel for
-          for ( unsigned int k = 0; k < evec_num; k++ )
+        for ( unsigned int iv = 0; iv < evec_num; iv++ )
+        {
+          for ( int icomb = 0; icomb < 6; icomb++ )
           {
-            for ( int icomb = 0; icomb < 6; icomb++ )
+            for ( int inu = 0; inu < 4; inu++ )
             {
-              for ( int inu = 0; inu < 4; inu++ )
+              for ( int ilam = 0; ilam < 4; ilam++ )
               {
-                for ( int ilam = 0; ilam < 4; ilam++ )
+                unsigned int const i = 4 * ( 4 * icomb + inu ) + ilam;
+
+                for ( int iv2 = 0; iv2 < evec_num; iv2++ )
                 {
-                  unsigned int const i = 4 * ( 4 * icomb + inu ) + ilam;
+                  X[icomb][inu][ilam][iv2][iv] += h_p[ ( evec_num * ( 96 * iv + i ) + iv2 ) ];
+                }  // end of loop on evecs
 
-                  // X[icomb][inu][ilam][k][iv] +=   p[ evec_num * i + k ];
-                  X[icomb][inu][ilam][k][iv] += h_p[ evec_num * i + k ];
-                }
-              }
-            }
-          }
+              }  // end of loop on lambda
+            }  // end of loop on nu
+          }  // end of loop on comb = [rho,sigma]
+        }  // end of loop on evecs
+
 #if _WITH_TIMER
-          gettimeofday ( &te, (struct timezone *)NULL );
-          show_time ( &ta, &te, __FILE__ , "X-update-X", g_cart_id == 0 );
+        gettimeofday ( &te, (struct timezone *)NULL );
+        show_time ( &ta, &te, __FILE__ , "X-update-X", g_cart_id == 0 );
 #endif
-
-        }  // end of loop on evec
-
 
         free ( kervx ); kervx = NULL;
 
@@ -884,7 +786,6 @@ int main(int argc, char **argv) {
         }
 
         fini_5level_ztable ( &X );
-        fini_1level_ztable ( &p );
 #ifdef HAVE_CUDA
         fini_1level_ztable ( &h_p );
 #endif
@@ -893,9 +794,6 @@ int main(int argc, char **argv) {
     
     }  // end of loop on y distances
 
-#ifdef HAVE_CUDA
-    CUDA_CHECK(cudaFree(d_s));
-#endif
     fini_2level_dtable ( &spinor_field );
     fini_2level_itable ( &xv );
 

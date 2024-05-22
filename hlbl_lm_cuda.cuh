@@ -41,4 +41,7 @@ int hlbl_lm_reduce ( void * const h_p, void * const h_v, void * const h_s, const
 int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p,
     cuda_data_type * const d_v, cuda_data_type * const d_s, const int nv, const int nx, const int ns );
 
+int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p,
+    const double * d_v, const double * kervx, const int nv, const int nx );
+
 #endif
