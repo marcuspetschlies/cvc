@@ -1235,7 +1235,7 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(tag, "/%s/Gf_%s/Gi_%s/t1", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t1", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
                   exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
@@ -1381,7 +1381,7 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(tag, "/%s/Gf_%s/Gi_%s/t2", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t2", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
                   exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
@@ -1537,7 +1537,7 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(tag, "/%s/Gf_%s/Gi_%s/t3", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t3", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
                   exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
@@ -1675,7 +1675,7 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(tag, "/%s/Gf_%s/Gi_%s/t4", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t4", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
                   exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
