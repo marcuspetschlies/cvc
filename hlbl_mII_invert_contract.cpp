@@ -147,6 +147,12 @@ int main(int argc, char **argv) {
         {1,3},
         {2,3} };
 
+#if _HLBL_NEUTRAL
+  int const gamma_id[4] = { 0, 1, 2, 3 };
+#elif _HLBL_CHARGED
+  int const gamma_id[4] = { 6, 7, 8, 9 };
+#endif
+
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -538,10 +544,9 @@ int main(int argc, char **argv) {
       {
         for ( int ib = 0; ib < 12; ib++)
         {
-          spinor_field_eq_gamma_ti_spinor_field ( g_fwd_src[flavor_index[iflavor]][mu][ib], mu, fwd_src[flavor_index[iflavor]][ib], VOLUME );
-#if _HLBL_NEUTRAL
+          spinor_field_eq_gamma_ti_spinor_field ( g_fwd_src[flavor_index[iflavor]][mu][ib], gamma_id[mu], fwd_src[flavor_index[iflavor]][ib], VOLUME );
+
           g5_phi ( g_fwd_src[iflavor][mu][ib], VOLUME );
-#endif
         }
       }
     }
@@ -785,7 +790,7 @@ int main(int argc, char **argv) {
 
               for ( int mu = 0; mu < 4; mu++ )
               {
-                _fv_eq_gamma_ti_fv ( g_dzu[k][mu][ia], mu, spinor1 );
+                _fv_eq_gamma_ti_fv ( g_dzu[k][mu][ia], gamma_id[mu], spinor1 );
               }
             }
           }
@@ -802,7 +807,7 @@ int main(int argc, char **argv) {
 
               for ( int mu = 0; mu < 4; mu++ )
               {
-                _fv_eq_gamma_ti_fv ( g_dzsu[k][mu][ia], mu, spinor1 );
+                _fv_eq_gamma_ti_fv ( g_dzsu[k][mu][ia], gamma_id[mu], spinor1 );
               }
             }
           }
@@ -910,7 +915,7 @@ int main(int argc, char **argv) {
                 _fv_eq_gamma_ti_fv ( spinor1, 5, dxu[mu][ib] );
                 for ( int lambda = 0; lambda < 4; lambda++ )
                 {
-                  _fv_eq_gamma_ti_fv ( g_dxu[lambda][mu][ib], lambda, spinor1 );
+                  _fv_eq_gamma_ti_fv ( g_dxu[lambda][mu][ib], gamma_id[lambda], spinor1 );
                 }
               }
             }
