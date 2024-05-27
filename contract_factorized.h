@@ -22,8 +22,13 @@ int contract_vn_momentum_projection (double *** const vp, double ** const vx, in
 
 
 /* int contract_vn_write_aff (double ***vp, int n, struct AffWriter_s*affw, char*tag, int (*momentum_list)[3], int momentum_number, int io_proc ); */
+#ifdef HAVE_LHPC_AFF
 int contract_vn_write_aff (double *** const vp, int const n, struct AffWriter_s*affw, char*tag, const int (* const momentum_list)[3], int const momentum_number, int const io_proc );
+#endif
 
+#ifdef HAVE_HDF5
+int contract_vn_write_h5 (double *** const vp, int const n, char * const filename, char * const tag, const int (* const momentum_list)[3], int const momentum_number, int const io_proc );
+#endif
 
 }  /* end of namespace cvc */
 #endif
