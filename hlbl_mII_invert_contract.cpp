@@ -1215,7 +1215,7 @@ int main(int argc, char **argv) {
       exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
       if ( exitstatus != 0 )
       {
-        fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
+        fprintf (stderr, "[hlbl_mII_invert_contract] Error from write_h5_contraction  %s %d\n", __FILE__, __LINE__ );
         EXIT(12);
       }
     }
