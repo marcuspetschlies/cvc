@@ -266,20 +266,30 @@ int main(int argc, char **argv) {
   }
 #else
   Nconf = g_tmLQCD_lat.nstore;
-  if(g_cart_id== 0) fprintf(stdout, "[hlbl_2p2_invert_contract] Nconf = %d\n", Nconf);
+  if(g_cart_id== 0) fprintf(stdout, "# [hlbl_mII_invert_contract] Nconf = %d\n", Nconf);
 
-  exitstatus = tmLQCD_read_gauge(Nconf);
-  if(exitstatus != 0) {
-    EXIT(5);
+  if(!(strcmp(gaugefilename_prefix,"identity")==0)) {
+    sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
+    if(g_cart_id==0) fprintf(stdout, "# [hlbl_mII_invert_contract] reading gauge field from file %s\n", filename);
+    exitstatus = tmLQCD_read_gauge(Nconf);
+    if(exitstatus != 0) {
+      EXIT(5);
+    }
   }
-
   exitstatus = tmLQCD_get_gauge_field_pointer( &g_gauge_field );
   if(exitstatus != 0) {
     EXIT(6);
   }
   if( g_gauge_field == NULL) {
-    fprintf(stderr, "[hlbl_2p2_invert_contract] Error, g_gauge_field is NULL %s %d\n", __FILE__, __LINE__);
+    fprintf(stderr, "[hlbl_mII_invert_contract] Error, g_gauge_field is NULL %s %d\n", __FILE__, __LINE__);
     EXIT(7);
+  }
+  if (strcmp(gaugefilename_prefix,"identity")==0) {
+    if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_mII_invert_contract] initializing unit matrices\n");
+    exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
+    if(exitstatus != 0) {
+      EXIT(6);
+    }
   }
 #endif
 
@@ -516,7 +526,8 @@ int main(int argc, char **argv) {
       for ( int irs = 0; irs < 6; irs++ )
       {
         int const rho   = idx_comb[irs][0];
-        int const sigma = idx_comb[irs][0];
+        // Updated 0 -> 1
+        int const sigma = idx_comb[irs][1];
 
         for ( int nu = 0; nu < 4; nu++ )
         {
@@ -524,7 +535,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 #pragma omp parallel
 {
-          double dtmp[2];
+          double dtmp[2] = { 0 };
 #endif
 #ifdef HAVE_OPENMP
 #pragma omp for
@@ -547,8 +558,9 @@ int main(int argc, char **argv) {
 #pragma omp critical 
 {
 #endif
-          z_pi[isrc][irs][2 * nu    ] += dtmp[0];
-          z_pi[isrc][irs][2 * nu + 1] += dtmp[1];
+          // Updated isrc -> isrc2
+          z_pi[isrc2][irs][2 * nu    ] += dtmp[0];
+          z_pi[isrc2][irs][2 * nu + 1] += dtmp[1];
 #ifdef HAVE_OPENMP
 }  /* end of critical region */
 
@@ -559,22 +571,25 @@ int main(int argc, char **argv) {
     }  /* end of loop on source locations  */
 
 #ifdef HAVE_MPI
-    int const nitem = g_source_location_number * 6 * 8;
-    double *** gz_pi = init_3level_dtable ( g_source_location_number, 6, 8 );
-
-    if ( MPI_Reduce ( z_pi[0][0], gz_pi[0][0], nitem, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
     {
-      fprintf ( stderr, "[] Error from MPI_Reduce   %s %d\n", __FILE__, __LINE__ );
-      EXIT(1);
+      int const nitem = g_source_location_number * 6 * 8;
+      double *** gz_pi = init_3level_dtable ( g_source_location_number, 6, 8 );
+
+      if ( MPI_Reduce ( z_pi[0][0], gz_pi[0][0], nitem, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
+      {
+        fprintf ( stderr, "[] Error from MPI_Reduce   %s %d\n", __FILE__, __LINE__ );
+        EXIT(1);
+      }
+      memcpy ( z_pi[0][0], gz_pi[0][0], nitem * sizeof ( double ) );
+      fini_3level_dtable ( &gz_pi );
     }
-    memcpy ( z_pi[0][0], gz_pi[0][0], nitem * sizeof ( double ) );
-    fini_3level_dtable ( &gz_pi );
 #endif
 
     if ( io_proc == 2 )
     {
       int const ncdim = 3;
-      int const cdim[3] = { g_source_location_number, 6, 4 };
+      // NOTE: Updated 4 -> 8
+      int const cdim[3] = { g_source_location_number, 6, 8 };
       char tag[100];
       sprintf ( tag, "/z_pi/T%d_X%d_Y%d_Z%d", gsx[0], gsx[1], gsx[2], gsx[3] );
       exitstatus = write_h5_contraction ( z_pi[0][0], NULL, output_filename, tag, "double", ncdim, cdim );
@@ -592,6 +607,8 @@ int main(int argc, char **argv) {
      * reductions with kernel
      ***********************************************************/
 
+    fprintf(stdout, "[DEBUG] Begin reductions with kernel\n");
+
     double ***** kernel_sum = init_5level_dtable ( g_source_location_number, 6, 4, 4, 4 );
     if ( kernel_sum == NULL )
     {
@@ -608,19 +625,39 @@ int main(int argc, char **argv) {
     /***********************************************************
      * loop on source positions
      ***********************************************************/
-    for ( int isrc2 = 0; isrc2 < g_source_location; isrc2++ )
+    // NOTE: Updated from g_source_location -> g_source_location_number
+    for ( int isrc2 = 0; isrc2 < g_source_location_number; isrc2++ )
     {
       int const csx[4] = {
           g_source_coords_list[isrc2][0],
           g_source_coords_list[isrc2][1],
           g_source_coords_list[isrc2][2],
           g_source_coords_list[isrc2][3] };
+      fprintf(stdout, "[DEBUG] src = %d,%d,%d,%d  src2 = %d,%d,%d,%d\n",
+              gsx[0], gsx[1], gsx[2], gsx[3],
+              csx[0], csx[1], csx[2], csx[3]);
+
+      // Updated to apply site_map_zerohalf to y = src2 - src
+      // and to compute y_minus = src - src2
+      int const y[4] = {
+        (csx[0] - gsx[0] + T_global) % T_global,
+        (csx[1] - gsx[1] + LX_global) % LX_global,
+        (csx[2] - gsx[2] + LY_global) % LY_global,
+        (csx[3] - gsx[3] + LZ_global) % LZ_global
+      };
+      int yv[4];
+      site_map_zerohalf(yv, y);
 
       double const ym[4] = {
-          ( csx[0] - gsx[0] + T_global  ) % T_global  * xunit[0],
-          ( csx[1] - gsx[1] + LX_global ) % LX_global * xunit[0],
-          ( csx[2] - gsx[2] + LY_global ) % LY_global * xunit[0],
-          ( csx[3] - gsx[3] + LZ_global ) % LZ_global * xunit[0] };
+        yv[0] * xunit[0],
+        yv[1] * xunit[0],
+        yv[2] * xunit[0],
+        yv[3] * xunit[0] };
+      double const ym_minus[4] = {
+        -yv[0] * xunit[0],
+        -yv[1] * xunit[0],
+        -yv[2] * xunit[0],
+        -yv[3] * xunit[0] };
 
                   
       for ( int irs = 0; irs < 6; irs++ )
@@ -658,6 +695,23 @@ int main(int argc, char **argv) {
                 xv[2] * xunit[0],
                 xv[3] * xunit[0] };
 
+            // Updated to also compute x - y
+            int const x_mi_y[4] = {
+              (x[0] - y[0] + T_global) % T_global,
+              (x[1] - y[1] + LX_global) % LX_global,
+              (x[2] - y[2] + LY_global) % LY_global,
+              (x[3] - y[3] + LZ_global) % LZ_global
+            };
+
+            int xv_mi_yv[4];
+            site_map_zerohalf ( xv_mi_yv, x_mi_y );
+
+            double const xm_mi_ym[4] = {
+                xv_mi_yv[0] * xunit[0],
+                xv_mi_yv[1] * xunit[0],
+                xv_mi_yv[2] * xunit[0],
+                xv_mi_yv[3] * xunit[0] };
+
 
             /***********************************************************
              * loop on kernel types
@@ -673,7 +727,17 @@ int main(int argc, char **argv) {
                 {
                   kernel_sum_thread[ikernel][0] +=  ( kerv1[irs][mu][nu][lambda] + kerv2[irs][nu][mu][lambda] ) * pimn[mu][lambda][2*ix  ];
                   kernel_sum_thread[ikernel][1] +=  ( kerv1[irs][mu][nu][lambda] + kerv2[irs][nu][mu][lambda] ) * pimn[mu][lambda][2*ix+1];
+                  // TODO: Don't think we need this
+                  kerv1[irs][mu][nu][lambda] = 0.0;
+                }
+              }
 
+              KQED_LX[ikernel]( xm_mi_ym, ym_minus, kqed_t, kerv1 );
+
+              for ( int mu = 0; mu < 4; mu++ )
+              {
+                for ( int lambda = 0; lambda < 4; lambda++ )
+                {
                   kernel_sum_thread[ikernel][2] +=    kerv1[irs][mu][lambda][nu] * pimn[mu][lambda][2*ix  ];
                   kernel_sum_thread[ikernel][3] +=    kerv1[irs][mu][lambda][nu] * pimn[mu][lambda][2*ix+1];
                 }
@@ -687,10 +751,11 @@ int main(int argc, char **argv) {
 #endif
           for ( int ikernel = 0; ikernel < 4; ikernel++ )
           {
-            kernel_sum[isrc][irs][nu][ikernel][0] += kernel_sum_thread[ikernel][0];
-            kernel_sum[isrc][irs][nu][ikernel][1] += kernel_sum_thread[ikernel][1];
-            kernel_sum[isrc][irs][nu][ikernel][2] += kernel_sum_thread[ikernel][2];
-            kernel_sum[isrc][irs][nu][ikernel][3] += kernel_sum_thread[ikernel][3];
+            // NOTE: Updated isrc -> isrc2
+            kernel_sum[isrc2][irs][nu][ikernel][0] += kernel_sum_thread[ikernel][0];
+            kernel_sum[isrc2][irs][nu][ikernel][1] += kernel_sum_thread[ikernel][1];
+            kernel_sum[isrc2][irs][nu][ikernel][2] += kernel_sum_thread[ikernel][2];
+            kernel_sum[isrc2][irs][nu][ikernel][3] += kernel_sum_thread[ikernel][3];
           }
 #ifdef HAVE_OPENMP
 }  /* end of critical region */
@@ -699,21 +764,24 @@ int main(int argc, char **argv) {
 #ifdef HAVE_OPENMP
 }  /* end of parallel region */
 #endif
+
         }  /* end of nu */
       }  /* end of [rho,sigma] */
     }  /* end of loop on source locations */
 
 #ifdef HAVE_MPI
-    int const nitem = g_source_location_number * 6 * 4 * 4 * 4;
-    double *buffer = init_1level_dtable ( nitem );
-
-    if ( MPI_Reduce ( kernel_sum[0][0][0][0], buffer, nitem, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
     {
-      fprintf ( stderr, "[] Error from MPI_Reduce   %s %d\n", __FILE__, __LINE__ );
-      EXIT(1);
+      int const nitem = g_source_location_number * 6 * 4 * 4 * 4;
+      double *buffer = init_1level_dtable ( nitem );
+
+      if ( MPI_Reduce ( kernel_sum[0][0][0][0], buffer, nitem, MPI_DOUBLE, MPI_SUM, 0, g_cart_grid ) != MPI_SUCCESS )
+      {
+        fprintf ( stderr, "[] Error from MPI_Reduce   %s %d\n", __FILE__, __LINE__ );
+        EXIT(1);
+      }
+      memcpy ( kernel_sum[0][0][0][0], buffer, nitem * sizeof ( double ) );
+      fini_1level_dtable ( &buffer);
     }
-    memcpy ( kernel_sum[0][0][0][0], buffer, nitem * sizeof ( double ) );
-    fini_1level_dtable ( &buffer);
 #endif
 
     if ( io_proc == 2 )
@@ -741,7 +809,7 @@ int main(int argc, char **argv) {
     sprintf ( output_filename, "%s.%d.T%d_X%d_Y%d_Z%d.lime", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
     sprintf ( type, "polarization-tensor-position-space" );
 
-    exitstatus = write_lime_contraction ( pimn, output_filename, 64, 16, type, Nconf,  0);
+    exitstatus = write_lime_contraction ( pimn[0][0], output_filename, 64, 16, type, Nconf,  0);
     if ( exitstatus != 0 )
     {
       fprintf ( stderr, "# [hlbl_2p2_invert_contract] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );

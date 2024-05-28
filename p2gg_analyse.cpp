@@ -43,8 +43,8 @@
 #include "table_init_i.h"
 #include "uwerr.h"
 
-#define _CVC_AFF 0
-#define _CVC_H5  1
+#define _CVC_AFF 1
+#define _CVC_H5  0
 
 using namespace cvc;
 
@@ -377,9 +377,9 @@ int main(int argc, char **argv) {
 
             struct AffNode_s *affn = NULL, *affdir = NULL;
       
-            /* sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
+            sprintf ( filename, "stream_%c/%d/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], Nconf, g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
-            sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+           /*  sprintf ( filename, "%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             /* sprintf ( filename, "stream_%c/%s.%.4d.t%.2dx%.2dy%.2dz%.2d.aff", conf_src_list[iconf][isrc][0], pgg_operator_type_tag[operator_type], Nconf, gsx[0], gsx[1], gsx[2], gsx[3] ); */
             fprintf(stdout, "# [p2gg_analyse] reading data from file %s\n", filename);
             affr = aff_reader ( filename );

@@ -1011,12 +1011,6 @@ int main(int argc, char **argv) {
    **********************************************************/
   for ( int ireim = 0; ireim < 1; ireim++ ) {  /* real part only */
 
-    if ( num_conf < 6 ) {
-      fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-      /* EXIT(1); */
-      continue;
-    }
-
     double ** data = init_2level_dtable ( num_conf, T_global );
     if ( data == NULL ) {
       fprintf ( stderr, "[avxn_conn_analyse] Error from init_Xlevel_dtable %s %d\n",  __FILE__, __LINE__ );
@@ -1046,17 +1040,23 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][1],
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
-    /* apply UWerr analysis */
-    exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-    if ( exitstatus != 0 ) {
-      fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(1);
+    if ( num_conf >= 6 )
+    {
+      /* apply UWerr analysis */
+      exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+      if ( exitstatus != 0 ) {
+        fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+        EXIT(1);
+      }
+    } else {
+      fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
     }
 
     /**********************************************************
      * write data to ascii file
      **********************************************************/
-    if ( write_data == 2 ) {
+    if ( write_data == 1 )
+    {
       sprintf ( filename, "%s.corr", obs_name );
 
       FILE * fs = fopen( filename, "w" );
@@ -1081,10 +1081,13 @@ int main(int argc, char **argv) {
       char obs_name2[100];
       sprintf ( obs_name2, "%s.acosh_ratio.tau%d", obs_name, itau );
 
-      exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
+      if ( num_conf >= 6 )
+      {
+        exitstatus = apply_uwerr_func ( data[0], num_conf, T_global, nT, narg, arg_first, arg_stride, obs_name2, acosh_ratio, dacosh_ratio );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
       }
     }
 
@@ -2040,12 +2043,6 @@ int main(int argc, char **argv) {
      **********************************************************/
     for ( int k = 0; k <= 2; k++ ) {
 
-      if ( num_conf < 6 ) {
-        fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-        /* EXIT(1); */
-        continue;
-      }
-
       for ( int ireim = 0; ireim < 2; ireim++ ) {
 
         double ** data = init_2level_dtable ( num_conf, T_global );
@@ -2075,14 +2072,20 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][1],
             g_sink_momentum_list[0][2], reim_str[ireim] );
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 )
+        {
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+        } else {
+          fprintf ( stderr, "[avxn_conn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
         }
 
-        if ( write_data == 2 ) {
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr", obs_name );
           write_data_real ( data, filename, conf_src_list, num_conf, T_global );
         }
@@ -2138,10 +2141,13 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][1],
             g_sink_momentum_list[0][2], reim_str[ireim] );
 
-        exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(115);
+        if ( num_conf >= 6 )
+        {
+          exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_conn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(115);
+          }
         }
 
         fini_2level_dtable ( &data );

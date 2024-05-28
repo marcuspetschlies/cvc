@@ -2111,8 +2111,8 @@ int main(int argc, char **argv) {
           {
             fscanf ( fs, "%d %lf %lf\n", &itmp, dtmp, dtmp+1 );
 
-            loop_sub[imom][iconf][imu][idir][it][0] = dtmp[0];
-            loop_sub[imom][iconf][imu][idir][it][1] = dtmp[1];
+            loop_sub[imom][iconf][imu][idir][it][0] = dtmp[0] * loop_norm;
+            loop_sub[imom][iconf][imu][idir][it][1] = dtmp[1] * loop_norm;
           }
         }
 

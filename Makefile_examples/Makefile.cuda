@@ -1,0 +1,134 @@
+# ##########
+work=../..
+srcdir=..
+
+# qlua_build_dir=$(work)/qlua/momproj/build-ubuntu18/
+limedir=$(work)/lime-1.3.2/install/
+# lemondir=$(work)/lemon/build-ubuntu18/
+fftwdir=$(work)/fftw-2.1.5/install/
+lapackdir=$(work)/lapack-3.11.0/
+lhpcdir=$(work)/aff-3.0.0/install/
+hdf5dir=$(work)/hdf5-1.14.1-2/install/
+kqedcudadir=$(work)/KQED_CUDA/build-cuda/
+kqeddir=$(work)/KQED_CUDA/build-cpu/
+cudadir=/opt/cuda/
+
+defines= -DF_  -DCUBIC_GROUP_SINGLE_COVER -DDUMMY_SOLVER -DHAVE_KQED -DHAVE_HDF5 -DHAVE_LHPC_AFF
+gpu_defines= -DHAVE_CUDA -DUSE_CUDA
+
+# -fopenmp
+CXX=g++
+CXXFLAGS= -Wall -g -O2 $(defines)
+CXXFLAGS_GPU= -Wall -g -O2 $(defines) $(gpu_defines)
+NVCC=nvcc -ccbin=$(CXX)
+NVCCFLAGS= -arch=sm_60
+# -DHAVE_OPENMP
+# -DCUBIC_GROUP_DOUBLE_COVER
+
+
+CCDEP = g++
+DEPFLAGS = -MM
+
+INCLUDE = -I. -I$(srcdir) \
+	-I$(fftwdir)/include/ -I$(limedir)/include/ \
+	-I$(hdf5dir)/include/ \
+	-I$(lhpcdir)/include/ -I$(cudadir)/include/
+INCLUDE_CPU=$(INCLUDE) -I$(kqeddir)/include/
+INCLUDE_GPU=$(INCLUDE) -I$(kqedcudadir)/include/
+
+LIBS = -lm -L$(fftwdir)/lib/ -lfftw \
+	-L$(limedir)/lib/ -llime \
+	-L$(hdf5dir)/lib/ -lhdf5 \
+	-L$(lhpcdir)/lib/ -llhpc-aff \
+	-L$(lapackdir) -llapack -lrefblas -lgfortran \
+	-L$(cudadir)/lib/ -lcudart
+LIB_KQED_GPU=-L$(kqedcudadir)/lib/ -lKQED_cuda
+LIB_KQED=-L$(kqeddir)/lib/ -lKQED
+LIBS_GPU=$(LIBS) $(LIB_KQED_GPU)
+LIBS_CPU=$(LIBS) $(LIB_KQED)
+DEVICE_LIBS=$(LIB_KQED_GPU)
+
+LDFLAGS = $(LIBS_CPU) -fopenmp
+LDFLAGS_GPU = $(LIBS_GPU) -fopenmp
+
+
+LINK = $(CXX) -o $@ ${LDFLAGS}
+COMPILE = ${CXX} $(INCLUDE_CPU) -o $@ ${CXXFLAGS}
+COMPILE_GPU = ${CXX} $(INCLUDE_GPU) -o $@ ${CXXFLAGS_GPU}
+CUDA_COMPILE = ${NVCC} ${NVCCFLAGS} $(INCLUDE_GPU) -dc -o $@ --compiler-options="${CXXFLAGS_GPU}"
+CUDA_LINK = ${NVCC} ${NVCCFLAGS} $(INCLUDE_GPU) -dlink -o $@ --compiler-options="${CXXFLAGS_GPU}"
+
+MODULES = DML_crc32 dml getopt cvc_utils cvc_geometry mpi_init io io_utils propagator_io read_input_parser_cvc \
+	  get_index gauge_io contractions_io ranlxd ranlxs Q_phi set_default \
+	  Q_clover_phi gsp prepare_source matrix_init project make_x_orbits contract_cvc_tensor smearing_techniques \
+	  prepare_propagator scalar_products clover rotations gitversion group_projection gamma dummy_solver contract_factorized \
+	  contract_loop uwerr incomp_gamma derived_quantities
+CUDA_MODULES = cuda_lattice
+
+HEADERS = getopt cvc_complex cvc_geometry cvc_linalg iblas icontract cvc_utils default_input_values dml global io io_utils \
+	  mpi_init propagator_io read_input_parser get_index gauge_io contractions_io \
+	  ranlxd ranlxs Q_phi set_default laplace_linalg Q_clover_phi \
+	  gsp prepare_source matrix_init project make_x_orbits contract_cvc_tensor smearing_techniques \
+	  prepare_propagator scalar_products clover rotations group_projection \
+          set_cubic_group_double_cover_elements set_cubic_group_double_cover_identification_table set_cubic_group_elements \
+          set_cubic_group_elements_v2 gamma gamma_mult_table clebsch_gordan \
+	  table_init_z table_init_d table_init_i table_init_c table_init_asym_z group_projection_applicator dummy_solver contract_factorized \
+	  contract_loop uwerr incomp_gamma derived_quantities cuda_lattice
+
+
+# PROGRAM = hlbl_mII_contract_test
+PROGRAM = hlbl_mII_invert_contract
+
+
+
+all: dep $(PROGRAM) $(PROGRAM).gpu
+
+
+# ##########
+
+${srcdir}/read_input_parser_cvc.cpp: ${srcdir}/read_input_parser_cvc.l
+	${LEX} -P cvc_ -i -t $< > ${srcdir}/read_input_parser_cvc.cpp
+
+$(addsuffix .d,$(MODULES)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+$(addsuffix .d,$(CUDA_MODULES)): %.d: ${srcdir}/%.cu
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+$(addsuffix .d,$(PROGRAM)): %.d: ${srcdir}/%.cpp
+	 @ $(CCDEP) ${DEPFLAGS} ${INCLUDE} $< > $@
+
+dep: $(addsuffix .d,$(MODULES) $(CUDA_MODULES) ${PROGRAM})
+
+$(addsuffix .o,${MODULES}): %.o: ${srcdir}/%.cpp $(addprefix ${srcdir}/, $(addsuffix .h, ${HEADERS})) %.d
+	${COMPILE} ${OPTARGS} -c $< 
+
+$(addsuffix .o,${CUDA_MODULES}): %.o: ${srcdir}/%.cu $(addprefix ${srcdir}/, $(addsuffix .h, ${HEADERS})) %.d
+	${CUDA_COMPILE} ${OPTARGS} -c $<
+
+$(addsuffix .o,${PROGRAM}): %.o: ${srcdir}/%.cpp %.d
+	${COMPILE} ${OPTARGS} -c $<
+
+$(addsuffix .gpu.o,${PROGRAM}): %.gpu.o: ${srcdir}/%.cpp %.d
+	${COMPILE_GPU} ${OPTARGS} -c $<
+
+${PROGRAM}: %: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES})
+	${LINK}  $(addsuffix .o,${MODULES}) $@.o $(LDFLAGS)
+
+${PROGRAM}.gpu.dlink: %.dlink: %.o ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${CUDA_LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $< $(DEVICE_LIBS)
+${PROGRAM}.gpu: %: %.o %.dlink ${srcdir}/gitversion.cpp $(addsuffix .o,${MODULES} ${CUDA_MODULES})
+	${LINK}  $(addsuffix .o,${MODULES} ${CUDA_MODULES}) $@.o $@.dlink $(LDFLAGS_GPU)
+
+${srcdir}/gitversion.cpp: ${srcdir}/.git/HEAD ${srcdir}/.git/index
+	echo "namespace cvc { const char *g_gitversion = \"$(shell cd ${srcdir} && git rev-parse HEAD && cd -)\"; }" > ${srcdir}/gitversion.cpp
+
+# ##########
+
+
+clean:
+	rm -f *~ *.o *.d *.dlink $(PROGRAM) $(PROGRAM).gpu ${srcdir}/gitversion.cpp
+
+.PHONY: clean
+
+# ##########
