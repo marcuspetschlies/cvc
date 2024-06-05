@@ -42,13 +42,16 @@
 #include "uwerr.h"
 #include "derived_quantities.h"
 
+#define _INPUT_AFF 0
+#define _INPUT_H5 1
+
 #undef _RAT
 #undef _RAT_SUB
 
 using namespace cvc;
 
 void usage() {
-  fprintf(stdout, "Code form 2-pt function\n");
+  fprintf(stdout, "Code to form N-JJ-N 2-pt function\n");
   fprintf(stdout, "Usage:    [options]\n");
   fprintf(stdout, "Options:  -f input <filename> : input filename for [default cpff.input]\n");
   EXIT(0);
@@ -112,15 +115,24 @@ typedef struct {
 /***************************************************************************
  *
  ***************************************************************************/
-void make_key_string ( char * key, twopoint_function_type *tp, const char * type, const char * diagram_name , const int * sx, int const isample ) {
+void make_key_string ( char * key, twopoint_function_type *tp, const char * type, const char * diagram_name , const int * sx, int const isample,
+   int const with_pf1_tag )
+{
 
   const int * gsx = ( sx == NULL ) ? tp->source_coords : sx;
   const char * tp_type = ( type ==  NULL ) ? tp->type : type;
+  char pf1_tag[20] = "";
+
+  if ( with_pf1_tag )
+  {
+    sprintf ( pf1_tag, "/px%.2dpy%.2dpz%.2d", tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+  }
 
   /* /N-qbGqqbGq-N/fd-wuu-wdd/T6_X7_Y17_Z5/QX0_QY0_QZ0/sample0/Gc_g5/Gf_Cg5/Gi_Cg5/t1/px00py00pz00 */
   if ( strcmp ( tp_type, "N-qbGqqbGq-N" ) == 0 ) {
   
-    if (    strcmp ( tp->name, "fu-bddd-fu" ) == 0 
+    if (  /* bd flavor-conserving / netural tags */
+            strcmp ( tp->name, "fu-bddd-fu" ) == 0 
          || strcmp ( tp->name, "fd-fu-bddd" ) == 0 
          || strcmp ( tp->name, "bddd-fu-fd" ) == 0 
          || strcmp ( tp->name, "fu-ddud-fu" ) == 0 
@@ -138,37 +150,61 @@ void make_key_string ( char * key, twopoint_function_type *tp, const char * type
          || strcmp ( tp->name, "fd-duuu-fd" ) == 0 
          || strcmp ( tp->name, "fu-fd-duuu" ) == 0 
          || strcmp ( tp->name, "duuu-fd-fu" ) == 0 
+         /* bd flavor-changing / charged tags */
+         || strcmp ( tp->name, "bddu-fd-fu" ) == 0 
+         || strcmp ( tp->name, "bduu-fd-fu" ) == 0 
+         || strcmp ( tp->name, "budd-fu-fd" ) == 0 
+         || strcmp ( tp->name, "buud-fu-fd" ) == 0 
+         || strcmp ( tp->name, "dddu-fd-fu" ) == 0 
+         || strcmp ( tp->name, "dduu-fd-fu" ) == 0 
+         || strcmp ( tp->name, "dudd-fu-fd" ) == 0 
+         || strcmp ( tp->name, "duud-fu-fd" ) == 0 
+         || strcmp ( tp->name, "fd-bddu-fu" ) == 0 
+         || strcmp ( tp->name, "fd-bduu-fu" ) == 0 
+         || strcmp ( tp->name, "fd-dddu-fu" ) == 0 
+         || strcmp ( tp->name, "fd-dduu-fu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-bddu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-bduu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-dddu" ) == 0 
+         || strcmp ( tp->name, "fd-fu-dduu" ) == 0 
+         || strcmp ( tp->name, "fu-budd-fd" ) == 0 
+         || strcmp ( tp->name, "fu-buud-fd" ) == 0 
+         || strcmp ( tp->name, "fu-dudd-fd" ) == 0 
+         || strcmp ( tp->name, "fu-duud-fd" ) == 0 
+         || strcmp ( tp->name, "fu-fd-budd" ) == 0 
+         || strcmp ( tp->name, "fu-fd-buud" ) == 0 
+         || strcmp ( tp->name, "fu-fd-dudd" ) == 0 
+         || strcmp ( tp->name, "fu-fd-duud" ) == 0 
         ) {
 
-      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+      sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/nsample%d/Gc_%s/Gf_%s/Gi_%s/%s/%s", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
           tp->pf2[0], tp->pf2[1], tp->pf2[2],
           isample,
           gamma_id_to_group[tp->gf2],
           gamma_id_to_Cg_ascii[tp->gf1[0]],
           gamma_id_to_Cg_ascii[tp->gi1[0]],
-          diagram_name,
-          tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+          diagram_name, pf1_tag );
 
     } else {
       if ( tp->gi2 == -1 ) {
-        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s/Gf_%s/Gi_%s/%s/%s", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
             tp->pf2[0], tp->pf2[1], tp->pf2[2],
             isample,
             gamma_id_to_ascii[tp->gf2],
             gamma_id_to_Cg_ascii[tp->gf1[0]],
             gamma_id_to_Cg_ascii[tp->gi1[0]],
-            diagram_name,
-            tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+            diagram_name, pf1_tag );
+
       } else {
-        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s-%s/Gf_%s/Gi_%s/%s/px%.2dpy%.2dpz%.2d", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s-%s/Gf_%s/Gi_%s/%s/%s", tp_type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
             tp->pf2[0], tp->pf2[1], tp->pf2[2],
             isample,
             gamma_id_to_ascii[tp->gf2],
             gamma_id_to_ascii[tp->gi2],
             gamma_id_to_Cg_ascii[tp->gf1[0]],
             gamma_id_to_Cg_ascii[tp->gi1[0]],
-            diagram_name,
-            tp->pf1[0], tp->pf1[1], tp->pf1[2] );
+            diagram_name, pf1_tag );
+
       }
     }
   }
@@ -188,8 +224,8 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
     if ( tp->gi2 == -1 ) {
       sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
           tp->pf2[0], tp->pf2[1], tp->pf2[2],
-          gamma_id_to_ascii[tp->gf2],
-          /* gamma_id_to_group[tp->gf2], */
+          // gamma_id_to_ascii[tp->gf2],
+          gamma_id_to_group[tp->gf2],
           gamma_id_to_Cg_ascii[tp->gf1[0]],
           gamma_id_to_Cg_ascii[tp->gi1[0]],
           tp->pf1[0], tp->pf1[1], tp->pf1[2] );
@@ -406,9 +442,6 @@ int main(int argc, char **argv) {
     memcpy ( conf_src_list.src[countc][counts] , src_tmp, 4*sizeof(int) );
 
     counts++;
-
-#if 0
-#endif
   }
 
   fclose ( ofs );
@@ -459,10 +492,11 @@ int main(int argc, char **argv) {
         conf_src_list.src[iconf][isrc][3] };
 
       char data_filename[500];
-            
-      /* sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
-          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
-      sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+      
+#if _INPUT_AFF      
+      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf], 
+          filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+      /* sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
       if ( g_verbose > 2 ) {
         fprintf ( stdout, "# [NJJN_analyse] data_filename   = %s\n", data_filename );
       }
@@ -483,12 +517,42 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[NJJN_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
         return(103);
       }
+#endif
+
+#if _INPUT_H5
+      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.h5", filename_prefix2, conf_src_list.stream[iconf], conf_src_list.conf[iconf],
+                    filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+
+      void * buffer = NULL;
+      int ** sink_momentum_list = NULL, sink_momentum_number = 0;
+      size_t ncdim, *cdim = NULL;
+
+      exitstatus = read_from_h5_file_varsize ( &buffer, data_filename, "/src_mom",  "int", &ncdim, &cdim,  io_proc );
+      if ( exitstatus != 0 )
+      {
+        fprintf(stderr, "[NN_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        EXIT(103);
+      }
+
+      sink_momentum_number = cdim[0];
+      sink_momentum_list = init_2level_itable ( sink_momentum_number, 3 );
+      if ( sink_momentum_list == NULL )
+      {
+        fprintf(stderr, "[] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
+        EXIT(104);
+      }
+      memcpy ( sink_momentum_list[0], buffer, 3 * sink_momentum_number * sizeof ( int ) );
+      free ( buffer );
+      free ( cdim );
+#endif  // end of if _INPUT_H5
 
       /***************************************************************************
        * loop on twopoint functions
        ***************************************************************************/
-      for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) {
+      for ( int i_2pt = 0; i_2pt < g_twopoint_function_number; i_2pt++ ) 
+      {
 
+#if _INPUT_AFF
         /***************************************************************************
          * loop on sink momenta
          ***************************************************************************/
@@ -543,7 +607,7 @@ int main(int argc, char **argv) {
             {
 
               /* make_key_string ( key, tp, tp->type, diagram_name, gsx ); */
-              make_key_string ( key, &tp_aux, tp_aux.type, diagram_name, gsx, isample );
+              make_key_string ( key, &tp_aux, tp_aux.type, diagram_name, gsx, isample , 1);
 
               if ( g_verbose > 2 ) {
                fprintf ( stdout, "# [NJJN_analyse] key = %s\n", key );
@@ -676,10 +740,231 @@ int main(int argc, char **argv) {
 
         }  /* end of loop on sink momenta */
 
+#endif  // end of if _INPUT_AFF
+
+#if _INPUT_H5
+        int const nsample = ( g_sourceid2 - g_sourceid + 1 ) / g_sourceid_step;
+
+        twopoint_function_type * tp = &(g_twopoint_function_list[i_2pt]);
+
+        twopoint_function_allocate ( tp );
+        
+        memcpy ( tp->source_coords, gsx , 4 * sizeof( int ) );
+
+        if ( g_verbose > 2 ) {
+          twopoint_function_print ( tp, "tp", stdout );
+        }
+
+        double ***** diagram_buffer = init_5level_dtable ( nsample, tp->n, T, sink_momentum_number, 32 );
+        if ( diagram_buffer == NULL )
+        {
+          fprintf(stderr, "[NN_analyse] Error from init_level_table   %s %d\n", __FILE__, __LINE__);
+          EXIT(106);
+        }
+
+        /***************************************************************************
+         * loop on diagrams
+         ***************************************************************************/
+        for ( int i_diag = 0; i_diag < tp->n; i_diag++ ) 
+        {
+          char diagram_name[500];
+
+          twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
+
+          if ( g_verbose > 2 ) {
+            fprintf ( stdout, "# [NJJN_analyse] diagram_name = %s\n", diagram_name );
+          }
+
+          for ( int istoch = 0; istoch < nsample; istoch++  )
+          {
+            int isample = g_sourceid + istoch * g_sourceid_step;
+
+            char h5_key[200];
+            make_key_string ( h5_key, tp, tp->type, diagram_name, gsx, isample, 0 );
+
+            if ( g_verbose > 2 ) {
+              fprintf ( stdout, "# [NJJN_analyse] h5_key = %s    %s %d\n", h5_key , __FILE__, __LINE__ );
+            }
+
+            exitstatus = read_from_h5_file ( diagram_buffer[istoch][i_diag][0][0], data_filename, h5_key,  "double", io_proc );
+            if( exitstatus != 0 ) {
+              fprintf(stderr, "[NN_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+              EXIT(106);
+            }
+          }
+        }
+
+
+        /***************************************************************************
+         * loop on sink momenta
+         ***************************************************************************/
+        for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) 
+        {
+          int pf[3] = {
+            g_sink_momentum_list[ipf][0],
+            g_sink_momentum_list[ipf][1],
+            g_sink_momentum_list[ipf][2] 
+          };
+
+          int sink_momentum_id = get_momentum_id ( pf, sink_momentum_list, sink_momentum_number );
+          if ( sink_momentum_id == -1 )
+          {
+            fprintf ( stdout, "# [] Warning, could not find find momentum vektor (%3d, %3d, %3d)    %s %d\n",
+                pf[0], pf[1], pf[2], __FILE__, __LINE__ );
+            continue;
+          } else {
+            if ( g_verbose > 2 ) fprintf(stdout, "# [] found momentum vektor (%3d, %3d, %3d) as id %d    %s %d\n",
+                pf[0], pf[1], pf[2], sink_momentum_id, __FILE__, __LINE__ );
+          }
+
+          tp->pf1[0] =  pf[0];
+          tp->pf1[1] =  pf[1];
+          tp->pf1[2] =  pf[2];
+
+          tp->pi1[0] = -pf[0];
+          tp->pi1[1] = -pf[1];
+          tp->pi1[2] = -pf[2];
+
+          memset ( tp->c[0][0][0], 0, tp->n * tp->T * tp->d * tp->d * sizeof ( double _Complex ) );
+
+          /***********************************************************
+           * loop on diagrams
+           ***********************************************************/
+          for ( int i_diag = 0; i_diag < tp->n; i_diag++ ) 
+          {
+            for ( int istoch = 0; istoch < nsample; istoch++ )
+            {
+#pragma omp parallel for
+              for ( int it = 0; it <  tp->T ; it++ ) 
+              {
+                for ( int i = 0; i < tp->d * tp->d; i++ )
+                {
+                  tp->c[i_diag][it][0][i] += 
+                    diagram_buffer[istoch][i_diag][it][sink_momentum_id][2*i] + diagram_buffer[istoch][i_diag][it][sink_momentum_id][2*i+1] * I;
+                }
+              }
+
+            }  /* end of loop on samples */
+
+            /* normalize sample average 
+             * = 1 / number of samples
+             */
+            double const sample_norm = 1. / ( (double)(g_sourceid2 - g_sourceid + 1 ) / (double)g_sourceid_step );
+            if ( g_verbose > 4 ) fprintf ( stdout, "# [NJJN_analyse] sample_norm set to %e    %s %d\n", sample_norm, __FILE__, __LINE__ );
+#pragma omp parallel for
+            for ( int i = 0; i < tp->d*tp->d*tp->T ; i++ ) {
+              tp->c[i_diag][0][0][i] *= sample_norm;
+            }
+          }  /* end of loop on diagrams */
+
+          if ( g_verbose > 2 ) {
+            twopoint_function_show_data ( tp, stdout );
+          }
+
+          /***********************************************************
+           * apply norm factors to diagrams
+           ***********************************************************/
+          if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(103);
+          }
+
+          /***********************************************************
+           * add up normalized diagrams to entry 0
+           ***********************************************************/
+          if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+
+          /***********************************************************
+           * add boundary phase
+           ***********************************************************/
+          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(103);
+          }
+
+          /***********************************************************
+           * add source phase
+           ***********************************************************/
+          if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+
+          /***********************************************************
+           * reorder from source time forward
+           ***********************************************************/
+          if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+
+          /***********************************************************
+           * spin matrix multiplication left and right
+           ***********************************************************/
+          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          /***********************************************************
+           * project to spin parity and trace
+           ***********************************************************/
+
+          double _Complex *** zbuffer = init_3level_ztable ( tp->T, tp->d, tp->d );
+          if ( zbuffer == NULL ) {
+            fprintf( stderr, "[NJJN_analyse] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
+            EXIT(105);
+          }
+  
+          if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0],  1., tp->T ) ) != 0 )
+          {
+            fprintf( stderr, "[NJJN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+  
+        
+          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][ipf][0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+  
+  
+          if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0], -1., tp->T ) ) != 0 )
+          {
+            fprintf( stderr, "[NJJN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+  
+          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][ipf][1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NJJN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+  
+          /***************************************************************************
+           * free memory
+           ***************************************************************************/
+          fini_3level_ztable ( &zbuffer );
+
+        }  /* end of loop on sink momenta */
+        
+        twopoint_function_fini ( tp );
+
+        fini_5level_dtable ( &diagram_buffer );
+
+#endif  // end of if _INPUT_H5
+
       }  /* end of loop on 2pt functions */
 
+#if _INPUT_AFF
       aff_reader_close ( affr );
+#endif
 
+#if _INPUT_H5
+      fini_2level_itable ( &sink_momentum_list );
+#endif
     }  /* end of loop on source locations */
 
   }  /* end of loop on configurations */
@@ -756,7 +1041,7 @@ int main(int argc, char **argv) {
 
       for ( int iparity = 0; iparity < 2; iparity++ ) {
 
-        for ( int ireim = 0; ireim < 1; ireim++ )  /* real part only for now */
+        for ( int ireim = 0; ireim < 2; ireim++ )  /* real part only for now */
         {
 
           double ** data = init_2level_dtable ( num_conf, tp->T );
