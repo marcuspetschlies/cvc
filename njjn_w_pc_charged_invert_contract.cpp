@@ -81,7 +81,7 @@ typedef int ( * reduction_operation ) (double**, fermion_propagator_type*, fermi
  * 
  ***************************************************************************/
 static inline int reduce_project_write ( double ** vx, double *** vp, fermion_propagator_type * fa, fermion_propagator_type * fb, fermion_propagator_type * fc, reduction_operation reduce,
-    struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
+    void * writer, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
 
   int exitstatus;
 
@@ -99,9 +99,11 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
     return( 2 );
   }
 
-#if defined HAVE_LHPC_AFF
+#if defined HAVE_HDF5
+  exitstatus = contract_vn_write_h5 ( vp, nd, (char *)writer, tag, momentum_list, momentum_number, io_proc );
+#elif defined HAVE_LHPC_AFF
   /* write to AFF file */
-  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
+  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s*)writer, tag, momentum_list, momentum_number, io_proc );
 #endif
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
@@ -116,7 +118,7 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
 /***************************************************************************
  * 
  ***************************************************************************/
-static inline int project_write ( double ** vx, double *** vp, struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, int const io_proc ) {
+static inline int project_write ( double ** vx, double *** vp, void * writer, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, int const io_proc ) {
 
   int exitstatus;
 
@@ -127,9 +129,11 @@ static inline int project_write ( double ** vx, double *** vp, struct AffWriter_
     return( 2 );
   }
 
-#if defined HAVE_LHPC_AFF
+#if defined HAVE_HDF5
+  exitstatus = contract_vn_write_h5 ( vp, nd, (char *)writer, tag, momentum_list, momentum_number, io_proc );
+#elif defined HAVE_LHPC_AFF
   /* write to AFF file */
-  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
+  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)writer, tag, momentum_list, momentum_number, io_proc );
 #endif
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
@@ -612,8 +616,36 @@ int main(int argc, char **argv) {
      *
      * one data file per source position
      ***************************************************************************/
-    if(io_proc == 2) {
-#if defined HAVE_LHPC_AFF
+    void * writer = (void *)NULL;
+    if(io_proc == 2) 
+    {
+#if defined HAVE_HDF5
+      sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.h5", g_outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      fprintf(stdout, "# [njjn_w_pc_charged_invert_contract] writing data to file %s\n", filename);
+
+      int ncdim = 2;
+      int cdim[2] = { g_source_momentum_number, 3 };
+      char tag[100];
+      sprintf ( tag, "/src_mom" );
+
+      exitstatus = write_h5_contraction ( g_source_momentum_list[0], NULL, filename, tag, "int", ncdim, cdim );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from write_h5_contraction,  status %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(124);
+      }
+
+      cdim[0] = g_sink_momentum_number;
+      sprintf ( tag, "/snk_mom" );
+
+      exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, filename, tag, "int", ncdim, cdim );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from write_h5_contraction,  status %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(124);
+      }
+
+      writer = (void *)filename;
+
+#elif defined HAVE_LHPC_AFF
     /***************************************************************************
      * writer for aff output file
      * only I/O process id 2 opens a writer
@@ -626,6 +658,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
+
+      writer = (void *)affw;
 #else
       fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error, no outupt variant selected %s %d\n",  __FILE__, __LINE__);
       EXIT(15);
@@ -787,8 +821,8 @@ int main(int argc, char **argv) {
          *
          ***************************************************************************/
 
-        char  aff_tag_prefix[200];
-        sprintf ( aff_tag_prefix, "/N-N/%c%c%c/T%d_X%d_Y%d_Z%d", flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor], csx[0], csx[1], csx[2], csx[3] );
+        char  tag[300], tag_prefix[200];
+        sprintf ( tag_prefix, "/N-N/%c%c%c/T%d_X%d_Y%d_Z%d", flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor], csx[0], csx[1], csx[2], csx[3] );
          
         /***************************************************************************
          * fill the fermion propagator fp with the 12 spinor fields
@@ -822,9 +856,9 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram n1
            ***************************************************************************/
-          sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+          sprintf(tag, "%s/Gi_%s/Gf_%s/t1", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
-          exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
+          exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, writer, tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(48);
@@ -833,9 +867,9 @@ int main(int argc, char **argv) {
           /***************************************************************************
            * diagram n2
            ***************************************************************************/
-          sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+          sprintf(tag, "%s/Gi_%s/Gf_%s/t2", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
-          exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
+          exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, writer, tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
           if ( exitstatus != 0 ) {
             fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
             EXIT(48);
@@ -1058,7 +1092,7 @@ int main(int argc, char **argv) {
                 for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) 
                 {
                 
-                  char aff_tag_prefix[200];
+                  char tag[300], tag_prefix[200];
 
                   /***************************************************************************
                    ***************************************************************************
@@ -1071,7 +1105,7 @@ int main(int argc, char **argv) {
                   /***************************************************************************
                    * BEGIN OF p u1u u1d n   <---> n d1d d1u p (by flavor change)
                    ***************************************************************************/
-                  sprintf ( aff_tag_prefix, "/%s/w%c%c-w%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                  sprintf ( tag_prefix, "/%s/w%c%c-w%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                       correlator_tag, 
                       flavor_tag[iflavor], flavor_tag[iflavor], 
                       flavor_tag[iflavor], flavor_tag[1-iflavor],
@@ -1201,9 +1235,9 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t1", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
-                  exitstatus = project_write ( vx, vp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
+                  exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(48);
@@ -1219,7 +1253,7 @@ int main(int argc, char **argv) {
                   /***************************************************************************
                    * BEGIN OF p d1d u1d n   <---> n u1u d1u p (by flavor change)
                    ***************************************************************************/
-                  sprintf ( aff_tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                  sprintf ( tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                       correlator_tag, 
                       flavor_tag[iflavor], flavor_tag[1-iflavor], 
                       flavor_tag[iflavor],
@@ -1347,9 +1381,9 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t2", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
-                  exitstatus = project_write ( vx, vp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
+                  exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(48);
@@ -1373,7 +1407,7 @@ int main(int argc, char **argv) {
                   /***************************************************************************
                    * BEGIN OF p u1u u1d n   <---> n d1d d1u p (by flavor change)
                    ***************************************************************************/
-                  sprintf ( aff_tag_prefix, "/%s/w%c%c-w%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                  sprintf ( tag_prefix, "/%s/w%c%c-w%c%c-f%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                       correlator_tag, 
                       flavor_tag[iflavor], flavor_tag[iflavor], 
                       flavor_tag[iflavor], flavor_tag[1-iflavor],
@@ -1503,9 +1537,9 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t3", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t3", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
-                  exitstatus = project_write ( vx, vp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
+                  exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(48);
@@ -1521,7 +1555,7 @@ int main(int argc, char **argv) {
                   /***************************************************************************
                    * BEGIN OF p d1d u1d n   <---> n u1u d1u p (by flavor change)
                    ***************************************************************************/
-                  sprintf ( aff_tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
+                  sprintf ( tag_prefix, "/%s/w%c%c-f%c-w%c%c/T%d_X%d_Y%d_Z%d/QX%d_QY%d_QZ%d/sample%d/Gc_%s",
                       correlator_tag, 
                       flavor_tag[iflavor], flavor_tag[1-iflavor], 
                       flavor_tag[iflavor],
@@ -1641,9 +1675,9 @@ int main(int argc, char **argv) {
 
                   }}  /* end of icol1, icol2 */
 
-                  sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t4", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                  sprintf(tag, "%s/Gf_%s/Gi_%s/t4", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
 
-                  exitstatus = project_write ( vx, vp, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
+                  exitstatus = project_write ( vx, vp, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, io_proc );
                   if ( exitstatus != 0 ) {
                     fprintf(stderr, "[njjn_w_pc_charged_invert_contract] Error from project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                     EXIT(48);
@@ -1690,7 +1724,7 @@ int main(int argc, char **argv) {
     free_fp_field ( &fp2 );
     free_fp_field ( &fp3 );
 
-#ifdef HAVE_LHPC_AFF
+#if defined HAVE_LHPC_AFF && not defined HAVE_HDF5
     /***************************************************************************
      * I/O process id 2 closes its AFF writer
      ***************************************************************************/

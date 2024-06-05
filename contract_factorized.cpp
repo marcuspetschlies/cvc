@@ -34,7 +34,9 @@
 #include "cvc_utils.h"
 #include "mpi_init.h"
 #include "matrix_init.h"
+#include "table_init_d.h"
 #include "project.h"
+#include "contractions_io.h"
 
 namespace cvc {
 
@@ -326,6 +328,82 @@ int contract_vn_write_aff (double *** const vp, int const n, struct AffWriter_s*
 
 }  /* end of contract_vn_write_aff */
 #endif  /* end of if def HAVE_LHPC_AFF */
+
+/******************************************************
+ * write a vn block to h5 file
+ ******************************************************/
+#ifdef HAVE_HDF5
+int contract_vn_write_h5 (double *** const vp, int const n, char * const filename, char * const tag, const int (* const momentum_list)[3], int const momentum_number, int const io_proc ) {
+
+  int exitstatus;
+  double ratime, retime;
+  double *** dbuffer = NULL;
+
+  if ( io_proc == 2 ) 
+  {
+    dbuffer = init_3level_dtable ( T_global, momentum_number, 2*n );
+    if( dbuffer == NULL ) 
+    {
+      fprintf(stderr, "[contract_vn_write_h5] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+  } else if (io_proc == 1 ) {
+    dbuffer = init_3level_dtable ( 1, 1, 2 );
+    if( dbuffer == NULL ) 
+    {
+      fprintf(stderr, "[contract_vn_write_h5] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__);
+      return(6);
+    }
+  }
+
+  ratime = _GET_TIME;
+
+#ifdef HAVE_MPI
+  int i = 2 * momentum_number * n * T;
+  if(io_proc>0) {
+#  if (defined PARALLELTX) || (defined PARALLELTXY) || (defined PARALLELTXYZ) 
+    exitstatus = MPI_Gather(vp[0][0], i, MPI_DOUBLE, dbuffer[0][0], i, MPI_DOUBLE, 0, g_tr_comm);
+#  else
+    exitstatus = MPI_Gather(vp[0][0], i, MPI_DOUBLE, dbuffer[0][0], i, MPI_DOUBLE, 0, g_cart_grid);
+#  endif
+    if(exitstatus != MPI_SUCCESS) {
+      fprintf(stderr, "[contract_vn_write_h5] Error from MPI_Gather, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+  }
+#else
+  memcpy ( dbuffer[0][0], vp[0][0], 2 * momentum_number * n * T * sizeof(double) );
+#endif
+
+  if(io_proc == 2) 
+  {
+    int const ncdim = 3;
+    int const cdim[3] = { T_global, momentum_number, 2 * n };
+    exitstatus = write_h5_contraction ( dbuffer[0][0], NULL, filename, tag, "double", ncdim, cdim );
+    if(exitstatus != 0 )
+    {
+      fprintf(stderr, "[contract_vn_write_h5] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      return(3);
+    }
+  }  /* if io_proc == 2 */
+  if ( io_proc > 0 ) {
+    fini_3level_dtable ( &dbuffer );
+  }
+
+#ifdef HAVE_MPI
+  MPI_Barrier( g_cart_grid );
+#endif
+
+  retime = _GET_TIME;
+  if(io_proc == 2) fprintf(stdout, "# [contract_vn_write_aff] time for saving momentum space results = %e seconds\n", retime-ratime);
+
+  return(0);
+
+}  /* end of contract_vn_write_h5 */
+#endif  /* end of if def HAVE_HDF5 */
+
+
+
 
 /******************************************************
  * write a vn block to AFF file

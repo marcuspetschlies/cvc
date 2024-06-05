@@ -976,6 +976,7 @@ int prepare_propagator_from_source ( double ** const prop, double ** const sourc
      * call solver via tmLQCD
      ***************************************************************************/
     exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id );
+    /* exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], op_id ); */
     if(exitstatus < 0) {
       fprintf(stderr, "[prepare_propagator_from_source] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
       return(44);
