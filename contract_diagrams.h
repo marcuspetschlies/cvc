@@ -21,7 +21,8 @@ int match_momentum_id ( int **pid, int **m1, int **m2, int N1, int N2 );
 
 int * get_conserved_momentum_id ( int (*p1)[3], int const n1, int const p2[3], int (*p3)[3], int const n3 );
 
-int get_momentum_id ( int const p1[3], int (* const p2)[3], unsigned int const N );
+// int get_momentum_id ( int const p1[3], int (* const p2)[3], unsigned int const N );
+int get_momentum_id ( int const p1[3], int ** const p2, unsigned int const N );
 
 int correlator_add_baryon_boundary_phase ( double _Complex *** const sp, int const tsrc, int const dir, int const N );
 
