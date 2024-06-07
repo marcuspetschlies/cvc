@@ -44,6 +44,9 @@
 #include "derived_quantities.h"
 #include "cvc_timer.h"
 
+#define _INPUT_AFF 0
+#define _INPUT_H5 1
+
 using namespace cvc;
 
 void usage() {
@@ -399,12 +402,13 @@ int main(int argc, char **argv) {
         conf_src_list.src[iconf][isrc][3] };
 
       char data_filename[500];
-            
+       
+#if _INPUT_AFF     
       sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, 
           conf_src_list.stream[iconf], conf_src_list.conf[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
-      if ( g_verbose > 2 ) {
-        fprintf ( stdout, "# [NN_analyse] data_filename   = %s %s %d\n", data_filename, __FILE__, __LINE__ );
-      }
+      /* sprintf ( data_filename, "%s/stream_%c/%s.%.4d.t%dx%dy%dz%d.aff", filename_prefix2, 
+          conf_src_list.stream[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] ); */
+
 
       struct AffReader_s *affr = NULL;
       struct AffNode_s *affn = NULL, *affdir = NULL, 
@@ -422,7 +426,18 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[NN_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
         return(103);
       }
+#endif
 
+#if _INPUT_H5
+      sprintf ( data_filename, "%s/stream_%c/%d/%s.%.4d.t%dx%dy%dz%d.h5", filename_prefix2,
+          conf_src_list.stream[iconf], conf_src_list.conf[iconf], filename_prefix, conf_src_list.conf[iconf], gsx[0], gsx[1], gsx[2], gsx[3] );
+#endif
+
+      if ( g_verbose > 2 ) {
+        fprintf ( stdout, "# [NN_analyse] data_filename   = %s %s %d\n", data_filename, __FILE__, __LINE__ );
+      }
+
+#if _INPUT_AFF
       /***************************************************************************
        *
        ***************************************************************************/
@@ -435,6 +450,33 @@ int main(int argc, char **argv) {
         fprintf ( stderr, "[NN_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__ );
         EXIT(1);
       }
+#endif
+
+#if _INPUT_H5
+      void * buffer = NULL;
+      int ** sink_momentum_list = NULL, sink_momentum_number = 0;
+      size_t ncdim, *cdim = NULL;
+
+      exitstatus = read_from_h5_file_varsize ( &buffer, data_filename, "/src_mom",  "int", &ncdim, &cdim,  io_proc );
+      if ( exitstatus != 0 )
+      {
+        fprintf(stderr, "[NN_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
+        EXIT(103);
+      }
+
+      sink_momentum_number = cdim[0];
+      sink_momentum_list = init_2level_itable ( sink_momentum_number, 3 );
+      if ( sink_momentum_list == NULL )
+      {
+        fprintf(stderr, "[] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
+        EXIT(104);
+      }
+      memcpy ( sink_momentum_list[0], buffer, 3 * sink_momentum_number * sizeof ( int ) );
+      free ( buffer );
+      free ( cdim );
+
+#endif
+
 
       /***************************************************************************
        * loop on twopoint functions
@@ -453,12 +495,16 @@ int main(int argc, char **argv) {
   
         twopoint_function_print ( tp, "tp", stdout );
 
+        char key[100];
         /* .../Gi_Cg5/Gf_Cg5/... */
-        sprintf ( key, "%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%s", 
-            tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
+        sprintf ( key, "/%s/%s/T%d_X%d_Y%d_Z%d/Gi_%s/Gf_%s", 
+            tp->type, tp->name, gsx[0], gsx[1], gsx[2], gsx[3],
             gamma_id_to_Cg_ascii[tp->gi1[0]], gamma_id_to_Cg_ascii[tp->gf1[0]] );
         if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] key for path2 = %s %s %d\n", key, __FILE__, __LINE__ );
 
+
+
+#if _INPUT_AFF
         affpath2 = aff_reader_chpath ( affr, affpath1, key );
         if ( affpath2 == NULL ) {
           fprintf ( stderr, "[NN_analyse] Error from aff_reader_chpath for key %s %s %d\n", key, __FILE__, __LINE__ );
@@ -468,7 +514,8 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * loop on sink momenta
          ***************************************************************************/
-        for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) {
+        for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) 
+        {
 
           int pf[3] = {
             g_sink_momentum_list[ipf][0],
@@ -511,8 +558,8 @@ int main(int argc, char **argv) {
               EXIT(1);
             }
 
-            if ( g_verbose > 2 ) {
-              fprintf ( stdout, "# [NN_analyse] key = %s\n", key );
+              if ( g_verbose > 2 ) {
+              fprintf ( stdout, "# [NN_analyse] aff key = %s\n", key );
             }
 
             /***********************************************************
@@ -647,15 +694,222 @@ int main(int argc, char **argv) {
           fini_3level_ztable ( &zbuffer );
 
           gettimeofday ( &tb, (struct timezone *)NULL );
-          show_time ( &ta, &tb, "NN_analyse", "read-aff-finalize-bb", g_cart_id == 0 );
+          show_time ( &ta, &tb, "NN_analyse", "read-finalize-bb", g_cart_id == 0 );
 
         }  /* end of loop on sink momenta */
+
+#endif  // end of if _INPUT_AFF
+
+#if _INPUT_H5
+        double **** diagram_buffer = init_4level_dtable ( tp->n, T, sink_momentum_number, 32 );
+        if ( diagram_buffer == NULL )
+        {
+          fprintf(stderr, "[NN_analyse] Error from init_level_table   %s %d\n", __FILE__, __LINE__);
+          EXIT(106);
+        }
+
+        /***********************************************************
+         * loop on diagrams
+         ***********************************************************/
+        for ( int i_diag = 0; i_diag < tp->n; i_diag++ ) 
+        {
+          char diagram_name[500];
+
+          twopoint_function_get_diagram_name ( diagram_name,  tp, i_diag );
+
+          if ( g_verbose > 2 ) {
+            fprintf ( stdout, "# [NN_analyse] diagram_name = %s\n", diagram_name );
+          }
+
+          char h5_key[200];
+          sprintf ( h5_key, "%s/%s", key, diagram_name );
+          if ( g_verbose > 2 ) fprintf( stdout, "# [NN_analyse] h5_key = %s %s %d\n", h5_key, __FILE__, __LINE__ );
+
+          exitstatus = read_from_h5_file ( diagram_buffer[i_diag][0][0], data_filename, h5_key,  "double", io_proc );
+          if( exitstatus != 0 ) {
+            fprintf(stderr, "[NN_analyse] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(106);
+          }
+
+        }
+
+        /***************************************************************************
+         * loop on sink momenta
+         ***************************************************************************/
+        for ( int ipf = 0; ipf < g_sink_momentum_number; ipf++ ) 
+        {
+
+          int pf[3] = {
+            g_sink_momentum_list[ipf][0],
+            g_sink_momentum_list[ipf][1],
+            g_sink_momentum_list[ipf][2] 
+          };
+
+          int sink_momentum_id = get_momentum_id ( pf, sink_momentum_list, sink_momentum_number );
+          if ( sink_momentum_id == -1 )
+          {
+            fprintf ( stdout, "# [] Warning, could not find find momentum vektor (%3d, %3d, %3d)    %s %d\n", 
+                pf[0], pf[1], pf[2], __FILE__, __LINE__ ); 
+            continue;
+          } else {
+            if ( g_verbose > 2 ) fprintf(stdout, "# [] found momentum vektor (%3d, %3d, %3d) as id %d    %s %d\n",
+                pf[0], pf[1], pf[2], sink_momentum_id, __FILE__, __LINE__ );
+          }
+
+          gettimeofday ( &ta, (struct timezone *)NULL );
+
+          tp->pf1[0] =  pf[0];
+          tp->pf1[1] =  pf[1];
+          tp->pf1[2] =  pf[2];
+
+          tp->pi1[0] = -pf[0];
+          tp->pi1[1] = -pf[1];
+          tp->pi1[2] = -pf[2];
+
+          for ( int i_diag = 0; i_diag < tp->n; i_diag++ )  
+          {
+#pragma omp parallel for
+            for ( int it = 0; it < T; it++ )
+            {
+              memcpy ( tp->c[i_diag][it][0] , diagram_buffer[i_diag][it][sink_momentum_id], 32 * sizeof( double ) );
+            }
+          }
+
+          /***********************************************************
+           * apply norm factors to diagrams
+           ***********************************************************/
+          if ( ( exitstatus = twopoint_function_apply_diagram_norm ( tp ) )  != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from twopoint_function_apply_diagram_norm, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(103);
+          }
+
+          if ( g_verbose > 4 ) {
+            fprintf( stdout, "# [NN_analyse] after twopoint_function_apply_diagram_norm %s %d\n", __FILE__, __LINE__);
+            twopoint_function_show_data ( tp, stdout );
+          }
+
+          /***********************************************************
+           * add up normalized diagrams to entry 0
+           ***********************************************************/
+          if ( ( exitstatus = twopoint_function_accum_diagrams ( tp->c[0], tp ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from twopoint_function_accum_diagrams, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+
+          tp->n = 1;
+
+          if ( g_verbose > 4 ) {
+            fprintf( stdout, "# [NN_analyse] after twopoint_function_accum_diagrams %s %d\n", __FILE__, __LINE__);
+            twopoint_function_show_data ( tp, stdout );
+          }
+
+          /***********************************************************
+           * add boundary phase
+           ***********************************************************/
+          if ( ( exitstatus = correlator_add_baryon_boundary_phase ( tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from correlator_add_baryon_boundary_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(103);
+          }
+
+          if ( g_verbose > 4 ) {
+            fprintf( stdout, "# [NN_analyse] after correlator_add_baryon_boundary_phase %s %d\n", __FILE__, __LINE__);
+            twopoint_function_show_data ( tp, stdout );
+          }
+
+          /***********************************************************
+           * add source phase
+           ***********************************************************/
+          if ( ( exitstatus = correlator_add_source_phase ( tp->c[0], tp->pi1, &(gsx[1]), tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from correlator_add_source_phase, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+         
+          if ( g_verbose > 4 ) {
+            fprintf( stdout, "# [NN_analyse] after correlator_add_source_phase %s %d\n", __FILE__, __LINE__);
+            twopoint_function_show_data ( tp, stdout );
+          }
+
+          /***********************************************************
+           * reorder from source time forward
+           ***********************************************************/
+          if ( ( exitstatus = reorder_to_relative_time ( tp->c[0], tp->c[0], gsx[0], +1, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from reorder_to_relative_time, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(104);
+          }
+
+          if ( g_verbose > 4 ) {
+            fprintf( stdout, "# [NN_analyse] after reorder_to_relative_time %s %d\n", __FILE__, __LINE__);
+            twopoint_function_show_data ( tp, stdout );
+          }                          
+
+          /***********************************************************
+           * spin matrix multiplication left and right
+           ***********************************************************/
+          if ( ( exitstatus =  contract_diagram_zm4x4_field_mul_gamma_lr ( tp->c[0], tp->c[0], gammaMat[tp->gf1[1]], gammaMat[tp->gi1[1]], tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from contract_diagram_zm4x4_field_mul_gamma_lr, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          if ( g_verbose > 4 ) {
+            fprintf( stdout, "# [NN_analyse] after contract_diagram_zm4x4_field_mul_gamma_lr %s %d\n", __FILE__, __LINE__);
+            twopoint_function_show_data ( tp, stdout );
+          }
+
+          /***********************************************************
+           * project to spin parity and trace
+           ***********************************************************/
+
+          double _Complex *** zbuffer = init_3level_ztable ( tp->T, tp->d, tp->d );
+          if ( zbuffer == NULL ) {
+            fprintf( stderr, "[NN_analyse] Error from init_3level_ztable %s %d\n", __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0],  1., tp->T ) ) != 0 )
+          {
+            fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }  
+     
+          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][ipf][0][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          if ( ( exitstatus = correlator_spin_parity_projection ( zbuffer, tp->c[0], -1., tp->T ) ) != 0 )
+          {
+            fprintf( stderr, "[NN_analyse] Error from correlator_spin_parity_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          if ( ( exitstatus = contract_diagram_co_eq_tr_zm4x4_field ( corr[i_2pt][ipf][1][iconf][isrc], zbuffer, tp->T ) ) != 0 ) {
+            fprintf( stderr, "[NN_analyse] Error from contract_diagram_co_eq_tr_zm4x4_field, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(105);
+          }
+
+          fini_3level_ztable ( &zbuffer );
+
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "NN_analyse", "read-finalize-bb", g_cart_id == 0 );
+
+        }  /* end of loop on sink momenta */
+
+        fini_4level_dtable ( &diagram_buffer );
+
+#endif  // end of if _INPUT_H5
 
         twopoint_function_fini ( tp );
 
       } /* end of loop on 2pt functions */
 
+#if _INPUT_AFF
       aff_reader_close ( affr );
+#endif
+
+#if _INPUT_H5
+      fini_2level_itable ( &sink_momentum_list );
+#endif
+
 
     }  /* end of loop on source locations */
 
@@ -700,6 +954,8 @@ if ( g_verbose > 2 ) fprintf ( stdout, "# [NN_analyse] fwd / bwd average\n" );
       }
     }  /* end of loop on sink momenta */
   }  /* end of loop on 2pts */
+
+
 
   /***************************************************************************
    ***************************************************************************
