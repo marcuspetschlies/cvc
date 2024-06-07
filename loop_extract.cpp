@@ -238,7 +238,11 @@ int main(int argc, char **argv) {
   sprintf ( filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid );
 #  endif
 #else
-  sprintf ( filename, "%s_S1/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", flavor, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+  /* sprintf ( filename, "%s_S1/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", flavor, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq ); */
+
+  sprintf ( filename, "%s/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+      filename_prefix3, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+
 #endif
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
@@ -345,7 +349,11 @@ int main(int argc, char **argv) {
     }
 
     char data_filename[400];
-    sprintf ( data_filename, "loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, Qsq );
+    sprintf ( data_filename, "%.4d_r%d/loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", 
+        confid, stream,
+        hier_prob_D,  confid, stream, exdef_nev, Qsq );
+
+
     if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
 
     sprintf ( data_tag_prefix, "/conf_%.4d/%s" , confid, oet_type );
@@ -453,12 +461,30 @@ int main(int argc, char **argv) {
   for ( unsigned int Nstoch = nstep; Nstoch <= nsample; Nstoch += nstep )
   {
 
-    sprintf ( data_filename, "%s_S%d/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+    /* sprintf ( data_filename, "%s_S%d/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
         flavor, Nstoch, confid, stream,
-        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
+        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq ); */
     
-    double _Complex const norm = loop_norm / Nstoch / ( hier_prob_D * hier_prob_D * hier_prob_D  );
+
+    sprintf ( data_filename, "%s/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+        filename_prefix3, confid, stream,
+        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
+
+
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
+ 
+    double hier_prob_norm = 0.;
+    switch (hier_prob_D) {
+      case 4: hier_prob_norm = 1. / 32.;
+              break;
+      case 8: hier_prob_norm = 1. / 512.;
+              break;
+      default: fprintf ( stderr, "[loop_extract] normalization undefined for distance %d\n", hier_prob_D );
+               EXIT(12);
+               break;
+    }
+
+    double _Complex const norm = loop_norm / Nstoch * hier_prob_norm;
     if ( g_verbose > 0 ) fprintf ( stdout, "# [loop_extract] norm Nstoch %4d %25.16e %26.16e\n", Nstoch, creal( norm ), cimag ( norm ) );
 
     sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type );
@@ -494,6 +520,11 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
+
+          /* sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, Nstoch, idir,
+              g_sink_momentum_list[imom][0],
+              g_sink_momentum_list[imom][1],
+              g_sink_momentum_list[imom][2] ); */
         } else {
           sprintf ( filename, "loop.%.4d_r%d.stoch.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, exdef_nev, Nstoch,
               g_sink_momentum_list[imom][0],
