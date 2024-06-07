@@ -1014,10 +1014,43 @@ int main(int argc, char **argv) {
 
       }  /* of loop on sink momenta */
 
-      /****************************************
+      /**********************************************************
+       * write to lfile
+       **********************************************************/
+      for ( int isink_momentum = 0; isink_momentum < g_sink_momentum_number; isink_momentum++ )
+      {
+        char filename[100];
+        sprintf ( filename, "%s.%s-%s.%s.%s.gf%d.gi%d.px%d_py%d_pz%d.corr", g_outfile_prefix,
+            flavor_tag[0], flavor_tag[1],
+            oet_type_tag[oet_type], loop_type_tag[loop_type],
+            g_sink_gamma_id_list[isink_gamma], g_source_gamma_id_list[isource_gamma], 
+            g_sink_momentum_list[isink_momentum][0], g_sink_momentum_list[isink_momentum][1], g_sink_momentum_list[isink_momentum][2]);
+
+        FILE * fs = fopen( filename, "w" );
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ ) {
+          for ( int it = 0; it < T_global; it++ ) {
+            fprintf ( fs, "%3d %25.16e %25.16e  %c %6d\n", it, corr_sub[iconf][isink_momentum][2*it+0], corr_sub[iconf][isink_momentum][2*it+1],
+                conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          }
+
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][0][0], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][0][1], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][1][0], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+          fprintf ( fs, "%3s %25.16e %c %6d\n", "vev", corr_vev[iconf][1][1], conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+        }
+
+        fclose( fs );
+
+      }  /* of loop on sink momenta */
+
+      /**********************************************************/
+      /**********************************************************/
+
+      /**********************************************************
        * STATISTICAL ANALYSIS
        * for corr
-       ****************************************/
+       **********************************************************/
 
       for ( int ireim = 0; ireim <=1; ireim++ ) 
       {
@@ -1044,13 +1077,17 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) {
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1063,6 +1100,8 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
+
 #if 0
       /****************************************
        * STATISTICAL ANALYSIS of effective
@@ -1110,13 +1149,17 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][0], g_sink_momentum_list[0][1], g_sink_momentum_list[0][2], reim_str[ireim] );
 
         /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) {
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[twop_analyse_wdisc] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 ) 
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1129,6 +1172,7 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
 
         /****************************************
          * STATISTICAL ANALYSIS
@@ -1160,7 +1204,9 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1173,6 +1219,7 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
 
         fini_2level_dtable ( &data );
 
@@ -1221,7 +1268,9 @@ int main(int argc, char **argv) {
           EXIT(1);
         }
 
-        if ( write_data == 1 ) {
+#if 0
+        if ( write_data == 1 )
+        {
           sprintf ( filename, "%s.corr" , obs_name );
           FILE * fs = fopen( filename, "w" );
 
@@ -1238,6 +1287,7 @@ int main(int argc, char **argv) {
 
           fclose( fs );
         }
+#endif
 
         fini_2level_dtable ( &data );
       }

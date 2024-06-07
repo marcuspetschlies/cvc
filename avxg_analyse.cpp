@@ -969,7 +969,7 @@ int main(int argc, char **argv) {
           conf_src_list[iconf][isrc][0],
           filename_prefix,
           conf_src_list[iconf][isrc][1],
-          "kaon",
+          filename_prefix2,
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
           conf_src_list[iconf][isrc][3] );*/

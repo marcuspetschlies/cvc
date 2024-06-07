@@ -987,7 +987,8 @@ int main(int argc, char **argv) {
        * open AFF reader
        ***********************************************************/
       char data_filename[500];
-    
+      char stream_tag;
+     
       sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
           conf_src_list[iconf][isrc][0],
           filename_prefix,
@@ -1101,7 +1102,7 @@ int main(int argc, char **argv) {
 
           }
         }
-#endif  /* fo if 0 */
+#endif  /* of if 0 */
 
         /***********************************************************
          * NOTE: NO SOURCE PHASE NECESSARY
@@ -1546,8 +1547,15 @@ int main(int argc, char **argv) {
         for ( int idir = 0; idir < 4; idir++ ) {
   
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
-          
-          sprintf ( filename, "stream_%c/%s/loop.%.4d.exact.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
+         
+          char stream_tag;
+          if      ( conf_src_list[iconf][0][0] == 'a' ) stream_tag='0';
+          else if ( conf_src_list[iconf][0][0] == 'b' ) stream_tag='1';
+
+
+          sprintf ( filename, "stream_%c/%s/loop.%.4d_r%c.exact.%s.%s.nev%d.mu%d.PX%d_PY%d_PZ%d", conf_src_list[iconf][0][0], filename_prefix3, 
+              conf_src_list[iconf][0][1], stream_tag,
+              oet_type,
               loop_type,
               loop_num_evecs,
               idir,

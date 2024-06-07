@@ -299,6 +299,8 @@ void set_default_input_values(void) {
   g_tbc_phase_number = _default_tbc_phase_number;
 
   g_gaussian_smearing_level_number = _default_gaussian_smearing_level_number;
+
+  g_device_id = _default_device_id;
 }  /* end of set_default_input_values */
 
 }  /* end of namespace cvc */

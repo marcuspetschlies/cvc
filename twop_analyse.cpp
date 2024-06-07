@@ -87,7 +87,33 @@ int main(int argc, char **argv) {
 
   char const reim_str[2][3] = {"re" , "im"};
 
-  char const twop_correlator_prefix[1][20] = { "local-local" };
+  char const twop_correlator_prefix[3][20] = { "local-local" , "neutral", "charged" };
+
+#if _TWOP_H5_OET
+  char const twop_flavor_tag[4][20]        = { "d+-g-u-g" , "u+-g-u-g" , "l-gf-l-gi" , "s-gf-s-gi" };
+#else
+  char const twop_flavor_tag[5][20]        = { "u-gf-u-gi" , "d-gf-u-gi" , "u-gf-d-gi" , "d-gf-d-gi" , "u-v-u-v" };
+#endif
+
+  char const gamma_id_to_ascii[16][10] = {
+    "gt",
+    "gx",
+    "gy",
+    "gz",
+    "id",
+    "g5",
+    "gtg5",
+    "gxg5",
+    "gyg5",
+    "gzg5",
+    "gtgx",
+    "gtgy",
+    "gtgz",
+    "gxgy",
+    "gxgz",
+    "gygz" 
+  };
+
 
 #if _TWOP_H5_OET
   char const twop_flavor_tag[2][20]        = { "d+-g-u-g" , "u+-g-u-g" };
@@ -115,7 +141,6 @@ int main(int argc, char **argv) {
   };
 
 
-
   int c;
   int filename_set = 0;
   int exitstatus;
@@ -130,14 +155,13 @@ int main(int argc, char **argv) {
   int flavor_type = -1;
   int write_data = 0;
   double twop_operator_norm[2] = {1., 1.};
-
-  char key[400];
+  double muval[2] = {0.,0.};
 
 #ifdef HAVE_MPI
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:w:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:N:S:F:c:s:E:w:n:m:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -174,6 +198,10 @@ int main(int argc, char **argv) {
     case 'n':
       sscanf ( optarg, "%lf,%lf", twop_operator_norm, twop_operator_norm+1 );
       fprintf ( stdout, "# [twop_analyse] twop_operator_norm set to %e  %e\n", twop_operator_norm[0], twop_operator_norm[1] );
+      break;
+    case 'm':
+      sscanf ( optarg, "%lf,%lf", muval, muval+1 );
+      fprintf ( stdout, "# [twop_analyse] muval set to %e  %e\n", muval[0], muval[1] );
       break;
     case 'h':
     case '?':
@@ -477,7 +505,7 @@ int main(int argc, char **argv) {
 
   }   /* end of loop on configurations */
 
-#endif
+#endif  /* of _TWOP_AFF_MULT */
 
 #if _TWOP_AFF_SINGLE
   for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
@@ -616,7 +644,7 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on sink gamma id */
 
-#endif
+#endif  /* of _TWOP_AFF_SINGLE */
 
 #if _TWOP_H5_SINGLE
   for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) {
@@ -1209,6 +1237,57 @@ int main(int argc, char **argv) {
   }
 
   /****************************************
+   * write src-avg. correlator to file
+   ****************************************/
+  if ( write_data == 1 ) 
+  {
+    for ( int isink_gamma   = 0; isink_gamma   < g_sink_gamma_id_number;   isink_gamma++ ) 
+    {
+      int const sink_gamma_id = g_sink_gamma_id_list[ isink_gamma ];
+
+      for ( int isource_gamma = 0; isource_gamma < g_source_gamma_id_number; isource_gamma++ ) 
+      {
+        int const source_gamma_id = g_source_gamma_id_list[ isource_gamma ];
+
+        for ( int imom = 0; imom < g_sink_momentum_number; imom++ )
+        {
+
+          char filename[500];
+          sprintf ( filename, "%s.%s.%s.gf_%s.gi_%s.px%d_py%d_pz%d.corr", g_outfile_prefix, twop_flavor_tag[ flavor_type],
+              twop_correlator_prefix[ correlator_type ],
+              gamma_id_to_ascii[sink_gamma_id], gamma_id_to_ascii[source_gamma_id],
+              g_sink_momentum_list[imom][0], g_sink_momentum_list[imom][1], g_sink_momentum_list[imom][2] );
+
+          FILE * fs = fopen( filename, "w" );
+
+          for ( int iconf = 0; iconf < num_conf; iconf++ ) 
+          {
+            for ( int it = 0; it < T_global; it++ ) 
+            {
+              double dtmp[2] = {0.,0.};
+              for( int isrc = 0; isrc < num_src_per_conf; isrc++ )
+              {
+                dtmp[0] += corr[iconf][isrc][imom][isink_gamma][isource_gamma][2*it+0];
+                dtmp[1] += corr[iconf][isrc][imom][isink_gamma][isource_gamma][2*it+1];
+              }
+              fprintf ( fs, "%3d %25.16e %25.16e %c %6d\n", it,
+                  dtmp[0] / (double)num_src_per_conf, 
+                  dtmp[1] / (double)num_src_per_conf, 
+                  conf_src_list[iconf][0][0],  conf_src_list[iconf][0][1] );
+
+            }
+          }
+
+
+          fclose( fs );
+        }
+      }
+    }
+  }
+
+
+
+  /****************************************
    * STATISTICAL ANALYSIS
    ****************************************/
 
@@ -1266,6 +1345,7 @@ int main(int argc, char **argv) {
 #endif
 
 
+#if 0
       if ( write_data == 1 ) {
         sprintf ( filename, "%s.corr" , obs_name );
         FILE * fs = fopen( filename, "w" );
@@ -1282,9 +1362,9 @@ int main(int argc, char **argv) {
 
         fclose( fs );
       }
+#endif
 
       if ( num_conf >= 6 ) {
-
         /* apply UWerr analysis */
         exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
         if ( exitstatus != 0 ) {
@@ -1320,7 +1400,7 @@ int main(int argc, char **argv) {
   }}  /* end of loop on source and sink gamma id */
 
   /**********************************************************
-   * free hvp field
+   * free corr field
    **********************************************************/
   fini_6level_dtable ( &corr );
 
