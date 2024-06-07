@@ -48,15 +48,15 @@
 #define _TWOP_CYD_H5 0
 #define _TWOP_CYD    0
 #define _TWOP_AFF    0
-#define _TWOP_AVGX_H5 1
+#define _TWOP_AVGX_H5 0
 
 
-#define _TWOP_STATS  1
+#define _TWOP_STATS  0
 
 #define _LOOP_ANALYSIS 1
 
-#define _RAT_METHOD       1
-#define _RAT_SUB_METHOD   1
+#define _RAT_METHOD       0
+#define _RAT_SUB_METHOD   0
 #define _FHT_METHOD_ALLT  0
 #define _FHT_METHOD_ACCUM 0
 
@@ -1398,7 +1398,8 @@ int main(int argc, char **argv) {
    * read stochastic hp loop data
    *
    **********************************************************/
-  if ( loop_nstoch > 0 && ( loop_use_es == 1 || loop_use_es == 3 ) ) {
+  if ( loop_nstoch > 0 && ( loop_use_es == 1 || loop_use_es == 3 ) ) 
+  {
 
     double const loop_norm_stoch = loop_norm / loop_nstoch;
     fprintf ( stdout, "# [avx_analyse] loop_norm_stoch = %e  %s %d\n", loop_norm_stoch, __FILE__ , __LINE__ );
@@ -1426,7 +1427,7 @@ int main(int argc, char **argv) {
 
 
           double _Complex *** zloop_buffer = init_3level_ztable ( T_global, 4, 4 );
-  
+
           /* sprintf ( filename, "stream_%c/loop.%.4d_r%c.stoch.%s.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", 
               conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1], stream_tag,
               loop_type,
@@ -1438,7 +1439,6 @@ int main(int argc, char **argv) {
               g_insertion_momentum_list[imom][1],
               g_insertion_momentum_list[imom][2] );
               */
-          
 
           sprintf ( filename, "%s/loop.%.4d_r%c.stoch.%s.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d",
               filename_prefix3,
@@ -1451,6 +1451,20 @@ int main(int argc, char **argv) {
               g_insertion_momentum_list[imom][0],
               g_insertion_momentum_list[imom][1],
               g_insertion_momentum_list[imom][2] );
+
+
+          /* loop.1240.stoch.LpsDw.nev200.Nstoch1.mu0.PX0_PY0_PZ0 */
+          /* sprintf ( filename, "stream_%c/%s/loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", 
+              conf_src_list[iconf][0][0], filename_prefix3, conf_src_list[iconf][0][1],
+              loop_type,
+              loop_num_evecs,
+              loop_nstoch_max,
+              idir,
+              g_insertion_momentum_list[imom][0],
+              g_insertion_momentum_list[imom][1],
+              g_insertion_momentum_list[imom][2] );
+              */
+
   
           if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data from file %s\n", filename );
 
@@ -1460,40 +1474,46 @@ int main(int argc, char **argv) {
             EXIT (24);
           }
   
-          for ( int it = 0; it < T_global; it++ ) {
-            int itmp[3];
-            double dtmp[2];
-            for ( int ia = 0; ia < 4; ia++ ) {
-            for ( int ib = 0; ib < 4; ib++ ) {
-              if ( fscanf ( dfs, "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, dtmp, dtmp+1 ) != 5 ) {
-                fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
-                EXIT (24);
-              }
-              zloop_buffer[it][ia][ib] = dtmp[0] + dtmp[1] * I;
-           
-              if ( g_verbose > 4 ) fprintf (stdout,"loop %3d %3d %3d  %25.16e %25.16e\n", 
-                  itmp[0], itmp[1], itmp[2], creal( zloop_buffer[it][ia][ib]), cimag( zloop_buffer[it][ia][ib]) );
-            }}
-          }
-          fclose ( dfs );
-  
-          for ( int istoch = 0; istoch < loop_nstoch / loop_block_size; istoch++ ) {
+          for ( int istoch = 0; istoch < loop_nstoch / loop_block_size; istoch++ ) 
+          {
             if ( g_verbose > 1 ) fprintf ( stdout, "# [avxn_analyse] reading data for istoch %d  %s %d\n", istoch, __FILE__, __LINE__ );
 
-#pragma omp parallel for
-            for ( int imu = 0; imu < 4; imu++ ) {
-              for ( int it = 0; it < T_global; it++ ) {
+            for ( int it = 0; it < T_global; it++ ) 
+            {
+              int itmp[3];
+              double dtmp[2];
+              for ( int ia = 0; ia < 4; ia++ ) 
+              {
+                for ( int ib = 0; ib < 4; ib++ ) 
+                {
+                  if ( fscanf ( dfs, "%d %d %d %lf %lf\n", itmp, itmp+1, itmp+2, dtmp, dtmp+1 ) != 5 ) {
+                    fprintf ( stderr, "[avxn_analyse] Error from fscanf for filename %s %s %d\n", filename, __FILE__, __LINE__ );
+                    EXIT (24);
+                  }
+                  zloop_buffer[it][ia][ib] = dtmp[0] + dtmp[1] * I;
+           
+                  if ( g_verbose > 4 ) fprintf (stdout,"loop %3d %3d %3d  %25.16e %25.16e\n", 
+                      itmp[0], itmp[1], itmp[2], creal( zloop_buffer[it][ia][ib]), cimag( zloop_buffer[it][ia][ib]) );
+                }
+              }
+            }
   
+#pragma omp parallel for
+            for ( int imu = 0; imu < 4; imu++ ) 
+            {
+              for ( int it = 0; it < T_global; it++ ) 
+              {
                 double _Complex ztmp = 0.;
-                for ( int ia = 0; ia < 4; ia++ ) {
-                for ( int ib = 0; ib < 4; ib++ ) {
-                  ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
-                }}
+                for ( int ia = 0; ia < 4; ia++ ) 
+                {
+                  for ( int ib = 0; ib < 4; ib++ ) 
+                  {
+                    ztmp += loop_transpose ?  zloop_buffer[it][ib][ia] * gamma_mu[imu].m[ib][ia] : zloop_buffer[it][ia][ib] * gamma_mu[imu].m[ib][ia];
+                  }
+                }
 
                 /**********************************************************
-                 * factor 0.5 from using doublet vs wanted single flavor
-                 *
-                 * WHERE DID THAT COME FROM ???
+                 * accumulate normalized loop data
                  **********************************************************/
                 loop[imom][iconf][imu][idir][it][0] += creal ( ztmp * loop_norm_stoch );
                 loop[imom][iconf][imu][idir][it][1] += cimag ( ztmp * loop_norm_stoch );
@@ -1501,6 +1521,8 @@ int main(int argc, char **argv) {
             }  /* end of loop on mu */
 
 	  }  /* end of loop on samples */
+
+          fclose ( dfs );
   
           fini_3level_ztable ( &zloop_buffer );
         }  /* end of loop on directions */
@@ -1772,8 +1794,8 @@ int main(int argc, char **argv) {
       for ( int imu = 0; imu < 4; imu++ ) {
       for ( int idir = 0; idir < 4; idir++ ) {
 
-        sprintf ( filename, "loop_sub.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
-            loop_type, loop_tag, imu, idir,
+        sprintf ( filename, "loop_sub.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
+            loop_type, oet_type, loop_tag, imu, idir,
             g_insertion_momentum_list[imom][0],
             g_insertion_momentum_list[imom][1],
             g_insertion_momentum_list[imom][2] );
@@ -1793,8 +1815,8 @@ int main(int argc, char **argv) {
         }
         fclose ( loop_sub_fs );
 
-        sprintf ( filename, "loop_sym.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
-            loop_type, loop_tag, imu, idir,
+        sprintf ( filename, "loop_sym.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.corr",
+            loop_type, oet_type, loop_tag, imu, idir,
             g_insertion_momentum_list[imom][0],
             g_insertion_momentum_list[imom][1],
             g_insertion_momentum_list[imom][2] );
@@ -1854,8 +1876,9 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[500];
-        sprintf ( obs_name, "loop.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
+            oet_type,
             loop_tag,
             imu, idir,
             g_insertion_momentum_list[imom][0],
@@ -1896,8 +1919,9 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[500];
-        sprintf ( obs_name, "loop_sym.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop_sym.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
+            oet_type,
             loop_tag,
             imu, idir,
             g_insertion_momentum_list[imom][0],
@@ -1938,8 +1962,9 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[500];
-        sprintf ( obs_name, "loop_sub.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop_sub.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
+            oet_type,
             loop_tag,
             imu, idir,
             g_insertion_momentum_list[imom][0],
@@ -1982,8 +2007,9 @@ int main(int argc, char **argv) {
         }
 
         char obs_name[500];
-        sprintf ( obs_name, "loop_sub.tavg.stoch.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
+        sprintf ( obs_name, "loop_sub.tavg.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.%s",
             loop_type, 
+            oet_type,
             loop_tag,
             imu, idir,
             g_insertion_momentum_list[imom][0],
