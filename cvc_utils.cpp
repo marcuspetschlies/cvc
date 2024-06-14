@@ -2362,68 +2362,22 @@ int ranbinary(double * const y, unsigned int const NRAND) {
  *
  * NOTE: we assume the random number generator has
  * been properly initialized in the case of MPI usage;
- * we cease to have g_cart_id 0 do all the sampling
- * and sending
  ********************************************************/
-void random_gauge_field(double *gfield, double h) {
-
-  int mu, ix;
+void random_gauge_field(double * const gfield, double const h) 
+{
   double buffer[72], *gauge_point[4];
-#ifdef HAVE_MPI
-  int iproc, tgeom[2], tag, t;
-  double *gauge_ts;
-  MPI_Status mstatus;
-#endif
 
   gauge_point[0] = buffer;
   gauge_point[1] = buffer + 18;
   gauge_point[2] = buffer + 36;
   gauge_point[3] = buffer + 54;
 
-/*  if(g_cart_id==0) { */
-    for(ix=0; ix<VOLUME; ix++) {
-      random_gauge_point(gauge_point, h);
-      memcpy((void*)(gfield + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
-    }
-/*  } */
-#if 0
-#ifdef HAVE_MPI
-  if(g_cart_id==0) {
-    if( (gauge_ts = (double*)malloc(72*LX*LY*LZ*sizeof(double))) == (double*)NULL ) {
-       MPI_Abort(MPI_COMM_WORLD, 1);
-       MPI_Finalize();
-       exit(101);
-    }
+  for( size_t ix = 0; ix < VOLUME; ix++ ) 
+  {
+    random_gauge_point(gauge_point, h);
+    memcpy((void*)(gfield + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
   }
-  tgeom[0] = Tstart;
-  tgeom[1] = T;
-  for(iproc=1; iproc<g_nproc; iproc++) {
-    if(g_cart_id==0) {
-      tag = 2*iproc;
-      MPI_Recv((void*)tgeom, 2, MPI_INT, iproc, tag, g_cart_grid, &mstatus);
-      for(t=0; t<tgeom[1]; t++) {
-        for(ix=0; ix<LX*LY*LZ; ix++) {
-          random_gauge_point(gauge_point, h);
-          memcpy((void*)(gauge_ts + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
-        }
-        tag = 2 * ( t * g_nproc + iproc ) + 1;
-        MPI_Send((void*)gauge_ts, 72*LX*LY*LZ, MPI_DOUBLE, iproc, tag, g_cart_grid);
 
-      }
-    }
-    if(g_cart_id==iproc) {
-      tag = 2*iproc;
-      MPI_Send((void*)tgeom, 2, MPI_INT, 0, tag, g_cart_grid);
-      for(t=0; t<T; t++) {
-        tag = 2 * ( t * g_nproc + iproc ) + 1;
-        MPI_Recv((void*)(gfield + _GGI(g_ipt[t][0][0][0],0)), 72*LX*LY*LZ, MPI_DOUBLE, 0, tag, g_cart_grid, &mstatus);
-      }
-    }
-    MPI_Barrier(g_cart_grid);
-  }
-  if(g_cart_id==0) free(gauge_ts);
-#endif  
-#endif  /* of if 0 */
 }  /* end of random_gauge_field */
 
 /********************************************************
