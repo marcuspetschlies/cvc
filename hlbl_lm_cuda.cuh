@@ -33,6 +33,15 @@ using cuda_data_type = cuDoubleComplex;
         }                                                                                          \
     } while (0)
 
+// CUDA API error checking for malloc
+#define CUDA_CHECK_MALLOC(err)                                                                            \
+    do {                                                                                           \
+        cudaError_t err_ = (err);                                                                  \
+        if (err_ != cudaSuccess) {                                                                 \
+            std::printf("CUDA MALLOC error %d at %s:%d\n", err_, __FILE__, __LINE__);                     \
+            throw std::runtime_error("CUDA MALLOC error");                                                \
+        }                                                                                          \
+    } while (0)
 
 #if 0
 int hlbl_lm_reduce ( void * const h_p, void * const h_v, void * const h_s, const int nv, const int nx, const int ns );

@@ -131,7 +131,7 @@ int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Comple
   cublasOperation_t transb = CUBLAS_OP_N;
 
   /* copy data to device */
-  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuda_data_type) * ns * nv ) );
+  CUDA_CHECK_MALLOC(cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuda_data_type) * ns * nv ) );
 
   /* linear algebra computation */
   CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, nv, ns, nx, &alpha, d_v, lda, d_s, ldb, &beta, d_p, ldc));
@@ -186,18 +186,20 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
   cublasOperation_t transb = CUBLAS_OP_T;
 
   /* device memory for projection coefficients */
-  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuDoubleComplex) * ns * nv ) );
+  CUDA_CHECK_MALLOC (cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuDoubleComplex) * ns * nv ) );
 
   /* device memory for s
    * s is a fermion field with V x 12 [spin-color] x 96 [kernel components] */
-  CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof(cuDoubleComplex) * ns * 12 * nx ) );
+  CUDA_CHECK_MALLOC ( cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof(cuDoubleComplex) * ns * 12 * nx ) );
 
   /* loop on vectors */
   for ( int iv = 0; iv < nv; iv++ )
   {
+#if 0
     /* prepare s, i.e. apply vertex 
      * kernel call, add parallelization info to call */
     ker_X_prepare_ev<<< gridSize, blockSize >>>( d_s, d_v + iv*24*nx, kervx, nx );
+#endif  // if 0
 
     /* linear algebra computation */
     CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, nv, ns, 12*nx, &alpha, reinterpret_cast<const cuDoubleComplex *>(d_v), lda, d_s, ldb, &beta, d_p, ldc));

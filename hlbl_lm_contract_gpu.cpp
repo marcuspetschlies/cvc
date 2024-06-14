@@ -233,6 +233,7 @@ int main(int argc, char **argv) {
   struct timeval start_time, end_time;
   int ymax = 0;
   int evec_num =  0;
+  int evec_generate = 0;
 
   struct timeval ta, te;
 
@@ -249,7 +250,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:y:n:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:y:n:g:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -261,6 +262,9 @@ int main(int argc, char **argv) {
     case 'n':
       evec_num = atoi ( optarg );
       break;
+    case 'g':
+      evec_generate = atoi ( optarg );
+      break;
     case 'h':
     case '?':
     default:
@@ -271,6 +275,7 @@ int main(int argc, char **argv) {
 
   gettimeofday ( &start_time, (struct timezone *)NULL );
 
+
   /* set the default values */
   if(filename_set==0) strcpy(filename, "p2gg.input");
   /* fprintf(stdout, "# [hlbl_lm_contract_gpu] Reading input from file %s\n", filename); */
@@ -280,7 +285,7 @@ int main(int argc, char **argv) {
    * initialize MPI parameters for cvc
    ******************************************************/
   mpi_init(argc, argv);
-  mpi_init_xchange_contraction(2);
+
 
   /******************************************************
    * report git version
@@ -288,6 +293,7 @@ int main(int argc, char **argv) {
   if ( g_cart_id == 0 ) {
     fprintf(stdout, "# [hlbl_lm_contract_gpu] git version = %s\n", g_gitversion);
   }
+
 
 
   /******************************************************
@@ -409,17 +415,24 @@ int main(int argc, char **argv) {
    ******************************************************/
   alloc_gauge_field(&g_gauge_field, VOLUMEPLUSRAND);
 
-  if(!(strcmp(gaugefilename_prefix,"identity")==0)) 
+  if( strcmp(gaugefilename_prefix,"identity")==0 ) 
+  {
+    /* initialize unit matrices */
+    if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_lm_contract_gpu] initializing unit matrices\n");
+    exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
+  } else if( strcmp(gaugefilename_prefix,"random")==0 )
+  {
+    if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_lm_contract_gpu] initializing random matrices\n");
+    random_gauge_field ( g_gauge_field, 1.0 );
+  } else if( strcmp(gaugefilename_prefix,"none")==0 )
+  {
+    if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_lm_contract_gpu] initializing zero gauge field\n");
+  } else
   {
     /* read the gauge field */
     sprintf ( filename, "%s.%.4d", gaugefilename_prefix, Nconf );
     if(g_cart_id==0) fprintf(stdout, "# [hlbl_lm_contract_gpu] reading gauge field from file %s\n", filename);
     exitstatus = read_lime_gauge_field_doubleprec(filename);
-  } else
-  {
-    /* initialize unit matrices */
-    if(g_cart_id==0) fprintf(stdout, "\n# [hlbl_lm_contract_gpu] initializing unit matrices\n");
-    exitstatus = unit_gauge_field ( g_gauge_field, VOLUME );
   }
 
   /***********************************************************
@@ -455,6 +468,17 @@ int main(int argc, char **argv) {
 #endif
 
   /***********************************************
+   * set io process
+   ***********************************************/
+  io_proc = get_io_proc ();
+  if( io_proc < 0 ) {
+    fprintf(stderr, "[hlbl_lm_contract_gpu] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
+    EXIT(14);
+  }
+  fprintf(stdout, "# [hlbl_lm_contract_gpu] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
+
+
+  /***********************************************
    * initialize clover, mzz and mzz_inv
    *
    * FOR ZERO TWISTED MASS g_mu = 0
@@ -471,18 +495,6 @@ int main(int argc, char **argv) {
   gettimeofday ( &te, (struct timezone *)NULL );
   show_time ( &ta, &te, __FILE__ , "init_clover", g_cart_id == 0 );
 #endif
-
-
-
-  /***********************************************
-   * set io process
-   ***********************************************/
-  io_proc = get_io_proc ();
-  if( io_proc < 0 ) {
-    fprintf(stderr, "[hlbl_lm_contract_gpu] Error, io proc must be ge 0 %s %d\n", __FILE__, __LINE__);
-    EXIT(14);
-  }
-  fprintf(stdout, "# [hlbl_lm_contract_gpu] proc%.4d has io proc id %d\n", g_cart_id, io_proc );
 
 
   /***********************************************************
@@ -505,6 +517,8 @@ int main(int argc, char **argv) {
   {
     fprintf(stderr, "[hlbl_lm_contract_gpu] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(19);
+  } else {
+    if ( g_cart_id == 0 ) fprintf(stdout, "# [hlbl_lm_contract_gpu] kqed initialised  %s %d\n", __FILE__, __LINE__);
   }
 
   /***********************************************************
@@ -517,46 +531,62 @@ int main(int argc, char **argv) {
     EXIT(123);
   }
 
+
   /***********************************************************
-   * read eigenvectors from file
+   * get eigenvectors
    ***********************************************************/
-  for ( int ievec = 0; ievec < evec_num; ievec++ )
+  if ( evec_generate )
   {
-    double ** spinor_field = init_2level_dtable ( 1, _GSI( (size_t)(VOLUME) ));
-    if( spinor_field == NULL ) 
+    for ( int ievec = 0; ievec < evec_num; ievec++ )
     {
-      fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
-      EXIT(123);
-    }
+      double ** spinor_field = init_2level_dtable ( 1, _GSI( (size_t)(VOLUME) ));
+      if( spinor_field == NULL ) 
+      {
+        fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_2level_dtable %s %d\n", __FILE__, __LINE__);
+        EXIT(123);
+      }
 
-    // TEST
-    // random evec fields
-    // prepare_volume_source ( spinor_field[0], VOLUME );
-
-    sprintf (filename, "%s/eigVec_eV%d", filename_prefix, ievec);
+      if ( evec_generate == 2 )
+      {
 #if _WITH_TIMER
-    gettimeofday ( &ta, (struct timezone *)NULL );
+        gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-    exitstatus = read_lime_spinor ( spinor_field[0], filename, 0);
-
-    // TEST
-    // write evec to file
-    // exitstatus = write_propagator ( spinor_field[0], filename, 0, 64 );
+        // TEST
+        // random evec fields
+        prepare_volume_source ( spinor_field[0], VOLUME );
+#if _WITH_TIMER
+        gettimeofday ( &te, (struct timezone *)NULL );
+        show_time ( &ta, &te, __FILE__ , "prepare_volume_source", g_cart_id == 0 );
+#endif
+      } else if ( evec_generate == 1 )
+      {
+        sprintf (filename, "%s/eigVec_eV%d", filename_prefix, ievec);
+#if _WITH_TIMER
+        gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
+        exitstatus = read_lime_spinor ( spinor_field[0], filename, 0);
 
 #if _WITH_TIMER
-    gettimeofday ( &te, (struct timezone *)NULL );
-    show_time ( &ta, &te, __FILE__ , "read_lime_spinor", g_cart_id == 0 );
+        gettimeofday ( &te, (struct timezone *)NULL );
+        show_time ( &ta, &te, __FILE__ , "read_lime_spinor", g_cart_id == 0 );
 #endif
-    if ( exitstatus != 0 )
-    {
-      fprintf( stderr, "[hlbl_lm_contract_gpu] Error from read_lime_spinor, status %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(1);
+        if ( exitstatus != 0 )
+        {
+          fprintf( stderr, "[hlbl_lm_contract_gpu] Error from read_lime_spinor, status %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(1);
+        }
+      }
+
+      // TEST
+      // write evec to file
+      // exitstatus = write_propagator ( spinor_field[0], filename, 0, 64 );
+
+      memcpy ( evec_field[ievec], spinor_field[0], sizeof_spinor_field );
+
+      fini_2level_dtable ( &spinor_field );
     }
-
-    memcpy ( evec_field[ievec], spinor_field[0], sizeof_spinor_field );
-
-    fini_2level_dtable ( &spinor_field );
   }
+
 
 #ifdef HAVE_CUDA
   /***********************************************************
@@ -565,19 +595,20 @@ int main(int argc, char **argv) {
 
   /* allocate eigenvector field on device */
   double * d_v = nullptr;
-  CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(double) * evec_num * 24 * VOLUME ) );
+  CUDA_CHECK_MALLOC ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(double) * evec_num * 24 * VOLUME ) );
    
   /* copy data from host to device */
-  CUDA_CHECK(cudaMemcpyAsync( d_v, evec_field[0], sizeof(double) * evec_num * 24*VOLUME, cudaMemcpyHostToDevice, stream));
+  CUDA_CHECK ( cudaMemcpyAsync( d_v, evec_field[0], sizeof(double) * evec_num * 24*VOLUME, cudaMemcpyHostToDevice, stream));
 
   /* allocate kernel field on device */
   double * d_kervx =  nullptr;
-  CUDA_CHECK ( cudaMalloc(reinterpret_cast<void **>(&d_kervx), sizeof(double) * 384 * VOLUME ) );
+  CUDA_CHECK_MALLOC ( cudaMalloc(reinterpret_cast<void **>(&d_kervx), sizeof(double) * 384 * VOLUME ) );
 
 #endif
 
   /***********************************************************/
   /***********************************************************/
+
 
   /***********************************************************
    * X contractions
@@ -673,7 +704,7 @@ int main(int argc, char **argv) {
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
-        double * kervx = (double*) malloc ( VOLUME * sizeof ( double ) );
+        double * kervx = (double*) malloc ( 384 * VOLUME * sizeof ( double ) );
         if ( kervx == NULL )
         {
           fprintf(stderr, "[hlbl_lm_contract_gpu] Error from malloc   %s %d\n", __FILE__, __LINE__ );
@@ -697,6 +728,9 @@ int main(int argc, char **argv) {
           set_kernel_pointx ( kervx+384*ix, kerv );
         }
 }  // end parallel region
+
+
+
 #if _WITH_TIMER
         gettimeofday ( &te, (struct timezone *)NULL );
         show_time ( &ta, &te, __FILE__ , "X-prepare-kervx", g_cart_id == 0 );
@@ -717,7 +751,7 @@ int main(int argc, char **argv) {
 
 #if _WITH_TIMER
         gettimeofday ( &te, (struct timezone *)NULL );
-        show_time ( &ta, &te, __FILE__ , "X-update-X", g_cart_id == 0 );
+        show_time ( &ta, &te, __FILE__ , "project_v_dag_g_v", g_cart_id == 0 );
 #endif
 
 #if _WITH_TIMER
@@ -751,6 +785,7 @@ int main(int argc, char **argv) {
           }  // end of loop on comb = [rho,sigma]
         }  // end of loop on evecs
 
+
 #if _WITH_TIMER
         gettimeofday ( &te, (struct timezone *)NULL );
         show_time ( &ta, &te, __FILE__ , "X-update-X", g_cart_id == 0 );
@@ -771,6 +806,9 @@ int main(int argc, char **argv) {
         free ( X_buffer ); X_buffer = NULL;
 #endif
 
+#if _WITH_TIMER
+        gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
         if ( io_proc == 2 )
         {
           int const ndim = 6;
@@ -784,6 +822,10 @@ int main(int argc, char **argv) {
             EXIT(1);
           }
         }
+#if _WITH_TIMER
+        gettimeofday ( &te, (struct timezone *)NULL );
+        show_time ( &ta, &te, __FILE__ , "X-write_h5_contraction", io_proc == 2 );
+#endif
 
         fini_5level_ztable ( &X );
 #ifdef HAVE_CUDA
@@ -799,9 +841,25 @@ int main(int argc, char **argv) {
 
   }  // of loop on source locations
 
+
 #if _WITH_TIMER
   gettimeofday ( X_timer+1, (struct timezone *)NULL );
   show_time ( X_timer, X_timer+1, __FILE__ , "X-total", g_cart_id == 0 );
+#endif
+
+
+#if HAVE_CUDA
+  CUDA_CHECK(cudaFree(d_v));
+  CUDA_CHECK(cudaFree(d_kervx));
+#endif
+
+
+#if HAVE_CUDA
+  CUBLAS_CHECK(cublasDestroy(cublasH));
+  CUDA_CHECK(cudaStreamDestroy(stream));
+
+  // end this CUDA context
+  CUDA_CHECK ( cudaDeviceReset() );
 #endif
 
   /***********************************************************/
@@ -811,39 +869,28 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
    ***********************************************************/
 
-#if HAVE_CUDA
-  CUDA_CHECK(cudaFree(d_v));
-  CUDA_CHECK(cudaFree(d_kervx));
-  CUBLAS_CHECK(cublasDestroy(cublasH));
-  CUDA_CHECK(cudaStreamDestroy(stream));
-
-  // end this CUDA context
-  CUDA_CHECK ( cudaDeviceReset() );
-#endif
-
-#if 0
-#endif  // of if 0
-
 #ifdef HAVE_KQED
   free_QED_temps( &kqed_t  );
 #endif
 
   fini_2level_dtable ( &evec_field );
 
-  free(g_gauge_field);
-  free( gauge_field_with_phase );
 
   /* free clover matrix terms */
   fini_clover ( &mzz, &mzzinv );
 
+
+  free(g_gauge_field);
+  free( gauge_field_with_phase );
+
+
   free_geometry();
 
 #ifdef HAVE_MPI
-  mpi_fini_xchange_contraction();
-  mpi_fini_xchange_eo_spinor();
   mpi_fini_datatypes();
   MPI_Finalize();
 #endif
+
 
   gettimeofday ( &end_time, (struct timezone *)NULL );
   // show_time ( &start_time, &end_time, "hlbl_lm_contract_gpu", "runtime", g_cart_id == 0 );
