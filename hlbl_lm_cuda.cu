@@ -217,4 +217,3 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
 
   return(0);
 }  // end of project_v_dag_g_v
-
