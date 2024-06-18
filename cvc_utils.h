@@ -4,6 +4,7 @@
 #ifndef _CVC_UTIL_H
 #define _CVC_UTIL_H
 #include <sys/time.h>
+#include <string>
 #ifdef HAVE_OPENMP
 #include <omp.h>
 #endif
@@ -256,7 +257,7 @@ inline void set_omp_number_threads (void) {
 /***************************************************************************
  * calculate elapsed wall-time
  ***************************************************************************/
-inline void show_time ( struct timeval * const ta, struct timeval * const tb, char * tag, char * timer, int const io ) {
+inline void show_time ( struct timeval * const ta, struct timeval * const tb, const char * const tag, const char * const timer, int const io ) {
 
   long int seconds =  tb->tv_sec  - ta->tv_sec;
   long int useconds = tb->tv_usec - ta->tv_usec;
