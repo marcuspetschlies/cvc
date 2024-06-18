@@ -15,4 +15,7 @@
 
 __global__ void ker_X_prepare_ev ( cuDoubleComplex* _RESTR out, const double* _RESTR in, const double *_RESTR kerv, const int N );
 
+//__global__ void test_kernel ( double * _RESTR out, const double* _RESTR in, const double *_RESTR kerv, const int N );
+__global__ void test_kernel ( cuDoubleComplex * _RESTR out, const double* _RESTR in, const double *_RESTR kerv, const int N );
+
 #endif

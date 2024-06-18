@@ -22,6 +22,8 @@
 #include "hlbl_kernel.cuh"
 #include "hlbl_lm_cuda.cuh"
 
+namespace cvc {
+
 /***********************************************************/
 /***********************************************************/
 
@@ -147,6 +149,10 @@ int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Comple
   return(0);
 }  // end of hlbl_lm_reduce
 
+/***********************************************************/
+/***********************************************************/
+
+
 /***********************************************************
  * compute p = V^H x S^T
  *
@@ -176,6 +182,9 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
   const int lda = 12*nx;
   const int ldb = ns;
   const int ldc = nv;
+  //const int lda = ns;
+  //const int ldb = 12*nx;
+  //const int ldc = 12*nx;
 
   /* C <- alpha A x B + beta C */
   const cuDoubleComplex alpha = { 1.0, 0.0 };
@@ -184,6 +193,8 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
   /* reshaping of matrices */
   cublasOperation_t transa = CUBLAS_OP_C;
   cublasOperation_t transb = CUBLAS_OP_T;
+  //cublasOperation_t transa = CUBLAS_OP_N;
+  //cublasOperation_t transb = CUBLAS_OP_N;
 
   /* device memory for projection coefficients */
   CUDA_CHECK_MALLOC (cudaMalloc(reinterpret_cast<void **>(&d_p), sizeof(cuDoubleComplex) * ns * nv ) );
@@ -192,24 +203,65 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
    * s is a fermion field with V x 12 [spin-color] x 96 [kernel components] */
   CUDA_CHECK_MALLOC ( cudaMalloc(reinterpret_cast<void **>(&d_s), sizeof(cuDoubleComplex) * ns * 12 * nx ) );
 
+  /* double * h_s = (double *)malloc ( ns*24*nx * sizeof(double) ); */
+
   /* loop on vectors */
   for ( int iv = 0; iv < nv; iv++ )
   {
-#if 0
+    const double * _d_v = d_v + iv * 24 * nx;
     /* prepare s, i.e. apply vertex 
      * kernel call, add parallelization info to call */
-    ker_X_prepare_ev<<< gridSize, blockSize >>>( d_s, d_v + iv*24*nx, kervx, nx );
-#endif  // if 0
+    ker_X_prepare_ev<<< gridSize, blockSize >>>( d_s, _d_v, kervx, nx );
+    
+    /* CUDA_CHECK(cudaMemcpy( h_s, d_s, sizeof(cuDoubleComplex) * 12* ns * nx, cudaMemcpyDeviceToHost ));
 
-    /* linear algebra computation */
+    for ( unsigned int ix = 0; ix < nx; ix++ )
+    {
+      for (int ir = 0; ir < 12; ir++ )
+      {
+        for ( int k = 0; k < ns; k++ )
+        {
+          printf("d_s %6d %3d %3d  %25.16e %25.15e\n", ix, ir, k, 
+                h_s[2*(96*(12*ix+ ir)+k)+0],
+                h_s[2*(96*(12*ix+ ir)+k)+1] );
+        }
+      }
+    } */
+
+    /* linear algebra computation 
+     * 
+     * d_v is nv   x 12nx (C) = 12nx x nv   (F)
+     * d_s is 12nx x ns   (C) = ns   x 12nx (F)
+     */
+    //                                 C       T       m      n    k
     CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, nv, ns, 12*nx, &alpha, reinterpret_cast<const cuDoubleComplex *>(d_v), lda, d_s, ldb, &beta, d_p, ldc));
+    //cudaMemsetAsync ( d_p, 0, ns*nv*sizeof(cuDoubleComplex), stream );
+    //cuDoubleComplex * z_v = (cuDoubleComplex *)d_v;
+    //CUBLAS_CHECK( cublasZgemm(cublasH, transa, transb, ns, nv, 12*nx, &alpha, d_s, lda, z_v, ldb, &beta, d_p, ldc));
+  
+
+    /* double * p = (double*)malloc ( ns * nv * 2 * sizeof(double) );
+    CUDA_CHECK(cudaMemcpyAsync( p, d_p, sizeof(cuDoubleComplex) * ns * nv, cudaMemcpyDeviceToHost, stream ));
+    for ( int ia = 0; ia < ns; ia++ )
+    {
+      for ( int ib =0; ib < nv; ib++ )
+      {
+        printf("d_p %3d %4d  %25.16e %25.16e\n", ia, ib, p[2*(nv*ia+ib)+0], p[2*(nv*ia+ib)+1] );
+      }
+    }
+    free ( p ); */
+
+
 
     /* copy data to host */
     CUDA_CHECK(cudaMemcpyAsync( h_p + iv * ns*nv, d_p, sizeof(cuDoubleComplex) * ns * nv, cudaMemcpyDeviceToHost, stream));
+    // CUDA_CHECK(cudaMemcpy( h_p + iv * ns*nv, d_p, sizeof(cuDoubleComplex) * ns * nv, cudaMemcpyDeviceToHost ));
+
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 
   }  /* end of loop on eigenvectors */
 
-  CUDA_CHECK(cudaStreamSynchronize(stream));
+  /* free ( h_s ); */
 
   /* free resources */
   CUDA_CHECK(cudaFree(d_p));
@@ -217,3 +269,26 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
 
   return(0);
 }  // end of project_v_dag_g_v
+
+
+/***********************************************************
+ *
+ ***********************************************************/
+// int apply_kernel ( cudaStream_t stream, cublasHandle_t cublasH, double * d_out, const double * d_in, const double * kervx,  const int nx ) 
+int apply_kernel ( cudaStream_t stream, cublasHandle_t cublasH, cuDoubleComplex * d_out, const double * d_in, const double * kervx,  const int nx ) 
+{
+  dim3 blockSize(CUDA_BLOCK_SIZE);
+  dim3 gridSize( ( (nx + CUDA_BLOCK_SIZE - 1 ) / CUDA_BLOCK_SIZE) );
+  
+  /* prepare s, i.e. apply vertex 
+   * kernel call, add parallelization info to call */
+  test_kernel<<< gridSize, blockSize >>>( d_out, d_in, kervx, nx );
+
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+  /* free resources */
+
+  return(0);
+}  // end of apply_kernel
+
+}

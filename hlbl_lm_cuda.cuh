@@ -9,6 +9,8 @@
 
 using cuda_data_type = cuDoubleComplex;
 
+namespace cvc {
+
 /****************************************************
  * hlbl_lm_cuda
  ****************************************************/
@@ -52,5 +54,10 @@ int hlbl_lm_reduce ( cudaStream_t stream, cublasHandle_t cublasH, double _Comple
 
 int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Complex * const h_p,
     const double * d_v, const double * kervx, const int nv, const int nx );
+
+// int apply_kernel ( cudaStream_t stream, cublasHandle_t cublasH, double * d_out, const double * d_in, const double * kervx,  const int nx );
+int apply_kernel ( cudaStream_t stream, cublasHandle_t cublasH, cuDoubleComplex * d_out, const double * d_in, const double * kervx,  const int nx );
+
+}
 
 #endif

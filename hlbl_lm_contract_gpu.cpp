@@ -64,17 +64,13 @@ extern "C"
 #include "hlbl_lm_cuda.cuh"
 #endif
 
+#include "scalar_products.h"
+
 #define _WITH_TIMER 1
 
 #define _EVEC_TEST 0
 
 using namespace cvc;
-
-typedef struct {
-  double re, im;
-} cplx_t;
-
-typedef double kerv_type[6][4][4][4] KQED_ALIGN;
 
 /***********************************************************
  * wrapper for Lambda = 0.4 kernel
@@ -134,46 +130,13 @@ inline void set_kernel_pointx ( double * const kx, double kerv[6][4][4][4] )
         {
           int const idx = ( ( 4 * irhosigma + inu ) * 4 + ilambda ) * 4 + imu;
           kx[idx] = kerv[irhosigma][imu][inu][ilambda];
+          // fprintf (stdout, "kerv %3d %3d %3d %3d   %6d   %25.16e\n", irhosigma, imu, inu, ilambda, idx, kx[idx]);
         }
       }
     }
   }
   return;
 } 
-
-
-/***********************************************************/
-/***********************************************************/
-
-/***********************************************************
- * compute p = V^H s
- *
- * V is nv x nx (C) = nx x nv (F)
- * s is ns x nx (C) = nx x ns (F)
- *
- * p is [nx x nv]^H x [nx x ns] = nv x ns (F) = ns x nv (C)
- ***********************************************************/
-inline void project (double _Complex * const p, double _Complex * const V, double _Complex * const s, int const nv, int const ns, int const nx )
-{
-  double _Complex * BLAS_A = V;
-  double _Complex * BLAS_B = s;
-  double _Complex * BLAS_C = p;
-
-  double _Complex BLAS_ALPHA  = 1.;
-  double _Complex BLAS_BETA   = 0.;
-  char BLAS_TRANSA = 'C';
-  char BLAS_TRANSB = 'N';
-  int BLAS_M      = nv;
-  int BLAS_K      = nx;
-  int BLAS_N      = ns;
-  int BLAS_LDA    = BLAS_K;
-  int BLAS_LDB    = BLAS_K;
-  int BLAS_LDC    = BLAS_M;
-
-  _F(zgemm) ( &BLAS_TRANSA, &BLAS_TRANSB, &BLAS_M, &BLAS_N, &BLAS_K, &BLAS_ALPHA, BLAS_A, &BLAS_LDA, BLAS_B, &BLAS_LDB, &BLAS_BETA, BLAS_C, &BLAS_LDC,1,1);
-
-  return;
-}
 
 /***********************************************************/
 /***********************************************************/
@@ -192,7 +155,7 @@ int main(int argc, char **argv) {
   double const alat[2] = { 0.07957, 0.00013 };  /* fm */
 
 
-  int const ysign_num = 4;
+  int const ysign_num = 1;
   int const ysign_comb[16][4] = {
     { 1, 1, 1, 1},
     { 1, 1,-1,-1},
@@ -375,6 +338,7 @@ int main(int argc, char **argv) {
          __FILE__, __LINE__  );
       EXIT (1);
     }
+    fini_2level_ctable ( &hostname_list );
 #endif  // of HAVE_MPI
 
     if ( g_verbose > 2 ) fprintf (stdout, "# [hlbl_lm_contract_gpu] proc %4d device id %d   %s %d\n", g_cart_id, g_device_id, __FILE__, __LINE__ );
@@ -384,7 +348,8 @@ int main(int argc, char **argv) {
     /* create cublas handle, bind a stream */
     CUBLAS_CHECK ( cublasCreate(&cublasH) );
 
-    CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
+    // CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
+    CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamDefault ) );
     CUBLAS_CHECK ( cublasSetStream(cublasH, stream) );
 
   }
@@ -595,10 +560,11 @@ int main(int argc, char **argv) {
 
   /* allocate eigenvector field on device */
   double * d_v = nullptr;
-  CUDA_CHECK_MALLOC ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof(double) * evec_num * 24 * VOLUME ) );
+  CUDA_CHECK_MALLOC ( cudaMalloc(reinterpret_cast<void **>(&d_v), sizeof_spinor_field * evec_num ) );
    
   /* copy data from host to device */
-  CUDA_CHECK ( cudaMemcpyAsync( d_v, evec_field[0], sizeof(double) * evec_num * 24*VOLUME, cudaMemcpyHostToDevice, stream));
+  // CUDA_CHECK ( cudaMemcpyAsync( d_v, evec_field[0], sizeof_spinor_field * evec_num, cudaMemcpyHostToDevice, stream));
+  CUDA_CHECK ( cudaMemcpy( d_v, evec_field[0], sizeof_spinor_field * evec_num, cudaMemcpyHostToDevice ));
 
   /* allocate kernel field on device */
   double * d_kervx =  nullptr;
@@ -686,8 +652,7 @@ int main(int argc, char **argv) {
             yv[3] * xunit[0] };
 
         double _Complex ***** X = init_5level_ztable ( 6, 4, 4, evec_num, evec_num );
-        double _Complex * p = init_1level_ztable ( evec_num * 96 );
-        if ( X == NULL || p == NULL )
+        if ( X == NULL )
         {
           fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
@@ -725,6 +690,10 @@ int main(int argc, char **argv) {
                 xv[ix][3] * xunit[0] };
 
           KQED_LX[0]( xm, ym, kqed_t, kerv );
+          /* fprintf (stdout, "# kerv %6d  x %6.4f %6.4f %6.4f %6.4f  y %6.4f %6.4f %6.4f %6.4f\n", ix,
+              xm[0], xm[1], xm[2], xm[3],
+              ym[0], ym[1], ym[2], ym[3] ); */
+
           set_kernel_pointx ( kervx+384*ix, kerv );
         }
 }  // end parallel region
@@ -737,7 +706,8 @@ int main(int argc, char **argv) {
 #endif
 #ifdef HAVE_CUDA
         /* copy kerv field to device */
-        CUDA_CHECK(cudaMemcpyAsync( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice, stream));
+        // CUDA_CHECK(cudaMemcpyAsync( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice, stream));
+        CUDA_CHECK( cudaMemcpy ( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice ));
 #endif
 
         /***********************************************************
@@ -753,6 +723,113 @@ int main(int argc, char **argv) {
         gettimeofday ( &te, (struct timezone *)NULL );
         show_time ( &ta, &te, __FILE__ , "project_v_dag_g_v", g_cart_id == 0 );
 #endif
+
+        /***********************************************************
+         * BEGIN OF TEST
+         ***********************************************************/
+        double _Complex ***** p = init_5level_ztable ( evec_num, evec_num, 6, 4, 4 );
+
+        double ** spinor_field = init_2level_dtable ( 6, _GSI(VOLUME) );
+
+
+        for ( unsigned int iv = 0; iv < evec_num; iv++ )
+        {
+        
+          /* double *** h_s = init_3level_dtable ( VOLUME, 12, 2*96 ); */
+
+          // apply X-vertex
+          for ( int imu = 0; imu < 4; imu++ )
+          {
+            spinor_field_eq_gamma_ti_spinor_field ( spinor_field[imu], gamma_map_id[imu], evec_field[iv], VOLUME );
+            spinor_field_ti_eq_re ( spinor_field[imu], gamma_map_sign[imu], VOLUME );
+          }
+
+          for ( int irhosigma = 0; irhosigma < 6; irhosigma++ )
+          {
+            for ( int inu = 0; inu < 4; inu++ )
+            {
+              for ( int ilam = 0; ilam < 4; ilam++ )
+              {
+                int const k = 4 * ( 4 * irhosigma + inu ) + ilam;
+
+                memset ( spinor_field[4], 0, sizeof_spinor_field );
+
+                for ( int imu = 0; imu < 4; imu++ )
+                {
+#pragma omp parallel for
+                  for ( unsigned int ix = 0; ix < VOLUME; ix++ )
+                  {
+                    _fv_pl_eq_fv_ti_re ( spinor_field[4]+_GSI(ix), spinor_field[imu]+_GSI(ix), kervx[4*(96*ix+k) + imu ] );
+                  }
+                }
+                
+                /*for ( unsigned int ix = 0; ix < VOLUME; ix++)
+                {
+                  for (int ir = 0; ir < 12; ir++ )
+                  {
+                    h_s[ix][ir][2*k+0] = spinor_field[4][2*(12*ix+ ir)+0];
+                    h_s[ix][ir][2*k+1] = spinor_field[4][2*(12*ix+ ir)+1];
+                  }
+                }*/
+
+                for ( unsigned int iv2 = 0; iv2 < evec_num; iv2++ )
+                {
+                  complex w = {0.,0.};
+                  spinor_scalar_product_co ( &w, evec_field[iv2], spinor_field[4], VOLUME );
+                  p[iv2][iv][irhosigma][inu][ilam] = w.re + w.im * I;
+                }
+              }
+            }
+          }
+
+          /*for ( unsigned int ix = 0; ix < VOLUME; ix++)
+          {
+            for (int ir = 0; ir < 12; ir++ )
+            {
+              for ( int k = 0; k < 96; k++ )
+              {
+                printf("h_s %6d %3d %3d  %25.16e %25.15e\n", ix, ir, k,
+                    h_s[ix][ir][2*k+0] , h_s[ix][ir][2*k+1] );
+              }
+            }
+          }
+
+          fini_3level_dtable ( &h_s ); */
+        }
+
+        for ( int irhosigma = 0; irhosigma < 6; irhosigma++ )
+        {
+          for ( int inu = 0; inu < 4; inu++ )
+          {
+            for ( int ilam = 0; ilam < 4; ilam++ )
+            {
+              int const k = 4 * ( 4 * irhosigma + inu ) + ilam;
+
+              for ( unsigned int iv = 0; iv < evec_num; iv++ )
+              {
+                for ( unsigned int iv2 = 0; iv2 < evec_num; iv2++ )
+                {
+                  fprintf (stdout,  "p %3d %3d %3d  %4d %4d    %25.16e %25.16e    %25.16e %25.16e    %e\n",
+                      irhosigma, inu, ilam, iv, iv2, 
+                      creal ( h_p[ iv2 * evec_num * 96 + k * evec_num + iv ] ),
+                      cimag ( h_p[ iv2 * evec_num * 96 + k * evec_num + iv ] ),
+                      creal( p[iv][iv2][irhosigma][inu][ilam] ),
+                      cimag( p[iv][iv2][irhosigma][inu][ilam] ),
+                      cabs ( h_p[ evec_num * ( iv2 * 96 + k ) + iv ] - p[iv][iv2][irhosigma][inu][ilam] ));
+                }
+              }
+            }
+          }
+        }
+
+
+
+        fini_2level_dtable ( &spinor_field );
+        fini_5level_ztable ( &p );
+
+        /***********************************************************
+         * END OF TEST
+         ***********************************************************/
 
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );

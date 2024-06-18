@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #include <cuComplex.h>
@@ -99,6 +100,25 @@ __device__ inline void _d_fv_eq_zero(double* in_out)
   }
 } 
 
+__device__ inline void _d_fv_eq_fv(double* out, const double * in) 
+{
+#pragma unroll
+  for (int i = 0; i < 24; i++ ) 
+  {
+    out[i] = in[i];
+  }
+} 
+
+__device__ inline void _d_fv_ti_eq_re(double* _RESTR in_out, double const re)
+{
+#pragma unroll
+  for (int i = 0; i < 24; ++i)
+  {
+    in_out[i] *= re;
+  }
+}
+
+
 /***********************************************************
  * out has indexing
 
@@ -114,15 +134,19 @@ __device__ inline void _d_fv_eq_zero(double* in_out)
 
 __device__ inline void _d_X_prepare_ev ( cuDoubleComplex * _RESTR out, const double* _RESTR in, const double *_RESTR kerv) 
 {
+  // not good, hard-coded cvc -> ukqcd conversion
+  int    const gamma_map_id[4]   = {   6,   10,   11,  12 };
+  double const gamma_map_sign[4] = {  -1.,  +1.,  +1., +1. };
+
   double sp[4][24];
-  _d_fv_eq_gamma_ti_fv( sp[0], 0, in );
-  _d_fv_ti_eq_g5( sp[0] );
-  _d_fv_eq_gamma_ti_fv( sp[1], 1, in );
-  _d_fv_ti_eq_g5( sp[1] );
-  _d_fv_eq_gamma_ti_fv( sp[2], 2, in );
-  _d_fv_ti_eq_g5( sp[2] );
-  _d_fv_eq_gamma_ti_fv( sp[3], 3, in );
-  _d_fv_ti_eq_g5( sp[3] );
+  _d_fv_eq_gamma_ti_fv( sp[0], gamma_map_id[0], in );
+  _d_fv_ti_eq_re( sp[0], gamma_map_sign[0] );
+  _d_fv_eq_gamma_ti_fv( sp[1], gamma_map_id[1], in );
+  _d_fv_ti_eq_re( sp[1], gamma_map_sign[1] );
+  _d_fv_eq_gamma_ti_fv( sp[2], gamma_map_id[2], in );
+  _d_fv_ti_eq_re( sp[2], gamma_map_sign[2] );
+  _d_fv_eq_gamma_ti_fv( sp[3], gamma_map_id[3], in );
+  _d_fv_ti_eq_re( sp[3], gamma_map_sign[3] );
 
 #pragma unroll
   for ( int i = 0; i < 12; i++ )
@@ -132,8 +156,11 @@ __device__ inline void _d_X_prepare_ev ( cuDoubleComplex * _RESTR out, const dou
     {
       // sum on mu
       out[96*i+k].x = sp[0][2*i+0] * kerv[4*k+0] + sp[1][2*i+0] * kerv[4*k+1] + sp[2][2*i+0] * kerv[4*k+2] + sp[3][2*i+0] * kerv[4*k+3];
-
       out[96*i+k].y = sp[0][2*i+1] * kerv[4*k+0] + sp[1][2*i+1] * kerv[4*k+1] + sp[2][2*i+1] * kerv[4*k+2] + sp[3][2*i+1] * kerv[4*k+3];
+      
+      // with complex conjugation
+      //out[96*i+k].x =    sp[0][2*i+0] * kerv[4*k+0] + sp[1][2*i+0] * kerv[4*k+1] + sp[2][2*i+0] * kerv[4*k+2] + sp[3][2*i+0] * kerv[4*k+3];
+      //out[96*i+k].y = -( sp[0][2*i+1] * kerv[4*k+0] + sp[1][2*i+1] * kerv[4*k+1] + sp[2][2*i+1] * kerv[4*k+2] + sp[3][2*i+1] * kerv[4*k+3] );
     }
   }
 }  // end of _d_X_prepare_ev
@@ -146,19 +173,55 @@ __device__ inline void _d_X_prepare_ev ( cuDoubleComplex * _RESTR out, const dou
  ***********************************************************/
 __global__ void ker_X_prepare_ev ( cuDoubleComplex* _RESTR out, const double* _RESTR in, const double *_RESTR kerv, const int N )
 {
-
   int const index  = blockIdx.x * blockDim.x + threadIdx.x;
 
   int const stride = blockDim.x * gridDim.x;
 
   for (int i = index; i < N; i += stride ) 
   {
-    cuDoubleComplex * _out = out + 96*12 * i;
-    const double * _in   = in   +  24 * i;
-    const double * _kerv = kerv + 384 * i;
+    cuDoubleComplex * _out  = out  + 96*12 * i;
+    const double    * _in   = in   +    24 * i;
+    const double    * _kerv = kerv +   384 * i;
  
     _d_X_prepare_ev ( _out, _in, _kerv );
   }
 
   return;
 }  // end of ker_X_prepare_ev
+
+
+/***********************************************************
+ * kernel for X-preparation of eigenvector
+ *
+ * wrapper and iterator to call _d_X_prepare_ev
+ ***********************************************************/
+// __global__ void test_kernel ( double * _RESTR out, const double* _RESTR in, const double *_RESTR kerv, const int N )
+__global__ void test_kernel ( cuDoubleComplex * _RESTR out, const double* _RESTR in, const double *_RESTR kerv, const int N )
+{
+
+  int const index  = blockIdx.x * blockDim.x + threadIdx.x;
+
+  int const stride = blockDim.x * gridDim.x;
+
+  // printf ("# [test_kernel] index %6d   stride %6d\n", index, stride);
+
+  for (int i = index; i < N; i += stride ) 
+  {
+    // printf ("# [test_kernel] index %6d   stride %6d   i %6d\n", index, stride, i);
+    // double *       _out  = out  +  24 * i;
+    cuDoubleComplex * _out  = out  +  12 * 96 * i;
+    const double    * _in   = in   +  24      * i;
+    const double    * _kerv = kerv + 384      * i;
+ 
+    // _d_fv_eq_zero( _out );
+   
+    /* _d_fv_eq_fv ( _out, _in );
+    _d_fv_ti_eq_g5 ( _out ); */
+
+    // _d_fv_eq_gamma_ti_fv ( _out, 12, _in );
+
+    _d_X_prepare_ev ( _out, _in, _kerv );
+  }
+
+  return;
+}  // end of test_kernel
