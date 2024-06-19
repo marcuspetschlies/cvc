@@ -116,8 +116,19 @@ void usage() {
 int main(int argc, char **argv) {
 
   double const mmuon = 105.6583745 /* MeV */  / 197.3269804 /* MeV fm */;
-  double const alat[2] = { 0.07957, 0.00013 };  /* fm */
 
+  /***********************************************************
+   * double const alat[2] = { 0.07957, 0.00013 };   fm
+   *
+   * lattice spacing set via command line arument, comma-separated
+   *     -a value,error
+   *
+   * results from g-2 window paper:
+   * cB: -a 0.07957,0.00013
+   * cC: -a 0.06821,0.00013
+   * cD: -a 0.05692,0.00012
+   *
+   ***********************************************************/
 
   int const ysign_num = 4;
   int const ysign_comb[16][4] = {
@@ -164,6 +175,7 @@ int main(int argc, char **argv) {
   int first_solve_dummy = 1;
   struct timeval start_time, end_time;
   int ymax = 0;
+  double alat[2] = { 0., 0. };
 
   struct timeval ta, tb;
 
@@ -171,7 +183,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:y:")) != -1) {
+  while ((c = getopt(argc, argv, "ch?f:y:a:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -182,6 +194,9 @@ int main(int argc, char **argv) {
       break;
     case 'y':
       ymax = atoi ( optarg );
+      break;
+    case 'a':
+      sscanf ( optarg, "%lf,%lf", alat, alat+1 );
       break;
     case 'h':
     case '?':
@@ -421,9 +436,18 @@ int main(int argc, char **argv) {
 
 
   /***********************************************************
-   * unit for x, y
+   * check lattice spacing was set; unit for x, y
    ***********************************************************/
+  if ( alat[0] == 0. ) 
+  {
+    fprintf (stderr, "# [hlbl_mII_invert_contract] lattice spacing must be set   %s %d\n", __FILE__, __LINE__ );
+    EXIT(2);
+  }
   double const xunit[2] = { mmuon * alat[0], mmuon * alat[1] };
+  if ( io_proc == 2 )
+  {
+    fprintf (stdout, "# [hlbl_mII_invert_contract] using xunit  %25.16e %25.16e\n", xunit[0], xunit[1] );
+  }
 
   /***********************************************************
    * output filename
@@ -441,7 +465,6 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
     EXIT(19);
   }
-
 
 
   /***********************************************************
@@ -553,7 +576,6 @@ int main(int argc, char **argv) {
 
     /***********************************************************/
     /***********************************************************/
-
 
     /***********************************************************
      * loop on y = iy ( 1,1,1,1)
@@ -737,28 +759,6 @@ int main(int argc, char **argv) {
             }
 
           }  /* of ia */
-
-#if 0
-          /***********************************************************
-           * TEST WRITE dzu
-           ***********************************************************/
-          for ( int k = 0; k < 6; k++ )
-          {
-            for ( int ia = 0; ia < 12; ia++ )
-            {
-            for ( int ib = 0; ib < 12; ib++ )
-            {
-              double const g5sign = 1. - 2. * ( (ib/3) > 1 );
-
-              fprintf ( stdout, "seq fl %d yv %3d %3d %3d %3d, k %d isnk %2d isrc %2d   %25.16e %25.16e\n",
-                  flavor_index[iflavor], yv[0], yv[1], yv[2], yv[3], k, ib, ia, 
-                  g5sign * dzu[k][ia][2*ib  ], g5sign * dzu[k][ia][2*ib+1] );
-            }}
-          }
-          /***********************************************************
-           * END OF TEST
-           ***********************************************************/
-#endif
 
 #if _WITH_TIMER
           gettimeofday ( &tb, (struct timezone *)NULL );
@@ -1054,104 +1054,8 @@ int main(int argc, char **argv) {
               }
               kernel_sum_thread[ikernel] += dtmp;
 
-              /***********************************************************
-               * BEGIN TEST
-               ***********************************************************/
-#if 0
-#pragma omp critical
-{
-              for ( int mu = 0; mu < 4; mu++ )
-              {
-                for ( int nu = 0; nu < 4; nu++ )
-                {
-                  for ( int lambda = 0; lambda < 4; lambda++ )
-                  {
-                    for( int k = 0; k < 6; k++ )
-                    {
-                      fprintf ( stdout, "r %6d xv %3d %3d %3d %3d yv %3d %3d %3d %3d  fl %d L %d  idx %d %d %d %d %d K %16.7e %16.7e %16.7e   P1 %25.16e   P2 %25.16e \n", 
-                          rank,
-                          xv[0], xv[1], xv[2], xv[3],
-                          yv[0], yv[1], yv[2], yv[3],
-                          flavor_index[iflavor],
-                          ikernel,
-                          mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
-                          kerv1[k][mu][nu][lambda],
-                          kerv2[k][mu][nu][lambda],
-                          kerv3[k][mu][nu][lambda],
-                          corr_I[k][mu][nu][2*lambda],
-                          corr_II[k][mu][nu][2*lambda] );
-                    }
-                  }
-                }
-              }
-}  /* end of critical region */
-#endif
-              /***********************************************************
-               * END TEST
-               ***********************************************************/
-
             }  /* end of loop on kernels */
 
-#if 0
-            QED_kernel_L1( xm, ym, kqed_t, kerv );
-            dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
-            {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[1] += dtmp;
-
-            QED_kernel_L2( xm, ym, kqed_t, kerv );
-            dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
-            {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[2] += dtmp;
-
-            QED_kernel_L3( xm, ym, kqed_t, kerv );
-            dtmp = 0.;
-            for( int i = 0 ; i < 384 ; i++ )
-            {
-              dtmp +=  _kerv[i] * _corr_I[2*i];
-            }
-            kernel_sum_thread[3] += dtmp;
-#endif
-
-#if 0
-            /***********************************************************
-             * BEGIN TEST
-             ***********************************************************/
-#pragma omp critical
-{
-            for ( int mu = 0; mu < 4; mu++ )
-            {
-              for ( int nu = 0; nu < 4; nu++ )
-              {
-                for ( int lambda = 0; lambda < 4; lambda++ )
-                {
-                  for( int k = 0; k < 6; k++ )
-                  {
-                    fprintf ( stdout, "y %2d s %d %d %d %d fl %d  x %6u  i %3d %3d %3d %3d %3d   %25.16e %25.16e \n", 
-                        iy,
-                        ysign_comb[isign][0],
-                        ysign_comb[isign][1],
-                        ysign_comb[isign][2],
-                        ysign_comb[isign][3],
-                        flavor_index[iflavor],
-                        rank,
-                        mu, nu, lambda, idx_comb[k][0], idx_comb[k][1],
-                        corr_I[k][mu][nu][2*lambda  ], corr_I[k][mu][nu][2*lambda+1] );
-                  }
-                }
-              }
-            }
-}  /* end of critical region */
-
-            /***********************************************************
-             * END TEST
-             ***********************************************************/
-#endif
           }  /* end of loop on ix */
 
           /***********************************************************
@@ -1208,14 +1112,17 @@ int main(int argc, char **argv) {
 
     }  /* end of loop on |y| */
 
-
-
 #ifdef HAVE_MPI
     /***********************************************************
      * sum over MPI processes
      ***********************************************************/
-    int const nitem = 2 * 4 * ( ymax + 1 ) * ysign_num;
+    int const nitem = nflavor * 4 * ( ymax + 1 ) * ysign_num;
     double * mbuffer = init_1level_dtable ( nitem );
+    if ( mbuffer == NULL )
+    {
+      fprintf(stderr, "[hlbl_mII_invert_contract] error from init_level_table   %s %d\n", __FILE__, __LINE__);
+      EXIT(2);
+    }
 
     memcpy ( mbuffer, kernel_sum[0][0][0], nitem * sizeof ( double ) );
 
@@ -1233,11 +1140,10 @@ int main(int argc, char **argv) {
     if ( io_proc == 2 )
     {
       int ncdim = 4;
-      int cdim[4] = { 2, ymax+1, ysign_num, 4 };
+      int cdim[4] = { nflavor, ymax+1, ysign_num, 4 };
       char key[100];
-      sprintf (key, "t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
-
-      exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
+      sprintf (key, "/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
+       exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
       if ( exitstatus != 0 )
       {
         fprintf (stderr, "[hlbl_mII_invert_contract] Error from MP_Reduce  %s %d\n", __FILE__, __LINE__ );
@@ -1248,6 +1154,7 @@ int main(int argc, char **argv) {
     fini_4level_dtable ( &kernel_sum );
 
   }  /* end of loop on source locations */
+
 
   /***********************************************************
    * free the allocated memory, finalize
