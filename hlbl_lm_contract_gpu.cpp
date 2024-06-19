@@ -348,8 +348,8 @@ int main(int argc, char **argv) {
     /* create cublas handle, bind a stream */
     CUBLAS_CHECK ( cublasCreate(&cublasH) );
 
-    // CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
-    CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamDefault ) );
+    CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking) );
+    // CUDA_CHECK ( cudaStreamCreateWithFlags(&stream, cudaStreamDefault ) );
     CUBLAS_CHECK ( cublasSetStream(cublasH, stream) );
 
   }

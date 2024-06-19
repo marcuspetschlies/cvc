@@ -211,7 +211,7 @@ int project_v_dag_g_v ( cudaStream_t stream, cublasHandle_t cublasH, double _Com
     const double * _d_v = d_v + iv * 24 * nx;
     /* prepare s, i.e. apply vertex 
      * kernel call, add parallelization info to call */
-    ker_X_prepare_ev<<< gridSize, blockSize >>>( d_s, _d_v, kervx, nx );
+    ker_X_prepare_ev<<< gridSize, blockSize, 0, stream >>>( d_s, _d_v, kervx, nx );
     
     /* CUDA_CHECK(cudaMemcpy( h_s, d_s, sizeof(cuDoubleComplex) * 12* ns * nx, cudaMemcpyDeviceToHost ));
 
