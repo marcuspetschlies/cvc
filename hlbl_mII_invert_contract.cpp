@@ -64,10 +64,21 @@ extern "C"
 
 #define _WITH_TIMER 1
 
-#define _HLBL_NEUTRAL 0
-#define _HLBL_CHARGED 1
+#if ! (defined _HLBL_NEUTRAL ) && ! ( defined _HLBL_CHARGED )
+#  define _HLBL_NEUTRAL 0
+#  define _HLBL_CHARGED 1
+#endif
 
 using namespace cvc;
+
+/***********************************************************
+ * wrapper for Lambda = 0.4 kernel
+ ***********************************************************/
+void QED_kernel_L0P4( const double xv[4], const double yv[4], const struct QED_kernel_temps t, double kerv[6][4][4][4] )
+{
+  QED_Mkernel_L2(0.4, xv, yv, t, kerv);
+}
+
 
 /***********************************************************
  * KQED kernel function pointer
@@ -492,7 +503,14 @@ int main(int argc, char **argv) {
     /***********************************************************
      * local kernel sum
      ***********************************************************/
-    double **** kernel_sum = init_4level_dtable ( nflavor, ymax + 1, ysign_num, 4 );
+    int const kernel_num = 2;
+
+    QED_kernel_LX_ptr KQED_LX[kernel_num] = {
+      QED_kernel_L3,
+      QED_kernel_L0P4
+    };
+
+    double **** kernel_sum = init_4level_dtable ( nflavor, ymax + 1, ysign_num, kernel_num );
     if ( kernel_sum == NULL ) 
     {
       fprintf(stderr, "[hlbl_mII_invert_contract] Error from kqed initialise, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -849,13 +867,8 @@ int main(int argc, char **argv) {
           double kerv2[6][4][4][4] KQED_ALIGN ;
           double kerv3[6][4][4][4] KQED_ALIGN ;
 
-          double kernel_sum_thread[4] = { 0., 0., 0., 0. };
-
-          QED_kernel_LX_ptr KQED_LX[4] = {
-            QED_kernel_L0,
-            QED_kernel_L1,
-            QED_kernel_L2,
-            QED_kernel_L3 };
+          double kernel_sum_thread[kernel_num];
+          memset ( kernel_sum_thread, 0, kernel_num * sizeof ( double ) );
 
           /***********************************************************
            ***********************************************************
@@ -1027,7 +1040,7 @@ int main(int argc, char **argv) {
             /***********************************************************
              * loop on kernsl
              ***********************************************************/
-            for ( int ikernel = 0; ikernel < 4; ikernel++ )
+            for ( int ikernel = 0; ikernel < kernel_num; ikernel++ )
             {
 
               /* QED_kernel_L0( xm, ym, kqed_t, kerv );*/
@@ -1065,11 +1078,10 @@ int main(int argc, char **argv) {
 #pragma omp critical
 {
 #endif
-          kernel_sum[iflavor][iy][isign][0] += kernel_sum_thread[0];
-          kernel_sum[iflavor][iy][isign][1] += kernel_sum_thread[1];
-          kernel_sum[iflavor][iy][isign][2] += kernel_sum_thread[2];
-          kernel_sum[iflavor][iy][isign][3] += kernel_sum_thread[3];
-
+          for ( int ik = 0; ik < kernel_num; ik++ )
+          {
+            kernel_sum[iflavor][iy][isign][ik] += kernel_sum_thread[ik];
+          }
 #ifdef HAVE_OPENMP
    /***********************************************************/
 }  /* end of critical region */
@@ -1116,7 +1128,7 @@ int main(int argc, char **argv) {
     /***********************************************************
      * sum over MPI processes
      ***********************************************************/
-    int const nitem = nflavor * 4 * ( ymax + 1 ) * ysign_num;
+    int const nitem = nflavor * kernel_num * ( ymax + 1 ) * ysign_num;
     double * mbuffer = init_1level_dtable ( nitem );
     if ( mbuffer == NULL )
     {
@@ -1140,7 +1152,7 @@ int main(int argc, char **argv) {
     if ( io_proc == 2 )
     {
       int ncdim = 4;
-      int cdim[4] = { nflavor, ymax+1, ysign_num, 4 };
+      int cdim[4] = { nflavor, ymax+1, ysign_num, kernel_num };
       char key[100];
       sprintf (key, "/t%dx%dy%dz%d", gsx[0], gsx[1], gsx[2], gsx[3] );
        exitstatus = write_h5_contraction ( kernel_sum[0][0][0], NULL, output_filename, key, "double", ncdim, cdim );
