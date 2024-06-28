@@ -36,14 +36,36 @@ namespace cvc {
     } while (0)
 
 // CUDA API error checking for malloc
-#define CUDA_CHECK_MALLOC(err)                                                                            \
+#define CUDA_CHECK_MALLOC(err)                                                                     \
     do {                                                                                           \
         cudaError_t err_ = (err);                                                                  \
         if (err_ != cudaSuccess) {                                                                 \
-            std::printf("CUDA MALLOC error %d at %s:%d\n", err_, __FILE__, __LINE__);                     \
-            throw std::runtime_error("CUDA MALLOC error");                                                \
+            std::printf("CUDA MALLOC error %d at %s:%d\n", err_, __FILE__, __LINE__);              \
+            throw std::runtime_error("CUDA MALLOC error");                                         \
         }                                                                                          \
     } while (0)
+
+// CUDA API error checking for free
+#define CUDA_CHECK_FREE(err)                                                                       \
+    do {                                                                                           \
+        cudaError_t err_ = (err);                                                                  \
+        if (err_ != cudaSuccess) {                                                                 \
+            std::printf("CUDA FREE error %d at %s:%d\n", err_, __FILE__, __LINE__);                \
+            throw std::runtime_error("CUDA FREE error");                                           \
+        }                                                                                          \
+    } while (0)
+
+
+// CUDA API error checking for memcpy
+#define CUDA_CHECK_MEMCPY(err)                                                                     \
+    do {                                                                                           \
+        cudaError_t err_ = (err);                                                                  \
+        if (err_ != cudaSuccess) {                                                                 \
+            std::printf("CUDA MEMCPY error %d at %s:%d\n", err_, __FILE__, __LINE__);              \
+            throw std::runtime_error("CUDA MEMCPY error");                                         \
+        }                                                                                          \
+    } while (0)
+
 
 #if 0
 int hlbl_lm_reduce ( void * const h_p, void * const h_v, void * const h_s, const int nv, const int nx, const int ns );

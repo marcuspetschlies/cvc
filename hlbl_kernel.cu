@@ -128,7 +128,7 @@ __device__ inline void _d_fv_ti_eq_re(double* _RESTR in_out, double const re)
  *
  * kerv field must be pre-computed with indices
  *
- * kerv[sigma-rho][nu][lambda][mu],
+ * kerv[4 x (sigma-rho, nu, lambda ) + mu ],
  * so summation index mu is innermost
  ***********************************************************/
 
@@ -139,6 +139,7 @@ __device__ inline void _d_X_prepare_ev ( cuDoubleComplex * _RESTR out, const dou
   double const gamma_map_sign[4] = {  -1.,  +1.,  +1., +1. };
 
   double sp[4][24];
+
   _d_fv_eq_gamma_ti_fv( sp[0], gamma_map_id[0], in );
   _d_fv_ti_eq_re( sp[0], gamma_map_sign[0] );
   _d_fv_eq_gamma_ti_fv( sp[1], gamma_map_id[1], in );
@@ -147,6 +148,7 @@ __device__ inline void _d_X_prepare_ev ( cuDoubleComplex * _RESTR out, const dou
   _d_fv_ti_eq_re( sp[2], gamma_map_sign[2] );
   _d_fv_eq_gamma_ti_fv( sp[3], gamma_map_id[3], in );
   _d_fv_ti_eq_re( sp[3], gamma_map_sign[3] );
+
 
 #pragma unroll
   for ( int i = 0; i < 12; i++ )
@@ -163,6 +165,7 @@ __device__ inline void _d_X_prepare_ev ( cuDoubleComplex * _RESTR out, const dou
       //out[96*i+k].y = -( sp[0][2*i+1] * kerv[4*k+0] + sp[1][2*i+1] * kerv[4*k+1] + sp[2][2*i+1] * kerv[4*k+2] + sp[3][2*i+1] * kerv[4*k+3] );
     }
   }
+
 }  // end of _d_X_prepare_ev
 
 
@@ -179,9 +182,14 @@ __global__ void ker_X_prepare_ev ( cuDoubleComplex* _RESTR out, const double* _R
 
   for (int i = index; i < N; i += stride ) 
   {
-    cuDoubleComplex * _out  = out  + 96*12 * i;
-    const double    * _in   = in   +    24 * i;
-    const double    * _kerv = kerv +   384 * i;
+    size_t offset = 96 * 12 * i;
+    cuDoubleComplex * _out  = out  + offset;
+
+    offset = 24 * i;
+    const double    * _in   = in   + offset;
+
+    offset = 384 * i;
+    const double    * _kerv = kerv + offset;
  
     _d_X_prepare_ev ( _out, _in, _kerv );
   }
@@ -209,9 +217,14 @@ __global__ void test_kernel ( cuDoubleComplex * _RESTR out, const double* _RESTR
   {
     // printf ("# [test_kernel] index %6d   stride %6d   i %6d\n", index, stride, i);
     // double *       _out  = out  +  24 * i;
-    cuDoubleComplex * _out  = out  +  12 * 96 * i;
-    const double    * _in   = in   +  24      * i;
-    const double    * _kerv = kerv + 384      * i;
+    size_t offset = 12 * 96 * i;
+    cuDoubleComplex * _out  = out  +  offset;
+
+    offset = 24 * i;
+    const double    * _in   = in   +  offset;
+
+    offset = 384 * i;
+    const double    * _kerv = kerv + offset;
  
     // _d_fv_eq_zero( _out );
    

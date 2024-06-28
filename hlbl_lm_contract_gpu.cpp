@@ -599,6 +599,9 @@ int main(int argc, char **argv) {
       EXIT(123);
     }
 
+    /***********************************************************
+     * prepare xv field
+     ***********************************************************/
     int ** xv = init_2level_itable ( VOLUME, 4 );
     if ( xv == 0 )
     {
@@ -625,17 +628,10 @@ int main(int argc, char **argv) {
     show_time ( &ta, &te, __FILE__ , "X-prepare-xv", g_cart_id == 0 );
 #endif
 
-
-    double ** spinor_field = init_2level_dtable ( 96, _GSI( (size_t)(VOLUME) ));
-    if( spinor_field == NULL )
-    {
-      fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table %s %d\n", __FILE__, __LINE__);
-      EXIT(123);
-    }
-
-
+    /* loop on |y|-distances */
     for ( int iy = 1; iy <= ymax; iy++ ) 
     {
+      /* loop on y/|y| directions */
       for ( int isign = 0; isign < ysign_num; isign++ )
       {
 
@@ -651,12 +647,15 @@ int main(int argc, char **argv) {
             yv[2] * xunit[0],
             yv[3] * xunit[0] };
 
+        /* host memory for X contraction  */
         double _Complex ***** X = init_5level_ztable ( 6, 4, 4, evec_num, evec_num );
         if ( X == NULL )
         {
           fprintf(stderr, "[hlbl_lm_contract_gpu] Error from init_level_table  %s %d\n", __FILE__, __LINE__ );
           EXIT(1);
         }
+
+        /* host memory for auxilliary field for X contraction download from device */
 #ifdef HAVE_CUDA
         double _Complex * h_p = init_1level_ztable ( evec_num * evec_num * 96 );
         if ( h_p == NULL )
@@ -666,6 +665,9 @@ int main(int argc, char **argv) {
         }
 #endif
 
+         /***********************************************************
+          * prepare x-dep. kernel field
+          ***********************************************************/
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -690,23 +692,19 @@ int main(int argc, char **argv) {
                 xv[ix][3] * xunit[0] };
 
           KQED_LX[0]( xm, ym, kqed_t, kerv );
-          /* fprintf (stdout, "# kerv %6d  x %6.4f %6.4f %6.4f %6.4f  y %6.4f %6.4f %6.4f %6.4f\n", ix,
-              xm[0], xm[1], xm[2], xm[3],
-              ym[0], ym[1], ym[2], ym[3] ); */
 
+          /* use set_kernel_point helper function for index ordering used on device */
           set_kernel_pointx ( kervx+384*ix, kerv );
         }
 }  // end parallel region
-
-
 
 #if _WITH_TIMER
         gettimeofday ( &te, (struct timezone *)NULL );
         show_time ( &ta, &te, __FILE__ , "X-prepare-kervx", g_cart_id == 0 );
 #endif
+
 #ifdef HAVE_CUDA
         /* copy kerv field to device */
-        // CUDA_CHECK(cudaMemcpyAsync( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice, stream));
         CUDA_CHECK( cudaMemcpy ( d_kervx, kervx, sizeof(double) * 384 * VOLUME, cudaMemcpyHostToDevice ));
 #endif
 
@@ -724,6 +722,8 @@ int main(int argc, char **argv) {
         show_time ( &ta, &te, __FILE__ , "project_v_dag_g_v", g_cart_id == 0 );
 #endif
 
+
+#if 0
         /***********************************************************
          * BEGIN OF TEST
          ***********************************************************/
@@ -830,6 +830,7 @@ int main(int argc, char **argv) {
         /***********************************************************
          * END OF TEST
          ***********************************************************/
+#endif  // of if 0
 
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
@@ -840,6 +841,9 @@ int main(int argc, char **argv) {
          *
          * outer evec loop counter iv for s in S field
          * inner evec loop counter iv2 for v in V field
+         *
+         * This is just a re-ordering of array elements from h_p to X,
+         * otherwise entirely same content.
          ***********************************************************/
 #pragma omp parallel for
         for ( unsigned int iv = 0; iv < evec_num; iv++ )
@@ -870,6 +874,10 @@ int main(int argc, char **argv) {
 
         free ( kervx ); kervx = NULL;
 
+        /***********************************************************
+         * in case of mpi usage, sum all data across g_cart_grid
+         * communicator
+         ***********************************************************/
 #ifdef HAVE_MPI
         double _Complex * X_buffer = (double _Complex*)malloc ( 96*evec_num*evec_num * sizeof(double _Complex) );
         memcpy ( X_buffer, X[0][0][0][0], 96*evec_num*evec_num * sizeof(double _Complex) );
@@ -883,6 +891,9 @@ int main(int argc, char **argv) {
         free ( X_buffer ); X_buffer = NULL;
 #endif
 
+        /***********************************************************
+         * io_proc 2 writes to file
+         ***********************************************************/
 #if _WITH_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
 #endif
@@ -909,11 +920,10 @@ int main(int argc, char **argv) {
         fini_1level_ztable ( &h_p );
 #endif
     
-      }  // end of loop on y directions
+      }  // end of loop on y/|y| directions
     
-    }  // end of loop on y distances
+    }  // end of loop on |y| distances
 
-    fini_2level_dtable ( &spinor_field );
     fini_2level_itable ( &xv );
 
   }  // of loop on source locations
