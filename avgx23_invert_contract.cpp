@@ -146,7 +146,9 @@ int main(int argc, char **argv) {
     {3,2,0},
     {3,2,1} 
   };
+
 #endif
+
   struct timeval ta, tb, start_time, end_time;
 
 #ifdef HAVE_MPI

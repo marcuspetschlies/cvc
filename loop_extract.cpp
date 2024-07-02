@@ -46,8 +46,8 @@ using namespace cvc;
 #define _STOCHASTIC_HP     1
 #define _STOCHASTIC_VOLSRC 0
 
-#define _PLEGMA_CONVENTION 1
-#define _CVC_CONVENTION 0
+#define _PLEGMA_CONVENTION 0
+#define _CVC_CONVENTION    1
 
 void usage() {
   fprintf(stdout, "Code to extract loop data\n");
@@ -234,11 +234,17 @@ int main(int argc, char **argv) {
   /* MG_loop_lightquark_conf_conf.1016_runtype_probD8_part1_stoch_NeV0_Ns0128_step0001_Qsq22.h5 */
   sprintf ( filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
 #  elif _CVC_CONVENTION
-  // sprintf ( filename, "%s/%d/%s.%.4d.h5", filename_prefix, confid, filename_prefix2, confid );
-  sprintf ( filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid );
+  char cstream = (stream == 0) ? 'a' : 'b';
+
+  sprintf ( filename, "stream_%c/%s/%d/%s.%.4d.h5", cstream, filename_prefix, confid, filename_prefix2, confid );
+  /* sprintf ( filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid ); */
 #  endif
 #else
-  sprintf ( filename, "%s_S1/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", flavor, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+  /* sprintf ( filename, "%s_S1/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", flavor, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq ); */
+
+  sprintf ( filename, "%s/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+      filename_prefix3, confid, stream, hier_prob_D, confid, stream, exdef_nev, nsample, nstep, Qsq );
+
 #endif
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
@@ -345,7 +351,11 @@ int main(int argc, char **argv) {
     }
 
     char data_filename[400];
-    sprintf ( data_filename, "loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", hier_prob_D,  confid, stream, exdef_nev, Qsq );
+    sprintf ( data_filename, "%.4d_r%d/loop_probD%d.%.4d_r%d_exact_NeV%d_Qsq%d.h5", 
+        confid, stream,
+        hier_prob_D,  confid, stream, exdef_nev, Qsq );
+
+
     if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
 
     sprintf ( data_tag_prefix, "/conf_%.4d/%s" , confid, oet_type );
@@ -453,12 +463,30 @@ int main(int argc, char **argv) {
   for ( unsigned int Nstoch = nstep; Nstoch <= nsample; Nstoch += nstep )
   {
 
-    sprintf ( data_filename, "%s_S%d/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+    /* sprintf ( data_filename, "%s_S%d/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
         flavor, Nstoch, confid, stream,
-        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
-    if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
+        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq ); */
     
-    double _Complex const norm = loop_norm / Nstoch / ( hier_prob_D * hier_prob_D * hier_prob_D  );
+
+    sprintf ( data_filename, "%s/%.4d_r%d/loop_probD%d.%.4d_r%d_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", 
+        filename_prefix3, confid, stream,
+        hier_prob_D,  confid, stream, exdef_nev, nsample, nstep, Qsq );
+
+
+    if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", data_filename );
+ 
+    double hier_prob_norm = 0.;
+    switch (hier_prob_D) {
+      case 4: hier_prob_norm = 1. / 32.;
+              break;
+      case 8: hier_prob_norm = 1. / 512.;
+              break;
+      default: fprintf ( stderr, "[loop_extract] normalization undefined for distance %d\n", hier_prob_D );
+               EXIT(12);
+               break;
+    }
+
+    double _Complex const norm = loop_norm / Nstoch * hier_prob_norm;
     if ( g_verbose > 0 ) fprintf ( stdout, "# [loop_extract] norm Nstoch %4d %25.16e %26.16e\n", Nstoch, creal( norm ), cimag ( norm ) );
 
     sprintf ( data_tag_prefix, "/conf_%.4d/Nstoch_%.4d/%s" , confid, Nstoch, oet_type );
@@ -494,6 +522,11 @@ int main(int argc, char **argv) {
               g_sink_momentum_list[imom][0],
               g_sink_momentum_list[imom][1],
               g_sink_momentum_list[imom][2] );
+
+          /* sprintf ( filename, "loop.%.4d.stoch.%s.nev%d.Nstoch%d.mu%d.PX%d_PY%d_PZ%d", confid, oet_type, exdef_nev, Nstoch, idir,
+              g_sink_momentum_list[imom][0],
+              g_sink_momentum_list[imom][1],
+              g_sink_momentum_list[imom][2] ); */
         } else {
           sprintf ( filename, "loop.%.4d_r%d.stoch.%s.nev%d.Nstoch%d.PX%d_PY%d_PZ%d", confid, stream, oet_type, exdef_nev, Nstoch,
               g_sink_momentum_list[imom][0],
@@ -550,8 +583,8 @@ int main(int argc, char **argv) {
   sprintf ( data_filename, "MG_loop_lightquark_conf_conf.%.4d_runtype_probD%d_part1_stoch_NeV%d_Ns%.4d_step%.4d_Qsq%d.h5", confid, hier_prob_D, exdef_nev, nsample, nstep, Qsq );
   /* sprintf ( data_filename, "%s.%.4d.h5", g_outfile_prefix, confid ); */
 #elif _CVC_CONVENTION
-  // sprintf ( data_filename, "%s/%d/%s.%.4d.h5", filename_prefix, confid, filename_prefix2, confid );
-  sprintf ( data_filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid );
+  sprintf ( data_filename, "stream_%c/%s/%d/%s.%.4d.h5", cstream, filename_prefix, confid, filename_prefix2, confid );
+  /* sprintf ( data_filename, "%s/%s.%.4d.h5", filename_prefix, filename_prefix2, confid ); */
 #endif
   if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
@@ -662,7 +695,9 @@ int main(int argc, char **argv) {
 
       if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract] loop filename = %s\n", filename );
 
-      FILE * ofs = fopen ( filename, "w" );
+      FILE * ofs = NULL;
+
+      ofs = fopen ( filename, "w" );
       if ( ofs == NULL ) {
         fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename , __FILE__, __LINE__ );
         EXIT(1);
@@ -679,23 +714,23 @@ int main(int argc, char **argv) {
       }  /* end of loop on samples */
 
       fclose ( ofs );
-#if 0
-#endif
-      strcat ( filename, ".avg" );
-      FILE * ofs2 = fopen ( filename, "w" );
-      if ( ofs2 == NULL ) {
-        fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename , __FILE__, __LINE__ );
+
+      char filename2[400];
+      sprintf ( filename2, "%s.avg", filename );
+      ofs = fopen ( filename2, "w" );
+      if ( ofs == NULL ) {
+        fprintf ( stderr, "[loop_extract] Error from open for filename %s %s %d\n", filename2 , __FILE__, __LINE__ );
         EXIT(1);
       }
 
       for ( int it = 0; it < T; it++ ) {
         for ( int ia = 0; ia < 4; ia++ ) {
         for ( int ib = 0; ib < 4; ib++ ) {
-          fprintf ( ofs2, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
+          fprintf ( ofs, "%6d %3d %d %d %25.16e %25.16e\n", nsample, it, ia, ib, creal( zloop_stoch_avg[imom][it][ia][ib] ), cimag ( zloop_stoch_avg[imom][it][ia][ib] ) );
         }}
       }
 
-      fclose ( ofs2 );
+      fclose ( ofs );
 
 
       for ( int ig = 0; ig < g_sink_gamma_id_number; ig++ ) {

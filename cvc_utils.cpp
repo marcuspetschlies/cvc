@@ -92,10 +92,13 @@ int read_input (char *filename) {
 /*****************************************************
  * allocate gauge field
  *****************************************************/
-int alloc_gauge_field(double **gauge, const int V) {
-  *gauge = (double*)calloc(72*V, sizeof(double));
+int alloc_gauge_field ( double **gauge, unsigned int const V ) 
+{
+  size_t const nelem = 72 * (size_t)V;
+
+  *gauge = (double *)calloc ( nelem, sizeof(double) );
   if((void*)gauge == NULL) {
-    fprintf(stderr, "could not allocate memory for gauge\n");
+    fprintf(stderr, "[alloc_gauge_field] could not allocate memory for gauge\n");
 #ifdef HAVE_MPI
     MPI_Abort(MPI_COMM_WORLD, 10);
     MPI_Finalize();
@@ -1807,7 +1810,8 @@ int printf_spinor_field(double *s, int print_halo, FILE *ofs) {
                  s[ix+18], s[ix+19], s[ix+20], s[ix+21], s[ix+22], s[ix+23]);
 */
     for(i=0; i<12; i++) {
-      fprintf(ofs, "s[%2d,%2d] <- %18.9e + %18.9e*1.i\n", ix/24+1, i+1, s[ix+2*i], s[ix+2*i+1]);
+   /* fprintf(ofs, "s[%2d,%2d] <- %18.9e + %18.9e*1.i\n", ix/24+1, i+1, s[ix+2*i], s[ix+2*i+1]); */
+      fprintf(ofs, "%25.16e   %25.16e \n", s[ix+2*i], s[ix+2*i+1]);
     }
   }}}}
 
@@ -4460,11 +4464,16 @@ void free_fp_field(fermion_propagator_type **fp) {
   return;
 }
 
-int unit_gauge_field(double*g, unsigned int N) {
-  unsigned int i, mu;
-  for(i=0;i<N;i++) {
-    for(mu=0;mu<4;mu++) {
-      _cm_eq_id( g+_GGI(i , mu) );
+int unit_gauge_field(double * const g, unsigned int const N) 
+{
+#pragma omp parallel for
+  for( unsigned int i=0; i<N; i++)
+  {
+    for( int mu = 0; mu < 4; mu++) 
+    {
+      size_t const idx = _GGI( (size_t)i, mu );
+
+      _cm_eq_id( g + idx );
     }
   }
   return(0);
@@ -6513,7 +6522,7 @@ void complex_field_eq_complex_field_pl_complex_field_conj_ti_re (double*r, doubl
  *   -mu, -nu direction
  ***********************************************************/
 
-int plaquetteria  (double*gauge_field ) {
+int plaquetteria  (double * const gauge_field ) {
 
   const double norm  = 1. / (g_nproc * VOLUME * 18.);
 
@@ -6528,7 +6537,7 @@ int plaquetteria  (double*gauge_field ) {
   gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef HAVE_OPENMP
   omp_init_lock(&writelock);
-#pragma omp parallel shared(gauge_field,plaq)
+#pragma omp parallel shared(plaq)
 {
 #endif
   unsigned int ix;
@@ -6678,8 +6687,7 @@ int plaquetteria  (double*gauge_field ) {
  ***********************************************************/
 int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*gauge_field, complex co_phase[4] ) {
 
-  int mu, exitstatus;
-  unsigned int ix, iix;
+  int exitstatus;
   struct timeval ta, tb;
 
   gettimeofday ( &ta, (struct timezone *)NULL );
@@ -6696,11 +6704,11 @@ int gauge_field_eq_gauge_field_ti_phase (double**gauge_field_with_phase, double*
   }
 
 #ifdef HAVE_OPENMP
-#pragma omp parallel for private(ix,iix,mu)
+#pragma omp parallel for
 #endif
-  for( ix=0; ix<VOLUME; ix++ ) {
-    for ( mu=0; mu<4; mu++ ) {
-      iix = _GGI(ix,mu);
+  for( unsigned int ix=0; ix<VOLUME; ix++ ) {
+    for ( int mu=0; mu<4; mu++ ) {
+      size_t iix = _GGI( (size_t)ix, mu);
       _cm_eq_cm_ti_co ( (*gauge_field_with_phase) + iix, gauge_field + iix, &co_phase[mu] );
     }
   }

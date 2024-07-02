@@ -15,6 +15,19 @@ extern "C"
 }
 #endif
 
+#ifndef _PROPAGATOR_WRITE_BINARY_DATA_TYPE
+#define _PROPAGATOR_WRITE_BINARY_DATA_TYPE ildg-binary-data
+/* #define _PROPAGATOR_WRITE_BINARY_DATA_TYPE scidac-binary-data */
+#endif
+
+#ifndef _PROPAGATOR_READ_BINARY_DATA_TYPE
+#define _PROPAGATOR_READ_BINARY_DATA_TYPE ildg-binary-data
+/* #define _PROPAGATOR_READ_BINARY_DATA_TYPE scidac-binary-data */
+#endif
+
+#define _XSTR(X) _STR(X)
+#define _STR(X) #X
+
 
 namespace cvc {
 int write_propagator(double * const s, char * filename, const int append, const int prec);
@@ -50,7 +63,8 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
 
 int prepare_propagator2(int *source_coords, int iread, int sign, void *work, int pos, int format, size_t prec_out);
 
-int rotate_propagator_ETMC_UKQCD (double *spinor, long unsigned int V);
+int rotate_propagator_ETMC_UKQCD (double * const spinor, long unsigned int const V);
+
 
 int read_lime_spinor_single(float * const s, char * filename, const int position);
 int read_binary_spinor_data_timeslice(double * const s, int timeslice, LimeReader * limereader, const int prec, DML_Checksum *ans);

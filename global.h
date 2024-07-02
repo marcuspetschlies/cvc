@@ -16,7 +16,7 @@
 
 #ifdef HAVE_LIBLEMON
 #  ifndef LEMON_OFFSET_TYPE
-/*#    define LEMON_OFFSET_TYPE MPI_Offset */
+// #    define LEMON_OFFSET_TYPE MPI_Offset
 #    define LEMON_OFFSET_TYPE uint64_t
 #  endif
 #endif
@@ -137,6 +137,7 @@ EXTERN int g_proc_id, g_nproc;
 EXTERN int g_cart_id;
 EXTERN int g_nb_list[8];
 EXTERN int g_proc_coords[4];
+EXTERN int g_device_id;
 
 #ifdef HAVE_MPI
 EXTERN MPI_Comm g_cart_grid;

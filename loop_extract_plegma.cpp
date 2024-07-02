@@ -225,6 +225,7 @@ int main(int argc, char **argv) {
    * loop data filename
    ***************************************************************************/
   sprintf ( filename, "%s_S1/%.4d_r%d/stoch_part_%s.h5", flavor, confid, stream, oet_type );
+  // sprintf ( filename, "%.4d_r%d/stoch_part_%s.h5", confid, stream, oet_type );
   // sprintf ( filename, "%.4d_r%d/exact_part_%s.h5", confid, stream, oet_type );
 
   if ( io_proc == 2 && g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", filename );
@@ -424,6 +425,7 @@ int main(int argc, char **argv) {
   
     char data_filename[400];
     sprintf ( data_filename, "%s_S%d/%.4d_r%d/stoch_part_%s.h5", flavor, Nstoch, confid, stream, oet_type );
+    // sprintf ( data_filename, "%.4d_r%d/stoch_part_%s.h5", confid, stream, oet_type );
     if ( g_verbose > 2 ) fprintf ( stdout, "# [loop_extract_plegma] loop filename = %s\n", data_filename );
 
     sprintf ( data_tag_prefix, "/Conf%.4d_r%d/Ns%d/%s" , confid, stream, 0, loop_type );

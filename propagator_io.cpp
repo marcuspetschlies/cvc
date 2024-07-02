@@ -657,7 +657,7 @@ int write_lemon_spinor(double * const s, char * filename, const int append, cons
   bytes = (n_uint64_t)LX_global * LY_global * LZ_global * T_global * (n_uint64_t) (24*sizeof(double) * prec / 64);
 /* #endif */
   MB_flag=1, ME_flag=0;
-  header = lemonCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
+  header = lemonCreateHeader(MB_flag, ME_flag, _XSTR(_PROPAGATOR_WRITE_BINARY_DATA_TYPE), bytes);
   status = lemonWriteRecordHeader(header, writer);
   lemonDestroyHeader(header);
 
@@ -733,10 +733,10 @@ int write_lime_spinor(double * const s, char * filename,
 
     bytes = (LX*g_nproc_x)*LY*LZ*T_global*(n_uint64_t)24*sizeof(double)*prec/64;
     MB_flag=0; ME_flag=1;
-    limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
+    limeheader = limeCreateHeader(MB_flag, ME_flag, _XSTR(_PROPAGATOR_WRITE_BINARY_DATA_TYPE), bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "[write_lime_spinor] LIME write header (scidac-binary-data) error %d\n", status);
+      fprintf(stderr, "[write_lime_spinor] LIME write header %s error %d\n", _XSTR(_PROPAGATOR_WRITE_BINARY_DATA_TYPE), status);
 #ifdef HAVE_MPI
       MPI_Abort(MPI_COMM_WORLD, 1);
       MPI_Finalize();
@@ -841,7 +841,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
       break;
     }
     header_type = (char*)lemonReaderType(reader);
-    if (strcmp("scidac-binary-data", header_type) == 0) {
+    if (strcmp( _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE), header_type) == 0) {
       if (getpos == position)
         break;
       else
@@ -850,7 +850,7 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
   }
 
   if (status == LIME_EOF) {
-    fprintf(stderr, "[read_lime_spinor] Error, no scidac-binary-data record found in file.\n");
+    fprintf(stderr, "[read_lime_spinor] Error, no %s record found in file.\n", _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE) );
     MPI_Abort(MPI_COMM_WORLD, 1);
     MPI_Finalize();
     exit(500);
@@ -910,11 +910,11 @@ int read_lime_spinor(double * const s, char * filename, const int position) {
       break;
     }
     header_type = limeReaderType(limereader);
-    if(strcmp("scidac-binary-data",header_type) == 0) getpos++;
+    if(strcmp( _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE), header_type) == 0) getpos++;
     if(getpos == position) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "[read_lime_spinor] no scidac-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_spinor] no %s record found in file %s\n", _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE), filename);
     limeDestroyReader(limereader);
     fclose(ifs);
     if(g_proc_id==0) fprintf(stderr, "[read_lime_spinor] try to read in CMI format\n");
@@ -1102,10 +1102,10 @@ int write_lime_spinor_timeslice(double * const s, char * filename,
   bytes = LX*LY*LZ*T_global*(n_uint64_t)24*sizeof(double)*prec/64;
   if(timeslice==0) {
     MB_flag=0; ME_flag=1;
-    limeheader = limeCreateHeader(MB_flag, ME_flag, "scidac-binary-data", bytes);
+    limeheader = limeCreateHeader(MB_flag, ME_flag, _XSTR(_PROPAGATOR_WRITE_BINARY_DATA_TYPE), bytes);
     status = limeWriteRecordHeader( limeheader, limewriter);
     if(status < 0 ) {
-      fprintf(stderr, "[write_lime_spinor_timeslice] LIME write header (scidac-binary-data) error %d\n", status);
+      fprintf(stderr, "[write_lime_spinor_timeslice] LIME write header %s error %d\n", _XSTR(_PROPAGATOR_WRITE_BINARY_DATA_TYPE), status);
       exit(500);
     }
     limeDestroyHeader( limeheader );
@@ -1270,18 +1270,37 @@ int prepare_propagator(int timeslice, int iread, int is_mms, int no_mass, double
  * matrix convention
  *
  **************************************************/
-int rotate_propagator_ETMC_UKQCD (double *spinor, long unsigned int V) {
+int rotate_propagator_ETMC_UKQCD (double * const spinor, long unsigned int const V) 
+{
+  /* Why would there be a minus sign? 
+   *
+   * Rotating with cvc ( g0 + g5 ) / sqrt(2)
+   * seems to be correct
+   */
+  /* double const norm = -1. / sqrt(2.); */
 
-  long unsigned int ix;
+  double const norm = 1. / sqrt(2.);
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel
+{
+#endif
   double sp[24], sp2[24];
-  double norm = -1. / sqrt(2.);
+#ifdef HAVE_OPENMP
+#pragma omp for
+#endif
+  for ( long unsigned int ix = 0; ix < V; ix++ ) 
+  {
+    double * const _s = spinor + _GSI(ix);
 
-  for(ix=0; ix<V; ix++) {
-    _fv_eq_gamma_ti_fv(sp,  0, spinor+_GSI(ix));
-    _fv_eq_gamma_ti_fv(sp2, 5, spinor+_GSI(ix));
-    _fv_eq_fv_pl_fv(spinor+_GSI(ix), sp, sp2);
-    _fv_ti_eq_re(spinor+_GSI(ix), norm);
+    _fv_eq_gamma_ti_fv(sp,  0, _s );
+    _fv_eq_gamma_ti_fv(sp2, 5, _s );
+    _fv_eq_fv_pl_fv( _s, sp, sp2);
+    _fv_ti_eq_re( _s, norm);
   }
+#ifdef HAVE_OPENMP
+}  /* end of parallel region */
+#endif
   return(0);
 }
 
@@ -1431,11 +1450,11 @@ int read_lime_spinor_single(float * const s, char * filename, const int position
       break;
     }
     header_type = limeReaderType(limereader);
-    if(strcmp("scidac-binary-data",header_type) == 0) getpos++;
+    if(strcmp( _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE), header_type) == 0) getpos++;
     if(getpos == position) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "[read_lime_spinor_single] no scidac-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_spinor_single] no %s record found in file %s\n", _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE), filename);
     limeDestroyReader(limereader);
     fclose(ifs);
     if(g_proc_id==0) fprintf(stderr, "[read_lime_spinor_single] try to read in CMI format\n");
@@ -1512,11 +1531,11 @@ int read_lime_spinor_timeslice(double * const s, int timeslice, char * filename,
       break;
     }
     header_type = limeReaderType(limereader);
-    if(strcmp("scidac-binary-data",header_type) == 0) getpos++;
+    if(strcmp( _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE),header_type) == 0) getpos++;
     if(getpos == position) break;
   }
   if(status == LIME_EOF) {
-    fprintf(stderr, "[read_lime_spinor_timeslice] no scidac-binary-data record found in file %s\n",filename);
+    fprintf(stderr, "[read_lime_spinor_timeslice] no %s record found in file %s\n", _XSTR(_PROPAGATOR_READ_BINARY_DATA_TYPE), filename);
     limeDestroyReader(limereader);
     fclose(ifs);
     if(g_proc_id==0) fprintf(stderr, "[read_lime_spinor_timeslice] try to read in CMI format\n");
