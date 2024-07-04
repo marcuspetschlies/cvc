@@ -63,7 +63,7 @@ extern "C"
 #include "gamma.h"
 #include "clover.h"
 #include "gradient_flow.h"
-#include "gluon_operators.h"
+#include "contractions_io.h"
 #include "scalar_products.h"
 #include "gauge_quda.h"
 #include "fermion_quda.h"
@@ -97,7 +97,6 @@ int main(int argc, char **argv) {
   int io_proc = -1;
   char filename[400];
   struct timeval ta, tb, start_time, end_time;
-  int check_propagator_residual = 0;
   int gf_niter = 20;
   int gf_ns = 2;
   double gf_dt = 0.01;
@@ -108,14 +107,11 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "ch?f:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
       filename_set=1;
-      break;
-    case 'c':
-      check_propagator_residual = 1;
       break;
     case 'h':
     case '?':
@@ -316,22 +312,9 @@ int main(int argc, char **argv) {
   // write_propagator ( spinor_work[1], filename, 0, 64 );
 
   fini_2level_dtable ( &spinor_work );
-#endif  // of if 0
+
   _loadGaugeQuda( NO_COMPRESSION );
-#endif
-
-
-
-  /***************************************************************************
-   * up- and down-load gauge field
-   ***************************************************************************/
-
-  double * gauge_field_smeared = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
-  if ( gauge_field_smeared == NULL )
-  {
-    fprintf(stderr, "[test_adjoint_flow] Error from init_1level_dtable   %s %d\n", __FILE__, __LINE__);
-    EXIT(12);
-  }
+#endif  // of if 0
 
   double ** h_gauge = init_2level_dtable ( 4, 18*VOLUME );
   if ( h_gauge == NULL )
@@ -346,54 +329,24 @@ int main(int argc, char **argv) {
   QudaGaugeParam gauge_param;
 
   init_gauge_param ( &gauge_param );
+  gauge_param.location = QUDA_CPU_FIELD_LOCATION;
+  gauge_param.type = QUDA_WILSON_LINKS;
 
-  /***************************************************************************
-   * inv_param initialization
-   ***************************************************************************/
-  QudaInvertParam inv_param;
+  /* reshape gauge field */
+  gauge_field_cvc_to_qdp ( h_gauge, gauge_field_with_phase );
+  
+  /* upload to device */
+  loadGaugeQuda ( (void *)h_gauge, &gauge_param );
 
-  init_invert_param ( &inv_param );
-
+#endif
 
 #ifdef _GFLOW_QUDA
-    /***************************************************************************
-     * upload gauge field
-     ***************************************************************************/
-  
-    memcpy ( gauge_field_smeared, gauge_field_with_phase, sizeof_gauge_field );
-    // unit_gauge_field ( gauge_field_smeared, VOLUME );
-
-  
-    /* reshape gauge field */
-    gauge_field_cvc_to_qdp ( h_gauge, gauge_field_smeared );
-  
-  
-    /* upload to device */
-    loadGaugeQuda ( (void *)h_gauge, &gauge_param );
- 
-#endif   /* of #ifdef _GFLOW_QUDA  */
-
-#if 0
-    /* to really check, set both gauge fields to zero */
-    memset ( h_gauge[0], 0, 4 * 18 * VOLUME * sizeof ( double ) );
-  
-    memset ( gauge_field_smeared, 0, sizeof_gauge_field );
-  
-    /* download from device */
-    gauge_param.location = QUDA_CPU_FIELD_LOCATION;
-  
-    saveGaugeQuda ( (void*)h_gauge, &gauge_param );
-  
-    gauge_field_qdp_to_cvc ( gauge_field_smeared, h_gauge );
-  
-    
-    sprintf ( filename, "gauge_field.1" );
-    exitstatus = write_lime_contraction( gauge_field_smeared, filename,  64, 36, "gauge", Nconf, 0 );
-    if ( exitstatus != 0 )
-    {
-      fprintf ( stderr, "[test_adjoint_flow] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );
-      EXIT(12);
-    }
+  double * gauge_field_smeared = init_1level_dtable ( 72 * VOLUMEPLUSRAND );
+  if ( gauge_field_smeared == NULL )
+  {
+    fprintf(stderr, "[test_adjoint_flow] Error from init_1level_dtable   %s %d\n", __FILE__, __LINE__);
+    EXIT(12);
+  }
 #endif
 
   /***************************************************************************
@@ -406,6 +359,77 @@ int main(int argc, char **argv) {
     EXIT(12);
   }
 
+  /***************************************************************************
+   * up- and down-load gauge field
+   ***************************************************************************/
+
+#ifdef _GFLOW_QUDA
+  /***************************************************************************
+   * upload gauge field
+   ***************************************************************************/
+  // memcpy ( gauge_field_smeared, gauge_field_with_phase, sizeof_gauge_field );
+  // unit_gauge_field ( gauge_field_smeared, VOLUME );
+  random_gauge_field ( gauge_field_smeared, 1. );
+
+  double pl = 0.;
+  plaquette2 ( &pl,  gauge_field_smeared );
+  if ( g_cart_id == 0 )
+  {
+	  fprintf(stdout, "# [test_adjoint_flow] pl = %25.16e    %s %d\n", pl, __FILE__, __LINE__ );
+  } 
+  
+  /* reshape gauge field */
+  gauge_field_cvc_to_qdp ( h_gauge, gauge_field_smeared );
+
+  gauge_param.location = QUDA_CPU_FIELD_LOCATION;
+  gauge_param.type = QUDA_FLOWED_LINKS;
+  
+  /* upload to device */
+  loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+
+
+#if 0
+  /* to really check, set both gauge fields to zero */
+  memset ( h_gauge[0], 0, 4 * 18 * VOLUME * sizeof ( double ) );
+  
+  memset ( gauge_field_smeared, 0, sizeof_gauge_field );
+  
+  /* download from device */
+  gauge_param.location = QUDA_CPU_FIELD_LOCATION;
+  
+  saveGaugeQuda ( (void*)h_gauge, &gauge_param );
+  
+  gauge_field_qdp_to_cvc ( gauge_field_smeared, h_gauge );
+ 
+
+  double norm_diff = 0.;
+  for ( unsigned int ix = 0; ix < 72*VOLUME; ix++ )
+  {
+    double d = gauge_field_smeared[ix] - gauge_field_with_phase[ix];
+    norm_diff += d*d;
+  }
+  double ndtmp = norm_diff;
+  MPI_Allreduce ( &ndtmp , &norm_diff, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid );
+
+  if ( io_proc == 2 )
+  {
+	  fprintf(stdout, "# [test_adjoint_flow] gauge field norm_diff %25.16e\n", norm_diff );
+  }
+#endif  // of if 0
+    
+  //sprintf ( filename, "gauge_field.1" );
+  //exitstatus = write_lime_contraction( gauge_field_smeared, filename,  64, 36, "gauge", Nconf, 0 );
+  //if ( exitstatus != 0 )
+  //{
+  //  fprintf ( stderr, "[test_adjoint_flow] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );
+  //  EXIT(12);
+  //}
+#if 0
+#endif  // of if 0
+
+#endif   /* of #ifdef _GFLOW_QUDA  */
+
+
   prepare_volume_source ( spinor_field[0], VOLUME );
 
   memcpy ( spinor_field[1], spinor_field[0], sizeof_spinor_field ); 
@@ -416,6 +440,8 @@ int main(int argc, char **argv) {
 
 #ifdef _GFLOW_QUDA
  
+    // _performWuppertalnStep ( spinor_field[0], spinor_field[0], 1, 1. );
+
     QudaGaugeSmearParam smear_param;
     smear_param.n_steps       = gf_niter;
     smear_param.epsilon       = gf_dt;
@@ -427,11 +453,11 @@ int main(int argc, char **argv) {
 
     _performGFlowAdjoint ( spinor_field[0], spinor_field[0], &smear_param, gf_niter, gf_nb, gf_ns );
 
-    saveGaugeQuda ( (void*)h_gauge, &gauge_param );
+    //saveGaugeQuda ( (void*)h_gauge, &gauge_param );
+    //
+    //gauge_field_qdp_to_cvc ( gauge_field_smeared, h_gauge );
 
-    gauge_field_qdp_to_cvc ( gauge_field_smeared, h_gauge );
-    
-    _performGFlowAdjoint ( NULL, NULL, &smear_param, gf_niter, gf_nb, -1 );
+     _performGFlowAdjoint ( NULL, NULL, &smear_param, gf_niter, gf_nb, -1 );
 
 #if 0
     sprintf ( filename, "gauge_field.gpuflow" );
@@ -445,6 +471,7 @@ int main(int argc, char **argv) {
 
 #endif  /* of if _GFLOW_QUDA */
 
+
     /***************************************************************************
      * now flow the gauge field and the spinor field the same way on the cpu
      ***************************************************************************/
@@ -457,7 +484,8 @@ int main(int argc, char **argv) {
       EXIT(12);
     }
 
-    memcpy ( gauge_field_smeared_cpu[gf_ns], gauge_field_with_phase, sizeof_gauge_field );
+    // memcpy ( gauge_field_smeared_cpu[gf_ns], gauge_field_with_phase, sizeof_gauge_field );
+    memcpy ( gauge_field_smeared_cpu[gf_ns], gauge_field_smeared, sizeof_gauge_field );
 
     flow_adjoint_gauge_spinor_field ( gauge_field_smeared_cpu, spinor_field[1], gf_dt, gf_niter, gf_nb, gf_ns );
 
@@ -472,99 +500,31 @@ int main(int argc, char **argv) {
 
 #endif  /* of if _GFLOW_CVC */
 
+#if defined _GFLOW_CVC && defined _GFLOW_QUDA
+    double normg = 0., normc = 0.;
+    spinor_scalar_product_re ( &normg, spinor_field[0], spinor_field[0], VOLUME ) ;
+    spinor_scalar_product_re ( &normc, spinor_field[1], spinor_field[1], VOLUME ) ;
 
-#if 0
-    /***************************************************************************
-     * || U_gpuflow -  U_cpuflow ||
-     ***************************************************************************/
-
-    double normdiff = 0.;
-  
-#ifdef HAVE_OPENMP
-#pragma omp parallel
-{
-#endif
-    double nd = 0.;
-#ifdef HAVE_OPENMP
-#pragma omp for
-#endif
-    for ( unsigned int ix = 0; ix < 72*VOLUME; ix++ )
+    spinor_field_pl_eq_spinor_field_ti_re ( spinor_field[1], spinor_field[0] , -1., VOLUME );
+    double norm_diff = 0;
+    spinor_scalar_product_re ( &norm_diff, spinor_field[1], spinor_field[1], VOLUME ) ;
+    if ( io_proc == 2 )
     {
-      double const dtmp = gauge_field_smeared_cpu[ix] - gauge_field_smeared[ix];
-      nd += dtmp * dtmp;
+	    fprintf (stdout, "# [] norm_diff %25.16e  normc %25.16e normg %25.16e    %s %d\n", norm_diff, normc, normg, __FILE__, __LINE__);
     }
-#ifdef HAVE_OPENMP
-#pragma omp critical
-{
+
+
 #endif
-  normdiff += nd;
-#ifdef HAVE_OPENMP
-}
-#endif
-}
-  
-#ifdef HAVE_MPI
-    double pnormdiff = normdiff;
-    if ( MPI_Allreduce ( &pnormdiff, &normdiff, 1, MPI_DOUBLE, MPI_SUM, g_cart_grid ) != MPI_SUCCESS )
-    {
-      fprintf(stderr, "[test_adjoint_flow] Error from MPI_Allreduce   %s %d\n", __FILE__, __LINE__);
-      EXIT(12);
-    }
-#endif
- 
-    normdiff = sqrt ( normdiff );
-    if ( io_proc == 2 ) fprintf (stdout, "# [test_adjoint_flow] diff %2d %16.7e   gauge  %16.7e   %s %d\n",
-        gf_niter, gf_dt, normdiff, __FILE__, __LINE__ );
-
-#endif  // of if 0
-
-    /***************************************************************************
-     * || f_gpuflow -  f_cpuflow ||
-     ***************************************************************************/
-
-    spinor_field_eq_spinor_field_mi_spinor_field ( spinor_field[2], spinor_field[0], spinor_field[1], VOLUME );
-
-    double sfnorm[2] = { 0. , 0. };
-    spinor_scalar_product_re ( sfnorm, spinor_field[0], spinor_field[0], VOLUME );
-    spinor_scalar_product_re ( sfnorm+1, spinor_field[1], spinor_field[1], VOLUME );
-    sfnorm[0] = sqrt ( sfnorm[0] );
-    sfnorm[1] = sqrt ( sfnorm[1] );
-
-    double sfdiff = 0.;
-    spinor_scalar_product_re ( &sfdiff, spinor_field[2], spinor_field[2], VOLUME );
-    sfdiff = sqrt ( sfdiff );
-
-    if ( io_proc == 2 ) fprintf (stdout, "# [test_adjoint_flow] sfdiff %2d %16.7e   %25.16e   %25.16e   %25.16e   %s %d\n", 
-        gf_niter, gf_dt, sfdiff, sfnorm[0], sfnorm[1], __FILE__, __LINE__ );
-
-
-#if 0
-#ifdef _GFLOW_CVC
-    memcpy ( gauge_field_smeared_cpu, gauge_field_with_phase, sizeof_gauge_field );
-    // unit_gauge_field ( gauge_field_smeared_cpu, VOLUME );
-
-    memcpy ( spinor_field[2], spinor_field[0], sizeof_spinor_field );
- 
-    flow_fwd_gauge_spinor_field ( gauge_field_smeared_cpu, spinor_field[2], gf_niter, gf_dt, 1, 1 );
- 
-    //sprintf ( filename, "gauge_field.cpuflow" );
-    //exitstatus = write_lime_contraction( gauge_field_smeared_cpu, filename,  64, 36, "gauge", Nconf, 0 );
-    //if ( exitstatus != 0 )
-    //{
-    //  fprintf ( stderr, "[test_adjoint_flow] Error from write_lime_contraction, status %d   %s %d\n", exitstatus, __FILE__, __LINE__ );
-    //  EXIT(12);
-    //}
-#endif  /* of if _GFLOW_CVC */
-
-#endif  /* if 0 */
 
 #ifdef _GFLOW_CVC
   fini_2level_dtable ( &gauge_field_smeared_cpu );
 #endif
   fini_2level_dtable ( &spinor_field );
+
+#ifdef _GFLOW_QUDA
   fini_2level_dtable ( &h_gauge );
   fini_1level_dtable ( &gauge_field_smeared );
-
+#endif
 
   /***************************************************************************
    * free the allocated memory, finalize
@@ -584,7 +544,6 @@ int main(int argc, char **argv) {
 #ifdef HAVE_TMLQCD_LIBWRAPPER
   tmLQCD_finalise();
 #endif
-
 
 #ifdef HAVE_MPI
   mpi_fini_xchange_contraction();
