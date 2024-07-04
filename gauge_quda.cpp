@@ -158,7 +158,7 @@ void init_gauge_param (QudaGaugeParam * const gauge_param )
   gauge_param->tadpole_coeff = 0.0;
   gauge_param->scale         = 0.0;
 
-  gauge_param->type = QUDA_FLOWED_LINKS;
+  // gauge_param->type = QUDA_FLOWED_LINKS;
   gauge_param->gauge_order = QUDA_QDP_GAUGE_ORDER;  /* expect *gauge[mu], even-odd, spacetime, row-column color */
 
   gauge_param->t_boundary = QUDA_PERIODIC_T; 
