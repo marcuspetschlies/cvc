@@ -2365,7 +2365,6 @@ int ranbinary(double * const y, unsigned int const NRAND) {
  ********************************************************/
 void random_gauge_field(double *gfield, double h) {
 
-  int mu, ix;
   double buffer[72], *gauge_point[4];
 #ifdef HAVE_MPI
   int iproc, tgeom[2], tag, t;
@@ -2379,7 +2378,8 @@ void random_gauge_field(double *gfield, double h) {
   gauge_point[3] = buffer + 54;
 
 /*  if(g_cart_id==0) { */
-    for(ix=0; ix<VOLUME; ix++) {
+    for( unsigned int ix = 0; ix < VOLUME; ix++) 
+    {
       random_gauge_point(gauge_point, h);
       memcpy((void*)(gfield + _GGI(ix,0)), (void*)buffer, 72*sizeof(double));
     }
