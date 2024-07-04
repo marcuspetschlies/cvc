@@ -624,10 +624,8 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
 
 
     /* lambda_3 <- Delta_2 lambda_3 in-place */
-    apply_laplace ( lambda[2], lambda[3], w[2] );
+    apply_laplace ( lambda[3], lambda[3], w[2] );
 
-    memcpy ( chi, lambda[2], sizeof_spinor_field );
-#if 0
     /* lambda_2 <- lambda_2 + 3/4 dt lambda_3 = 3/4 dt lambda_3 , lambda_2 = 0 initially */
     spinor_field_pl_eq_spinor_field_ti_re ( lambda[2], lambda[3],  3./4. * dt, VOLUME );
 
@@ -654,6 +652,7 @@ void flow_adjoint_step_gauge_spinor_field ( double * const g, double * const chi
 
     /* chi = lambda_0 */
     memcpy ( chi, lambda[0], sizeof_spinor_field );
+#if 0
 #endif
   }  /* end of flow_spinor */
 
