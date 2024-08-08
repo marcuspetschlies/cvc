@@ -206,6 +206,7 @@ namespace cvc {
 %x ERROR
 %x FERMION_TYPE
 %x SOURCECOORDS
+%x SAMPLEID
 %x SRCSNKTIMESEP
 %x COHERENTSOURCENUMBER
 %x VERBOSITYLEVEL
@@ -258,6 +259,7 @@ namespace cvc {
 ^subtract{SPC}*={SPC}*                     BEGIN(SUBTRACT);
 ^source_location{SPC}*={SPC}*              BEGIN(SOURCELOC);
 ^source_coords{SPC}*={SPC}*                BEGIN(SOURCECOORDS);
+^sample_id{SPC}*={SPC}*                    BEGIN(SAMPLEID);
 ^seed{SPC}*={SPC}*                         BEGIN(SSEED);
 ^noise_type{SPC}*={SPC}*                   BEGIN(NOISETYPE);
 ^source_type{SPC}*={SPC}*                  BEGIN(SRCTYPE);
@@ -1133,6 +1135,24 @@ namespace cvc {
   cvc::g_source_location_number++;
   if(cvc::myverbose!=0) printf("# [read_input_parser] source coords no. %d set to %s\n", cvc::g_source_location_number, yytext);
 }
+
+<SAMPLEID>{CORRCONFIG} {
+
+  if ( cvc::g_sample_id_number == MAX_SOURCE_LOCATION_NUMBER ) {
+    fprintf(stderr, "[read_input_parser] Error, too many sample ids\n");
+    exit(1);
+  } else {
+    if(cvc::myverbose) fprintf(stdout, "# [read_input_parser] extracting sample id %d\n", cvc::g_sample_id_number);
+  }
+
+  sscanf(yytext, "%d,%d",
+    cvc::g_sample_id_list[cvc::g_sample_id_number],
+    cvc::g_sample_id_list[cvc::g_sample_id_number]+1 );
+
+  cvc::g_sample_id_number++;
+  if(cvc::myverbose!=0) printf("# [read_input_parser] sample id no. %d set to %s\n", cvc::g_sample_id_number, yytext);
+}
+
 
 <INITTWOPOINTFUNCTION>Generic{SPC}* {
   if(cvc::myverbose) printf("# [read_input_parser] Initialization generic twopoint_function line %d\n", cvc::line_of_file);

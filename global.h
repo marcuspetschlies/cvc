@@ -183,6 +183,7 @@ EXTERN double g_gamma_transposed_sign[16];
 
 EXTERN int g_resume, g_subtract;
 EXTERN int g_source_location, g_source_coords_list[MAX_SOURCE_LOCATION_NUMBER][4], g_source_location_number;
+EXTERN int g_sample_id_list[MAX_SOURCE_LOCATION_NUMBER][2], g_sample_id_number;
 
 EXTERN unsigned int g_seed;
 EXTERN int g_noise_type, g_source_type;
