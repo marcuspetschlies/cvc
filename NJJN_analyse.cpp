@@ -224,8 +224,8 @@ void make_correlator_string ( char * name , twopoint_function_type * tp , const 
     if ( tp->gi2 == -1 ) {
       sprintf ( name, "%s.%s.QX%d_QY%d_QZ%d.Gc_%s.Gf_%s.Gi_%s.PX%d_PY%d_PZ%d", tp_type, tp->name,
           tp->pf2[0], tp->pf2[1], tp->pf2[2],
-          // gamma_id_to_ascii[tp->gf2],
-          gamma_id_to_group[tp->gf2],
+          gamma_id_to_ascii[tp->gf2],
+          // gamma_id_to_group[tp->gf2],
           gamma_id_to_Cg_ascii[tp->gf1[0]],
           gamma_id_to_Cg_ascii[tp->gi1[0]],
           tp->pf1[0], tp->pf1[1], tp->pf1[2] );
@@ -527,7 +527,7 @@ int main(int argc, char **argv) {
       int ** sink_momentum_list = NULL, sink_momentum_number = 0;
       size_t ncdim, *cdim = NULL;
 
-      exitstatus = read_from_h5_file_varsize ( &buffer, data_filename, "/src_mom",  "int", &ncdim, &cdim,  io_proc );
+      exitstatus = read_from_h5_file_varsize ( &buffer, data_filename, "/snk_mom",  "int", &ncdim, &cdim,  io_proc );
       if ( exitstatus != 0 )
       {
         fprintf(stderr, "[NN_analyse] Error, aff reader is not initialized %s %d\n", __FILE__, __LINE__);
@@ -538,10 +538,18 @@ int main(int argc, char **argv) {
       sink_momentum_list = init_2level_itable ( sink_momentum_number, 3 );
       if ( sink_momentum_list == NULL )
       {
-        fprintf(stderr, "[] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
+        fprintf(stderr, "[NJJN_analyse] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
         EXIT(104);
       }
       memcpy ( sink_momentum_list[0], buffer, 3 * sink_momentum_number * sizeof ( int ) );
+      if ( g_verbose > 2 )
+      {
+        for (int i = 0; i < sink_momentum_number; i++)
+        {
+          fprintf (stdout, "# [NJJN_analyse] sink_momentum %3d    (%3d, %3d, %3d)\n", i, 
+              sink_momentum_list[i][0], sink_momentum_list[i][1], sink_momentum_list[i][2] );
+        }
+      }
       free ( buffer );
       free ( cdim );
 #endif  // end of if _INPUT_H5
