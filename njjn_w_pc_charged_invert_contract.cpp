@@ -918,7 +918,7 @@ int main(int argc, char **argv) {
      ***************************************************************************
      ***************************************************************************/
 
-    for ( int isample = 0; isample < g_nsample_oet; isample++ ) 
+    for ( int isample = g_sample_id_list[isource_location][0]; isample <= g_sample_id_list[isource_location][1]; isample++ ) 
     {
 
       /***************************************************************************
