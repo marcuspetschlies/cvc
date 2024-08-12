@@ -309,11 +309,31 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * output filename
    ***************************************************************************/
-  sprintf ( output_filename, "%s.%.d.h5", g_outfile_prefix, Nconf );
+  sprintf ( output_filename, "%s.%d.h5", g_outfile_prefix, Nconf );
 
   if(io_proc == 2 && g_verbose > 1 ) { 
     fprintf(stdout, "# [vv2pt_simple_invert_contract] writing data to file %s\n", output_filename);
   }
+
+  exitstatus = write_h5_contraction ( g_sink_gamma_id_list, NULL, output_filename, "snk_gamma", "int", 1, &g_sink_gamma_id_number );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  exitstatus = write_h5_contraction ( g_source_gamma_id_list, NULL, output_filename, "src_gamma", "int", 1, &g_source_gamma_id_number );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(123);
+  }
+
+  int mom_cdim[2] = {g_source_momentum_number, 3};
+  exitstatus = write_h5_contraction ( g_source_momentum_list[0], NULL, output_filename, "src_mom", "int", 2, mom_cdim );
+  if( exitstatus != 0 ) {
+    fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+    EXIT(123);
+  }
+
 
   /***************************************************************************
    * zero momentum propagators
@@ -440,6 +460,7 @@ int main(int argc, char **argv) {
           {
             for ( int igf = 0; igf < g_sink_gamma_id_number; igf++ )
             {
+#pragma omp parallel for
               for ( int it = 0; it < T; it++ )
               {
                 buffer[it][ifl][igi][2*igf  ] = contr[ifl][igi][igf][2*it  ];
@@ -467,7 +488,7 @@ int main(int argc, char **argv) {
           sprintf ( data_tag, "/t%d/pfx%dpfy%dpfz%d", gts, pf[0], pf[1], pf[2]);
 
           int const ncdim = 4;
-          int const cdim[4] = { 2, g_source_gamma_id_number, g_sink_gamma_id_number, T_global };
+          int const cdim[4] = { T_global, 2, g_source_gamma_id_number, g_sink_gamma_id_number};
 
           gettimeofday ( &ta, (struct timezone *)NULL );
 
@@ -489,9 +510,14 @@ int main(int argc, char **argv) {
      
       fini_4level_dtable ( &contr );
 
+
     }  /* end of loop on source momenta */
+      
+    exitstatus = init_timeslice_source_oet ( NULL, -1, NULL, 0, 0, -2 );
 
   }  /* end of loop on samples */
+
+  fini_rng_state ( &rng_state );
 
   /***************************************************************************
    * decallocate spinor fields
