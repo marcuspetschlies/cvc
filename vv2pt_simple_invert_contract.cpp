@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
   double **mzz[2] = { NULL, NULL }, **mzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL, *gauge_field_smeared = NULL;
   char output_filename[400];
-  int const spin_dilution  = 1;
+  int const spin_dilution  = 4;
   int const color_dilution = 1;
 
   struct timeval ta, tb;
@@ -315,23 +315,26 @@ int main(int argc, char **argv) {
     fprintf(stdout, "# [vv2pt_simple_invert_contract] writing data to file %s\n", output_filename);
   }
 
-  exitstatus = write_h5_contraction ( g_sink_gamma_id_list, NULL, output_filename, "snk_gamma", "int", 1, &g_sink_gamma_id_number );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(123);
-  }
+  if ( io_proc == 2 )
+  {
+    exitstatus = write_h5_contraction ( g_sink_gamma_id_list, NULL, output_filename, "snk_gamma", "int", 1, &g_sink_gamma_id_number );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
 
-  exitstatus = write_h5_contraction ( g_source_gamma_id_list, NULL, output_filename, "src_gamma", "int", 1, &g_source_gamma_id_number );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(123);
-  }
+    exitstatus = write_h5_contraction ( g_source_gamma_id_list, NULL, output_filename, "src_gamma", "int", 1, &g_source_gamma_id_number );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
 
-  int mom_cdim[2] = {g_source_momentum_number, 3};
-  exitstatus = write_h5_contraction ( g_source_momentum_list[0], NULL, output_filename, "src_mom", "int", 2, mom_cdim );
-  if( exitstatus != 0 ) {
-    fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-    EXIT(123);
+    int mom_cdim[2] = {g_source_momentum_number, 3};
+    exitstatus = write_h5_contraction ( g_source_momentum_list[0], NULL, output_filename, "src_mom", "int", 2, mom_cdim );
+    if( exitstatus != 0 ) {
+      fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(123);
+    }
   }
 
 
@@ -370,7 +373,51 @@ int main(int argc, char **argv) {
       /***************************************************************************
        * stochastic oet timeslice sources
        ***************************************************************************/
-      exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, pi, spin_dilution, color_dilution, ipi == 0 ) ;
+
+      if ( ipi == 0 )
+      {
+
+        if ( g_read_source )
+        {
+          for ( int i = 0; i < spin_color_dilution; i++ ) 
+          {
+            sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, i, isample);
+            if ( ( exitstatus = read_lime_spinor( stochastic_source_list[i], filename, 0) ) != 0 ) 
+            {
+              fprintf(stderr, "[vv2pt_simple_invert_contract] Error from read_lime_spinor, status was %d\n", exitstatus);
+              EXIT(2);
+            }
+          }
+          /* recover the ran field */
+          exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, spin_dilution, color_dilution,  -1 );
+          if( exitstatus != 0 ) 
+          {
+            fprintf(stderr, "[vv2pt_simple_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(64);
+          }
+        } else {
+          exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, NULL, spin_dilution, color_dilution, 1 ) ;
+          if( exitstatus != 0 ) 
+          {
+            fprintf(stderr, "[vv2pt_simple_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+            EXIT(64);
+          }
+
+          if ( g_write_source ) 
+          {
+            for ( int i = 0; i < spin_color_dilution; i++ ) {
+              sprintf(filename, "%s.%.4d.t%d.%d.%.5d", filename_prefix, Nconf, gts, i, isample);
+              if ( ( exitstatus = write_propagator( stochastic_source_list[i], filename, 0, g_propagator_precision) ) != 0 ) {
+                fprintf(stderr, "[vv2pt_simple_invert_contract] Error from write_propagator, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+                EXIT(2);
+              }
+            }
+          }
+        }
+
+      }  /* end of if ipi = 0  */
+ 
+      exitstatus = init_timeslice_source_oet(stochastic_source_list, gts, pi, spin_dilution, color_dilution, 0 ) ;
       if( exitstatus != 0 ) 
       {
         fprintf(stderr, "[vv2pt_simple_invert_contract] Error from init_timeslice_source_oet, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
@@ -385,7 +432,7 @@ int main(int argc, char **argv) {
       
           memcpy ( spinor_work[0], stochastic_source_list[isc], sizeof_spinor_field );
 
-          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], 0 );
+          exitstatus = _TMLQCD_INVERT ( spinor_work[1], spinor_work[0], iflavor );
           if(exitstatus < 0) 
           {
             fprintf(stderr, "[vv2pt_simple_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
@@ -394,7 +441,7 @@ int main(int argc, char **argv) {
 
           if ( check_propagator_residual ) 
           {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[0], mzzinv[0], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[0]), gauge_field_with_phase, mzz[iflavor], mzzinv[iflavor], 1 );
           }
     
           memcpy( stochastic_propagator_mom[iflavor][isc], spinor_work[1], sizeof_spinor_field );
@@ -487,8 +534,8 @@ int main(int argc, char **argv) {
         {
           sprintf ( data_tag, "/t%d/pfx%dpfy%dpfz%d", gts, pf[0], pf[1], pf[2]);
 
-          int const ncdim = 4;
-          int const cdim[4] = { T_global, 2, g_source_gamma_id_number, g_sink_gamma_id_number};
+          int const ncdim = 5;
+          int const cdim[5] = { T_global, 2, g_source_gamma_id_number, g_sink_gamma_id_number, 2};
 
           gettimeofday ( &ta, (struct timezone *)NULL );
 
