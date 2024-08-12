@@ -53,9 +53,11 @@
 
 #define _TWOP_STATS  1
 
-#define _LOOP_ANALYSIS 0
+#define _LOOP_ANALYSIS 1
+#define _LOOP_H5       0
+#define _LOOP_SRT      1
 
-#define _RAT_METHOD       0
+#define _RAT_METHOD       1
 #define _RAT_SUB_METHOD   0
 #define _FHT_METHOD_ALLT  0
 #define _FHT_METHOD_ACCUM 0
@@ -147,8 +149,8 @@ int main(int argc, char **argv) {
 #if _TWOP_CYD_H5
   const char flavor_tag[2][3] = { "uu", "dd" };
 #elif _TWOP_AVGX_H5
-  // char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
-  char const flavor_tag[2][20]        = { "l-gf-l-gi" , "l-gf-l-gi" };
+  char const flavor_tag[2][20]        = { "s-gf-l-gi" , "l-gf-s-gi" };
+  // char const flavor_tag[2][20]        = { "l-gf-l-gi" , "l-gf-l-gi" };
 #else
   char const flavor_tag[2][20]        = { "d-gf-u-gi" , "u-gf-d-gi" };
 #endif
@@ -983,10 +985,18 @@ int main(int argc, char **argv) {
       char data_filename[500];
       char stream_tag;
      
-      sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
+      /* sprintf( data_filename, "stream_%c/%s/%d/%s.%.4d.t%d.s%d.h5",
           conf_src_list[iconf][isrc][0],
           filename_prefix,
           conf_src_list[iconf][isrc][1],
+          filename_prefix2,
+          conf_src_list[iconf][isrc][1],
+          conf_src_list[iconf][isrc][2],
+          conf_src_list[iconf][isrc][3] ); */
+
+      sprintf( data_filename, "stream_%c/%s/%s.%.4d.t%d.s%d.h5",
+          conf_src_list[iconf][isrc][0],
+          filename_prefix,
           filename_prefix2,
           conf_src_list[iconf][isrc][1],
           conf_src_list[iconf][isrc][2],
@@ -1363,10 +1373,41 @@ int main(int argc, char **argv) {
    * loop fields
    *
    **********************************************************/
-  double ****** loop = NULL;
-  double ****** loop_exact = NULL;
+  
   double ****** loop_sub = NULL;
   double ****** loop_sym = NULL;
+  double *** loop_sub_tavg = NULL;
+
+  loop_sub = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
+  if ( loop_sub == NULL ) {
+    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(25);
+  }
+
+  loop_sym = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
+  if ( loop_sym == NULL ) {
+    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(25);
+  }
+
+  loop_sub_tavg = init_3level_dtable ( g_insertion_momentum_number, num_conf, 3 );
+  if ( loop_sub_tavg == NULL ) {
+    fprintf( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+    EXIT(12);
+  }
+
+  /**********************************************************
+   * tag to characterize the loops w.r.t. low-mode and
+   * stochastic part
+   **********************************************************/
+  char loop_tag[400];
+  sprintf ( loop_tag, "es%d.nev%d.Nstoch%d", loop_use_es, loop_num_evecs, loop_nstoch );
+
+
+#if _LOOP_H5
+
+  double ****** loop = NULL;
+  double ****** loop_exact = NULL;
 
   loop = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
   if ( loop == NULL ) {
@@ -1669,17 +1710,6 @@ int main(int argc, char **argv) {
    * build trace-subtracted tensor
    *
    **********************************************************/
-  loop_sub = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
-  if ( loop_sub == NULL ) {
-    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(25);
-  }
-
-  loop_sym = init_6level_dtable ( g_insertion_momentum_number, num_conf, 4, 4, T_global, 2 );
-  if ( loop_sym == NULL ) {
-    fprintf ( stdout, "[avxn_analyse] Error from init_6level_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(25);
-  }
 
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
@@ -1742,13 +1772,6 @@ int main(int argc, char **argv) {
   }  /* end of loop on insertion momentum */
 
   /**********************************************************
-   * tag to characterize the loops w.r.t. low-mode and
-   * stochastic part
-   **********************************************************/
-  char loop_tag[400];
-  sprintf ( loop_tag, "es%d.nev%d.Nstoch%d", loop_use_es, loop_num_evecs, loop_nstoch );
-
-  /**********************************************************
    * write loop_sub to separate ascii file
    **********************************************************/
   if ( write_data ) {
@@ -1809,11 +1832,6 @@ int main(int argc, char **argv) {
 
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
-    if ( num_conf < 6 ) {
-      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
-      /* EXIT(1); */
-      continue;
-    }
 
     /**********************************************************
      * analyse ORIGINAL LOOP
@@ -1846,11 +1864,17 @@ int main(int argc, char **argv) {
             g_insertion_momentum_list[imom][1],
             g_insertion_momentum_list[imom][2], reim_str[ireim] );
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 ) 
+        {
+
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
+        } else {
+          fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
         }
 
         fini_2level_dtable ( &data );
@@ -1930,11 +1954,14 @@ int main(int argc, char **argv) {
             g_insertion_momentum_list[imom][1],
             g_insertion_momentum_list[imom][2], reim_str[ireim] );
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( num_conf >= 6 )
+        {
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_real ( data[0], num_conf, T_global, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
         fini_2level_dtable ( &data );
@@ -1974,11 +2001,14 @@ int main(int argc, char **argv) {
             g_insertion_momentum_list[imom][1],
             g_insertion_momentum_list[imom][2], reim_str[ireim] );
 
-        /* apply UWerr analysis */
-        exitstatus = apply_uwerr_real ( data, num_conf, 1, 0, 1, obs_name );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(1);
+        if ( g_verbose >= 6 )
+        {
+          /* apply UWerr analysis */
+          exitstatus = apply_uwerr_real ( data, num_conf, 1, 0, 1, obs_name );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_real, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(1);
+          }
         }
 
         fini_1level_dtable ( &data );
@@ -1992,12 +2022,6 @@ int main(int argc, char **argv) {
   /**********************************************************
    * loop vev for operators
    **********************************************************/
-  double *** loop_sub_tavg = init_3level_dtable ( g_insertion_momentum_number, num_conf, 3 );
-  if ( loop_sub_tavg == NULL ) {
-    fprintf( stderr, "[avxn_analyse] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
-    EXIT(12);
-  }
-
   for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) {
 
 #pragma omp parallel for
@@ -2047,6 +2071,59 @@ int main(int argc, char **argv) {
 
   fini_6level_dtable ( &loop );
   fini_6level_dtable ( &loop_exact );
+
+#endif  // _LOOP_H5
+
+  /**********************************************************/
+  /**********************************************************/
+
+#if _LOOP_SRT
+  for ( int imom = 0; imom < g_insertion_momentum_number; imom++ ) 
+  {
+    char obs_name[400];
+    char line[200];
+
+    for ( int imu = 0; imu < 4; imu++ ) 
+    {
+      for ( int idir = 0; idir < 4; idir++ ) 
+      {
+        sprintf ( obs_name, "%s/loop_sub.stoch.%s.%s.%s.g%d_D%d.PX%d_PY%d_PZ%d.srt",
+            filename_prefix3,
+            loop_type,
+            oet_type,
+            loop_tag,
+            imu, idir,
+            g_insertion_momentum_list[imom][0],
+            g_insertion_momentum_list[imom][1],
+            g_insertion_momentum_list[imom][2] );
+
+        FILE * fs = fopen ( obs_name, "r" );
+        if (g_verbose > 2 ) fprintf(stdout, "# [avxn_analyse] reading loop data from file %s %s %d\n", obs_name, __FILE__, __LINE__ );
+
+        for ( int iconf = 0; iconf < num_conf; iconf++ )
+        {
+          int itmp;
+          double dtmp[2];
+
+          fgets ( line, 100, fs);
+          if ( g_verbose > 2 ) fprintf(stdout, "line \"%s\"\n", line);
+          for ( int it = 0; it < T; it++)
+          {
+            fscanf ( fs, "%d %lf %lf\n", &itmp, dtmp, dtmp+1 );
+
+            loop_sub[imom][iconf][imu][idir][it][0] = dtmp[0] * loop_norm;
+            loop_sub[imom][iconf][imu][idir][it][1] = dtmp[1] * loop_norm;
+          }
+        }
+
+        fclose ( fs );
+      }  /* end of loop on directions */
+    }  /* end of loop on mu */
+  }  /* end of loop on momenta */
+#endif  /* _LOOP_SRT */
+
+  /**********************************************************/
+  /**********************************************************/
 
 
 #if _RAT_METHOD
@@ -2472,10 +2549,15 @@ int main(int argc, char **argv) {
           g_sink_momentum_list[0][1],
           g_sink_momentum_list[0][2], reim_str[ireim] );
 
-        exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(115);
+        if ( num_conf < 6 ) {
+          fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+        } else {
+
+          exitstatus = apply_uwerr_func ( data[0], num_conf, nT+1, nT, narg, arg_first, arg_stride, obs_name, ratio_1_1, dratio_1_1 );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(115);
+          }
         }
 
         fini_2level_dtable ( &data );
@@ -2550,10 +2632,15 @@ int main(int argc, char **argv) {
             g_sink_momentum_list[0][1],
             g_sink_momentum_list[0][2], reim_str[ireim] );
 
-        exitstatus = apply_uwerr_func ( data[0], num_conf, nT+2, nT, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
-        if ( exitstatus != 0 ) {
-          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-          EXIT(115);
+        if ( num_conf < 6 ) {
+          fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+        } else {
+
+          exitstatus = apply_uwerr_func ( data[0], num_conf, nT+2, nT, narg, arg_first, arg_stride, obs_name, ratio_1_2_mi_3, dratio_1_2_mi_3 );
+          if ( exitstatus != 0 ) {
+            fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            EXIT(115);
+          }
         }
 
         fini_2level_dtable ( &data );
@@ -2739,23 +2826,28 @@ int main(int argc, char **argv) {
       data[iconf][isrc][Thp1+it] = twop_orbit[iconf][isrc][it][0];
     }}}
 
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+    } else {
 
-      int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
-      int nT = Thp1 - 2 * itau;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
 
-      sprintf ( obs_name, "threep.fht.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
-          itau,
-          g_sink_momentum_list[0][0],
-          g_sink_momentum_list[0][1],
-          g_sink_momentum_list[0][2], "re" );
+        int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
+        int nT = Thp1 - 2 * itau;
 
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
+        sprintf ( obs_name, "threep.fht.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
+            loop_tag,
+            itau,
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], "re" );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
       }
     }
 
@@ -2770,24 +2862,29 @@ int main(int argc, char **argv) {
       data[iconf][isrc][Thp1+it] = twop_orbit[iconf][isrc][it][0];
     }}}
 
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+    } else {
 
-      int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
-      int nT = Thp1 - 2 * itau;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
 
-      char obs_name[400];
-      sprintf ( obs_name, "threep.fht.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
-          itau,
-          g_sink_momentum_list[0][0],
-          g_sink_momentum_list[0][1],
-          g_sink_momentum_list[0][2], "re");
+        int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
+        int nT = Thp1 - 2 * itau;
 
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
+        char obs_name[400];
+        sprintf ( obs_name, "threep.fht.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+            loop_tag,
+            itau,
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], "re");
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
       }
     }
 
@@ -2802,28 +2899,31 @@ int main(int argc, char **argv) {
       data[iconf][isrc][Thp1+it] = twop_orbit[iconf][isrc][it][0];
     }}}
  
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+    } else {
 
-      int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
-      int nT = Thp1 - 2 * itau;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
+  
+        int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
+        int nT = Thp1 - 2 * itau;
 
-      char obs_name[400];
-      sprintf ( obs_name, "threep.fht.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
-          itau,
-          g_sink_momentum_list[0][0],
-          g_sink_momentum_list[0][1],
-          g_sink_momentum_list[0][2], "re");
+        char obs_name[400];
+        sprintf ( obs_name, "threep.fht.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+            loop_tag,
+            itau,
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], "re");
 
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
-      }
-
-
-    }  /* end of loop on itau */
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0][0], num_conf*num_src_per_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
+      }  /* end of loop on itau */
+    }
 
     fini_3level_dtable ( &data );
 
@@ -3021,23 +3121,28 @@ int main(int argc, char **argv) {
       }
     }
 
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+    } else {
 
-      int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
-      int nT = Thp1 - 2 * itau;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
 
-      sprintf ( obs_name, "threep.fht.accum.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
-          itau,
-          g_sink_momentum_list[0][0],
-          g_sink_momentum_list[0][1],
-          g_sink_momentum_list[0][2], "re" );
+        int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
+        int nT = Thp1 - 2 * itau;
 
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
+        sprintf ( obs_name, "threep.fht.accum.%s.g4_D4.tau%d.PX%d_PY%d_PZ%d.%s",
+            loop_tag,
+            itau,
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], "re" );
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
       }
     }
 
@@ -3065,24 +3170,29 @@ int main(int argc, char **argv) {
       }
     }
 
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+    } else {
 
-      int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
-      int nT = Thp1 - 2 * itau;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
 
-      char obs_name[400];
-      sprintf ( obs_name, "threep.fht.accum.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
-          itau,
-          g_sink_momentum_list[0][0],
-          g_sink_momentum_list[0][1],
-          g_sink_momentum_list[0][2], "re");
+        int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
+        int nT = Thp1 - 2 * itau;
 
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
+        char obs_name[400];
+        sprintf ( obs_name, "threep.fht.accum.%s.g4_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+            loop_tag,
+            itau,
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], "re");
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
       }
     }
 
@@ -3110,26 +3220,31 @@ int main(int argc, char **argv) {
       }
     }
  
-    for ( int itau = 1; itau < Thp1/2; itau++ ) {
+    if ( num_conf < 6 ) {
+      fprintf ( stderr, "[avxn_analyse] Error, too few observations for stats %s %d\n", __FILE__, __LINE__ );
+    } else {
 
-      int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
-      int nT = Thp1 - 2 * itau;
+      for ( int itau = 1; itau < Thp1/2; itau++ ) {
 
-      char obs_name[400];
-      sprintf ( obs_name, "threep.fht.accum.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
-          loop_tag,
-          itau,
-          g_sink_momentum_list[0][0],
-          g_sink_momentum_list[0][1],
-          g_sink_momentum_list[0][2], "re");
+        int arg_first[6] = { 2 * itau, itau , 0, Thp1 + 2 * itau , Thp1, Thp1 + itau };
+        int nT = Thp1 - 2 * itau;
 
-      /* apply UWerr analysis */
-      exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
-      if ( exitstatus != 0 ) {
-        fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-        EXIT(115);
-      }
-    }  /* end of loop on itau */
+        char obs_name[400];
+        sprintf ( obs_name, "threep.fht.accum.%s.gi_Dk.tau%d.PX%d_PY%d_PZ%d.%s",
+            loop_tag,
+            itau,
+            g_sink_momentum_list[0][0],
+            g_sink_momentum_list[0][1],
+            g_sink_momentum_list[0][2], "re");
+
+        /* apply UWerr analysis */
+        exitstatus = apply_uwerr_func ( data[0], num_conf, 2*Thp1, nT, narg, arg_first, arg_stride, obs_name, fptr, dfptr );
+        if ( exitstatus != 0 ) {
+          fprintf ( stderr, "[avxn_analyse] Error from apply_uwerr_func, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+          EXIT(115);
+        }
+      }  /* end of loop on itau */
+    }
 
     /* fini_3level_dtable ( &data ); */
     fini_2level_dtable ( &data );

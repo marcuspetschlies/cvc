@@ -39,19 +39,23 @@ int dummy_solver ( double * const propagator, double * const source, int const o
   hash_spinor(source_seed, source);
   unsigned long long ss = (unsigned long long) source_seed;
   int n_rank;
+#ifdef HAVE_MPI
   exitstatus = MPI_Comm_size(g_cart_grid, &n_rank);
   if (exitstatus != MPI_SUCCESS)
   {
     fprintf(stderr, "[dummy_solver] MPI_Comm_size err\n");
     EXIT(54);
   }
+#endif
   std::vector<unsigned long long> ss_all(n_rank);
+#ifdef HAVE_MPI
   exitstatus = MPI_Allgather(&ss, 1, MPI_UNSIGNED_LONG_LONG, ss_all.data(), 1, MPI_UNSIGNED_LONG_LONG, g_cart_grid);
   if (exitstatus != MPI_SUCCESS)
   {
     fprintf(stderr, "[dummy_solver] MPI_Allgather err\n");
     EXIT(55);
   }
+#endif
   ss_all.push_back(g_cart_id);
   ss_all.push_back(op_id);
   std::seed_seq seed(ss_all.begin(), ss_all.end());
