@@ -668,7 +668,7 @@ int main(int argc, char **argv) {
           }
 
           if ( check_propagator_residual ) {
-            check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], lmzzinv[_OP_ID_UP], 1 );
+            check_residual_clover ( &(spinor_work[1]), &(spinor_work[2]), gauge_field_with_phase, lmzz[_OP_ID_UP], 1 );
           }
 
           /* tm-rotate stochastic propagator at sink */
@@ -719,7 +719,7 @@ int main(int argc, char **argv) {
 	       * do not update the gauge field
                ***************************************************************************/
 
-              _performGFlownStep ( spinor_work[0], spinor_work[0], &smear_param, 0 );
+              _performGFlowForward ( spinor_work[0], spinor_work[0], &smear_param, 0 );
 
     	      /* TEST PLAQUETTE */
               saveGaugeQuda ( h_gauge, &gauge_param );
@@ -746,7 +746,7 @@ int main(int argc, char **argv) {
               gettimeofday ( &ta, (struct timezone *)NULL );
               /* update resident gaugeFlowed */
 #ifdef _GFLOW_QUDA
-              _performGFlownStep ( spinor_work[1], spinor_work[1], &smear_param, 1 );
+              _performGFlowForward ( spinor_work[1], spinor_work[1], &smear_param, 1 );
 
               /* TEST PLAQUETTE */
               saveGaugeQuda ( h_gauge, &gauge_param );
