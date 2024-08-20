@@ -1210,6 +1210,134 @@ int init_timeslice_source_oet ( double ** const s, int const tsrc, int * const m
   return(0);
 }  /* end of init_timeslice_source_oet */
 
+/*************************************************************************/
+/*************************************************************************/
+
+
+/**********************************************************
+ * point sources for one-end trick with spin dilution 
+ *
+ * spin_dilution  = 1 or 4 ( no dilution, full dilution )
+ * color_dilution = 1 or 3 ( no dilution, full dilution )
+ **********************************************************/
+int init_point_source_oet ( double ** const s, int const tsrc, int * const xsrc, int const spin_dilution, int const color_dilution, int const init) 
+{
+  const unsigned int sf_items = _GSI(VOLUME);
+  const size_t       sf_bytes = sf_items * sizeof(double);
+  const int          have_source = (
+    ( tsrc    / T  == g_proc_coords[0] ) &&
+    ( xsrc[0] / LX == g_proc_coords[1] ) && 
+    ( xsrc[1] / LY == g_proc_coords[2] ) && 
+    ( xsrc[2] / LZ == g_proc_coords[3] ) ) ? 1 : 0;
+
+  const int nspin = ( spin_dilution  == 0 ) ? 0 : 4 / spin_dilution;
+  const int ncol  = ( color_dilution == 0 ) ? 0 : 3 / color_dilution;
+  const int nsc   = nspin * ncol;
+
+  static double ran[24];
+  struct timeval start_time, end_time;
+
+  gettimeofday ( &start_time, (struct timezone *)NULL );
+
+  if(init > 0) {
+    memset ( ran, 0, 24 * sizeof ( double ) );
+  
+    if ( have_source && g_verbose > 2 )
+    {
+        fprintf(stdout, "# [init_point_source_oet] proc%.4d = (%d, %d, %d, %d) has source point, sets ran\n", g_cart_id,
+          g_proc_coords[0], g_proc_coords[1], g_proc_coords[2], g_proc_coords[3]);
+    }
+  } else if ( init == -1 ) 
+  {
+    /**********************************************************
+     * recover ran from existing set of sources
+     **********************************************************/
+    if ( g_verbose > 2 && g_cart_id == 0 ) {
+      fprintf(stdout, "# [init_point_source_oet] recovering random field from stochastic source\n");
+    }
+    if ( have_source ) 
+    {
+      int const xloc[4] = { tsrc % T, xsrc[0] % LX, xsrc[1] % LY, xsrc[2] % LZ };
+
+      unsigned int const iix = _GSI( g_ipt[xloc[0]][xloc[1]][xloc[2]][xloc[3]] );
+  
+      for ( int ispin = 0; ispin < nspin; ispin++ ) 
+      {
+        for ( int icol = 0; icol < ncol; icol++ ) 
+        {
+          ran[2 * ( ispin * ncol + icol )   ] = s[0][iix + 2*(3*ispin+icol)  ];
+          ran[2 * ( ispin * ncol + icol ) +1] = s[0][iix + 2*(3*ispin+icol)+1];
+        }
+      }
+    }  /* end of if have_source */
+
+    return(0);
+  }  /* end of if init > 0 */
+
+  /* initialize spinor fields to zero */
+  for ( int i = 0; i < spin_dilution * color_dilution; i++ ) 
+  {
+    memset(s[i], 0, sf_bytes);
+  }
+
+  if(init > 0) 
+  {
+    if ( g_verbose > 0 && have_source ) fprintf(stdout, "# [init_point_source_oet] proc%.4d drawing random vector\n", g_cart_id);
+
+    unsigned int const items = 2 * nsc;
+
+    switch(g_noise_type) {
+      case 1:
+        rangauss( ran, items );
+        break;
+      case 2:
+        ranz2 ( ran, items );
+        break;
+      case 4:
+        ranbinary ( ran, items );
+        break;
+    }
+
+  } else {
+    if ( g_verbose > 0 && have_source ) fprintf(stdout, "# [init_point_source_oet] proc%.4d using existing random vector\n", g_cart_id);
+  }
+
+  if(have_source) 
+  {
+    /* local site coordinates */
+    int const xloc[4] = { tsrc % T, xsrc[0] % LX, xsrc[1] % LY, xsrc[2] % LZ };
+    
+    unsigned int const iix = _GSI( g_ipt[xloc[0]][xloc[1]][xloc[2]][xloc[3]] );
+
+#ifdef HAVE_OPENMP
+#pragma omp parallel for
+#endif
+    /* set ith spin-component in ith spinor field */
+    int isc = 0;
+    for ( int ispin = 0; ispin < spin_dilution; ispin++ ) 
+    {
+      for ( int icol = 0; icol < color_dilution; icol++ )
+      {
+        for ( int j = 0; j < nspin; j++ ) 
+        {
+          for ( int k = 0; k < ncol; k++ ) 
+          {
+            s[isc][ iix + 2 * ( 3 * (ispin*nspin+j)+(icol*ncol+k) )  ] = ran[2 * ( ncol * j + k )  ];
+            s[isc][ iix + 2 * ( 3 * (ispin*nspin+j)+(icol*ncol+k) )+1] = ran[2 * ( ncol * j + k )+1];
+     
+          }
+        }  /* end of loop on non-diluted spin-color indices */
+        isc++;
+      }
+    }  /* end of loop on diluted spin-color indices */
+
+  }  /* end of if have source */
+
+  gettimeofday ( &end_time, (struct timezone *)NULL );
+  show_time ( &start_time, &end_time, "init_point_source_oet", "prepare-source", g_cart_id == 0 );
+
+  return(0);
+}  /* end of init_point_source_oet */
 
 /*************************************************************************/
 /*************************************************************************/
