@@ -532,18 +532,16 @@ int main(int argc, char **argv) {
     }
 
     double **** contr_accum = NULL;
-    int   gamma_i_num, gamma_f_num;
-    const int * gamma_i_list = NULL, gamma_f_list = NULL;
 
 #if _V_V_N
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    gamma_i_num  = gamma_v_num;
-    gamma_i_list = gamma_v_list;
-    gamma_f_num  = gamma_v_num;
-    gamma_f_list = gamma_v_list;
+#define _GAMMA_I_NUM  gamma_v_num
+#define _GAMMA_I_LIST gamma_v_list
+#define _GAMMA_F_NUM  gamma_v_num
+#define _GAMMA_F_LIST gamma_v_list
 
-    contr_accum = init_4level_dtable ( T, g_sink_momentum_number, gamma_f_num, 2 * gamma_i_num );
+    contr_accum = init_4level_dtable ( T, g_sink_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM );
     if ( contr_accum == NULL ) {
       fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
       EXIT(3);
@@ -551,13 +549,13 @@ int main(int argc, char **argv) {
 
     sprintf ( h5_tag, "/local-local/u-gf-u-gi/v_v" );
 
-    for ( int igi = 0; igi < gamma_i_num; igi++ )
+    for ( int igi = 0; igi < _GAMMA_I_NUM; igi++ )
     {
-      int idsource = gamma_i_list[igi];
+      int idsource = _GAMMA_I_LIST[igi];
 
-      for ( int igf = 0; igf < gamma_f_num; igf++ )
+      for ( int igf = 0; igf < _GAMMA_F_NUM; igf++ )
       {
-        int idsink = gamma_f_list[igf];
+        int idsink = _GAMMA_F_LIST[igf];
 
         /***************************************************************************
          * gig5 D^+ g5gf U = gi U gf U
@@ -589,11 +587,11 @@ int main(int argc, char **argv) {
     {
       double * write_buffer = NULL;
 #ifdef HAVE_MPI
-      int mitems = 2 * T * g_sink_momentum_number * gamma_f_num * gamma_i_num;
+      int mitems = 2 * T * g_sink_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM;
  
       if ( io_proc == 2 ) 
       {
-        write_buffer = init_1level_dtable ( 2 * T_global * g_sink_momentum_number * gamma_f_num * gamma_i_num ); 
+        write_buffer = init_1level_dtable ( 2 * T_global * g_sink_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM ); 
         if ( write_buffer == NULL ) {
           fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
           EXIT(3);
@@ -618,7 +616,7 @@ int main(int argc, char **argv) {
       if ( io_proc == 2 ) 
       {
         int const ncdim = 4;
-        int const cdim[4] = { T_global, g_sink_momentum_number, gamma_f_num, 2 * gamma_i_num };
+        int const cdim[4] = { T_global, g_sink_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM };
 
         exitstatus = write_h5_contraction ( write_buffer, NULL, filename, h5_tag, "double", ncdim, cdim );
 
@@ -638,6 +636,11 @@ int main(int argc, char **argv) {
     fini_1level_dtable ( &contr_x );
     fini_2level_dtable ( &contr_p );
     fini_4level_dtable ( &contr_accum );
+
+#undef _GAMMA_I_NUM
+#undef _GAMMA_I_LIST
+#undef _GAMMA_F_NUM
+#undef _GAMMA_F_LIST
 
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "p2gg_twop_invert_contract_local", "v-v-n", io_proc==2 );
@@ -649,12 +652,12 @@ int main(int argc, char **argv) {
 #if _S_S_N
     gettimeofday ( &ta, (struct timezone *)NULL );
 
-    gamma_i_num  = gamma_s_num;
-    gamma_i_list = gamma_s_list;
-    gamma_f_num  = gamma_s_num;
-    gamma_f_list = gamma_s_list;
+#define    _GAMMA_I_NUM  gamma_s_num
+#define    _GAMMA_I_LIST gamma_s_list
+#define    _GAMMA_F_NUM  gamma_s_num
+#define    _GAMMA_F_LIST gamma_s_list
 
-    contr_accum = init_4level_dtable ( T, g_sink_momentum_number, gamma_f_num, 2 * gamma_i_num );
+    contr_accum = init_4level_dtable ( T, g_sink_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM );
     if ( contr_accum == NULL ) {
       fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
       EXIT(3);
@@ -662,13 +665,13 @@ int main(int argc, char **argv) {
 
     sprintf ( h5_tag, "/local-local/u-gf-u-gi/s_s" );
 
-    for ( int igi = 0; igi < gamma_i_num; igi++ )
+    for ( int igi = 0; igi < _GAMMA_I_NUM; igi++ )
     {
-      int idsource = gamma_i_list[igi];
+      int idsource = _GAMMA_I_LIST[igi];
 
-      for ( int igf = 0; igf < gamma_f_num; igf++ )
+      for ( int igf = 0; igf < _GAMMA_F_NUM; igf++ )
       {
-        int idsink = gamma_f_list[igf];
+        int idsink = _GAMMA_F_LIST[igf];
 
         /***************************************************************************
          * gig5 D^+ g5gf U = gi U gf U
@@ -700,11 +703,11 @@ int main(int argc, char **argv) {
     {
       double * write_buffer = NULL;
 #ifdef HAVE_MPI
-      int mitems = 2 * T * g_sink_momentum_number * gamma_f_num * gamma_i_num;
+      int mitems = 2 * T * g_sink_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM;
  
       if ( io_proc == 2 ) 
       {
-        write_buffer = init_1level_dtable ( 2 * T_global * g_sink_momentum_number * gamma_f_num * gamma_i_num ); 
+        write_buffer = init_1level_dtable ( 2 * T_global * g_sink_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM ); 
         if ( write_buffer == NULL ) {
           fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
           EXIT(3);
@@ -729,7 +732,7 @@ int main(int argc, char **argv) {
       if ( io_proc == 2 ) 
       {
         int const ncdim = 4;
-        int const cdim[4] = { T_global, g_sink_momentum_number, gamma_f_num, 2 * gamma_i_num };
+        int const cdim[4] = { T_global, g_sink_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM };
 
         exitstatus = write_h5_contraction ( write_buffer, NULL, filename, h5_tag, "double", ncdim, cdim );
 
@@ -750,6 +753,11 @@ int main(int argc, char **argv) {
     fini_1level_dtable ( &contr_x );
     fini_2level_dtable ( &contr_p );
     fini_4level_dtable ( &contr_accum );
+
+#undef _GAMMA_I_NUM
+#undef _GAMMA_I_LIST
+#undef _GAMMA_F_NUM
+#undef _GAMMA_F_LIST
 
     gettimeofday ( &tb, (struct timezone *)NULL );
     show_time ( &ta, &tb, "p2gg_twop_invert_contract_local", "s-s-n", io_proc==2 );
