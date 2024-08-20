@@ -141,7 +141,7 @@ extern "C"
 
 /* ASN = apn */
 #ifndef _A_S_N 
-#  define _A_S_N 1 
+#  define _A_S_N 1
 #endif
 
 /* AAN = aan */
