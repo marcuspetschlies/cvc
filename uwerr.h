@@ -4,6 +4,9 @@
 #include <math.h>
 #include "global.h"
 
+namespace cvc {
+
+
 #define MAX_NO_REPLICA 100
 #define _SQR(_a)   ( (_a) * (_a) )
 #define _num_bin(_n) (1 + (int)rint( log( (double)(_n) ) / log(2.0) ))
@@ -229,5 +232,5 @@ int uwerr_free ( uwerr * const u );
 int uwerr_printf ( uwerr const u );
 
 int uwerr_analysis (double * const data, uwerr * const u);
-
+}
 #endif

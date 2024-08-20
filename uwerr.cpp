@@ -21,6 +21,8 @@
 
 #define UWERR_WMAX_LIMIT 5000
 
+namespace cvc {
+
 int uwerr_verbose;
 
 /*******************************************************
@@ -399,7 +401,7 @@ int uwerr_analysis(double * const data, uwerr * const u) {
         // TEST
         //fprintf(stdout, "[uwerr] halpha[%lu] = %25.16e\n", i, h_alpha[i]);
         if(*(h_alpha+i)==0.0) {
-          fprintf(stderr, "[uwerr] Warning: no fluctuation in primary observable %lu\n", i);
+          if ( g_verbose > 2 ) fprintf(stderr, "[uwerr] Warning: no fluctuation in primary observable %lu\n", i);
           *(f_alpha + i) = 0.0;
         } else {
           ADD_ASSIGN(m_alpha, a_bb, h_alpha, nalpha);
@@ -598,3 +600,5 @@ int uwerr_analysis(double * const data, uwerr * const u) {
   return(0);
 
 }  /* end of uwerr_analysis */
+
+}
