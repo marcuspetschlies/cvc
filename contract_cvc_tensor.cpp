@@ -2769,10 +2769,14 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  * with totally antisymmetric 3x3 tensor
  *
  * uses continuum momenta 2 sin( p /2 )
+ * tco = tensor component offset 
+ *       1 for 4-component tensor
+ *       0 for 3-component tensor
  ****************************************************/
 #undef  _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_SIN_MOMENTUM
 #define _ANTISYMMETRIC_ORBIT_AVERAGE_SPATIAL_LAT_MOMENTUM
-void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim ) {
+void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim, const int tco ) 
+{
 
   int const epsilon_tensor[3][3] = { {0,1,2}, {1,2,0}, {2,0,1} };
   int const p_elem_nonzero = ( momentum_list[0][0] != 0 ) + ( momentum_list[0][1] != 0 ) + ( momentum_list[0][2] != 0 );
@@ -2820,8 +2824,8 @@ void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** co
           /* fprintf ( stdout, "# [antisymmetric_orbit_average_spatial] p = %f %f %f\n", p[0], p[1],  p[2] ); */
           for ( int ia = 0; ia < 3; ia++ ) {
             d_out[i][l] += p[epsilon_tensor[ia][0]] * (
-                d_in[i][imom][epsilon_tensor[ia][1]+1][epsilon_tensor[ia][2]+1][2*l+reim]
-              - d_in[i][imom][epsilon_tensor[ia][2]+1][epsilon_tensor[ia][1]+1][2*l+reim]
+                d_in[i][imom][epsilon_tensor[ia][1]+tco][epsilon_tensor[ia][2]+tco][2*l+reim]
+              - d_in[i][imom][epsilon_tensor[ia][2]+tco][epsilon_tensor[ia][1]+tco][2*l+reim]
               );
           }  /* end of loop on permutations */
         }  /* end of loop on momenta */

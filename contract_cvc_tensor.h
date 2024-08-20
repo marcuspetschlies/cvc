@@ -95,7 +95,7 @@ void contract_cvc_local_tensor_eo ( double * const conn_e, double * const conn_o
  * average 4x4 tensor spatial components over orbit
  * with totally antisymmetric 3x3 tensor
  ****************************************************/
-void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim );
+void antisymmetric_orbit_average_spatial (double ** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int ** const momentum_list, int const reim, const int tco );
 
 void hvp_irrep_decomposition_orbit_average (double *** const d_out, double ***** const d_in, int const dim[2], int const momentum_num, int  const (*momentum_list)[3] );
 
