@@ -341,7 +341,9 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * zero momentum propagators
    ***************************************************************************/
-  for ( int isample = 0; isample < T_global; isample++ )
+  // for ( int isample = 0; isample < T_global; isample++ )
+  // for ( int isample = 0; isample < T_global; isample += 2 )
+  for ( int isample = g_sourceid; isample <= g_sourceid2; isample += g_sourceid_step )
   {
 
     int const gts = isample;
