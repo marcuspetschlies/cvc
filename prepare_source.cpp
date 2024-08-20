@@ -1309,9 +1309,6 @@ int init_point_source_oet ( double ** const s, int const tsrc, int * const xsrc,
     
     unsigned int const iix = _GSI( g_ipt[xloc[0]][xloc[1]][xloc[2]][xloc[3]] );
 
-#ifdef HAVE_OPENMP
-#pragma omp parallel for
-#endif
     /* set ith spin-component in ith spinor field */
     int isc = 0;
     for ( int ispin = 0; ispin < spin_dilution; ispin++ ) 
