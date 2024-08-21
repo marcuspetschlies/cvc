@@ -202,15 +202,20 @@ void usage() {
 int main(int argc, char **argv) {
 
   /* char const outfile_prefix[] = "p2gg_local"; */
-
+#if 0
   /*                            gt  gx  gy  gz */
   int const gamma_v_list[4] = {  0,  1,  2,  3 };
   int const gamma_v_num = 4;
+#endif
+  /*                            gx  gy  gz */
+  int const gamma_v_list[3] = { 1,  2,  3 };
+  int const gamma_v_num = 3;
 
+#if 0
   /*                            gtg5 gxg5 gyg5 gzg5 */
   int const gamma_a_list[4] = {    6,   7,   8,   9 };
   int const gamma_a_num = 4;
-
+#endif
   /* vector, axial vector */
   /* int const gamma_va_list[8] = { 0,  1,  2,  3,  6,   7,   8,   9 }; */
   /* int const gamma_va_num = 8; */
@@ -223,10 +228,11 @@ int main(int argc, char **argv) {
   int const gamma_s_list[1] = { 4 };
   int const gamma_s_num = 1;
 
+#if 0
   int const gamma_p = 5;
   int const gamma_p_list[1] = { 5 };
   int const gamma_p_num = 1;
-  
+#endif
 
   int c;
   int filename_set = 0;
@@ -465,6 +471,32 @@ int main(int argc, char **argv) {
     }
 
     /**********************************************************
+     * write momentum and gamma lists to file
+     **********************************************************/
+
+    if ( io_proc == 2 )
+    {
+      int const mom_cdim[2] = { g_sink_momentum_number, 3 };
+      exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, filename, "/mom_snk", "int", 2, mom_cdim );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+
+      exitstatus = write_h5_contraction ( (void*)gamma_s_list, NULL, filename, "/gamma_s", "int", 1, &gamma_s_num );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+
+      exitstatus = write_h5_contraction ( (void*)gamma_v_list, NULL, filename, "/gamma_v", "int", 1, &gamma_v_num );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(123);
+      }
+    }
+
+    /**********************************************************
      **********************************************************
      **
      ** propagators with source at gsx
@@ -525,12 +557,7 @@ int main(int argc, char **argv) {
       EXIT(3);
     }
     
-    double ** contr_p = init_2level_dtable ( g_sink_momentum_number, 2*T );
-    if ( contr_p == NULL ) {
-      fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
-      EXIT(3);
-    }
-
+    double ** contr_p = NULL;
     double **** contr_accum = NULL;
 
 #if _V_V_N
@@ -547,7 +574,13 @@ int main(int argc, char **argv) {
       EXIT(3);
     }
 
-    sprintf ( h5_tag, "/local-local/u-gf-u-gi/v_v" );
+    contr_p = init_2level_dtable ( g_sink_momentum_number, 2*T );
+    if ( contr_p == NULL ) {
+      fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    sprintf ( h5_tag, "/local-local/u-v-u-v" );
 
     for ( int igi = 0; igi < _GAMMA_I_NUM; igi++ )
     {
@@ -633,9 +666,8 @@ int main(int argc, char **argv) {
 
     }  /* end of if io_proc > 0 */
      
-    fini_1level_dtable ( &contr_x );
-    fini_2level_dtable ( &contr_p );
     fini_4level_dtable ( &contr_accum );
+    fini_2level_dtable ( &contr_p );
 
 #undef _GAMMA_I_NUM
 #undef _GAMMA_I_LIST
@@ -657,13 +689,19 @@ int main(int argc, char **argv) {
 #define    _GAMMA_F_NUM  gamma_s_num
 #define    _GAMMA_F_LIST gamma_s_list
 
-    contr_accum = init_4level_dtable ( T, g_sink_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM );
+    contr_accum = init_4level_dtable ( T, g_source_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM );
     if ( contr_accum == NULL ) {
       fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
       EXIT(3);
     }
 
-    sprintf ( h5_tag, "/local-local/u-gf-u-gi/s_s" );
+    contr_p = init_2level_dtable ( g_source_momentum_number, 2*T );
+    if ( contr_p == NULL ) {
+      fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
+      EXIT(3);
+    }
+
+    sprintf ( h5_tag, "/local-local/u-s-u-s" );
 
     for ( int igi = 0; igi < _GAMMA_I_NUM; igi++ )
     {
@@ -679,8 +717,8 @@ int main(int argc, char **argv) {
         memset ( contr_x, 0, 2*VOLUME*sizeof(double) );
         contract_twopoint_xdep ( contr_x, idsource, idsink, propagator[1], propagator[0], spin_dilution, color_dilution, 1, 1, 64 );
 
-        memset ( contr_p[0], 0, g_sink_momentum_number * 2*T * sizeof(double) );
-        exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_sink_momentum_number, g_sink_momentum_list );
+        memset ( contr_p[0], 0, g_source_momentum_number * 2*T * sizeof(double) );
+        exitstatus = momentum_projection ( contr_x, contr_p[0], T, g_source_momentum_number, g_source_momentum_list );
         if(exitstatus != 0) {
           fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from momentum_projection, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(3);
@@ -689,7 +727,7 @@ int main(int argc, char **argv) {
 #pragma omp parallel for
         for ( int it = 0; it < T; it++ )
         {
-          for ( int ip = 0; ip < g_sink_momentum_number; ip++ )
+          for ( int ip = 0; ip < g_source_momentum_number; ip++ )
           {
             contr_accum[it][ip][igf][2*igi  ] = contr_p[ip][2*it  ];
             contr_accum[it][ip][igf][2*igi+1] = contr_p[ip][2*it+1];
@@ -703,11 +741,11 @@ int main(int argc, char **argv) {
     {
       double * write_buffer = NULL;
 #ifdef HAVE_MPI
-      int mitems = 2 * T * g_sink_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM;
+      int mitems = 2 * T * g_source_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM;
  
       if ( io_proc == 2 ) 
       {
-        write_buffer = init_1level_dtable ( 2 * T_global * g_sink_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM ); 
+        write_buffer = init_1level_dtable ( 2 * T_global * g_source_momentum_number * _GAMMA_F_NUM * _GAMMA_I_NUM ); 
         if ( write_buffer == NULL ) {
           fprintf(stderr, "[p2gg_twop_invert_contract_local] Error from init_level_table %s %d\n", __FILE__, __LINE__);
           EXIT(3);
@@ -732,7 +770,7 @@ int main(int argc, char **argv) {
       if ( io_proc == 2 ) 
       {
         int const ncdim = 4;
-        int const cdim[4] = { T_global, g_sink_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM };
+        int const cdim[4] = { T_global, g_source_momentum_number, _GAMMA_F_NUM, 2 * _GAMMA_I_NUM };
 
         exitstatus = write_h5_contraction ( write_buffer, NULL, filename, h5_tag, "double", ncdim, cdim );
 
@@ -750,9 +788,8 @@ int main(int argc, char **argv) {
 
     }  /* end of if io_proc > 0 */
      
-    fini_1level_dtable ( &contr_x );
-    fini_2level_dtable ( &contr_p );
     fini_4level_dtable ( &contr_accum );
+    fini_2level_dtable ( &contr_p );
 
 #undef _GAMMA_I_NUM
 #undef _GAMMA_I_LIST
@@ -763,11 +800,15 @@ int main(int argc, char **argv) {
     show_time ( &ta, &tb, "p2gg_twop_invert_contract_local", "s-s-n", io_proc==2 );
 #endif  /* of if _S_S_N */
 
+    fini_1level_dtable ( &contr_x );
+
   }  /* end of loop on source locations */
 
   /****************************************
    * free the allocated memory, finalize
    ****************************************/
+
+  fini_rng_state ( &rng_state );
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
