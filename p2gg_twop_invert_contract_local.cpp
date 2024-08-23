@@ -61,39 +61,6 @@ extern "C"
 #define _OP_ID_DN 1
 
 /****************************************************
- * defines for tensors to be contracted
- ****************************************************/
-#ifndef _NEUTRAL_CVC_LVC_TENSOR
-#  define _NEUTRAL_CVC_LVC_TENSOR 1
-#endif
-
-#ifndef _NEUTRAL_LVC_LVC_TENSOR
-#  define _NEUTRAL_LVC_LVC_TENSOR 1
-#endif
-
-#ifndef _CHARGED_LVC_LVC_TENSOR
-#  define _CHARGED_LVC_LVC_TENSOR 1
-#endif
-
-#if _NEUTRAL_LVC_LVC_TENSOR
-#warning "[p2gg_twop_invert_contract_local] contract neutral lvc - lvc tensor"
-#else
-#warning "[p2gg_twop_invert_contract_local] DO NOT contract neutral lvc - lvc tensor"
-#endif
-
-#if _NEUTRAL_CVC_LVC_TENSOR
-#warning "[p2gg_twop_invert_contract_local] contract neutral cvc - lvc tensor"
-#else
-#warning "[p2gg_twop_invert_contract_local] DO NOT contract neutral cvc - lvc tensor"
-#endif
-
-#if _CHARGED_LVC_LVC_TENSOR
-#warning "[p2gg_twop_invert_contract_local]  contract chargd lvc - lvc tensor"
-#else
-#warning "[p2gg_twop_invert_contract_local] DO NOT contract chargd lvc - lvc tensor"
-#endif
-
-/****************************************************
  * defines for 2-pt gamma vertex combinations
  * and charged / neutral
  *
