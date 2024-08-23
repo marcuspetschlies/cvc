@@ -44,9 +44,9 @@
 #include "contract_loop_inline.h"
 
 #define _TWOP_COMPACT_AFF 0
-#define _TWOP_COMPACT_H5  0
+#define _TWOP_COMPACT_H5  1
 #define _TWOP_PERCONF     0
-#define _CVC_H5           1
+#define _CVC_H5           0
 
 #define LOOP_READ_H5    0
 #define LOOP_READ_ASCII 1
@@ -97,9 +97,9 @@ int main(int argc, char **argv) {
 
   /* char const operator_type_tag[4][8]  = { "cvc-cvc"    , "lvc-lvc"    , "cvc-lvc"    , "lvc-cvc"    }; */
 
-  char const correlator_prefix[4][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc"  };
+  char const correlator_prefix[5][20] = { "hvp"        , "local-local", "hvp"        , "local-cvc" , "local-local" };
 
-  char const flavor_tag[4][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc" };
+  char const flavor_tag[5][20]        = { "u-cvc-u-cvc", "u-gf-u-gi"  , "u-cvc-u-lvc", "u-gf-u-cvc", "u-v-u-v"     };
 
   char const loop_type_tag[3][8] = { "NA", "dOp", "Scalar" };
 
@@ -139,7 +139,6 @@ int main(int argc, char **argv) {
   int num_src_per_conf = 0;
   int num_conf = 0;
   char ensemble_name[100] = "cA211a.30.32";
-  int fold_correlator= 0;
   struct timeval ta, tb;
   int operator_type = -1;
   int loop_type = -1;
@@ -151,6 +150,7 @@ int main(int argc, char **argv) {
   int loop_transpose = 0;
   int loop_step = 1;
   int loop_nev = -1;
+  int tco_num = -1, tco_shift = -1;
 
   double ****** pgg_disc = NULL;
 
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "tWh?f:N:S:F:O:D:w:E:r:n:s:v:")) != -1) {
+  while ((c = getopt(argc, argv, "tWh?f:N:S:O:D:w:E:r:n:s:v:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -180,10 +180,6 @@ int main(int argc, char **argv) {
     case 'W':
       check_momentum_space_WI = 1;
       fprintf ( stdout, "# [p2gg_analyse_wdisc] check_momentum_space_WI set to %d\n", check_momentum_space_WI );
-      break;
-    case 'F':
-      fold_correlator = atoi ( optarg );
-      fprintf ( stdout, "# [p2gg_analyse_wdisc] fold_correlator set to %d\n", fold_correlator );
       break;
     case 'O':
       operator_type = atoi ( optarg );
@@ -721,11 +717,6 @@ int main(int argc, char **argv) {
           correlator_prefix[operator_type], flavor_tag[operator_type],
           sink_momentum[0], sink_momentum[1], sink_momentum[2] );
 
-      double *** buffer = init_3level_dtable( 4, 4, 2*T_global );
-      if( buffer == NULL ) {
-        fprintf(stderr, "[p2gg_analyse_wdisc] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__);
-        EXIT(15);
-      }
 
       gettimeofday ( &ta, (struct timezone *)NULL );
       /***********************************************************
@@ -749,41 +740,74 @@ int main(int argc, char **argv) {
   
           if ( g_verbose > 2 ) fprintf ( stdout, "# [p2gg_analyse_wdisc] key = %s\n", key );
 
-          exitstatus = read_from_h5_file ( (void*)buffer[0][0], filename, key, "double", io_proc );
-          if( exitstatus != 0 ) {
-            fprintf(stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(105);
+          //exitstatus = read_from_h5_file ( (void*)buffer[0][0], filename, key, "double", io_proc );
+          //if( exitstatus != 0 ) {
+          //  fprintf(stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          //  EXIT(105);
+          //}
+
+          double * buffer = NULL;
+          size_t * buffer_cdim = NULL, buffer_ncdim = 0;
+          exitstatus = read_from_h5_file_varsize ( (void**)&buffer, filename, key,  "double", &buffer_ncdim, &buffer_cdim,  io_proc );
+          if ( exitstatus != 0 ) {
+            fprintf(stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file_varsize for file %s key %s   %s %d\n", filename, key, __FILE__, __LINE__);
+            EXIT(15);
           }
 
+          if ( buffer_ncdim != 3 )
+          {
+            fprintf( stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file_varsize, buffer must be 3-dim    %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
+
+          if ( buffer_cdim[0] != buffer_cdim[1] || buffer_cdim[2] != 2*T_global )
+          {
+            fprintf( stderr, "[p2gg_analyse_wdisc] Error from read_from_h5_file_varsize, inconsisten buffer dimensions    %s %d\n", __FILE__, __LINE__ );
+            EXIT(12);
+          }
+          tco_num = buffer_cdim[1];
+          if ( tco_num == 3 )
+          {
+            tco_shift = 1;
+          } else if ( tco_num == 4 )
+          {
+            tco_shift = 0;
+          }
+          fprintf ( stdout, "# [p2gg_analyse_wdisc] tco_num = %d    tco_shift =%d    %s %d\n", tco_num, tco_shift,   __FILE__, __LINE__ );
+          
+          free ( buffer_cdim );
+          
           /**********************************************************
            * loop on shifts in directions mu, nu
            **********************************************************/
-          for( int mu = 0; mu < 4; mu++) {
-          for( int nu = 0; nu < 4; nu++) {
+          for( int mu = 0; mu < tco_num; mu++) {
+          for( int nu = 0; nu < tco_num; nu++) {
 
             /**********************************************************
              * sort data from buffer into hvp,
              * add source phase
              **********************************************************/
 #pragma omp parallel for
-            for ( int it = 0; it < T_global; it++ ) {
+            for ( int it = 0; it < T_global; it++ ) 
+            {
               int const tt = ( it - gsx[0] + T_global ) % T_global; 
 
-              double _Complex ztmp = ( buffer[mu][nu][2*it] + buffer[mu][nu][2*it+1]  * I ) * ephase;
- 
-              hvp[iconf][isrc][isink_momentum][ipsign][mu][nu][2*tt  ] = creal( ztmp );
-              hvp[iconf][isrc][isink_momentum][ipsign][mu][nu][2*tt+1] = cimag( ztmp );
+              // double _Complex ztmp = ( buffer[mu][nu][2*it] + buffer[mu][nu][2*it+1]  * I ) * ephase;
+              double _Complex ztmp = (   buffer[ 2 * ( T_global * ( tco_num * mu + nu ) + it )     ] 
+                                       + buffer[ 2 * ( T_global * ( tco_num * mu + nu ) + it ) + 1 ]  * I ) * ephase;
+              hvp[iconf][isrc][isink_momentum][ipsign][mu+tco_shift][nu+tco_shift][2*tt  ] = creal( ztmp );
+              hvp[iconf][isrc][isink_momentum][ipsign][mu+tco_shift][nu+tco_shift][2*tt+1] = cimag( ztmp );
             }
 
           }}  /* end of loop on nu, mu */
+
+          free ( buffer );
 
         }  /* end of loop on source positions */
       }  /* end of loop on configs */
         
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "p2gg_analyse_wdisc", "read-ll-tensor-aff", g_cart_id == 0 );
-
-      fini_3level_dtable( &buffer );
 
     }  /* end of loop on psign */
 
@@ -1039,7 +1063,7 @@ int main(int argc, char **argv) {
       }
   
       int dim[2] = { num_conf, T_global };
-      antisymmetric_orbit_average_spatial ( data, hvp_src_avg, dim, sink_momentum_number, sink_momentum_list, ireim );
+      antisymmetric_orbit_average_spatial ( data, hvp_src_avg, dim, sink_momentum_number, sink_momentum_list, ireim, 1 );
   
       char obs_name[100];
       sprintf ( obs_name, "%s.%s.eps.orbit.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
@@ -1548,7 +1572,7 @@ int main(int argc, char **argv) {
           double ** data = init_2level_dtable ( num_conf, T_global );
   
           int const dim[2] = { num_conf, T_global };
-          antisymmetric_orbit_average_spatial ( data, hvp2, dim, sink_momentum_number, sink_momentum_list, ireim );
+          antisymmetric_orbit_average_spatial ( data, hvp2, dim, sink_momentum_number, sink_momentum_list, ireim, 1 );
      
           char obs_name[100];
           sprintf ( obs_name, "vv.%s.%s.asym.orbit.PX%d_PY%d_PZ%d.%s", correlator_prefix[operator_type], flavor_tag[operator_type],
@@ -1869,7 +1893,7 @@ int main(int argc, char **argv) {
           }
 
           int const dim[2] = { num_conf, T_global };
-          antisymmetric_orbit_average_spatial ( data, pgg, dim, sink_momentum_number, sink_momentum_list, ireim );
+          antisymmetric_orbit_average_spatial ( data, pgg, dim, sink_momentum_number, sink_momentum_list, ireim, 1 );
       
 
           char obs_name[100];
@@ -1924,8 +1948,8 @@ int main(int argc, char **argv) {
           double ** data = init_2level_dtable ( num_conf, 2 * T_global + 1 );
   
           int const dim[2] = { num_conf, T_global };
-          antisymmetric_orbit_average_spatial ( data_aux[0], pgg, dim, sink_momentum_number, sink_momentum_list, ireim );
-          antisymmetric_orbit_average_spatial ( data_aux[1], hvp2, dim, sink_momentum_number, sink_momentum_list, ireim );
+          antisymmetric_orbit_average_spatial ( data_aux[0], pgg, dim, sink_momentum_number, sink_momentum_list, ireim, 1 );
+          antisymmetric_orbit_average_spatial ( data_aux[1], hvp2, dim, sink_momentum_number, sink_momentum_list, ireim, 1 );
      
 #pragma omp parallel for         
           for ( int iconf = 0; iconf < num_conf; iconf++ ) {
