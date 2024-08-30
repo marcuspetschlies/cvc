@@ -57,14 +57,6 @@ extern "C"
 #define TIMERS 0
 #endif
 
-#ifndef M_J_M
-#define M_J_M 0
-#endif
-
-#ifndef MXM_J_M
-#define MXM_J_M 1
-#endif
-
 using namespace cvc;
 
 void usage() {
@@ -83,6 +75,14 @@ char const gamma_bin_to_name[16][8] = { "id", "gx", "gy", "gxgy", "gz", "gxgz", 
 /* inline int momentum_filter ( int * const pf, int * const pc, int * const pi1, int * const pi2, int const pp_max ) */
 inline int momentum_filter ( int const qf[3], int const qc[3], int const qi1[3], int const qi2[3], int const pp_max ) 
 {
+
+  if ( qf  == NULL &&
+       qc  == NULL &&
+       qi1 == NULL &&
+       qi2 == NULL    ){
+    return ( 1 == 0 );
+  }
+
   int pf[3]  = { 0, 0, 0 };
   int pc[3]  = { 0, 0, 0 };
   int pi1[3] = { 0, 0, 0 };
@@ -93,50 +93,19 @@ inline int momentum_filter ( int const qf[3], int const qc[3], int const qi1[3],
   if ( qi1 !=  NULL ) memcpy ( pi1, qi1, 3 * sizeof ( int ) );
   if ( qi2 !=  NULL ) memcpy ( pi2, qi2, 3 * sizeof ( int ) );
 
-  /* check mometnum conservation  */
-  if ( pf == NULL || pc == NULL ) return ( 1 == 0 );
+  /* check momentum conservation  */
 
-  if ( pi2 == NULL && pc == NULL ) {
+  int const is_conserved = ( pi1[0] + pi2[0] + pf[0] + pc[0] == 0 ) &&
+                           ( pi1[1] + pi2[1] + pf[1] + pc[1] == 0 ) &&
+                           ( pi1[2] + pi2[2] + pf[2] + pc[2] == 0 );
 
-    int const is_conserved = ( pi1[0] + pf[0] == 0 ) && ( pi1[1] + pf[1] == 0 ) && ( pi1[2] + pf[2] == 0 );
-
-    int const is_lessequal = \
-            ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2] <= pp_max ) \
-        &&  ( pf[0]  * pf[0]  + pf[1]  * pf[1]  + pf[2]  * pf[2]  <= pp_max );
-
-    return ( is_conserved && is_lessequal );
-
-  } else if ( pc != NULL ) {
-    if ( pi2 == NULL ) {
-  
-      int const is_conserved = ( pi1[0] + pf[0] + pc[0] == 0 ) && \
-                               ( pi1[1] + pf[1] + pc[1] == 0 ) && \
-                               ( pi1[2] + pf[2] + pc[2] == 0 );
-
-      int const is_lessequal = \
-            ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2]  <= pp_max ) \
-         && ( pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2]  <= pp_max ) \
-         && ( pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2]  <= pp_max );
-
-      return ( is_conserved && is_lessequal );
-
-    } else {
-
-      int const is_conserved = ( pi1[0] + pi2[0] + pf[0] + pc[0] == 0 ) &&
-                             ( pi1[1] + pi2[1] + pf[1] + pc[1] == 0 ) &&
-                             ( pi1[2] + pi2[2] + pf[2] + pc[2] == 0 );
-
-      int const is_lessequal = \
+  int const is_lessequal = \
            ( pi1[0] * pi1[0] + pi1[1] * pi1[1] + pi1[2] * pi1[2]  <= pp_max ) \
         && ( pi2[0] * pi2[0] + pi2[1] * pi2[1] + pi2[2] * pi2[2]  <= pp_max ) \
         && ( pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2]  <= pp_max ) \
         && ( pf[0] * pf[0] + pf[1] * pf[1] + pf[2] * pf[2]  <= pp_max );
 
-      return ( is_conserved && is_lessequal );
-    }
-  } else {
-    return ( 1 == 0 );
-  }
+  return ( is_conserved && is_lessequal );
 
 } /* end of mometnum_filter */
 
@@ -145,11 +114,17 @@ inline int momentum_filter ( int const qf[3], int const qc[3], int const qi1[3],
  ***********************************************************/
 int main(int argc, char **argv) {
   
+#if 0
+  /* int const gamma_v_number = 4;
+  int const gamma_v_list[4] = { 1, 2, 4, 8  }; */
   int const gamma_v_number = 4;
-  int const gamma_v_list[4] = { 1, 2, 4, 8  };
+  int const gamma_v_list[4] = { 14, 13, 11, 7  };
+#endif
 
+  /*
   int const gamma_rho_number = 6;
   int const gamma_rho_list[6] = { 1, 2, 4, 9, 10, 12 };
+  */
 
   /*
   int const gamma_a_number = 4;
@@ -172,6 +147,9 @@ int main(int argc, char **argv) {
   char mode[12] = "NA";
   int max_single_particle_momentum_squared = 3;
 
+  int gamma_v_number = 0;
+  int gamma_v_list[16], gamma_v_sign[16];
+
   struct timeval ta, tb;
   struct timeval start_time, end_time;
 
@@ -179,7 +157,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
 #endif
 
-  while ((c = getopt(argc, argv, "h?f:S:N:E:D:C:M:X:")) != -1) {
+  while ((c = getopt(argc, argv, "h?f:S:N:E:D:C:M:X:v:")) != -1) {
     switch (c) {
     case 'f':
       strcpy(filename, optarg);
@@ -212,6 +190,14 @@ int main(int argc, char **argv) {
     case 'X':
       max_single_particle_momentum_squared = atoi ( optarg );
       fprintf ( stdout, "# [htpp_compact] max_single_particle_momentum_squared set to %d\n", max_single_particle_momentum_squared );
+      break;
+    case 'v':
+      if ( gamma_v_number == 16 ) {
+        fprintf ( stderr, "[htpp_compact] max. gamma_v_number reached\n" );
+      }
+      sscanf ( optarg, "%d,%d", gamma_v_list + gamma_v_number , gamma_v_sign + gamma_v_number );
+      fprintf ( stdout, "# [htpp_compact] gamma_v[%d] set to %d %d\n", gamma_v_number, gamma_v_sign[gamma_v_number], gamma_v_list[gamma_v_number] );
+      gamma_v_number++;
       break;
     case 'h':
     case '?':
@@ -355,6 +341,20 @@ int main(int argc, char **argv) {
   }
 
   /***********************************************************
+   * show current insertion matrices
+   ***********************************************************/
+  if ( gamma_v_number == 0 ) {
+    fprintf( stderr, "[htpp_compact] gamma_v_number is zero %s %d\n", __FILE__, __LINE__ );
+    EXIT(1);
+  } else {
+    fprintf( stdout, "# [htpp_compact] gamma_v_number = %d    %s %d\n", gamma_v_number, __FILE__, __LINE__ );
+    for ( int i = 0; i < gamma_v_number; i++ ) {
+      fprintf( stdout, "# [htpp_compact] gamma_v %d  %d %d   %s %d\n", i, gamma_v_sign[i], gamma_v_list[i], __FILE__, __LINE__ );
+    }
+  }
+
+
+  /***********************************************************
    ***********************************************************
    **
    ** M_J_M
@@ -391,6 +391,7 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
        * reader for aff output file
        ***********************************************************/
       sprintf ( filename, "%s/stream_%c/%d/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, Nconf, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
+      // sprintf ( filename, "%s/stream_%c/%s.%.4d.t%d_x%d_y%d_z%d.aff", filename_prefix, stream, filename_prefix2, Nconf, gsx[0], gsx[1], gsx[2], gsx[3] );
    
       struct AffReader_s * affr = aff_reader ( filename );
       const char * aff_status_str = aff_reader_errstr ( affr );
@@ -445,7 +446,7 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
           momentum_list[iptot] = init_3level_itable ( momentum_number[iptot], 2, 3 );
         }
 
-        corr_mjm[iptot] = init_5level_dtable ( g_coherent_source_number, gamma_rho_number,  gamma_v_number, momentum_number[iptot],  2 * n_tc );
+        corr_mjm[iptot] = init_5level_dtable ( g_coherent_source_number, g_source_gamma_id_number,  gamma_v_number, momentum_number[iptot],  2 * n_tc );
         if ( corr_mjm[iptot] == NULL ) {
           fprintf( stderr, "[htpp_compact] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
           EXIT(2);
@@ -454,7 +455,7 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
         /***************************************************************************
          * loop on rho components
          ***************************************************************************/
-        for ( int irho = 0; irho < gamma_rho_number; irho++ ) {
+        for ( int irho = 0; irho < g_source_gamma_id_number; irho++ ) {
 
           /***************************************************************************
            * loop on vector components
@@ -499,14 +500,22 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
                * aff key for reading data
                ***********************************************************/
 
-              char key[500];
+              char key[500], key2[500];
               sprintf ( key,
                         "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/PX%d_PY%d_PZ%d",
                         /* "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/x%d_y%d_z%d", */
                         diagram_name,
                         pf[0], pf[1], pf[2],
                         gamma_bin_to_name[gamma_p_list[0]], g_src_snk_time_separation,
-                        gamma_bin_to_name[gamma_v_list[iv]], gamma_bin_to_name[gamma_rho_list[irho]],
+                        gamma_bin_to_name[gamma_v_list[iv]], gamma_bin_to_name[g_source_gamma_id_list[irho]],
+                        pc[0], pc[1], pc[2] );
+
+              sprintf ( key2,
+                        "/%s/pfx%dpfy%dpfz%d/gf_%s/dt%d/g1_%s/g2_%s/x%d_y%d_z%d",
+                        diagram_name,
+                        pf[0], pf[1], pf[2],
+                        gamma_bin_to_name[gamma_p_list[0]], g_src_snk_time_separation,
+                        gamma_bin_to_name[gamma_v_list[iv]], gamma_bin_to_name[g_source_gamma_id_list[irho]],
                         pc[0], pc[1], pc[2] );
 #if 0
 
@@ -536,8 +545,29 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
 
               exitstatus = read_aff_contraction (  corr_buffer, affr, NULL, key, T_global );
               if ( exitstatus != 0 ) {
-                fprintf(stderr, "[htpp_compact] Error from read_aff_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
-                EXIT(12);
+                fprintf(stdout, "# [htpp_compact] key %s not found;\ntrying alternative key2 %s   %s %d\n", key, key2, __FILE__, __LINE__ );
+
+                /***********************************************************
+                 * try clear AFF error state
+                 ***********************************************************/
+                exitstatus = aff_reader_clearerr ( affr );
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[htpp_compact] Error from aff_reader_clearerr for file %s status %d     %s %d\n",
+                        filename, exitstatus, __FILE__, __LINE__ );
+                  EXIT(122);
+                }
+
+                /***********************************************************
+                 * try reading with alternative key2
+                 ***********************************************************/
+                exitstatus = read_aff_contraction (  corr_buffer, affr, NULL, key2, T_global );
+
+                if ( exitstatus != 0 ) {
+                  fprintf(stderr, "[htpp_compact] Error from read_aff_contraction for file %s key %s, status was %d %s %d\n", 
+                      filename, key2,
+                      exitstatus, __FILE__, __LINE__ );
+                  EXIT(12);
+                }
               }
 
 #if TIMERS
@@ -634,7 +664,7 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
 
           char gamma_tag[200];
           sprintf( gamma_tag, "/gamma_rho" );
-          exitstatus = write_h5_contraction ( (void*)(gamma_rho_list), NULL, filename, gamma_tag, "int", 1, &gamma_rho_number );
+          exitstatus = write_h5_contraction ( (void*)(g_source_gamma_id_list), NULL, filename, gamma_tag, "int", 1, &g_source_gamma_id_number );
           if( exitstatus != 0 ) {
             fprintf ( stderr, "[htpp_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
             EXIT(1);
@@ -677,7 +707,7 @@ if (strcmp ( mode, "M_J_M" ) == 0 ) {
           }
 
           int const ndim = 4;
-          int const cdim[4] = { gamma_rho_number, gamma_v_number, momentum_number[iptot],  2 * n_tc };
+          int const cdim[4] = { g_source_gamma_id_number, gamma_v_number, momentum_number[iptot],  2 * n_tc };
 
           exitstatus = write_h5_contraction ( corr_mjm[iptot][icoh][0][0][0], NULL, filename, key, "double", ndim, cdim );
           if ( exitstatus != 0) {
@@ -887,7 +917,6 @@ if ( strcmp( mode, "MXM_J_M" ) == 0 ) {
 #endif
 
               int const pi2[3] = {
-
                 g_seq_source_momentum_list[ipi][0],
                 g_seq_source_momentum_list[ipi][1],
                 g_seq_source_momentum_list[ipi][2] };
@@ -1110,7 +1139,9 @@ if ( strcmp( mode, "MXM_J_M" ) == 0 ) {
 
           exitstatus = write_h5_contraction ( corr_mxmjm[iptot][icoh][0][0], NULL, filename, key, "double", ndim, cdim );
           if ( exitstatus != 0) {
-            fprintf ( stderr, "[http_compact] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
+            fprintf ( stderr, "[http_compact] Error from write_h5_contraction for file %s key %s, status was %d %s %d\n", 
+                filename, key,
+                exitstatus, __FILE__, __LINE__ );
             EXIT(123);
           }
 #if TIMERS
