@@ -83,6 +83,8 @@ extern "C"
 
 #define MAX_NUM_GF_NSTEP 100
 
+#define _TEST_PLAQUETTE 0
+
 using namespace cvc;
 
 /***************************************************************************
@@ -125,6 +127,30 @@ int main(int argc, char **argv) {
   int gf_niter_list[MAX_NUM_GF_NSTEP];
   double gf_dt_list[MAX_NUM_GF_NSTEP];
 
+  gf_nstep = 10;
+
+  gf_niter_list[0] = 2;
+  gf_niter_list[1] = 2;
+  gf_niter_list[2] = 2;
+  gf_niter_list[3] = 2;
+  gf_niter_list[4] = 2;
+  gf_niter_list[5] = 2;
+  gf_niter_list[6] = 2;
+  gf_niter_list[7] = 2;
+  gf_niter_list[8] = 2;
+  gf_niter_list[9] = 2;
+
+  gf_dt_list[0] = 0.01;
+  gf_dt_list[1] = 0.01;
+  gf_dt_list[2] = 0.01;
+  gf_dt_list[3] = 0.01;
+  gf_dt_list[4] = 0.01;
+  gf_dt_list[5] = 0.01;
+  gf_dt_list[6] = 0.01;
+  gf_dt_list[7] = 0.01;
+  gf_dt_list[8] = 0.01;
+  gf_dt_list[9] = 0.01;
+       
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
 #endif
@@ -560,41 +586,20 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  gf_nstep = 2;
-  gf_niter_list[0] = 0;
-  gf_niter_list[1] = 3;
-//  gf_niter_list[2] = 3;
-  gf_dt_list[0] = 0.01;
-  gf_dt_list[1] = 0.01;
-//  gf_dt_list[2] = 0.01;
-
-
   /***************************************************************************
    * loop on samples
    * invert and contract loops
    ***************************************************************************/
   for ( int isample = 0; isample < g_nsample; isample++ ) 
   {
-
-
     /***************************************************************************
      * gradient flow in stochastic source and propagator
      ***************************************************************************/
-#ifdef _GFLOW_QUDA
-    /* reset: upload original gauge field to device */
-    loadGaugeQuda ( (void *)h_gauge, &gauge_param );
-#elif defined _GFLOW_CVC
-    memcpy ( gauge_field_gf, gauge_field_with_phase, sizeof_gauge_field );
-#endif
-
-    double _Complex **** loop = NULL;
-
-    loop = init_4level_ztable ( gf_nstep, VOLUME, 12, 12 );
+    double _Complex **** loop = init_4level_ztable ( gf_nstep, VOLUME, 12, 12 );
     if ( loop  == NULL ) {
       fprintf ( stderr, "[loop_gf_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
       EXIT(12);
     }
-
 
     /***************************************************************************
      * loop on spin and color index 
@@ -607,13 +612,10 @@ int main(int argc, char **argv) {
     for ( int timeslice = 0; timeslice < T_global; timeslice ++ )
     {
 #endif
-
       for ( int ispin = 0; ispin < 4; ispin++ ) 
       {
-
         for ( int icol = 0; icol < 3; icol++ ) 
         {
-
           int const isc = 3 * ispin + icol;
 
           memset ( spinor_work[0], 0, sizeof_spinor_field );
@@ -682,12 +684,16 @@ int main(int argc, char **argv) {
      	  /***************************************************************************
           '* (re-)set gauge field to flowtime zero
      	   ***************************************************************************/
+          gettimeofday ( &ta, (struct timezone *)NULL );
 #ifdef _GFLOW_QUDA
           /* reset: upload original gauge field to device */
           loadGaugeQuda ( (void *)h_gauge, &gauge_param );
 #elif defined _GFLOW_CVC
           memcpy ( gauge_field_gf, gauge_field_with_phase, sizeof_gauge_field );
 #endif
+          gettimeofday ( &tb, (struct timezone *)NULL );
+          show_time ( &ta, &tb, "loop_gf_invert_contract", "loadGauge", g_cart_id == 0 );
+
 
           /* cumulative flow time */
           double gf_tau = 0;
@@ -721,21 +727,20 @@ int main(int argc, char **argv) {
 
               _performGFlowForward ( spinor_work[0], spinor_work[0], &smear_param, 0 );
 
-    	      /* TEST PLAQUETTE */
+#if _TEST_PLAQUETTE
               saveGaugeQuda ( h_gauge, &gauge_param );
   	      gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
 #ifdef HAVE_MPI
               xchange_gauge_field( gauge_field_aux );
 #endif
 	      plaquetteria  ( gauge_field_aux );
-	      /* END TEST PLAQUETTE */
+#endif  /* of _TEST_PLAQUETTE */
 
 #elif defined _GFLOW_CVC
               flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[0], gf_niter, gf_dt, 1, 1, 0 );
 #endif    
-
               gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
+              show_time ( &ta, &tb, "loop_gf_invert_contract", "forward-gradient-flow-src", g_cart_id == 0 );
 
               /***************************************************************************
 	       * flow the stochastic propagators
@@ -748,20 +753,20 @@ int main(int argc, char **argv) {
 #ifdef _GFLOW_QUDA
               _performGFlowForward ( spinor_work[1], spinor_work[1], &smear_param, 1 );
 
-              /* TEST PLAQUETTE */
+#if _TEST_PLAQUETTE
               saveGaugeQuda ( h_gauge, &gauge_param );
               gauge_field_qdp_to_cvc ( gauge_field_aux, h_gauge );
 #ifdef HAVE_MPI
               xchange_gauge_field( gauge_field_aux );
 #endif
               plaquetteria  ( gauge_field_aux );
-              /* END TEST PLAQUETTE */
+#endif  /* of _TEST_PLAQUETTE */
 
 #elif defined _GFLOW_CVC
               flow_fwd_gauge_spinor_field ( gauge_field_gf, spinor_work[1], gf_niter, gf_dt, 1, 1, 1 );
 #endif
               gettimeofday ( &tb, (struct timezone *)NULL );
-              show_time ( &ta, &tb, "loop_gf_invert_contract", "forward gradient flow", g_cart_id == 0 );
+              show_time ( &ta, &tb, "loop_gf_invert_contract", "forward-gradient-flow-prop", g_cart_id == 0 );
 
             } else {
 
@@ -812,8 +817,6 @@ int main(int argc, char **argv) {
 #if defined _GFLOW_CVC
           flow_fwd_gauge_spinor_field ( NULL, NULL, 0, 0, 0, 0, 0 );
 #endif
-
-
         }  /* end of loop on color dilution component */
 
       }  /* end of loop on spin dilution component */
