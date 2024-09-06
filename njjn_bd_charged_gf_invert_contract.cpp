@@ -68,13 +68,9 @@ extern "C"
 #define _OP_ID_UP 0
 #define _OP_ID_DN 1
 
-#define _PART_IIb 1  /* N1, N2 */
-#define _PART_III 1  /* B/Z and D1c/i sequential diagrams */
-
-#ifndef _USE_TIME_DILUTION
-#define _USE_TIME_DILUTION 1
-#endif
-
+#define _PART_PROP   1
+#define _PART_TWOP   1  /* N1, N2 */
+#define _PART_THREEP 0  /* B/Z and D1c/i sequential diagrams */
 
 using namespace cvc;
 
@@ -177,6 +173,7 @@ int main(int argc, char **argv) {
   double **lmzz[2] = { NULL, NULL }, **lmzzinv[2] = { NULL, NULL };
   double *gauge_field_with_phase = NULL;
   struct timeval ta, tb, start_time, end_time;
+  int first_solve_dummy = 1;
 
   /* for gradient flow */
   int gf_niter = 20;
@@ -188,9 +185,6 @@ int main(int argc, char **argv) {
   int const    gamma_f1_number                           = 1;
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
-
-  int read_loop_field    = 0;
-  int write_loop_field   = 0;
 
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
@@ -441,7 +435,51 @@ int main(int argc, char **argv) {
   gauge_field_cvc_to_qdp ( h_gauge, gauge_field_with_phase );
 
   gauge_param.location = QUDA_CPU_FIELD_LOCATION;
+
+  /***************************************************************************
+   * either we upload QUDA_WILSON_LINKS explicitly here, or we make
+   * a dummy solve to have wrapper upload the original gauge field
+   * and have quda instantiate gaugePrecise, which we need in
+   * adjoint gradient flow ahead of inversion
+   *
+   * here we make a dummy solve
+   ***************************************************************************/
+  if ( first_solve_dummy == 0 )
+  {
+    // set to Wilson links for this one upload
+    gauge_param.type = QUDA_WILSON_LINKS;
+    loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+
+  } else if ( first_solve_dummy == 1 )
+  {
+    double ** spinor_work = init_2level_dtable ( 2, _GSI( VOLUME+RAND ) );
+    if ( spinor_work == NULL ) 
+    {
+      fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_Xlevel_dtable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+    memset(spinor_work[1], 0, sizeof_spinor_field);
+    memset(spinor_work[0], 0, sizeof_spinor_field);
+    if ( g_cart_id == 0 ) spinor_work[0][0] = 1.;
+    exitstatus = _TMLQCD_INVERT(spinor_work[1], spinor_work[0], _OP_ID_UP);
+#  if ( defined GPU_DIRECT_SOLVER )
+    if(exitstatus < 0)
+#  else
+    if(exitstatus != 0)
+#  endif
+    {
+      fprintf(stderr, "[njjn_bd_charged_invert_contract] Error from invert, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+      EXIT(12);
+    }
+    fini_2level_dtable ( &spinor_work );
+
+  }  // end of if first_solve_dummy
+
+  /***************************************************************************
+   * set to flowed links from now on, upload gauge field
+   ***************************************************************************/
   gauge_param.type = QUDA_FLOWED_LINKS;
+  loadGaugeQuda ( (void *)h_gauge, &gauge_param );
 
 
   /***************************************************************************
@@ -452,11 +490,15 @@ int main(int argc, char **argv) {
   smear_param.epsilon       = gf_dt;
   smear_param.meas_interval = 1;
   smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+  smear_param.restart       = QUDA_BOOLEAN_FALSE;
 
   gf_tau = gf_niter * gf_dt;
 
   gf_nb = (int) ceil ( pow ( (double)gf_niter , 1./ ( (double)gf_ns + 1. ) ) );
-  if ( io_proc == 2 && g_verbose > 1 ) fprintf (stdout, "# [njjn_bd_charged_gf_invert_contract] gf_nb = %d   %s %d\n", gf_nb, __FILE__, __LINE__ );
+  if ( io_proc == 2 && g_verbose > 1 )
+  {
+    fprintf (stdout, "# [njjn_bd_charged_gf_invert_contract] gf_nb = %d   %s %d\n", gf_nb, __FILE__, __LINE__ );
+  }
 
 #endif
 
@@ -514,13 +556,6 @@ int main(int argc, char **argv) {
 #endif
     }  /* end of if io_proc == 2 */
 
-    double ** spinor_field = init_2level_dtable ( 2, _GSI(VOLUME+RAND) );
-    if ( spinor_field == NULL )
-    {
-      fprintf ( stderr, "[njjn_fht_gf_invert_contract] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
-      EXIT(2);
-    }
-
     double * point_source_flowed = init_1level_dtable ( _GSI(VOLUME) );
     if ( point_source_flowed == NULL )
     {
@@ -536,12 +571,13 @@ int main(int argc, char **argv) {
     }
 
 
+#if _PART_PROP
     /***************************************************************************
      ***************************************************************************
      **
      ** Part IIa
      **
-     ** point-to-all propagators with source at coherent source
+     ** point-to-all propagators with source
      **
      ***************************************************************************
      ***************************************************************************/
@@ -552,32 +588,51 @@ int main(int argc, char **argv) {
       memset ( point_source_flowed , 0, sizeof_spinor_field );
       if ( g_cart_id == source_proc_id )
       {
+        if ( g_verbose > 2 )
+        {
+          fprintf (stdout, "# [njjn_bd_charged_gf_invert_contract] proc%.4d sets the source    %s %d\n", g_cart_id, __FILE__, __LINE__ );
+        }
         // have process for source position, fill in the source vector
         point_source_flowed[_GSI(g_ipt[sx[0]][sx[1]][sx[2]][sx[3]])+2*isc] = 1.;
       }
 
 #ifdef _GFLOW_QUDA
+
       /***********************************************************
        * apply adjoint flow to the point source
        ***********************************************************/
-  
+#if 0
+      gettimeofday ( &ta, (struct timezone *)NULL );
+
       /* upload original gauge field to device */
       loadGaugeQuda ( (void *)h_gauge, &gauge_param );
 
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "loadGaugeQuda", g_cart_id == 0 );
+#endif
+      /***********************************************************/
+      /***********************************************************/
+
       gettimeofday ( &ta, (struct timezone *)NULL );
 
-      _performGFlowAdjoint ( spinor_field[0], spinor_field[0], &smear_param, gf_niter, gf_nb, gf_ns );
+      smear_param.restart = QUDA_BOOLEAN_TRUE;
+
+      _performGFlowAdjoint ( point_source_flowed, point_source_flowed, &smear_param, gf_niter, gf_nb, gf_ns );
 
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "_performGFlowAdjoint", g_cart_id == 0 );
 
-#endif
+      // _performGFlowAdjoint ( NULL, NULL, NULL, 0, 0, -1 );
+#if 0
+#endif  // of if 0
+#endif  // of if _GFLOW_QUDA
 
       /***********************************************************
        * invert on flowed source for flavor up and dn    
        ***********************************************************/
       for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
       {
+
         gettimeofday ( &ta, (struct timezone *)NULL );
 
         /***********************************************************
@@ -597,23 +652,41 @@ int main(int argc, char **argv) {
       
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "prepare_propagator_from_source", g_cart_id == 0 );
+#if 0
+#endif  // of if 0
 
-#ifdef _GFLOW_QUDA
         /***********************************************************
-         * apply forward flow to the point source
+         * forward gradient flow at sink
          ***********************************************************/
+#ifdef _GFLOW_QUDA
+
+#if 0
         gettimeofday ( &ta, (struct timezone *)NULL );
 
         loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+
+        gettimeofday ( &tb, (struct timezone *)NULL );
+        show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "loadGaugeQuda", g_cart_id == 0 );
+#endif  // of if 0
+
+        /***********************************************************/
+        /***********************************************************/
+
+        gettimeofday ( &ta, (struct timezone *)NULL );
+
+        smear_param.restart = QUDA_BOOLEAN_TRUE;
 
         _performGFlowForward ( propagator[iflavor][isc], propagator[iflavor][isc], &smear_param, 0 );
 
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "_performGFlowForward", g_cart_id == 0 );
-#endif
+
+#endif  // of _GFLOW_QUDA
       }  /* end of loop on flavor */
 
     }  /* end of loop on spin-color component */
+
+#endif  /* of if _PART_PROP */
 
     /***************************************************************************
      * allocate propagator fields
@@ -626,118 +699,117 @@ int main(int argc, char **argv) {
     fermion_propagator_type * fp2 = create_fp_field ( VOLUME );
     fermion_propagator_type * fp3 = create_fp_field ( VOLUME );
 
-      /***************************************************************************
-       ***************************************************************************
-       **
-       ** Part IIb
-       **
-       ** point-to-all propagator contractions for baryon 2pts
-       **
-       ***************************************************************************
-       ***************************************************************************/
-#if _PART_IIb
+#if _PART_TWOP
+    /***************************************************************************
+     ***************************************************************************
+     **
+     ** Part IIb
+     **
+     ** point-to-all propagator contractions for baryon 2pts
+     **
+     ***************************************************************************
+     ***************************************************************************/
+
+    /***************************************************************************
+     * loop on flavor combinations
+     ***************************************************************************/
+    for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+
+      gettimeofday ( &ta, (struct timezone *)NULL );
 
       /***************************************************************************
-       * loop on flavor combinations
+       * vx holds the x-dependent nucleon-nucleon spin propagator,
+       * i.e. a 4x4 complex matrix per space time point
        ***************************************************************************/
-      for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
+      double ** vx = init_2level_dtable ( VOLUME, 32 );
+      if ( vx == NULL ) {
+        fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
+        EXIT(47);
+      }
 
-        gettimeofday ( &ta, (struct timezone *)NULL );
+      /***************************************************************************
+       * vp holds the nucleon-nucleon spin propagator in momentum space,
+       * i.e. the momentum projected vx
+       ***************************************************************************/
+      double *** vp = init_3level_dtable ( T, g_source_momentum_number, 32 );
+      if ( vp == NULL ) {
+        fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
+        EXIT(47);
+      }
+
+      /***************************************************************************
+       *
+       * [ X^T Xb X ] - [ Xb^+ X^* X^+ ]
+       *
+       ***************************************************************************/
+
+      char  aff_tag_prefix[200];
+      sprintf ( aff_tag_prefix, "/N-N/%c%c%c/gf%6.4f", flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor], gf_tau);
+       
+      /***************************************************************************
+       * fill the fermion propagator fp with the 12 spinor fields
+       * in propagator of flavor X
+       ***************************************************************************/
+      assign_fermion_propagator_from_spinor_field ( fp, propagator[iflavor], VOLUME);
+
+      /***************************************************************************
+       * fill fp2 with 12 spinor fields from propagator of flavor Xb
+       ***************************************************************************/
+      assign_fermion_propagator_from_spinor_field ( fp2, propagator[1-iflavor], VOLUME);
+
+      /***************************************************************************
+       * contractions for n1, n2
+       *
+       * if1/2 loop over various Dirac Gamma-structures for
+       * baryon interpolators at source and sink
+       ***************************************************************************/
+      for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
+      for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
 
         /***************************************************************************
-         * vx holds the x-dependent nucleon-nucleon spin propagator,
-         * i.e. a 4x4 complex matrix per space time point
+         * here we calculate fp3 = Gamma[if2] x propagator[1-iflavor] / fp2 x Gamma[if1]
          ***************************************************************************/
-        double ** vx = init_2level_dtable ( VOLUME, 32 );
-        if ( vx == NULL ) {
-          fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_2level_dtable, %s %d\n", __FILE__, __LINE__);
-          EXIT(47);
+        fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
+
+        fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
+
+        fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
+
+        /***************************************************************************
+         * diagram n1
+         ***************************************************************************/
+        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+
+        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(48);
         }
 
         /***************************************************************************
-         * vp holds the nucleon-nucleon spin propagator in momentum space,
-         * i.e. the momentum projected vx
+         * diagram n2
          ***************************************************************************/
-        double *** vp = init_3level_dtable ( T, g_source_momentum_number, 32 );
-        if ( vp == NULL ) {
-          fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__ );
-          EXIT(47);
+        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+
+        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
+        if ( exitstatus != 0 ) {
+          fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
+          EXIT(48);
         }
 
-        /***************************************************************************
-         *
-         * [ X^T Xb X ] - [ Xb^+ X^* X^+ ]
-         *
-         ***************************************************************************/
+      }}  /* end of loop on Dirac Gamma structures */
 
-        char  aff_tag_prefix[200];
-        sprintf ( aff_tag_prefix, "/N-N/%c%c%c/gf%6.4f", flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor], gf_tau);
-         
-        /***************************************************************************
-         * fill the fermion propagator fp with the 12 spinor fields
-         * in propagator of flavor X
-         ***************************************************************************/
-        assign_fermion_propagator_from_spinor_field ( fp, propagator[iflavor], VOLUME);
+      fini_2level_dtable ( &vx );
+      fini_3level_dtable ( &vp );
 
-        /***************************************************************************
-         * fill fp2 with 12 spinor fields from propagator of flavor Xb
-         ***************************************************************************/
-        assign_fermion_propagator_from_spinor_field ( fp2, propagator[1-iflavor], VOLUME);
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "n1-n2-reduce-project-write", g_cart_id == 0 );
 
-        /***************************************************************************
-         * contractions for n1, n2
-         *
-         * if1/2 loop over various Dirac Gamma-structures for
-         * baryon interpolators at source and sink
-         ***************************************************************************/
-        for ( int if1 = 0; if1 < gamma_f1_number; if1++ ) {
-        for ( int if2 = 0; if2 < gamma_f1_number; if2++ ) {
+    }  /* end of loop on flavor */
+  
+#endif  /* end of if _PART_TWOP  */
 
-          /***************************************************************************
-           * here we calculate fp3 = Gamma[if2] x propagator[1-iflavor] / fp2 x Gamma[if1]
-           ***************************************************************************/
-          fermion_propagator_field_eq_gamma_ti_fermion_propagator_field ( fp3, gamma_f1_list[if2], fp2, VOLUME );
-
-          fermion_propagator_field_eq_fermion_propagator_field_ti_gamma ( fp3, gamma_f1_list[if1], fp3, VOLUME );
-
-          fermion_propagator_field_eq_fermion_propagator_field_ti_re    ( fp3, fp3, -gamma_f1_sign[if1]*gamma_f1_sign[if2], VOLUME );
-
-          /***************************************************************************
-           * diagram n1
-           ***************************************************************************/
-          sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
-
-          exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(48);
-          }
-
-          /***************************************************************************
-           * diagram n2
-           ***************************************************************************/
-          sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
-
-          exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
-          if ( exitstatus != 0 ) {
-            fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-            EXIT(48);
-          }
-
-        }}  /* end of loop on Dirac Gamma structures */
-
-        fini_2level_dtable ( &vx );
-        fini_3level_dtable ( &vp );
-
-        gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "n1-n2-reduce-project-write", g_cart_id == 0 );
-
-      }  /* end of loop on flavor */
-    
-#endif  /* end of if _PART_IIb  */
-
-
-
+#if _PART_THREEP
     /***************************************************************************
      *
      * sequential inversion and contraction
@@ -749,18 +821,40 @@ int main(int argc, char **argv) {
      ***************************************************************************/
     int momentum[3] = { 0,0,0};
 
-#if _PART_III
     /***************************************************************************
-     * read the loop for total flowtime gf_tau
+     * read the loop for total flowtime gf_tau,
+     * average over samples
      ***************************************************************************/
-     sprintf ( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, g_nsample, gf_tau );
 
-     exitstatus = read_lime_contraction ( (double*)(loop[0][0]), filename, 144, 0 );
-     if ( exitstatus != 0  ) {
-       fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
+    double _Complex * loop_buffer = init_1level_ztable ( VOLUME * 12 *12 );
+    if ( loop_buffer  == NULL ) {
+      fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_Xlevel_ztable %s %d\n", __FILE__, __LINE__ );
+      EXIT(12);
+    }
+
+
+    for ( int i = 0; i < g_nsample; i++ )
+    {
+      sprintf ( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, i, gf_tau );
+
+      exitstatus = read_lime_contraction ( (double*)(loop_buffer), filename, 144, 0 );
+      if ( exitstatus != 0  ) {
+        fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
        EXIT(12);
-     }
+      }
+#pragma omp parallel for
+      for ( size_t i = 0; i < VOLUME * 12 * 12; i++ )
+      {
+        loop[0][0][i] += loop_buffer[i];
+      }
+    }
+#pragma omp parallel for
+    for ( size_t i = 0; i < VOLUME * 12 * 12; i++ )
+    {
+      loop[0][0][i] /= (double)g_nsample;
+    }
 
+    fini_1level_ztable ( &loop_buffer );
 
     /***************************************************************************
      * loop on flavor
@@ -882,7 +976,8 @@ int main(int argc, char **argv) {
               {
                 gettimeofday ( &ta, (struct timezone *)NULL );
 
-                loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+                // loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+                smear_param.restart = QUDA_BOOLEAN_TRUE;
 
                 _performGFlowAdjoint ( sequential_source[isc], sequential_source[isc], &smear_param, gf_niter, gf_nb, gf_ns );
 
@@ -913,7 +1008,8 @@ int main(int argc, char **argv) {
               {
                 gettimeofday ( &ta, (struct timezone *)NULL );
 
-                loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+                // loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+                smear_param.restart = QUDA_BOOLEAN_TRUE;
 
                 _performGFlowForward ( sequential_propagator[isc], sequential_propagator[isc], &smear_param, 0 );
 
@@ -1069,7 +1165,7 @@ int main(int argc, char **argv) {
 
       }  /* loop on flavor type */
 
-#endif  /* of if _PART_III */
+#endif  /* of if _PART_THREEP */
 
 
     /***************************************************************************/
@@ -1102,6 +1198,8 @@ int main(int argc, char **argv) {
 
   }  /* end of loop on source locations */
 
+  _performGFlowAdjoint ( NULL, NULL, NULL, 0, 0, -1 );
+
   /***************************************************************************/
   /***************************************************************************/
 
@@ -1109,6 +1207,10 @@ int main(int argc, char **argv) {
    * free the allocated memory, finalize
   ***************************************************************************/
   if ( loop != NULL ) fini_3level_ztable ( &loop );
+
+#if _GFLOW_QUDA
+  fini_2level_dtable ( &h_gauge );
+#endif
 
 #ifndef HAVE_TMLQCD_LIBWRAPPER
   free(g_gauge_field);
