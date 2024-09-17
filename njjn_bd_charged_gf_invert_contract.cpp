@@ -70,7 +70,11 @@ extern "C"
 
 #define _PART_PROP   1
 #define _PART_TWOP   1  /* N1, N2 */
-#define _PART_THREEP 0  /* B/Z and D1c/i sequential diagrams */
+#define _PART_THREEP 1  /* B/Z and D1c/i sequential diagrams */
+
+#ifndef _TEST_TIMER
+#  define _TEST_TIMER
+#endif
 
 using namespace cvc;
 
@@ -103,6 +107,10 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
 
 #if defined HAVE_LHPC_AFF
   /* write to AFF file */
+  if ( g_cart_id == 0 && g_verbose > 2 )
+  {
+    fprintf (stdout, "# [reduce_project_write] write aff tag %s    %s %d\n", tag, __FILE__, __LINE__ );
+  }
   exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
 #endif
   if ( exitstatus != 0 ) {
@@ -479,7 +487,14 @@ int main(int argc, char **argv) {
    * set to flowed links from now on, upload gauge field
    ***************************************************************************/
   gauge_param.type = QUDA_FLOWED_LINKS;
+#ifdef _TEST_TIMER
+  gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
   loadGaugeQuda ( (void *)h_gauge, &gauge_param );
+#ifdef _TEST_TIMER
+  gettimeofday ( &tb, (struct timezone *)NULL );
+  show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "loadGaugeQuda", g_cart_id == 0 );
+#endif
 
 
   /***************************************************************************
@@ -613,18 +628,19 @@ int main(int argc, char **argv) {
       /***********************************************************/
       /***********************************************************/
 
+      smear_param.n_steps       = gf_niter;
+      smear_param.epsilon       = gf_dt;
+      smear_param.meas_interval = 1;
+      smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+      smear_param.restart       = QUDA_BOOLEAN_TRUE;
+#ifdef _TEST_TIMER
       gettimeofday ( &ta, (struct timezone *)NULL );
-
-      smear_param.restart = QUDA_BOOLEAN_TRUE;
-
+#endif
       _performGFlowAdjoint ( point_source_flowed, point_source_flowed, &smear_param, gf_niter, gf_nb, gf_ns );
-
+#ifdef _TEST_TIMER
       gettimeofday ( &tb, (struct timezone *)NULL );
-      show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "_performGFlowAdjoint", g_cart_id == 0 );
-
-      // _performGFlowAdjoint ( NULL, NULL, NULL, 0, 0, -1 );
-#if 0
-#endif  // of if 0
+      show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "_performGFlowAdjoint-restart", g_cart_id == 0 );
+#endif
 #endif  // of if _GFLOW_QUDA
 
       /***********************************************************
@@ -632,9 +648,9 @@ int main(int argc, char **argv) {
        ***********************************************************/
       for ( int iflavor = 0; iflavor < 2; iflavor++ ) 
       {
-
+#ifdef _TEST_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
-
+#endif
         /***********************************************************
          * flavor-type point-to-all propagator
          *
@@ -649,11 +665,10 @@ int main(int argc, char **argv) {
           fprintf(stderr, "[njjn_fht_gf_invert_contract] Error from prepare_propagator_from_source, status %d   %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
-      
+#ifdef _TEST_TIMER
         gettimeofday ( &tb, (struct timezone *)NULL );
         show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "prepare_propagator_from_source", g_cart_id == 0 );
-#if 0
-#endif  // of if 0
+#endif
 
         /***********************************************************
          * forward gradient flow at sink
@@ -671,15 +686,19 @@ int main(int argc, char **argv) {
 
         /***********************************************************/
         /***********************************************************/
-
+        smear_param.n_steps       = gf_niter;
+        smear_param.epsilon       = gf_dt;
+        smear_param.meas_interval = 1;
+        smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+        smear_param.restart       = QUDA_BOOLEAN_TRUE;
+#ifdef _TEST_TIMER
         gettimeofday ( &ta, (struct timezone *)NULL );
-
-        smear_param.restart = QUDA_BOOLEAN_TRUE;
-
+#endif
         _performGFlowForward ( propagator[iflavor][isc], propagator[iflavor][isc], &smear_param, 0 );
-
+#ifdef _TEST_TIMER
         gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "_performGFlowForward", g_cart_id == 0 );
+        show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "_performGFlowForward-restart", g_cart_id == 0 );
+#endif
 
 #endif  // of _GFLOW_QUDA
       }  /* end of loop on flavor */
@@ -714,9 +733,9 @@ int main(int argc, char **argv) {
      * loop on flavor combinations
      ***************************************************************************/
     for ( int iflavor = 0; iflavor < 2; iflavor++ ) {
-
+#ifdef _TEST_TIMER
       gettimeofday ( &ta, (struct timezone *)NULL );
-
+#endif
       /***************************************************************************
        * vx holds the x-dependent nucleon-nucleon spin propagator,
        * i.e. a 4x4 complex matrix per space time point
@@ -802,8 +821,10 @@ int main(int argc, char **argv) {
       fini_2level_dtable ( &vx );
       fini_3level_dtable ( &vp );
 
+#ifdef _TEST_TIMER
       gettimeofday ( &tb, (struct timezone *)NULL );
       show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "n1-n2-reduce-project-write", g_cart_id == 0 );
+#endif
 
     }  /* end of loop on flavor */
   
@@ -837,11 +858,19 @@ int main(int argc, char **argv) {
     {
       sprintf ( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, i, gf_tau );
 
+#ifdef _TEST_TIMER
+      gettimeofday ( &tb, (struct timezone *)NULL );
+#endif
       exitstatus = read_lime_contraction ( (double*)(loop_buffer), filename, 144, 0 );
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
        EXIT(12);
       }
+#ifdef _TEST_TIMER
+      gettimeofday ( &tb, (struct timezone *)NULL );
+      show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "read_lime_contraction-loop", g_cart_id == 0 );
+#endif
+
 #pragma omp parallel for
       for ( size_t i = 0; i < VOLUME * 12 * 12; i++ )
       {
@@ -974,47 +1003,55 @@ int main(int argc, char **argv) {
 
               for ( int isc = 0; isc < 12; isc++ )
               {
+                smear_param.n_steps       = gf_niter;
+                smear_param.epsilon       = gf_dt;
+                smear_param.meas_interval = 1;
+                smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+                smear_param.restart       = QUDA_BOOLEAN_TRUE;
+#ifdef _TEST_TIMER
                 gettimeofday ( &ta, (struct timezone *)NULL );
-
-                // loadGaugeQuda ( (void *)h_gauge, &gauge_param );
-                smear_param.restart = QUDA_BOOLEAN_TRUE;
-
+#endif
                 _performGFlowAdjoint ( sequential_source[isc], sequential_source[isc], &smear_param, gf_niter, gf_nb, gf_ns );
-
+#ifdef _TEST_TIMER
                 gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "loadGaugeQuda+++_performGFlowAdjoint", g_cart_id == 0 );
+                show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "_performGFlowAdjoint-restart", g_cart_id == 0 );
+#endif
               }
 
               /***************************************************************************
                * invert the Dirac operator on the sequential source
                ***************************************************************************/
-
+#ifdef _TEST_TIMER
 	      gettimeofday ( &ta, (struct timezone *)NULL );
-
+#endif
               exitstatus = prepare_propagator_from_source ( sequential_propagator, sequential_source, 12, iflavor, 0, 0, NULL,
                   check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
               if ( exitstatus != 0 ) {
                 fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error from prepare_propagator_from_source, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
                 EXIT(123);
               }
-
+#ifdef _TEST_TIMER
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "prepare_propagator_from_source", g_cart_id == 0 );
-  
+#endif
               /***************************************************************************
                * apply forward flow to sequential_propagator
                ***************************************************************************/
               for ( int isc = 0; isc < 12; isc++ )
               {
+                smear_param.n_steps       = gf_niter;
+                smear_param.epsilon       = gf_dt;
+                smear_param.meas_interval = 1;
+                smear_param.smear_type    = QUDA_GAUGE_SMEAR_WILSON_FLOW;
+                smear_param.restart       = QUDA_BOOLEAN_TRUE;
+#ifdef _TEST_TIMER
                 gettimeofday ( &ta, (struct timezone *)NULL );
-
-                // loadGaugeQuda ( (void *)h_gauge, &gauge_param );
-                smear_param.restart = QUDA_BOOLEAN_TRUE;
-
+#endif
                 _performGFlowForward ( sequential_propagator[isc], sequential_propagator[isc], &smear_param, 0 );
-
+#ifdef _TEST_TIMER
                 gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "loadGaugeQuda+++_performGFlowForward", g_cart_id == 0 );
+                show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "_performGFlowForward-restart", g_cart_id == 0 );
+#endif
               }
 
               /***************************************************************************
@@ -1050,8 +1087,9 @@ int main(int argc, char **argv) {
               /***************************************************************************
                * B/D1c/i for uu uu insertion
                ***************************************************************************/
-	        gettimeofday ( &ta, (struct timezone *)NULL );
-
+#ifdef _TEST_TIMER
+              gettimeofday ( &ta, (struct timezone *)NULL );
+#endif
               /***************************************************************************
                * fp2 = b up-after-up-after-up 
                ***************************************************************************/
@@ -1095,7 +1133,7 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t1
                  ***************************************************************************/
-                sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
  
                 /*                                          seq  u   d   */
                 exitstatus = reduce_project_write ( vx, vp, fp2, fp, fp3, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
@@ -1107,7 +1145,7 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t2
                  ***************************************************************************/
-                sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
       
                 exitstatus = reduce_project_write ( vx, vp, fp2, fp, fp3, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
                 if ( exitstatus != 0 ) {
@@ -1118,7 +1156,7 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t1
                  ***************************************************************************/
-                sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
      
                 /*                                          u   seq  d  */
                 exitstatus = reduce_project_write ( vx, vp, fp, fp2, fp3, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
@@ -1130,7 +1168,7 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t1
                  ***************************************************************************/
-                sprintf(aff_tag, "/%s/Gf_%s/Gi_%s/t1", aff_tag_prefix3, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix3, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
    
                 /*                                          u   d    seq */
                 exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
@@ -1140,14 +1178,13 @@ int main(int argc, char **argv) {
                 }
 
               }} // end of loop on Dirac gamma structures
-     
+#ifdef _TEST_TIMER
               gettimeofday ( &tb, (struct timezone *)NULL );
               show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "b-d-reduce-project-write", g_cart_id == 0 );
-  
+#endif
               /***************************************************************************/
               /***************************************************************************/
 
-  
             }  /* end of loop on loop flavor */
               
             /***************************************************************************/
