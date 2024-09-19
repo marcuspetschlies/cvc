@@ -405,7 +405,7 @@ int main(int argc, char **argv) {
    *   mzz = space-time diagonal part of the Dirac matrix
    *   l   = light quark mass
    ***************************************************************************/
-  exitstatus = init_clover ( &lmzz, &lmzzinv, gauge_field_with_phase );
+  exitstatus = init_clover ( &g_clover, &lmzz, &lmzzinv, gauge_field_with_phase, g_mu, g_csw );
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[njjn_w_invert_contract] Error from init_clover, status was %d %s %d\n", exitstatus, __FILE__, __LINE__ );
     EXIT(1);
@@ -1307,7 +1307,7 @@ int main(int argc, char **argv) {
   if ( gauge_field_smeared    != NULL ) free ( gauge_field_smeared );
 
   /* free clover matrix terms */
-  fini_clover ( );
+  fini_clover ( &lmzz, &lmzzinv );
 
   /* free lattice geometry arrays */
   free_geometry();
