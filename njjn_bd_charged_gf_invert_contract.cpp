@@ -515,7 +515,7 @@ int main(int argc, char **argv) {
     fprintf (stdout, "# [njjn_bd_charged_gf_invert_contract] gf_nb = %d   %s %d\n", gf_nb, __FILE__, __LINE__ );
   }
 
-#endif
+#endif  // of if _GFLOW_QUDA
 
   /***************************************************************************
    * loop on source locations
@@ -590,7 +590,7 @@ int main(int argc, char **argv) {
     /***************************************************************************
      ***************************************************************************
      **
-     ** Part IIa
+     ** _PART_PROP
      **
      ** point-to-all propagators with source
      **
@@ -662,12 +662,12 @@ int main(int argc, char **argv) {
                 0, 0, NULL, check_propagator_residual, gauge_field_with_phase, lmzz, NULL );
 
         if(exitstatus != 0) {
-          fprintf(stderr, "[njjn_fht_gf_invert_contract] Error from prepare_propagator_from_source, status %d   %s %d\n", exitstatus, __FILE__, __LINE__);
+          fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from prepare_propagator_from_source, status %d   %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(12);
         }
 #ifdef _TEST_TIMER
         gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "prepare_propagator_from_source", g_cart_id == 0 );
+        show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "prepare_propagator_from_source", g_cart_id == 0 );
 #endif
 
         /***********************************************************
@@ -697,7 +697,7 @@ int main(int argc, char **argv) {
         _performGFlowForward ( propagator[iflavor][isc], propagator[iflavor][isc], &smear_param, 0 );
 #ifdef _TEST_TIMER
         gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "_performGFlowForward-restart", g_cart_id == 0 );
+        show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "_performGFlowForward-restart", g_cart_id == 0 );
 #endif
 
 #endif  // of _GFLOW_QUDA
@@ -1050,7 +1050,7 @@ int main(int argc, char **argv) {
                 _performGFlowForward ( sequential_propagator[isc], sequential_propagator[isc], &smear_param, 0 );
 #ifdef _TEST_TIMER
                 gettimeofday ( &tb, (struct timezone *)NULL );
-                show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "_performGFlowForward-restart", g_cart_id == 0 );
+                show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "_performGFlowForward-restart", g_cart_id == 0 );
 #endif
               }
 
