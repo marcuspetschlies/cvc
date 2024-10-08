@@ -1171,7 +1171,7 @@ int main(int argc, char **argv) {
                 sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix3, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
    
                 /*                                          u   d    seq */
-                exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+                exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(48);
