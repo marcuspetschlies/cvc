@@ -87,7 +87,7 @@ typedef int ( * reduction_operation ) (double**, fermion_propagator_type*, fermi
  * 
  ***************************************************************************/
 static inline int reduce_project_write ( double ** vx, double *** vp, fermion_propagator_type * fa, fermion_propagator_type * fb, fermion_propagator_type * fc, reduction_operation reduce,
-    struct AffWriter_s *affw, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
+    void * writer, char * tag, int (*momentum_list)[3], int momentum_number, int const nd, unsigned int const N, int const io_proc ) {
 
   int exitstatus;
 
@@ -105,18 +105,22 @@ static inline int reduce_project_write ( double ** vx, double *** vp, fermion_pr
     return( 2 );
   }
 
-#if defined HAVE_LHPC_AFF
-  /* write to AFF file */
   if ( g_cart_id == 0 && g_verbose > 2 )
   {
-    fprintf (stdout, "# [reduce_project_write] write aff tag %s    %s %d\n", tag, __FILE__, __LINE__ );
+    fprintf (stdout, "# [reduce_project_write] write tag %s    %s %d\n", tag, __FILE__, __LINE__ );
   }
-  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s *)affw, tag, momentum_list, momentum_number, io_proc );
+
+#if defined HAVE_HDF5
+  exitstatus = contract_vn_write_h5 ( vp, nd, (char *)writer, tag, momentum_list, momentum_number, io_proc );
+#elif defined HAVE_LHPC_AFF
+  /* write to AFF file */
+  exitstatus = contract_vn_write_aff ( vp, nd, (struct AffWriter_s*)writer, tag, momentum_list, momentum_number, io_proc );
 #endif
   if ( exitstatus != 0 ) {
     fprintf(stderr, "[reduce_project_write] Error from contract_vn_write for tag %s, status was %d %s %d\n", tag, exitstatus, __FILE__, __LINE__ );
     return( 3 );
   }
+
 
   return ( 0 );
 
@@ -194,9 +198,8 @@ int main(int argc, char **argv) {
   int const    gamma_f1_list[gamma_f1_number]            = { 14 };
   double const gamma_f1_sign[gamma_f1_number]            = { +1 };
 
-#ifdef HAVE_LHPC_AFF
+#if ( defined HAVE_LHPC_AFF ) &&  ! (defined HAVE_HDF5 )
   struct AffWriter_s *affw = NULL;
-  char aff_tag[400];
 #endif
 
 #ifdef HAVE_MPI
@@ -551,8 +554,36 @@ int main(int argc, char **argv) {
      *
      * one data file per source position
      ***************************************************************************/
-    if(io_proc == 2) {
-#if defined HAVE_LHPC_AFF
+    void * writer = (void *)NULL;
+    if(io_proc == 2) 
+    {
+#if defined HAVE_HDF5
+      sprintf(filename, "%s.%.4d.t%dx%dy%dz%d.h5", outfile_prefix, Nconf, gsx[0], gsx[1], gsx[2], gsx[3]);
+      fprintf(stdout, "# [njjn_bc_charged_gf_invert_contract] writing data to file %s\n", filename);
+
+      int ncdim = 2;
+      int cdim[2] = { g_source_momentum_number, 3 };
+      char tag[100];
+      sprintf ( tag, "/src_mom" );
+
+      exitstatus = write_h5_contraction ( g_source_momentum_list[0], NULL, filename, tag, "int", ncdim, cdim );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[njjn_bc_charged_gf_invert_contract] Error from write_h5_contraction,  status %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(124);
+      }
+
+      cdim[0] = g_sink_momentum_number;
+      sprintf ( tag, "/snk_mom" );
+
+      exitstatus = write_h5_contraction ( g_sink_momentum_list[0], NULL, filename, tag, "int", ncdim, cdim );
+      if( exitstatus != 0 ) {
+        fprintf(stderr, "[njjn_bc_charged_gf_invert_contract] Error from write_h5_contraction,  status %d %s %d\n", exitstatus, __FILE__, __LINE__);
+        EXIT(124);
+      }
+
+      writer = (void *)filename;
+
+#elif defined HAVE_LHPC_AFF
     /***************************************************************************
      * writer for aff output file
      * only I/O process id 2 opens a writer
@@ -565,6 +596,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from aff_writer, status was %s %s %d\n", aff_status_str, __FILE__, __LINE__);
         EXIT(15);
       }
+
+      writer = (void *)affw;
 #else
       fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error, no outupt variant selected %s %d\n",  __FILE__, __LINE__);
       EXIT(15);
@@ -574,7 +607,7 @@ int main(int argc, char **argv) {
     double * point_source_flowed = init_1level_dtable ( _GSI(VOLUME) );
     if ( point_source_flowed == NULL )
     {
-      fprintf ( stderr, "[njjn_fht_gf_invert_contract] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
+      fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error from init_level_table    %s %d\n", __FILE__, __LINE__ );
       EXIT(2);
     }
 
@@ -681,7 +714,7 @@ int main(int argc, char **argv) {
         loadGaugeQuda ( (void *)h_gauge, &gauge_param );
 
         gettimeofday ( &tb, (struct timezone *)NULL );
-        show_time ( &ta, &tb, "njjn_fht_gf_invert_contract", "loadGaugeQuda", g_cart_id == 0 );
+        show_time ( &ta, &tb, "njjn_bd_charged_gf_invert_contract", "loadGaugeQuda", g_cart_id == 0 );
 #endif  // of if 0
 
         /***********************************************************/
@@ -762,8 +795,8 @@ int main(int argc, char **argv) {
        *
        ***************************************************************************/
 
-      char  aff_tag_prefix[200];
-      sprintf ( aff_tag_prefix, "/N-N/%c%c%c/gf%6.4f", flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor], gf_tau);
+      char  tag_prefix[200], tag[400];
+      sprintf ( tag_prefix, "/N-N/%c%c%c/gf%6.4f", flavor_tag[iflavor], flavor_tag[1-iflavor], flavor_tag[iflavor], gf_tau);
        
       /***************************************************************************
        * fill the fermion propagator fp with the 12 spinor fields
@@ -797,9 +830,9 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * diagram n1
          ***************************************************************************/
-        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+        sprintf(tag, "%s/Gi_%s/Gf_%s/t1", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
-        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
+        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v5, writer, tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(48);
@@ -808,9 +841,9 @@ int main(int argc, char **argv) {
         /***************************************************************************
          * diagram n2
          ***************************************************************************/
-        sprintf(aff_tag, "%s/Gi_%s/Gf_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
+        sprintf(tag, "%s/Gi_%s/Gf_%s/t2", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ]);
 
-        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, affw, aff_tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
+        exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp, contract_v6, writer, tag, g_source_momentum_list, g_source_momentum_number, 16, VOLUME, io_proc );
         if ( exitstatus != 0 ) {
           fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
           EXIT(48);
@@ -1061,23 +1094,23 @@ int main(int argc, char **argv) {
                ***************************************************************************/
               char correlator_tag[20] = "N-qbGqqbGq-N";
           
-              char aff_tag_prefix[200], aff_tag_prefix2[200], aff_tag_prefix3[200];
+              char tag_prefix[200], tag_prefix2[200], tag_prefix3[200], tag[400];
 
-              sprintf ( aff_tag_prefix, "/%s/%c%c%c%c-f%c-f%c/gf%6.4f/nsample%d/Gc_%s",
+              sprintf ( tag_prefix, "/%s/%c%c%c%c-f%c-f%c/gf%6.4f/nsample%d/Gc_%s",
                       correlator_tag, 
                       sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iloop_flavor], flavor_tag[1-iflavor],
                       flavor_tag[iflavor],
                       flavor_tag[1-iflavor],
                       gf_tau, g_nsample, sequential_gamma_tag[igamma] );
 
-              sprintf ( aff_tag_prefix2, "/%s/f%c-%c%c%c%c-f%c/gf%6.4f/nsample%d/Gc_%s",
+              sprintf ( tag_prefix2, "/%s/f%c-%c%c%c%c-f%c/gf%6.4f/nsample%d/Gc_%s",
                       correlator_tag,
                       flavor_tag[iflavor],
                       sequential_propagator_name, flavor_tag[iflavor], flavor_tag[iloop_flavor], flavor_tag[1-iflavor],
                       flavor_tag[1-iflavor],
                       gf_tau, g_nsample, sequential_gamma_tag[igamma] );
 
-              sprintf ( aff_tag_prefix3, "/%s/f%c-f%c-%c%c%c%c/gf%6.4f/nsample%d/Gc_%s",
+              sprintf ( tag_prefix3, "/%s/f%c-f%c-%c%c%c%c/gf%6.4f/nsample%d/Gc_%s",
                       correlator_tag,
                       flavor_tag[iflavor],
                       flavor_tag[1-iflavor],
@@ -1133,10 +1166,10 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t1
                  ***************************************************************************/
-                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(tag, "%s/Gf_%s/Gi_%s/t1", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
  
                 /*                                          seq  u   d   */
-                exitstatus = reduce_project_write ( vx, vp, fp2, fp, fp3, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+                exitstatus = reduce_project_write ( vx, vp, fp2, fp, fp3, contract_v5, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(48);
@@ -1145,9 +1178,9 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t2
                  ***************************************************************************/
-                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t2", aff_tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(tag, "%s/Gf_%s/Gi_%s/t2", tag_prefix, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
       
-                exitstatus = reduce_project_write ( vx, vp, fp2, fp, fp3, contract_v6, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+                exitstatus = reduce_project_write ( vx, vp, fp2, fp, fp3, contract_v6, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(48);
@@ -1156,10 +1189,10 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t1
                  ***************************************************************************/
-                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(tag, "%s/Gf_%s/Gi_%s/t1", tag_prefix2, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
      
                 /*                                          u   seq  d  */
-                exitstatus = reduce_project_write ( vx, vp, fp, fp2, fp3, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+                exitstatus = reduce_project_write ( vx, vp, fp, fp2, fp3, contract_v5, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(48);
@@ -1168,10 +1201,10 @@ int main(int argc, char **argv) {
                 /***************************************************************************
                  * diagram t1
                  ***************************************************************************/
-                sprintf(aff_tag, "%s/Gf_%s/Gi_%s/t1", aff_tag_prefix3, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
+                sprintf(tag, "%s/Gf_%s/Gi_%s/t1", tag_prefix3, gamma_id_to_Cg_ascii[ gamma_f1_list[if2] ], gamma_id_to_Cg_ascii[ gamma_f1_list[if1] ] );
    
                 /*                                          u   d    seq */
-                exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v5, affw, aff_tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
+                exitstatus = reduce_project_write ( vx, vp, fp, fp3, fp2, contract_v5, writer, tag, g_sink_momentum_list, g_sink_momentum_number, 16, VOLUME, io_proc );
                 if ( exitstatus != 0 ) {
                   fprintf(stderr, "[njjn_bd_charged_gf_invert_contract] Error from reduce_project_write, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
                   EXIT(48);
@@ -1215,7 +1248,7 @@ int main(int argc, char **argv) {
     free_fp_field ( &fp2 );
     free_fp_field ( &fp3 );
 
-#ifdef HAVE_LHPC_AFF
+#if defined HAVE_LHPC_AFF && not defined HAVE_HDF5
     /***************************************************************************
      * I/O process id 2 closes its AFF writer
      ***************************************************************************/
