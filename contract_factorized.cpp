@@ -345,14 +345,14 @@ int contract_vn_write_h5 (double *** const vp, int const n, char * const filenam
     if( dbuffer == NULL ) 
     {
       fprintf(stderr, "[contract_vn_write_h5] Error from init_3level_dtable %s %d\n", __FILE__, __LINE__);
-      return(6);
+      return(1);
     }
   } else if (io_proc == 1 ) {
     dbuffer = init_3level_dtable ( 1, 1, 2 );
     if( dbuffer == NULL ) 
     {
       fprintf(stderr, "[contract_vn_write_h5] Error from init_3level_dtable  %s %d\n", __FILE__, __LINE__);
-      return(6);
+      return(2);
     }
   }
 
@@ -383,7 +383,7 @@ int contract_vn_write_h5 (double *** const vp, int const n, char * const filenam
     if(exitstatus != 0 )
     {
       fprintf(stderr, "[contract_vn_write_h5] Error from write_h5_contraction, status was %d %s %d\n", exitstatus, __FILE__, __LINE__);
-      return(3);
+      return(4);
     }
   }  /* if io_proc == 2 */
   if ( io_proc > 0 ) {
