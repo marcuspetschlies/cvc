@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 
   const char flavor_tag[4] = { 'u', 'd', 's', 'c' };
 
-  const int sequential_gamma_sets = 4;
+  const int sequential_gamma_sets = 1;
   int const sequential_gamma_num[4] = {4, 4, 1, 1};
 
   char const sequential_gamma_tag[4][3] = { "vv", "aa", "ss", "pp" };
@@ -188,8 +188,8 @@ int main(int argc, char **argv) {
   int first_solve_dummy = 1;
 
   /* for gradient flow */
-  int gf_niter = 20;
-  int gf_ns = 2;
+  int gf_niter = 2;
+  int gf_ns = 1;
   double gf_dt = 0.01;
   double gf_tau = 0.;
   int gf_nb;
@@ -889,12 +889,13 @@ int main(int argc, char **argv) {
 
     for ( int i = 0; i < g_nsample; i++ )
     {
-      sprintf ( filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, i, gf_tau );
+      char loop_filename[200];
+      sprintf ( loop_filename, "loop.up.c%d.N%d.tau%6.4f.lime", Nconf, i, gf_tau );
 
 #ifdef _TEST_TIMER
       gettimeofday ( &tb, (struct timezone *)NULL );
 #endif
-      exitstatus = read_lime_contraction ( (double*)(loop_buffer), filename, 144, 0 );
+      exitstatus = read_lime_contraction ( (double*)(loop_buffer), loop_filename, 144, 0 );
       if ( exitstatus != 0  ) {
         fprintf ( stderr, "[njjn_bd_charged_gf_invert_contract] Error read_lime_contraction, status was %d  %s %d\n", exitstatus, __FILE__, __LINE__ );
        EXIT(12);
