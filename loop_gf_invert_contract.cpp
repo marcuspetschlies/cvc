@@ -91,7 +91,7 @@ using namespace cvc;
  * helper message
  ***************************************************************************/
 void usage() {
-  fprintf(stdout, "Code for mixing probe correlators with mixing op at source\n");
+  fprintf(stdout, "Code for loop calculation\n");
   fprintf(stdout, "Usage:    [options]\n");
   fprintf(stdout, "Options:  -f input <filename> : input filename for [default cpff.input]\n");
   fprintf(stdout, "          -c                  : check propagator residual [default false]\n");
@@ -127,6 +127,8 @@ int main(int argc, char **argv) {
   int gf_niter_list[MAX_NUM_GF_NSTEP];
   double gf_dt_list[MAX_NUM_GF_NSTEP];
 
+#if 0
+  // example setting
   gf_nstep = 10;
 
   gf_niter_list[0] = 2;
@@ -150,7 +152,8 @@ int main(int argc, char **argv) {
   gf_dt_list[7] = 0.01;
   gf_dt_list[8] = 0.01;
   gf_dt_list[9] = 0.01;
-       
+#endif  // of if 0
+
 #ifdef HAVE_LHPC_AFF
   struct AffWriter_s *affw = NULL;
 #endif
@@ -188,7 +191,7 @@ int main(int argc, char **argv) {
   /***************************************************************************
    * read input and set the default values
    ***************************************************************************/
-  if(filename_set==0) strcpy(filename, "twopt.input");
+  if(filename_set==0) strcpy(filename, "cvc.input");
   read_input_parser(filename);
 
 #ifdef HAVE_TMLQCD_LIBWRAPPER
